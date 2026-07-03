@@ -82,12 +82,6 @@ const FONTS = ["Inter", "Lato", "Roboto", "Playfair Display", "Montserrat"];
 
 const TOTAL_STEPS = 5;
 
-const CATEGORY_LABEL: Record<AppCategory, string> = {
-  booking: "Booking App",
-  crm: "CRM",
-  inventory: "Inventory App",
-  portal: "Customer Portal",
-};
 
 interface FormState extends Omit<IntakeData, "features"> {
   features: string[];
