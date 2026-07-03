@@ -199,7 +199,23 @@ export function createServerSupabaseClient() {
   );
 }
 
-export { createServerSupabaseClient as createServerBaseClient };
+// Service-role client for admin API routes (bypasses RLS)
+// Uses anon key server-side — sufficient for Option B schemas where grants are explicit
+export function createServiceRoleClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      db: { schema: SCHEMA },
+      cookies: { get: () => undefined, set: () => {}, remove: () => {} },
+    }
+  );
+}
+
+export {
+  createServerSupabaseClient as createServerBaseClient,
+  createServerSupabaseClient as createClient,
+};
 `;
 
   const mainFile = out.find(f => f.path === 'lib/supabase.ts');
@@ -210,7 +226,130 @@ export { createServerSupabaseClient as createServerBaseClient };
   if (serverFile) serverFile.content = serverClientContent;
   else out.push({ path: 'lib/supabase-server.ts', content: serverClientContent });
 
-  // ── Inject missing components (truncation fallback) ─────────────────────────
+  // ── Inject missing admin components (truncation fallbacks) ──────────────────
+  // Remove truncated AdminSchedule if it exists but is incomplete (no export default)
+  const schedIdx = out.findIndex(f => f.path === 'components/admin/AdminSchedule.tsx');
+  const schedFile = schedIdx >= 0 ? out[schedIdx] : null;
+  if (!schedFile || !schedFile.content.includes('export default')) {
+    if (schedIdx >= 0) out.splice(schedIdx, 1);
+    out.push({ path: 'components/admin/AdminSchedule.tsx', content: `"use client";
+import { useState } from "react";
+export default function AdminSchedule({ scheduledClasses: initial, classTypes, trainers }: { scheduledClasses?: any[], classTypes?: any[], trainers?: any[] }) {
+  const [classes] = useState(initial ?? []);
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Class Schedule</h2>
+        <button className="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600">+ Add Class</button>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200"><tr>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Class</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Trainer</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Day & Time</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Location</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Capacity</th>
+          </tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {classes.length === 0
+              ? <tr><td colSpan={5} className="text-center py-12 text-gray-400">No classes scheduled.</td></tr>
+              : classes.map((c: any) => {
+                  const dt = new Date(c.start_time);
+                  const end = new Date(c.end_time);
+                  const fmt = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <tr key={c.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-gray-900">{c.class_types?.name ?? '—'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{c.trainers?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{days[dt.getDay()]} {fmt(dt)}–{fmt(end)}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.location ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.capacity ?? '—'}</td>
+                    </tr>
+                  );
+                })
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}` });
+  }
+
+  if (!has('components/admin/AdminTrainers.tsx')) {
+    out.push({ path: 'components/admin/AdminTrainers.tsx', content: `"use client";
+import { useState } from "react";
+export default function AdminTrainers({ initialTrainers }: { initialTrainers?: any[] }) {
+  const [trainers] = useState(initialTrainers ?? []);
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Trainers</h2>
+        <button className="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600">+ Add Trainer</button>
+      </div>
+      {trainers.length === 0 ? <p className="text-gray-500 text-center py-12">No trainers yet.</p> : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {trainers.map((t: any) => (
+            <div key={t.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg">{(t.name||'?')[0]}</div>
+                <div><p className="font-semibold text-gray-900">{t.name}</p><p className="text-xs text-gray-500">{t.specialty}</p></div>
+                <span className={\`ml-auto text-xs px-2 py-0.5 rounded-full \${t.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}\`}>{t.is_active !== false ? 'Active' : 'Inactive'}</span>
+              </div>
+              {t.bio && <p className="text-sm text-gray-500 mt-3">{t.bio}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}` });
+  }
+
+  if (!has('components/admin/AdminMembers.tsx')) {
+    out.push({ path: 'components/admin/AdminMembers.tsx', content: `"use client";
+import { useState } from "react";
+export default function AdminMembers({ initialMembers }: { initialMembers?: any[] }) {
+  const [members] = useState(initialMembers ?? []);
+  const [search, setSearch] = useState('');
+  const filtered = members.filter((m: any) => !search || (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.email||'').toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-xl font-bold text-gray-900">Members</h2>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search members..." className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-200"><tr>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Name</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Phone</th>
+            <th className="text-left px-4 py-3 font-semibold text-gray-600">Joined</th>
+          </tr></thead>
+          <tbody className="divide-y divide-gray-100">
+            {filtered.length === 0 ? <tr><td colSpan={4} className="text-center py-12 text-gray-400">No members found.</td></tr> :
+              filtered.map((m: any) => (
+                <tr key={m.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900">{m.name}</td>
+                  <td className="px-4 py-3 text-gray-600">{m.email}</td>
+                  <td className="px-4 py-3 text-gray-600">{m.phone || '—'}</td>
+                  <td className="px-4 py-3 text-gray-500">{m.joined_at ? new Date(m.joined_at).toLocaleDateString() : '—'}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}` });
+  }
+
   if (!has('components/admin/StaffManager.tsx')) {
     out.push({
       path: 'components/admin/StaffManager.tsx',
@@ -244,6 +383,17 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
   );
 }`,
     });
+  }
+
+  // ── Ensure package.json has lucide-react (Claude often imports it without listing it) ──
+  const pkgFile = out.find(f => f.path === 'package.json');
+  if (pkgFile) {
+    try {
+      const pkg = JSON.parse(pkgFile.content);
+      pkg.dependencies = pkg.dependencies || {};
+      if (!pkg.dependencies['lucide-react']) pkg.dependencies['lucide-react'] = '^0.344.0';
+      pkgFile.content = JSON.stringify(pkg, null, 2);
+    } catch { /* leave as-is if JSON parse fails */ }
   }
 
   // ── Remove .env.production — we use Vercel env vars instead ─────────────────
@@ -322,8 +472,8 @@ ${migrationSql}
 GRANT USAGE ON SCHEMA "${SCHEMA}" TO anon, authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon, authenticated;
 GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "${SCHEMA}" TO authenticated;
--- anon can insert appointments (public booking form)
-GRANT INSERT ON "${SCHEMA}".appointments TO anon;
+-- anon can insert into public-facing booking tables (appointments, bookings, enquiries, leads, etc.)
+GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
 `;
 
     try {
