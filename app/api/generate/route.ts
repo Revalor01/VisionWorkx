@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
     try {
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
-        max_tokens: 8192,
+        max_tokens: 32000,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
       });
@@ -169,23 +169,19 @@ export async function POST(req: NextRequest) {
         .update({ generated_code: fullText, status: "ready" })
         .eq("id", appId);
 
-      // Kick off the deploy-app Edge Function (fire-and-forget).
-      // The pg_net database trigger is a fallback; this ensures the deploy
-      // starts even if pg_net is not configured.
-      const fnUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/deploy-app`
-        : null;
-      const fnKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
-      if (fnUrl && fnKey && fullText) {
-        fetch(fnUrl, {
+      // Kick off deploy pipeline (fire-and-forget via internal API route).
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+      if (fullText) {
+        fetch(`${appUrl}/api/deploy`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${fnKey}`,
+            "Authorization": `Bearer ${serviceKey}`,
           },
-          body: JSON.stringify({ appId }),
+          body: JSON.stringify({ appId, _internal: true }),
         }).catch((err: unknown) =>
-          console.error("[api/generate] deploy-app trigger failed:", err)
+          console.error("[api/generate] deploy trigger failed:", err)
         );
       }
     } catch (err) {
