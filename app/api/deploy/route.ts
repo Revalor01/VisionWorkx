@@ -132,10 +132,7 @@ function parseGeneratedCode(raw: string) {
   return files;
 }
 
-function patchFiles(
-  files: { path: string; content: string }[],
-  schema: string
-) {
+function patchFiles(files: { path: string; content: string }[]) {
   const has = (p: string) => files.some((f) => f.path === p);
   const out = files.map((f) => ({ ...f }));
 
@@ -515,7 +512,7 @@ GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
   // 4. Parse + patch files
   const projectName = slugify(app.name, appId);
   const rawFiles = parseGeneratedCode(app.generated_code);
-  const files = patchFiles(rawFiles, SCHEMA);
+  const files = patchFiles(rawFiles);
 
   // 5. Mark deploying
   await supabasePatch("apps", appId, { status: "deploying" });
@@ -685,11 +682,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url });
   } catch (err) {
     console.error("[api/deploy]", err);
-    await serviceClient
-      .from("apps")
-      .update({ status: "failed" })
-      .eq("id", appId)
-      .catch(() => {});
+    try {
+      await serviceClient.from("apps").update({ status: "failed" }).eq("id", appId);
+    } catch { /* best-effort */ }
     return NextResponse.json(
       { error: (err as Error).message },
       { status: 500 }
