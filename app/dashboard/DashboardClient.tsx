@@ -69,6 +69,7 @@ const STATUS_CONFIG: Record<
 
 interface DashboardClientProps {
   userId: string;
+  userEmail: string | null;
   profile: {
     plan: Plan;
     fullName: string | null;
@@ -82,6 +83,7 @@ interface DashboardClientProps {
 
 export default function DashboardClient({
   userId,
+  userEmail,
   profile,
   initialApps,
 }: DashboardClientProps) {
@@ -126,7 +128,7 @@ export default function DashboardClient({
 
   return (
     <div className="min-h-screen bg-off-white flex flex-col">
-      <AppNavbar userName={profile.fullName} plan={profile.plan} />
+      <AppNavbar userName={profile.fullName} plan={profile.plan} userEmail={userEmail} />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
         {/* ── Header ── */}

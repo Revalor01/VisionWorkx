@@ -36,6 +36,7 @@ export default async function GeneratePage() {
     <Suspense fallback={<GenerateSkeleton />}>
       <GenerateClient
         userName={profile?.full_name ?? null}
+        userEmail={user.email ?? null}
         plan={(profile?.plan ?? "free") as import("@/lib/database.types").Plan}
       />
     </Suspense>

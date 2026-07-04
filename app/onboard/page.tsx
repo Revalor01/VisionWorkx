@@ -43,6 +43,7 @@ export default async function OnboardPage() {
     <OnboardForm
       userId={user.id}
       userName={profile?.full_name ?? null}
+      userEmail={user.email ?? null}
       plan={plan as "free" | "starter" | "growth" | "pro"}
     />
   );

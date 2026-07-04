@@ -77,6 +77,7 @@ export default async function BillingPage() {
         profile={{
           plan: profile?.plan ?? "free",
           fullName: profile?.full_name ?? null,
+          email: user.email ?? null,
         }}
         subscription={
           subscription

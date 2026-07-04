@@ -7,7 +7,7 @@ import AppNavbar from "@/components/nav/AppNavbar";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
 
 interface BillingClientProps {
-  profile: { plan: Plan; fullName: string | null };
+  profile: { plan: Plan; fullName: string | null; email?: string | null };
   subscription: {
     plan: Exclude<Plan, "free"> | null;
     status: SubscriptionStatus | null;
@@ -152,7 +152,7 @@ export default function BillingClient({
 
   return (
     <div className="min-h-screen bg-off-white flex flex-col">
-      <AppNavbar userName={profile.fullName} plan={profile.plan} />
+      <AppNavbar userName={profile.fullName} plan={profile.plan} userEmail={profile.email} />
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">

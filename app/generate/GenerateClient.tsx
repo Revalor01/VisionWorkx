@@ -35,9 +35,11 @@ const STEPS = [
 
 export default function GenerateClient({
   userName,
+  userEmail,
   plan,
 }: {
   userName: string | null;
+  userEmail?: string | null;
   plan: import("@/lib/database.types").Plan;
 }) {
   const searchParams = useSearchParams();
@@ -191,7 +193,7 @@ export default function GenerateClient({
   if (!appId) {
     return (
       <div className="min-h-screen bg-off-white flex flex-col">
-        <AppNavbar userName={userName} plan={plan} />
+        <AppNavbar userName={userName} plan={plan} userEmail={userEmail} />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
             <div className="text-5xl mb-4">⚠️</div>

@@ -101,10 +101,12 @@ const DEFAULT_FORM: FormState = {
 export default function OnboardForm({
   userId,
   userName,
+  userEmail,
   plan,
 }: {
   userId: string;
   userName: string | null;
+  userEmail?: string | null;
   plan: Plan;
 }) {
   const router = useRouter();
@@ -211,7 +213,7 @@ export default function OnboardForm({
 
   return (
     <div className="min-h-screen bg-off-white flex flex-col">
-      <AppNavbar userName={userName} plan={plan} />
+      <AppNavbar userName={userName} plan={plan} userEmail={userEmail} />
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-10">
         {/* Progress bar */}

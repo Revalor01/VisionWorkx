@@ -29,6 +29,7 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       userId={user.id}
+      userEmail={user.email ?? null}
       profile={{
         plan: profile?.plan ?? "free",
         fullName: profile?.full_name ?? null,

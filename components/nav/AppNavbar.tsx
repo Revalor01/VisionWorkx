@@ -13,13 +13,18 @@ const PLAN_COLORS: Record<Plan, string> = {
   pro: "bg-amber-500",
 };
 
+const ADMIN_EMAIL = "sawilliams721@gmail.com";
+
 export default function AppNavbar({
   userName,
   plan,
+  userEmail,
 }: {
   userName: string | null;
   plan: Plan;
+  userEmail?: string | null;
 }) {
+  const isAdmin = userEmail === ADMIN_EMAIL;
   const router = useRouter();
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -35,6 +40,7 @@ export default function AppNavbar({
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/billing", label: "Billing" },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
   return (
