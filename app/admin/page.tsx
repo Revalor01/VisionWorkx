@@ -34,7 +34,7 @@ export default async function AdminPage() {
       .select("user_id, plan, status, current_period_end"),
   ]);
 
-  // Fetch user emails from auth.users via Management API
+  // Fetch user emails directly from auth.users via SQL
   let userEmails: Record<string, string> = {};
   try {
     const mgmtToken = process.env.SUPABASE_MANAGEMENT_TOKEN;
@@ -42,13 +42,19 @@ export default async function AdminPage() {
     const ref = new URL(supabaseUrl).hostname.split(".")[0];
     if (mgmtToken) {
       const res = await fetch(
-        `https://api.supabase.com/v1/projects/${ref}/auth/users?per_page=1000`,
-        { headers: { Authorization: `Bearer ${mgmtToken}` } }
+        `https://api.supabase.com/v1/projects/${ref}/database/query`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${mgmtToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: "SELECT id, email FROM auth.users" }),
+        }
       );
       if (res.ok) {
-        const data = await res.json();
-        const users: { id: string; email: string }[] = data.users ?? [];
-        userEmails = Object.fromEntries(users.map((u) => [u.id, u.email]));
+        const rows: { id: string; email: string }[] = await res.json();
+        userEmails = Object.fromEntries(rows.map((r) => [r.id, r.email]));
       }
     }
   } catch { /* non-fatal */ }
