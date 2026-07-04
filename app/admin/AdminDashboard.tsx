@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import type { App, AppCategory, AppStatus, Plan, Profile, Subscription } from "@/lib/database.types";
+import type { PaymentRow } from "@/app/api/admin/payments/route";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ const PLAN_STYLE: Record<Plan, string> = {
   pro:      "bg-amber-100 text-amber-700",
 };
 
-type Tab = "overview" | "apps" | "users";
+type Tab = "overview" | "apps" | "users" | "payments";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,28 @@ export default function AdminDashboard({
   const [userSearch, setUserSearch] = useState("");
   const [redeploying, setRedeploying] = useState<Record<string, boolean>>({});
   const [redeployMessages, setRedeployMessages] = useState<Record<string, string>>({});
+
+  // ── Payments state ─────────────────────────────────────────────
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [paymentStats, setPaymentStats] = useState<{ totalRevenue: number; failedCount: number } | null>(null);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsError, setPaymentsError] = useState("");
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentRow["status"] | "all">("all");
+
+  useEffect(() => {
+    if (tab !== "payments" || payments.length > 0) return;
+    setPaymentsLoading(true);
+    fetch("/api/admin/payments")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setPaymentsError(d.error); return; }
+        setPayments(d.rows ?? []);
+        setPaymentStats({ totalRevenue: d.totalRevenue, failedCount: d.failedCount });
+      })
+      .catch(() => setPaymentsError("Failed to load payments"))
+      .finally(() => setPaymentsLoading(false));
+  }, [tab, payments.length]);
 
   // ── Stats ──────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -163,7 +186,7 @@ export default function AdminDashboard({
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-fit">
-          {(["overview", "apps", "users"] as Tab[]).map((t) => (
+          {(["overview", "apps", "users", "payments"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -336,6 +359,156 @@ export default function AdminDashboard({
             </div>
           </div>
         )}
+
+        {/* ── Payments ── */}
+        {tab === "payments" && (
+          <div className="space-y-4">
+            {paymentsLoading && (
+              <div className="text-center py-16 text-gray-400 text-sm animate-pulse">Loading payments from Stripe…</div>
+            )}
+            {paymentsError && (
+              <div className="text-center py-16 text-red-500 text-sm">{paymentsError}</div>
+            )}
+            {!paymentsLoading && !paymentsError && (
+              <>
+                {/* Payment stats */}
+                {paymentStats && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <StatCard
+                      label="Total Collected"
+                      value={`$${(paymentStats.totalRevenue / 100).toLocaleString()}`}
+                      accent="green"
+                    />
+                    <StatCard
+                      label="Total Invoices"
+                      value={payments.length}
+                    />
+                    <StatCard
+                      label="Paid"
+                      value={payments.filter((p) => p.status === "paid").length}
+                      accent="green"
+                    />
+                    <StatCard
+                      label="Failed / Open"
+                      value={paymentStats.failedCount}
+                      accent={paymentStats.failedCount > 0 ? "red" : undefined}
+                    />
+                  </div>
+                )}
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    placeholder="Search by email or name…"
+                    value={paymentSearch}
+                    onChange={(e) => setPaymentSearch(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                  />
+                  <select
+                    value={paymentStatusFilter}
+                    onChange={(e) => setPaymentStatusFilter(e.target.value as PaymentRow["status"] | "all")}
+                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="paid">Paid</option>
+                    <option value="open">Open / Failed</option>
+                    <option value="void">Void</option>
+                    <option value="uncollectible">Uncollectible</option>
+                  </select>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <Th>Customer</Th>
+                        <Th>Plan</Th>
+                        <Th>Amount</Th>
+                        <Th>Status</Th>
+                        <Th>Date</Th>
+                        <Th>Attempts</Th>
+                        <Th>Invoice</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {payments
+                        .filter((p) => {
+                          const q = paymentSearch.toLowerCase();
+                          const matchSearch = !q ||
+                            p.customerEmail.toLowerCase().includes(q) ||
+                            (p.customerName ?? "").toLowerCase().includes(q);
+                          const matchStatus = paymentStatusFilter === "all" || p.status === paymentStatusFilter;
+                          return matchSearch && matchStatus;
+                        })
+                        .map((p) => {
+                          const isPaid = p.status === "paid";
+                          const isFailed = p.status === "open" && p.attemptCount > 0;
+                          const statusLabel = isFailed ? "Failed" : p.status.charAt(0).toUpperCase() + p.status.slice(1);
+                          const statusCls = isPaid
+                            ? "bg-green-100 text-green-700"
+                            : isFailed
+                            ? "bg-red-100 text-red-700"
+                            : p.status === "open"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-gray-100 text-gray-500";
+                          const amount = (p.amount / 100).toLocaleString("en-US", { style: "currency", currency: p.currency.toUpperCase() });
+                          return (
+                            <tr key={p.id} className={`hover:bg-gray-50/50 ${isFailed ? "bg-red-50/30" : ""}`}>
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-gray-900">{p.customerEmail}</div>
+                                {p.customerName && <div className="text-xs text-gray-400">{p.customerName}</div>}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs text-gray-600">{p.plan ?? "—"}</span>
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-gray-900">{amount}</td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCls}`}>
+                                  {statusLabel}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                                {new Date(p.created * 1000).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">
+                                {p.attemptCount}
+                                {p.nextPaymentAttempt && (
+                                  <span className="ml-1 text-amber-600">
+                                    (retry {new Date(p.nextPaymentAttempt * 1000).toLocaleDateString()})
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  {p.hostedUrl && (
+                                    <a href={p.hostedUrl} target="_blank" rel="noreferrer"
+                                      className="text-xs text-[#2E6DA4] hover:underline">View</a>
+                                  )}
+                                  {p.pdfUrl && (
+                                    <a href={p.pdfUrl} target="_blank" rel="noreferrer"
+                                      className="text-xs text-gray-400 hover:underline">PDF</a>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      {payments.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-12 text-gray-400">
+                            No invoices found in Stripe
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -352,7 +525,7 @@ function StatCard({
   label: string;
   value: string | number;
   sub?: string;
-  accent?: "green" | "blue";
+  accent?: "green" | "blue" | "red";
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-5">
@@ -360,6 +533,7 @@ function StatCard({
       <p className={`text-2xl font-bold ${
         accent === "green" ? "text-green-600" :
         accent === "blue" ? "text-[#2E6DA4]" :
+        accent === "red" ? "text-red-600" :
         "text-[#1A3A5C]"
       }`}>
         {value}
