@@ -219,15 +219,18 @@ ${sampleFile ? `For context, here is one existing file from the same app so you 
 
 Generate a reasonable, functional implementation for each missing file (a form component for "*Form" imports, a card/row/list component for "*Card"/"*Row" imports, etc). Output ONLY the file blocks — no explanations.`;
 
-  const res = await anthropic.messages.create({
+  const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: Math.min(4000 * missing.length, 24000),
     messages: [{ role: "user", content: prompt }],
   });
 
-  const text = res.content
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("");
+  let text = "";
+  for await (const chunk of stream) {
+    if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+      text += chunk.delta.text;
+    }
+  }
   const repairedFiles = parseGeneratedCode(text);
 
   const merged = [...files];
