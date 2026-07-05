@@ -28,6 +28,7 @@ export default function AppNavbar({
   const router = useRouter();
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -98,8 +99,47 @@ export default function AppNavbar({
             >
               {loggingOut ? "…" : "Log out"}
             </button>
+
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle navigation menu"
+              aria-expanded={mobileMenuOpen}
+              className="sm:hidden p-1.5 rounded-lg hover:bg-white/10 text-blue-100 hover:text-white transition-colors"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                {mobileMenuOpen ? (
+                  <path d="M18 6 6 18M6 6l12 12" />
+                ) : (
+                  <path d="M3 6h18M3 12h18M3 18h18" />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
+
+        {/* Mobile nav links */}
+        {mobileMenuOpen && (
+          <nav className="sm:hidden flex flex-col gap-1 pb-3">
+            {navLinks.map((link) => {
+              const active = pathname.startsWith(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
+                    active
+                      ? "bg-blue-900/60 text-white"
+                      : "text-blue-100 hover:text-white hover:bg-blue-900/40"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </header>
   );

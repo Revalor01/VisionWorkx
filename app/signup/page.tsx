@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import PasswordInput from "@/components/PasswordInput";
 
 function SignupForm() {
   const router = useRouter();
@@ -159,8 +160,7 @@ function SignupForm() {
               <label className="block text-sm font-medium text-navy-dark mb-1.5">
                 Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 minLength={8}
                 value={form.password}
