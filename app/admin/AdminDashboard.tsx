@@ -61,6 +61,9 @@ export default function AdminDashboard({
   const [userSearch, setUserSearch] = useState("");
   const [redeploying, setRedeploying] = useState<Record<string, boolean>>({});
   const [redeployMessages, setRedeployMessages] = useState<Record<string, string>>({});
+  const [deletingUsers, setDeletingUsers] = useState<Record<string, boolean>>({});
+  const [deletedUserIds, setDeletedUserIds] = useState<Set<string>>(new Set());
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
 
   // ── Payments state ─────────────────────────────────────────────
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -124,6 +127,7 @@ export default function AdminDashboard({
   const filteredUsers = useMemo(() => {
     const q = userSearch.toLowerCase();
     return profiles
+      .filter((p) => !deletedUserIds.has(p.id))
       .map((p) => ({
         ...p,
         email: userEmails[p.id] ?? "",
@@ -138,7 +142,7 @@ export default function AdminDashboard({
           (u.full_name ?? "").toLowerCase().includes(q) ||
           (u.company_name ?? "").toLowerCase().includes(q)
       );
-  }, [profiles, userSearch, userEmails, apps, subscriptions]);
+  }, [profiles, userSearch, userEmails, apps, subscriptions, deletedUserIds]);
 
   // ── Redeploy action ────────────────────────────────────────────
   async function handleRedeploy(appId: string) {
@@ -160,6 +164,34 @@ export default function AdminDashboard({
       setRedeployMessages((m) => ({ ...m, [appId]: "Network error" }));
     } finally {
       setRedeploying((r) => ({ ...r, [appId]: false }));
+    }
+  }
+
+  // ── Delete user action ─────────────────────────────────────────
+  async function handleDeleteUser(userId: string, email: string) {
+    const confirmed = window.confirm(
+      `Permanently delete ${email || userId}?\n\nThis removes their account, apps, and subscription record from Vision Workx. It does NOT cancel any live Stripe subscription or tear down their deployed Vercel projects — do that separately first if needed.\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingUsers((d) => ({ ...d, [userId]: true }));
+    setDeleteErrors((e) => ({ ...e, [userId]: "" }));
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDeletedUserIds((ids) => new Set(ids).add(userId));
+      } else {
+        setDeleteErrors((e) => ({ ...e, [userId]: data.error ?? "Failed" }));
+      }
+    } catch {
+      setDeleteErrors((e) => ({ ...e, [userId]: "Network error" }));
+    } finally {
+      setDeletingUsers((d) => ({ ...d, [userId]: false }));
     }
   }
 
@@ -185,12 +217,12 @@ export default function AdminDashboard({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {(["overview", "apps", "users", "payments"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+              className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-medium capitalize transition-colors shrink-0 ${
                 tab === t
                   ? "bg-[#1A3A5C] text-white"
                   : "text-gray-500 hover:text-gray-900"
@@ -298,12 +330,13 @@ export default function AdminDashboard({
                     <Th>Sub Status</Th>
                     <Th>Renews</Th>
                     <Th>Joined</Th>
+                    <Th>&nbsp;</Th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-12 text-gray-400">
+                      <td colSpan={7} className="text-center py-12 text-gray-400">
                         No users found
                       </td>
                     </tr>
@@ -350,6 +383,18 @@ export default function AdminDashboard({
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                           {new Date(u.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            disabled={deletingUsers[u.id]}
+                            className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                          >
+                            {deletingUsers[u.id] ? "Deleting…" : "Delete"}
+                          </button>
+                          {deleteErrors[u.id] && (
+                            <div className="text-[11px] text-red-500 mt-0.5">{deleteErrors[u.id]}</div>
+                          )}
                         </td>
                       </tr>
                     ))
