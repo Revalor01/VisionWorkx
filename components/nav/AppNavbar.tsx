@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { Plan } from "@/lib/database.types";
@@ -53,6 +54,9 @@ export default function AppNavbar({
             href="/dashboard"
             className="flex items-center gap-2 shrink-0"
           >
+            <span className="bg-white rounded-md p-1 flex items-center justify-center shrink-0">
+              <Image src="/VisionWorks.png" alt="Vision Workx" width={28} height={28} className="rounded-sm" />
+            </span>
             <span className="text-lg font-bold tracking-tight">
               Vision Workx
             </span>

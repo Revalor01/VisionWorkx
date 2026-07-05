@@ -1,11 +1,15 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Navbar() {
   return (
     <header className="bg-navy-dark text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="bg-white rounded-md p-1 flex items-center justify-center shrink-0">
+              <Image src="/VisionWorks.png" alt="Vision Workx" width={32} height={32} className="rounded-sm" />
+            </span>
             <span className="text-xl font-bold tracking-tight">Vision Workx</span>
             <span className="text-xs text-blue-300 hidden sm:block">by Revalor</span>
           </Link>
