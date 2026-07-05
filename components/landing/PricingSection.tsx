@@ -73,6 +73,9 @@ export default function PricingSection() {
           <p className="mt-3 text-gray-600 text-lg">
             No setup fees. No hidden costs. Cancel anytime.
           </p>
+          <p className="mt-1 text-gray-600 text-lg">
+            Every plan is a flat rate — no credits, no usage meters, no surprise bills as your business grows.
+          </p>
 
           {/* Toggle */}
           <div className="inline-flex items-center mt-8 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
