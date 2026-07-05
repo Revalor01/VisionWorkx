@@ -221,7 +221,7 @@ Generate a reasonable, functional implementation for each missing file (a form c
 
   const res = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 8000,
+    max_tokens: Math.min(4000 * missing.length, 24000),
     messages: [{ role: "user", content: prompt }],
   });
 
