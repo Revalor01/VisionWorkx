@@ -206,6 +206,22 @@ async function repairMissingFiles(
     files.find((f) => f.path.startsWith("components/")) ??
     files.find((f) => f.path.endsWith(".tsx"));
 
+  // Find how each missing component is actually invoked (its JSX call site),
+  // so the generated component's props match what the caller passes —
+  // otherwise Claude has to guess a prop signature blind and it often
+  // mismatches what the rest of the app already expects.
+  const usageSnippets = missing
+    .map((spec) => {
+      const componentName = spec.split("/").pop() ?? spec;
+      const JSX_USAGE_RE = new RegExp(`<${componentName}\\b[^>]*/?>`, "g");
+      for (const f of files) {
+        const m = f.content.match(JSX_USAGE_RE);
+        if (m) return `- ${componentName} is called as: ${m[0]}`;
+      }
+      return null;
+    })
+    .filter((s): s is string => s !== null);
+
   const prompt = `This generated Next.js app is missing some files that its own code imports but never actually emitted. Generate ONLY the missing files, in this exact format:
 
 [FILENAME: path/to/file.tsx]
@@ -215,6 +231,7 @@ async function repairMissingFiles(
 Missing files (import paths relative to "@/"):
 ${missing.map((m) => `- ${m}`).join("\n")}
 
+${usageSnippets.length > 0 ? `Match each component's props EXACTLY to how it's actually called elsewhere in the app:\n${usageSnippets.join("\n")}\n` : ""}
 ${sampleFile ? `For context, here is one existing file from the same app so you match its conventions (styling, TypeScript patterns, Tailwind classes):\n\n[FILENAME: ${sampleFile.path}]\n${sampleFile.content.slice(0, 2000)}\n[/FILENAME]` : ""}
 
 Generate a reasonable, functional implementation for each missing file (a form component for "*Form" imports, a card/row/list component for "*Card"/"*Row" imports, etc). This is Next.js 14 App Router — any component using useState, useEffect, event handlers, or other interactivity MUST start with a "use client"; directive as its very first line, before any imports. Output ONLY the file blocks — no explanations.`;
