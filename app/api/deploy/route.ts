@@ -824,7 +824,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Already deployed" }, { status: 409 });
   }
 
-  // Fetch user email if not already set (internal call path)
+  // Fetch user email if not already set (internal call path) — email lives on
+  // auth.users, not profiles, so it must come through the Admin API.
   if (!userEmail) {
     const { data: appData } = await serviceClient
       .from("apps")
@@ -832,14 +833,10 @@ export async function POST(req: NextRequest) {
       .eq("id", appId)
       .single();
     if (appData?.user_id) {
-      const { data: profile } = await serviceClient
-        .from("profiles")
-        .select("id")
-        .eq("id", appData.user_id)
-        .single();
-      // Email is in auth.users — we'll pass null and skip email for internal deploys
-      // (the email will be sent when userEmail is available from the webhook flow)
-      void profile;
+      const { data: userData } = await serviceClient.auth.admin.getUserById(
+        appData.user_id
+      );
+      userEmail = userData?.user?.email ?? null;
     }
   }
 
