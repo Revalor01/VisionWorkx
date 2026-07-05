@@ -217,7 +217,7 @@ ${missing.map((m) => `- ${m}`).join("\n")}
 
 ${sampleFile ? `For context, here is one existing file from the same app so you match its conventions (styling, TypeScript patterns, Tailwind classes):\n\n[FILENAME: ${sampleFile.path}]\n${sampleFile.content.slice(0, 2000)}\n[/FILENAME]` : ""}
 
-Generate a reasonable, functional implementation for each missing file (a form component for "*Form" imports, a card/row/list component for "*Card"/"*Row" imports, etc). Output ONLY the file blocks — no explanations.`;
+Generate a reasonable, functional implementation for each missing file (a form component for "*Form" imports, a card/row/list component for "*Card"/"*Row" imports, etc). This is Next.js 14 App Router — any component using useState, useEffect, event handlers, or other interactivity MUST start with a "use client"; directive as its very first line, before any imports. Output ONLY the file blocks — no explanations.`;
 
   const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
@@ -231,7 +231,13 @@ Generate a reasonable, functional implementation for each missing file (a form c
       text += chunk.delta.text;
     }
   }
-  const repairedFiles = parseGeneratedCode(text);
+  const repairedFiles = parseGeneratedCode(text).map((f) => {
+    const needsClientDirective =
+      /\.(tsx|jsx)$/.test(f.path) &&
+      !/^\s*["']use client["'];?/.test(f.content) &&
+      /\buse(State|Effect|Ref|Context|Reducer|Memo|Callback)\b|on(Click|Change|Submit)=/.test(f.content);
+    return needsClientDirective ? { ...f, content: `"use client";\n\n${f.content}` } : f;
+  });
 
   const merged = [...files];
   for (const rf of repairedFiles) {
