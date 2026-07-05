@@ -50,12 +50,11 @@ Rules:
 7. The app must be simple enough for a non-technical small business owner to manage
 8. Use the provided primary color for buttons, headings, and accents
 9. Use the provided font throughout (import from next/font/google)
-10. CRITICAL — lib/supabase.ts MUST read the schema from env and pass it to both browser and server clients:
+10. CRITICAL — the browser and server Supabase clients MUST live in TWO SEPARATE files, not one. Mixing them in one file breaks the build, because \`next/headers\` (server-only) can't be imported into any file a Client Component also imports from:
 
 \`\`\`typescript
-// lib/supabase.ts — exact pattern required
-import { createBrowserClient, createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+// lib/supabase.ts — browser client ONLY, exact pattern required
+import { createBrowserClient } from '@supabase/ssr'
 
 const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public'
 
@@ -66,6 +65,14 @@ export function createClient() {
     { db: { schema: SCHEMA } }
   )
 }
+\`\`\`
+
+\`\`\`typescript
+// lib/supabase-server.ts — server client ONLY, exact pattern required
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public'
 
 export function createServerSupabaseClient() {
   const cookieStore = cookies()
@@ -83,6 +90,8 @@ export function createServerSupabaseClient() {
   )
 }
 \`\`\`
+
+Every Server Component, layout, or route handler that needs the server client MUST import \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — NEVER from \`@/lib/supabase\`. Only Client Components ("use client") import \`createClient\` from \`@/lib/supabase\`.
 
 The .env.local.example MUST include:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url

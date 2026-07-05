@@ -54,8 +54,8 @@ export default function AppNavbar({
             href="/dashboard"
             className="flex items-center gap-2 shrink-0"
           >
-            <span className="bg-white rounded-md p-1 flex items-center justify-center shrink-0">
-              <Image src="/VisionWorks.png" alt="Vision Workx" width={28} height={28} className="rounded-sm" />
+            <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
+              <Image src="/VisionWorks.png" alt="Vision Workx" width={44} height={44} className="rounded-sm" />
             </span>
             <span className="text-lg font-bold tracking-tight">
               Vision Workx

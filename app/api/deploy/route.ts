@@ -356,6 +356,19 @@ export {
   if (serverFile) serverFile.content = serverClientContent;
   else out.push({ path: "lib/supabase-server.ts", content: serverClientContent });
 
+  // Claude occasionally imports the server client from '@/lib/supabase' despite
+  // the prompt instructing otherwise — correct the import path deterministically
+  // rather than relying on the prompt alone.
+  const WRONG_SERVER_IMPORT =
+    /import\s+\{([^}]*\bcreateServerSupabaseClient\b[^}]*)\}\s+from\s+['"]@\/lib\/supabase['"]/g;
+  out.forEach((f) => {
+    if (f.path === "lib/supabase.ts" || f.path === "lib/supabase-server.ts") return;
+    f.content = f.content.replace(
+      WRONG_SERVER_IMPORT,
+      (_match, names) => `import {${names}} from '@/lib/supabase-server'`
+    );
+  });
+
   // Truncation fallbacks
   const schedIdx = out.findIndex((f) => f.path === "components/admin/AdminSchedule.tsx");
   const schedFile = schedIdx >= 0 ? out[schedIdx] : null;
