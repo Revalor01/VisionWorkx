@@ -103,18 +103,27 @@ export default function OnboardForm({
   userName,
   userEmail,
   plan,
+  editAppId = null,
+  initialData = null,
 }: {
   userId: string;
   userName: string | null;
   userEmail?: string | null;
   plan: Plan;
+  editAppId?: string | null;
+  initialData?: IntakeData | null;
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createBrowserClient(), []);
+  const isEditing = Boolean(editAppId);
 
   const [step, setStep] = useState(1);
-  const [data, setData] = useState<FormState>(DEFAULT_FORM);
-  const [categorySelected, setCategorySelected] = useState(false);
+  const [data, setData] = useState<FormState>(
+    initialData
+      ? { ...DEFAULT_FORM, ...initialData, features: initialData.features ?? [] }
+      : DEFAULT_FORM
+  );
+  const [categorySelected, setCategorySelected] = useState(Boolean(initialData));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -184,9 +193,9 @@ export default function OnboardForm({
       };
 
       const res = await fetch("/api/apps", {
-        method: "POST",
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(intake),
+        body: JSON.stringify(isEditing ? { appId: editAppId, intake } : intake),
       });
 
       if (!res.ok) {
@@ -516,9 +525,11 @@ export default function OnboardForm({
               </div>
 
               <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-navy-dark">
-                <strong>What happens next:</strong> Our AI will generate a
-                complete Next.js + Supabase app based on your inputs. This takes
-                2–5 minutes. You&apos;ll get a live URL when it&apos;s done.
+                <strong>What happens next:</strong>{" "}
+                {isEditing
+                  ? "Our AI will regenerate your app from scratch using these updated details, replacing the current version. This takes 2–5 minutes."
+                  : "Our AI will generate a complete Next.js + Supabase app based on your inputs. This takes 2–5 minutes."}{" "}
+                You&apos;ll get a live URL when it&apos;s done.
               </div>
             </div>
           )}
@@ -557,6 +568,8 @@ export default function OnboardForm({
                     <span className="animate-spin">⚙️</span> Saving &amp;
                     starting…
                   </>
+                ) : isEditing ? (
+                  "Save Changes & Regenerate →"
                 ) : (
                   "Generate My App →"
                 )}

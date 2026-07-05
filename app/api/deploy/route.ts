@@ -118,6 +118,41 @@ async function exposeSchemaInPostgREST(schema: string) {
   });
 }
 
+// Generated migrations run with search_path scoped to the tenant's own
+// schema, but statements that explicitly qualify a shared schema (auth,
+// public, storage, ...) bypass that isolation entirely — e.g. a generated
+// `CREATE TRIGGER ... ON auth.users` silently replaces the platform's own
+// on_auth_user_created trigger and breaks signups for every customer.
+// Foreign keys like `references auth.users(id)` are fine and expected;
+// only DDL/DML that targets a shared schema's objects is forbidden.
+const FORBIDDEN_MIGRATION_PATTERNS: { re: RegExp; label: string }[] = [
+  {
+    re: /\b(create\s+(or\s+replace\s+)?|drop\s+)trigger\b[\s\S]{0,300}?\bon\s+auth\.users\b/gi,
+    label: "trigger on auth.users",
+  },
+  {
+    re: /\bcreate\s+(or\s+replace\s+)?function\s+auth\./gi,
+    label: "function defined in auth schema",
+  },
+  {
+    re: /\b(insert\s+into|update|delete\s+from)\s+auth\.users\b/gi,
+    label: "data mutation on auth.users",
+  },
+  {
+    re: /\b(create|alter|drop)\s+(table|view|function|trigger|policy|type|index|schema)\s+(if\s+(not\s+)?exists\s+)?public\./gi,
+    label: "DDL targeting the public schema",
+  },
+];
+
+function findForbiddenMigrationStatements(sql: string): string[] {
+  const hits = new Set<string>();
+  for (const { re, label } of FORBIDDEN_MIGRATION_PATTERNS) {
+    re.lastIndex = 0;
+    if (re.test(sql)) hits.add(label);
+  }
+  return Array.from(hits);
+}
+
 function parseGeneratedCode(raw: string) {
   const FILE_BLOCK =
     /\[FILENAME:\s*([^\]\r\n]+)\]\r?\n([\s\S]*?)\[\/FILENAME\]/g;
@@ -487,6 +522,15 @@ async function runDeploy(appId: string, userEmail: string | null) {
     const migrationSql = migrationFile.content
       .replace(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp";?/g, "")
       .replace(/uuid_generate_v4\(\)/g, "gen_random_uuid()");
+
+    const forbidden = findForbiddenMigrationStatements(migrationSql);
+    if (forbidden.length > 0) {
+      throw new Error(
+        `Generated migration touches shared schemas and was blocked (${forbidden.join(
+          ", "
+        )}) — this would corrupt platform-wide tables like auth.users. Regenerate the app.`
+      );
+    }
 
     const schemaSql = `
 CREATE SCHEMA IF NOT EXISTS "${SCHEMA}";
