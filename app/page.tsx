@@ -97,6 +97,32 @@ const CATEGORIES = [
       "Invoice history",
     ],
   },
+  {
+    icon: "🧾",
+    title: "Invoicing & Quotes",
+    desc: "Send professional quotes, invoice clients, and get paid faster — no spreadsheets.",
+    for: "Contractors · Electricians · Plumbers · Landscapers",
+    features: [
+      "Quote & estimate builder",
+      "One-click invoicing",
+      "Online payment collection",
+      "Automatic payment reminders",
+      "Job history tracking",
+    ],
+  },
+  {
+    icon: "🎫",
+    title: "Membership Management",
+    desc: "Manage recurring memberships, track check-ins, and automate billing.",
+    for: "Gyms · Studios · Clubs · Wellness Centers",
+    features: [
+      "Recurring membership billing",
+      "Member check-in tracking",
+      "Plan tiers & pricing",
+      "Auto-renewal & cancellations",
+      "Attendance reporting",
+    ],
+  },
 ];
 
 const WHY_VISION_WORKX = [

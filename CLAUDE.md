@@ -132,6 +132,14 @@ Features: stock tracking, order management, low-stock alerts, supplier contacts
 Target: law firms, accountants, agencies, service providers
 Features: client login, document sharing, progress tracking, messaging
 
+### 5. Invoicing & Quotes
+Target: contractors, electricians, plumbers, landscapers
+Features: quote/estimate builder, one-click invoicing, online payment collection, payment reminders
+
+### 6. Membership Management
+Target: gyms, studios, clubs, wellness centers
+Features: recurring membership billing, member check-in tracking, plan tiers, auto-renewal
+
 ---
 
 ## Build Prompts — Run These In Order
@@ -168,7 +176,7 @@ Also create a lib/supabase.ts client helper for both server and client component
 ```
 Build the /onboard multi-step intake form for Vision Workx.
 Step 1: Business details (name, type, location, description)
-Step 2: App category selection (Booking, CRM, Inventory, Customer Portal)
+Step 2: App category selection (Booking, CRM, Inventory, Customer Portal, Invoicing, Membership)
          with visual cards showing what each includes
 Step 3: Feature selection (checkboxes based on category chosen in Step 2)
 Step 4: Branding (primary color picker, logo upload, font preference)
@@ -243,7 +251,7 @@ Sections:
    apps for small businesses, email capture CTA, and a browser mockup showing
    the intake form
 2. How It Works — 3 steps with icons: Describe → Generate → Launch
-3. App Categories — 4 cards (Booking, CRM, Inventory, Portal) with descriptions
+3. App Categories — 6 cards (Booking, CRM, Inventory, Portal, Invoicing, Membership) with descriptions
 4. Pricing — 3 tier cards (Starter $49, Growth $99, Pro $199) with feature lists
    and a "Start free trial" CTA on each
 5. Social proof — 3 placeholder testimonial cards

@@ -50,6 +50,18 @@ const CATEGORIES: {
     title: "Customer Portal",
     desc: "Client login, document sharing, progress tracking",
   },
+  {
+    id: "invoicing",
+    icon: "🧾",
+    title: "Invoicing & Quotes",
+    desc: "Send quotes, invoice clients, collect payments online",
+  },
+  {
+    id: "membership",
+    icon: "🎫",
+    title: "Membership Management",
+    desc: "Recurring billing, member check-ins, plan tiers",
+  },
 ];
 
 const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
@@ -99,6 +111,28 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "File uploads",
     "Invoice viewing",
     "Notifications",
+    LOCATION_FEATURE,
+    BILINGUAL_FEATURE,
+    QR_CODE_FEATURE,
+  ],
+  invoicing: [
+    "Quote & estimate builder",
+    "One-click invoicing",
+    "Online payment collection",
+    "Automatic payment reminders",
+    "Job / estimate history",
+    "Admin dashboard",
+    LOCATION_FEATURE,
+    BILINGUAL_FEATURE,
+    QR_CODE_FEATURE,
+  ],
+  membership: [
+    "Recurring membership billing",
+    "Member check-in tracking",
+    "Plan tiers & pricing",
+    "Auto-renewal & cancellations",
+    "Attendance reporting",
+    "Admin dashboard",
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
     QR_CODE_FEATURE,

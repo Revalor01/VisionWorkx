@@ -1,5 +1,11 @@
 export type Plan = "free" | "starter" | "growth" | "pro";
-export type AppCategory = "booking" | "crm" | "inventory" | "portal";
+export type AppCategory =
+  | "booking"
+  | "crm"
+  | "inventory"
+  | "portal"
+  | "invoicing"
+  | "membership";
 export type AppStatus =
   | "generating"    // Claude API call in progress
   | "ready"         // code saved, awaiting deployment

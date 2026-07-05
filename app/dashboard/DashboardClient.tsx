@@ -20,6 +20,8 @@ const CATEGORY_ICONS: Record<AppCategory, string> = {
   crm: "👥",
   inventory: "📦",
   portal: "🔐",
+  invoicing: "🧾",
+  membership: "🎫",
 };
 
 const CATEGORY_LABELS: Record<AppCategory, string> = {
@@ -27,6 +29,8 @@ const CATEGORY_LABELS: Record<AppCategory, string> = {
   crm: "Customer CRM",
   inventory: "Inventory & Orders",
   portal: "Customer Portal",
+  invoicing: "Invoicing & Quotes",
+  membership: "Membership Management",
 };
 
 const STATUS_CONFIG: Record<

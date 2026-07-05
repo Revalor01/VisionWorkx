@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
-import type { IntakeData } from "@/lib/database.types";
+import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
   BILINGUAL_FEATURE,
@@ -244,11 +244,13 @@ export async function POST(req: NextRequest) {
 // ---------------------------------------------------------------
 // Prompt builder
 // ---------------------------------------------------------------
-const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+const CATEGORY_DESCRIPTIONS: Record<AppCategory, string> = {
   booking: "booking and appointment scheduling system",
   crm: "customer relationship management (CRM) system",
   inventory: "inventory and order management system",
   portal: "client portal with document sharing and messaging",
+  invoicing: "invoicing and quote management system",
+  membership: "membership and recurring billing management system",
 };
 
 function buildUserPrompt(intake: IntakeData): string {
