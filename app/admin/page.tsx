@@ -31,7 +31,7 @@ export default async function AdminPage() {
       .order("created_at", { ascending: false }),
     service
       .from("subscriptions")
-      .select("user_id, plan, status, current_period_end"),
+      .select("user_id, plan, status, current_period_end, stripe_subscription_id"),
   ]);
 
   // Fetch user emails directly from auth.users via SQL

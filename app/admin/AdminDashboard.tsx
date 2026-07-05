@@ -11,7 +11,7 @@ import type { PaymentRow } from "@/app/api/admin/payments/route";
 interface AdminDashboardProps {
   apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data">[];
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
-  subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end">[];
+  subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
 }
 
@@ -67,6 +67,9 @@ export default function AdminDashboard({
   const [deletingUsers, setDeletingUsers] = useState<Record<string, boolean>>({});
   const [deletedUserIds, setDeletedUserIds] = useState<Set<string>>(new Set());
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+  const [grantingBeta, setGrantingBeta] = useState<Record<string, boolean>>({});
+  const [grantedBetaIds, setGrantedBetaIds] = useState<Set<string>>(new Set());
+  const [grantErrors, setGrantErrors] = useState<Record<string, string>>({});
 
   // ── Payments state ─────────────────────────────────────────────
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -203,6 +206,35 @@ export default function AdminDashboard({
       setDeleteErrors((e) => ({ ...e, [userId]: "Network error" }));
     } finally {
       setDeletingUsers((d) => ({ ...d, [userId]: false }));
+    }
+  }
+
+  // ── Grant beta access action ────────────────────────────────────
+  async function handleGrantBetaAccess(userId: string, email: string) {
+    const confirmed = window.confirm(
+      `Grant free beta access to ${email || userId}?\n\nThis gives them unlimited apps and no trial expiry, with no real Stripe subscription or charge behind it — for beta testers, not paying customers.`
+    );
+    if (!confirmed) return;
+
+    setGrantingBeta((g) => ({ ...g, [userId]: true }));
+    setGrantErrors((e) => ({ ...e, [userId]: "" }));
+    try {
+      const res = await fetch("/api/admin/grant-beta-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGrantedBetaIds((ids) => new Set(ids).add(userId));
+        router.refresh(); // re-fetch server data so Plan/Sub Status columns stop showing stale values
+      } else {
+        setGrantErrors((e) => ({ ...e, [userId]: data.error ?? "Failed" }));
+      }
+    } catch {
+      setGrantErrors((e) => ({ ...e, [userId]: "Network error" }));
+    } finally {
+      setGrantingBeta((g) => ({ ...g, [userId]: false }));
     }
   }
 
@@ -407,13 +439,29 @@ export default function AdminDashboard({
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.email)}
-                            disabled={deletingUsers[u.id]}
-                            className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50 disabled:no-underline"
-                          >
-                            {deletingUsers[u.id] ? "Deleting…" : "Delete"}
-                          </button>
+                          <div className="flex items-center justify-end gap-3">
+                            {grantedBetaIds.has(u.id) || (u.sub?.status === "active" && !u.sub?.stripe_subscription_id) ? (
+                              <span className="text-xs font-medium text-green-600">Beta ✓</span>
+                            ) : !u.sub || (u.sub.status !== "active" && u.sub.status !== "trialing") ? (
+                              <button
+                                onClick={() => handleGrantBetaAccess(u.id, u.email)}
+                                disabled={grantingBeta[u.id]}
+                                className="text-xs font-medium text-navy hover:text-navy-dark hover:underline disabled:opacity-50 disabled:no-underline"
+                              >
+                                {grantingBeta[u.id] ? "Granting…" : "Grant Beta"}
+                              </button>
+                            ) : null}
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.email)}
+                              disabled={deletingUsers[u.id]}
+                              className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                            >
+                              {deletingUsers[u.id] ? "Deleting…" : "Delete"}
+                            </button>
+                          </div>
+                          {grantErrors[u.id] && (
+                            <div className="text-[11px] text-red-500 mt-0.5">{grantErrors[u.id]}</div>
+                          )}
                           {deleteErrors[u.id] && (
                             <div className="text-[11px] text-red-500 mt-0.5">{deleteErrors[u.id]}</div>
                           )}
