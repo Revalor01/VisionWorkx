@@ -70,6 +70,9 @@ export default function AdminDashboard({
   const [grantingBeta, setGrantingBeta] = useState<Record<string, boolean>>({});
   const [grantedBetaIds, setGrantedBetaIds] = useState<Set<string>>(new Set());
   const [grantErrors, setGrantErrors] = useState<Record<string, string>>({});
+  const [revokingBeta, setRevokingBeta] = useState<Record<string, boolean>>({});
+  const [revokedBetaIds, setRevokedBetaIds] = useState<Set<string>>(new Set());
+  const [revokeErrors, setRevokeErrors] = useState<Record<string, string>>({});
 
   // ── Payments state ─────────────────────────────────────────────
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -235,6 +238,35 @@ export default function AdminDashboard({
       setGrantErrors((e) => ({ ...e, [userId]: "Network error" }));
     } finally {
       setGrantingBeta((g) => ({ ...g, [userId]: false }));
+    }
+  }
+
+  // ── Revoke beta access action ───────────────────────────────────
+  async function handleRevokeBetaAccess(userId: string, email: string) {
+    const confirmed = window.confirm(
+      `Revoke beta access for ${email || userId}?\n\nThis removes their comp subscription and reverts them to a normal free-trial account. Their apps and profile are untouched.`
+    );
+    if (!confirmed) return;
+
+    setRevokingBeta((r) => ({ ...r, [userId]: true }));
+    setRevokeErrors((e) => ({ ...e, [userId]: "" }));
+    try {
+      const res = await fetch("/api/admin/revoke-beta-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRevokedBetaIds((ids) => new Set(ids).add(userId));
+        router.refresh();
+      } else {
+        setRevokeErrors((e) => ({ ...e, [userId]: data.error ?? "Failed" }));
+      }
+    } catch {
+      setRevokeErrors((e) => ({ ...e, [userId]: "Network error" }));
+    } finally {
+      setRevokingBeta((r) => ({ ...r, [userId]: false }));
     }
   }
 
@@ -440,8 +472,18 @@ export default function AdminDashboard({
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-3">
-                            {grantedBetaIds.has(u.id) || (u.sub?.status === "active" && !u.sub?.stripe_subscription_id) ? (
-                              <span className="text-xs font-medium text-green-600">Beta ✓</span>
+                            {!revokedBetaIds.has(u.id) &&
+                            (grantedBetaIds.has(u.id) || (u.sub?.status === "active" && !u.sub?.stripe_subscription_id)) ? (
+                              <>
+                                <span className="text-xs font-medium text-green-600">Beta ✓</span>
+                                <button
+                                  onClick={() => handleRevokeBetaAccess(u.id, u.email)}
+                                  disabled={revokingBeta[u.id]}
+                                  className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                                >
+                                  {revokingBeta[u.id] ? "Revoking…" : "Revoke"}
+                                </button>
+                              </>
                             ) : !u.sub || (u.sub.status !== "active" && u.sub.status !== "trialing") ? (
                               <button
                                 onClick={() => handleGrantBetaAccess(u.id, u.email)}
@@ -461,6 +503,9 @@ export default function AdminDashboard({
                           </div>
                           {grantErrors[u.id] && (
                             <div className="text-[11px] text-red-500 mt-0.5">{grantErrors[u.id]}</div>
+                          )}
+                          {revokeErrors[u.id] && (
+                            <div className="text-[11px] text-red-500 mt-0.5">{revokeErrors[u.id]}</div>
                           )}
                           {deleteErrors[u.id] && (
                             <div className="text-[11px] text-red-500 mt-0.5">{deleteErrors[u.id]}</div>
