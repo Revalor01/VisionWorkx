@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import type { IntakeData } from "@/lib/database.types";
-import { LOCATION_FEATURE, BILINGUAL_FEATURE } from "@/lib/features";
+import {
+  LOCATION_FEATURE,
+  BILINGUAL_FEATURE,
+  QR_CODE_FEATURE,
+  CALENDAR_EXPORT_FEATURE,
+} from "@/lib/features";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 min — requires Vercel Pro in production
@@ -258,6 +263,26 @@ function buildUserPrompt(intake: IntakeData): string {
 - Default to English; the toggle swaps all visible copy instantly with no page reload and no network request`
     : "";
 
+  const wantsQrCode = intake.features.includes(QR_CODE_FEATURE);
+  const qrCodeSection = wantsQrCode
+    ? `
+
+## QR Code (required — selected as a feature)
+- Add the \`qrcode\` npm package as a dependency (free, generates codes locally, no API key or network call needed) and use it to render a QR code as a PNG data URL
+- Point the QR code at the app's main public-facing URL (the public booking page, or the portal/customer login page if there's no public page)
+- Show it on the admin dashboard with a short caption and a "Download QR Code" button, so the business owner can print it for their storefront, flyers, or receipts`
+    : "";
+
+  const wantsCalendarExport = intake.features.includes(CALENDAR_EXPORT_FEATURE);
+  const calendarExportSection = wantsCalendarExport
+    ? `
+
+## Add to Calendar (required — selected as a feature)
+- For each upcoming appointment/follow-up, generate a downloadable \`.ics\` file (iCalendar format) client-side — this is plain text generation, no API or package needed
+- Add an "Add to Calendar" button next to each upcoming appointment/reminder that downloads the .ics file, including title, date/time, location (if available), and a short description
+- Works for both the customer-facing confirmation and the admin view`
+    : "";
+
   return `Build a complete ${categoryDesc} for the following business.
 
 ## Business Details
@@ -270,7 +295,7 @@ function buildUserPrompt(intake: IntakeData): string {
 ${intake.category}
 
 ## Required Features
-${featureLines}${locationSection}${bilingualSection}
+${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}
 
 ## Branding
 - Primary color: ${intake.primaryColor}

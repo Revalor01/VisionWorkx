@@ -6,9 +6,19 @@ import Image from "next/image";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { AppCategory, IntakeData, Plan } from "@/lib/database.types";
-import { LOCATION_FEATURE, BILINGUAL_FEATURE } from "@/lib/features";
+import {
+  LOCATION_FEATURE,
+  BILINGUAL_FEATURE,
+  QR_CODE_FEATURE,
+  CALENDAR_EXPORT_FEATURE,
+} from "@/lib/features";
 
-const HIGHLIGHTED_FEATURES = new Set([LOCATION_FEATURE, BILINGUAL_FEATURE]);
+const HIGHLIGHTED_FEATURES = new Set([
+  LOCATION_FEATURE,
+  BILINGUAL_FEATURE,
+  QR_CODE_FEATURE,
+  CALENDAR_EXPORT_FEATURE,
+]);
 
 const CATEGORIES: {
   id: AppCategory;
@@ -53,6 +63,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Calendar integration",
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
+    QR_CODE_FEATURE,
+    CALENDAR_EXPORT_FEATURE,
   ],
   crm: [
     "Contact management",
@@ -64,6 +76,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Tags & segments",
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
+    QR_CODE_FEATURE,
+    CALENDAR_EXPORT_FEATURE,
   ],
   inventory: [
     "Stock tracking",
@@ -75,6 +89,7 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Sales reports",
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
+    QR_CODE_FEATURE,
   ],
   portal: [
     "Client login",
@@ -86,6 +101,7 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Notifications",
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
+    QR_CODE_FEATURE,
   ],
 };
 
