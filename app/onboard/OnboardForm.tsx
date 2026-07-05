@@ -6,6 +6,9 @@ import Image from "next/image";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { AppCategory, IntakeData, Plan } from "@/lib/database.types";
+import { LOCATION_FEATURE, BILINGUAL_FEATURE } from "@/lib/features";
+
+const HIGHLIGHTED_FEATURES = new Set([LOCATION_FEATURE, BILINGUAL_FEATURE]);
 
 const CATEGORIES: {
   id: AppCategory;
@@ -48,6 +51,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "SMS reminders",
     "Admin dashboard",
     "Calendar integration",
+    LOCATION_FEATURE,
+    BILINGUAL_FEATURE,
   ],
   crm: [
     "Contact management",
@@ -57,6 +62,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Email history",
     "Import / export contacts",
     "Tags & segments",
+    LOCATION_FEATURE,
+    BILINGUAL_FEATURE,
   ],
   inventory: [
     "Stock tracking",
@@ -66,6 +73,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Barcode scanning",
     "Purchase orders",
     "Sales reports",
+    LOCATION_FEATURE,
+    BILINGUAL_FEATURE,
   ],
   portal: [
     "Client login",
@@ -75,6 +84,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "File uploads",
     "Invoice viewing",
     "Notifications",
+    LOCATION_FEATURE,
+    BILINGUAL_FEATURE,
   ],
 };
 
@@ -345,7 +356,11 @@ export default function OnboardForm({
                 {FEATURES_BY_CATEGORY[data.category].map((feature) => (
                   <label
                     key={feature}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-navy cursor-pointer transition-colors"
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                      HIGHLIGHTED_FEATURES.has(feature)
+                        ? "border-navy bg-blue-50/60 hover:border-navy-dark"
+                        : "border-gray-200 hover:border-navy"
+                    }`}
                   >
                     <input
                       type="checkbox"
@@ -354,6 +369,11 @@ export default function OnboardForm({
                       className="accent-navy-dark w-4 h-4 shrink-0"
                     />
                     <span className="text-sm text-navy-dark">{feature}</span>
+                    {HIGHLIGHTED_FEATURES.has(feature) && (
+                      <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-navy-dark bg-amber-200 px-2 py-0.5 rounded-full shrink-0">
+                        Popular
+                      </span>
+                    )}
                   </label>
                 ))}
               </div>

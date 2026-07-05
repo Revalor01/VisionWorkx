@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import type { IntakeData } from "@/lib/database.types";
+import { LOCATION_FEATURE, BILINGUAL_FEATURE } from "@/lib/features";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // 5 min — requires Vercel Pro in production
@@ -234,6 +235,29 @@ function buildUserPrompt(intake: IntakeData): string {
       ? intake.features.map((f) => `- ${f}`).join("\n")
       : "- Core features for this category";
 
+  const wantsLocation = intake.features.includes(LOCATION_FEATURE);
+  const locationSection = wantsLocation
+    ? `
+
+## Location & Directions (required — selected as a feature)
+- Map query address: "${intake.location || `${intake.businessName}, ${intake.businessType}`}" (fall back to business name + type if no location was given)
+- Embed a Google Map of the business address using a plain iframe embed — no API key required: \`https://www.google.com/maps?q=<url-encoded address>&output=embed\`
+- Add a prominent "Get Directions" button linking to \`https://www.google.com/maps/dir/?api=1&destination=<url-encoded address>\`
+- Use the browser's \`navigator.geolocation\` API to optionally show the customer how far away they are (e.g. "3.2 miles away"), with a graceful fallback (hide it) if permission is denied or unavailable
+- Place this on the public-facing page(s), not just the admin dashboard`
+    : "";
+
+  const wantsBilingual = intake.features.includes(BILINGUAL_FEATURE);
+  const bilingualSection = wantsBilingual
+    ? `
+
+## Bilingual English/Spanish (required — selected as a feature)
+- Write out full English AND Spanish copy yourself for every user-facing string — do NOT call any translation API or service at runtime, there is no translation budget
+- Store both languages in a single static dictionary (e.g. \`lib/i18n.ts\` exporting \`{ en: {...}, es: {...} }\`) and a small \`LanguageContext\`/\`useLanguage()\` hook that reads/writes the chosen language to localStorage
+- Add an "EN / ES" toggle in the navbar/header visible on both the customer-facing pages and the admin dashboard
+- Default to English; the toggle swaps all visible copy instantly with no page reload and no network request`
+    : "";
+
   return `Build a complete ${categoryDesc} for the following business.
 
 ## Business Details
@@ -246,7 +270,7 @@ function buildUserPrompt(intake: IntakeData): string {
 ${intake.category}
 
 ## Required Features
-${featureLines}
+${featureLines}${locationSection}${bilingualSection}
 
 ## Branding
 - Primary color: ${intake.primaryColor}
