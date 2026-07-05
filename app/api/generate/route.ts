@@ -87,7 +87,18 @@ export function createServerSupabaseClient() {
 The .env.local.example MUST include:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_SUPABASE_SCHEMA=public`;
+NEXT_PUBLIC_SUPABASE_SCHEMA=public
+
+11. CRITICAL — NEVER write a trigger, function, or any DDL that touches \`auth.users\` or the \`public\` schema in the migration SQL. This app's database is a multi-tenant Postgres project — \`auth.users\` and \`public\` are shared across every tenant, and a trigger like \`on_auth_user_created ON auth.users\` will silently overwrite the platform's own trigger and break signups for every other tenant. This means:
+    - Do NOT create a "profile auto-creation" trigger on auth.users. Instead, insert the profile row directly from application code, right after \`supabase.auth.signUp()\` succeeds in the signup page/handler:
+      \`\`\`typescript
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (data.user) {
+        await supabase.from('profiles').insert({ id: data.user.id, full_name: fullName })
+      }
+      \`\`\`
+    - Foreign keys like \`references auth.users(id)\` are fine and expected — only CREATE/ALTER/DROP statements targeting auth.* or public.* are forbidden
+    - All tables you create must live implicitly in the tenant's own schema (the migration runs with search_path already scoped to it) — never schema-qualify a CREATE/ALTER/DROP with \`public.\` or \`auth.\``;
 
 // ---------------------------------------------------------------
 // POST /api/generate

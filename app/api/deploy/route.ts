@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const RESEND_KEY = process.env.RESEND_API_KEY!;
 const SUPABASE_MGMT_TOKEN = process.env.SUPABASE_MANAGEMENT_TOKEN!;
 const SUPABASE_REF = new URL(SUPABASE_URL).hostname.split(".")[0];
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const VERCEL_BASE = "https://api.vercel.com";
 const SUPABASE_MGMT_BASE = "https://api.supabase.com/v1";
@@ -165,6 +167,74 @@ function parseGeneratedCode(raw: string) {
     if (path) files.push({ path, content });
   }
   return files;
+}
+
+// Claude sometimes references a component in an import without ever emitting
+// that file in its own output — a one-shot generation dropping a file it
+// meant to write. Left unchecked this only surfaces as a Vercel build
+// failure ~15s and one wasted deploy later. Scan every generated file's
+// `@/...` imports and confirm each one resolves to a file we actually have.
+function findMissingLocalImports(files: { path: string; content: string }[]): string[] {
+  const has = (p: string) => files.some((f) => f.path === p);
+  const resolvable = (spec: string) =>
+    [spec, `${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`, `${spec}/index.tsx`].some(has);
+
+  const IMPORT_RE = /from\s+["']@\/([^"']+)["']/g;
+  const missing = new Set<string>();
+  for (const f of files) {
+    if (!/\.(tsx?|jsx?)$/.test(f.path)) continue;
+    IMPORT_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = IMPORT_RE.exec(f.content)) !== null) {
+      if (!resolvable(m[1])) missing.add(m[1]);
+    }
+  }
+  return Array.from(missing);
+}
+
+// One focused follow-up call asking only for the missing files, instead of
+// a full regeneration — much cheaper, and gives the same model the exact
+// gap to fill in rather than hoping a second one-shot attempt does better.
+async function repairMissingFiles(
+  files: { path: string; content: string }[],
+  missing: string[]
+): Promise<{ path: string; content: string }[]> {
+  if (!ANTHROPIC_API_KEY || missing.length === 0) return files;
+
+  const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const sampleFile =
+    files.find((f) => f.path.startsWith("components/")) ??
+    files.find((f) => f.path.endsWith(".tsx"));
+
+  const prompt = `This generated Next.js app is missing some files that its own code imports but never actually emitted. Generate ONLY the missing files, in this exact format:
+
+[FILENAME: path/to/file.tsx]
+<code>
+[/FILENAME]
+
+Missing files (import paths relative to "@/"):
+${missing.map((m) => `- ${m}`).join("\n")}
+
+${sampleFile ? `For context, here is one existing file from the same app so you match its conventions (styling, TypeScript patterns, Tailwind classes):\n\n[FILENAME: ${sampleFile.path}]\n${sampleFile.content.slice(0, 2000)}\n[/FILENAME]` : ""}
+
+Generate a reasonable, functional implementation for each missing file (a form component for "*Form" imports, a card/row/list component for "*Card"/"*Row" imports, etc). Output ONLY the file blocks — no explanations.`;
+
+  const res = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8000,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text = res.content
+    .map((b) => (b.type === "text" ? b.text : ""))
+    .join("");
+  const repairedFiles = parseGeneratedCode(text);
+
+  const merged = [...files];
+  for (const rf of repairedFiles) {
+    if (!merged.some((f) => f.path === rf.path)) merged.push(rf);
+  }
+  return merged;
 }
 
 function patchFiles(files: { path: string; content: string }[]) {
@@ -556,7 +626,20 @@ GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
   // 4. Parse + patch files
   const projectName = slugify(app.name, appId);
   const rawFiles = parseGeneratedCode(app.generated_code);
-  const files = patchFiles(rawFiles);
+  let files = patchFiles(rawFiles);
+
+  // 4b. Detect files referenced but never generated, attempt one focused repair
+  let missingImports = findMissingLocalImports(files);
+  if (missingImports.length > 0) {
+    console.warn(`[api/deploy] Missing files detected, attempting repair: ${missingImports.join(", ")}`);
+    files = await repairMissingFiles(files, missingImports);
+    missingImports = findMissingLocalImports(files);
+    if (missingImports.length > 0) {
+      throw new Error(
+        `Generated code is incomplete — missing files even after repair attempt: ${missingImports.join(", ")}`
+      );
+    }
+  }
 
   // 5. Mark deploying
   await supabasePatch("apps", appId, { status: "deploying" });

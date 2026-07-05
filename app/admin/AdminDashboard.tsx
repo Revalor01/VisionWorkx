@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { App, AppCategory, AppStatus, Plan, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
@@ -55,6 +56,8 @@ export default function AdminDashboard({
   subscriptions,
   userEmails,
 }: AdminDashboardProps) {
+  const router = useRouter();
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [appSearch, setAppSearch] = useState("");
   const [appStatusFilter, setAppStatusFilter] = useState<AppStatus | "all">("all");
@@ -72,6 +75,14 @@ export default function AdminDashboard({
   const [paymentsError, setPaymentsError] = useState("");
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentRow["status"] | "all">("all");
+
+  // Auto-refresh — re-runs the server-side data fetch on an interval without
+  // a full page reload, so the active tab and filters stay put.
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => router.refresh(), 15000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, router]);
 
   useEffect(() => {
     if (tab !== "payments" || payments.length > 0) return;
@@ -203,9 +214,20 @@ export default function AdminDashboard({
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
         </div>
-        <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
-          ← Back to Dashboard
-        </Link>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setAutoRefresh((v) => !v)}
+            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+              autoRefresh ? "bg-green-500/20 text-green-300" : "bg-white/10 text-white/70 hover:text-white"
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-green-400 animate-pulse" : "bg-white/40"}`} />
+            Auto-refresh {autoRefresh ? "on" : "off"}
+          </button>
+          <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
+            ← Back to Dashboard
+          </Link>
+        </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
