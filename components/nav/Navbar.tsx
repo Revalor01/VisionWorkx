@@ -6,13 +6,20 @@ export default function Navbar() {
     <header className="bg-navy-dark text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
-              <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
-            </span>
-            <span className="text-xl font-bold tracking-tight">Vision Workx</span>
-            <span className="text-xs text-blue-300 hidden sm:block">by Revalor</span>
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
+                <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
+              </span>
+              <span className="text-xl font-bold tracking-tight">Vision Workx</span>
+            </Link>
+            <a
+              href="https://revalor-automation.vercel.app/"
+              className="text-xs text-blue-300 hover:text-white transition-colors hidden sm:block"
+            >
+              by Revalor
+            </a>
+          </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-blue-100">
             <Link href="/#how-it-works" className="hover:text-white transition-colors">

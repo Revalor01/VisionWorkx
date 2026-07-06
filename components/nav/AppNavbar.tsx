@@ -50,17 +50,24 @@ export default function AppNavbar({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 shrink-0"
-          >
-            <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
-              <Image src="/VisionWorks.png" alt="Vision Workx" width={44} height={44} className="rounded-sm" />
-            </span>
-            <span className="text-lg font-bold tracking-tight">
-              Vision Workx
-            </span>
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+              <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
+                <Image src="/VisionWorks.png" alt="Vision Workx" width={44} height={44} className="rounded-sm" />
+              </span>
+              <span className="text-lg font-bold tracking-tight">
+                Vision Workx
+              </span>
+            </Link>
+            <a
+              href="https://revalor-automation.vercel.app/"
+              target="_blank"
+              rel="noopener"
+              className="text-xs text-blue-300 hover:text-white transition-colors hidden md:block"
+            >
+              by Revalor
+            </a>
+          </div>
 
           {/* Nav links */}
           <nav className="hidden sm:flex items-center gap-1">
