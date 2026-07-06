@@ -657,6 +657,35 @@ GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
       const msg = (err as Error).message;
       if (!msg.includes("already exists")) throw err;
     }
+
+    // 2b. Attach automation-event triggers to every table in the tenant
+    // schema, so Revalor Automations can observe row-level changes via
+    // public.automation_events. Idempotent (safe on redeploys) and
+    // non-fatal — instrumentation must never block a customer's deploy.
+    try {
+      const tables = (await supabaseSQL(
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = '${SCHEMA}' AND table_type = 'BASE TABLE';`
+      )) as { table_name: string }[];
+
+      if (tables.length > 0) {
+        const triggerSql = tables
+          .map(
+            ({ table_name }) => `
+DROP TRIGGER IF EXISTS emit_automation_event ON "${SCHEMA}"."${table_name}";
+CREATE TRIGGER emit_automation_event
+  AFTER INSERT OR UPDATE OR DELETE ON "${SCHEMA}"."${table_name}"
+  FOR EACH ROW EXECUTE FUNCTION public.emit_automation_event('${appId}');`
+          )
+          .join("\n");
+
+        await supabaseSQL(triggerSql);
+      }
+    } catch (err) {
+      console.error(
+        `[api/deploy] Failed to attach automation triggers for schema ${SCHEMA}:`,
+        err
+      );
+    }
   }
 
   // 3. Expose schema in PostgREST

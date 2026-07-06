@@ -14,6 +14,7 @@ export type AppStatus =
   | "failed"        // generation failed
   | "deploy_failed"; // Vercel deployment failed
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
+export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
 
 export interface IntakeData {
   businessName: string;
@@ -116,6 +117,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      automation_events: {
+        Row: {
+          id: string;
+          app_id: string;
+          schema_name: string;
+          table_name: string;
+          operation: AutomationOperation;
+          row_data: Record<string, unknown>;
+          old_row_data: Record<string, unknown> | null;
+          created_at: string;
+          delivered_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          app_id: string;
+          schema_name: string;
+          table_name: string;
+          operation: AutomationOperation;
+          row_data: Record<string, unknown>;
+          old_row_data?: Record<string, unknown> | null;
+          created_at?: string;
+          delivered_at?: string | null;
+        };
+        Update: {
+          delivered_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -127,3 +156,4 @@ export type Database = {
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type App = Database["public"]["Tables"]["apps"]["Row"];
 export type Subscription = Database["public"]["Tables"]["subscriptions"]["Row"];
+export type AutomationEvent = Database["public"]["Tables"]["automation_events"]["Row"];

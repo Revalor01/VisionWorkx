@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { App, AppCategory, AppStatus, Plan, Profile, Subscription } from "@/lib/database.types";
+import type { App, AppCategory, AppStatus, AutomationEvent, Plan, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
+import { semanticEventLabel } from "@/lib/automationEventLabel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,10 @@ interface AdminDashboardProps {
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
   subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
+  automationEvents: AutomationEvent[];
+  undeliveredCount: number;
+  oldestUndeliveredAt: string | null;
+  instrumentedAppIds: string[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -48,7 +53,7 @@ const PLAN_STYLE: Record<Plan, string> = {
   pro:      "bg-amber-100 text-amber-700",
 };
 
-type Tab = "overview" | "apps" | "users" | "payments";
+type Tab = "overview" | "apps" | "users" | "payments" | "automations";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -57,6 +62,10 @@ export default function AdminDashboard({
   profiles,
   subscriptions,
   userEmails,
+  automationEvents,
+  undeliveredCount,
+  oldestUndeliveredAt,
+  instrumentedAppIds,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -126,6 +135,13 @@ export default function AdminDashboard({
       failed: apps.filter((a) => a.status === "failed" || a.status === "deploy_failed").length,
     };
   }, [apps, profiles, subscriptions]);
+
+  // ── Automations derived state ───────────────────────────────────
+  const instrumentedSet = useMemo(() => new Set(instrumentedAppIds), [instrumentedAppIds]);
+  const oldestPendingAgeMinutes = useMemo(() => {
+    if (!oldestUndeliveredAt) return null;
+    return Math.round((Date.now() - new Date(oldestUndeliveredAt).getTime()) / 60000);
+  }, [oldestUndeliveredAt]);
 
   // ── Filtered apps ──────────────────────────────────────────────
   const filteredApps = useMemo(() => {
@@ -306,7 +322,7 @@ export default function AdminDashboard({
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
-          {(["overview", "apps", "users", "payments"] as Tab[]).map((t) => (
+          {(["overview", "apps", "users", "payments", "automations"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -669,6 +685,141 @@ export default function AdminDashboard({
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── Automations ── */}
+        {tab === "automations" && (
+          <div className="space-y-6">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <StatCard
+                label="Undelivered Events"
+                value={undeliveredCount}
+                accent={undeliveredCount > 0 ? "blue" : undefined}
+              />
+              <StatCard
+                label="Oldest Pending"
+                value={oldestPendingAgeMinutes === null ? "—" : `${oldestPendingAgeMinutes}m`}
+                accent={oldestPendingAgeMinutes !== null && oldestPendingAgeMinutes > 15 ? "red" : undefined}
+                sub={oldestPendingAgeMinutes !== null && oldestPendingAgeMinutes > 15 ? "Poller may be down" : undefined}
+              />
+              <StatCard
+                label="Apps Instrumented"
+                value={`${apps.filter((a) => instrumentedSet.has(a.id)).length}/${apps.length}`}
+                accent={instrumentedSet.size === apps.length ? "green" : undefined}
+              />
+            </div>
+
+            {/* Per-app instrumentation status */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900">App Instrumentation</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Whether emit_automation_event is actually attached in each app&apos;s tenant schema
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <Th>App</Th>
+                      <Th>Status</Th>
+                      <Th>Instrumented</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {apps.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="text-center py-12 text-gray-400">
+                          No apps found
+                        </td>
+                      </tr>
+                    ) : (
+                      apps.map((app) => (
+                        <tr key={app.id} className="hover:bg-gray-50/50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{CATEGORY_ICONS[app.category]}</span>
+                              <div>
+                                <div className="font-medium text-gray-900">{app.name}</div>
+                                <div className="text-xs text-gray-400 capitalize">{app.category}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${(STATUS_STYLE[app.status] ?? { cls: "bg-gray-100 text-gray-500" }).cls}`}>
+                              {(STATUS_STYLE[app.status] ?? { label: app.status }).label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {instrumentedSet.has(app.id) ? (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Yes</span>
+                            ) : (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">No</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Recent events */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900">Recent Events</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Last {automationEvents.length} events across all apps</p>
+              </div>
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100 sticky top-0">
+                    <tr>
+                      <Th>Time</Th>
+                      <Th>App</Th>
+                      <Th>Event</Th>
+                      <Th>Delivered</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {automationEvents.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-12 text-gray-400">
+                          No events recorded yet
+                        </td>
+                      </tr>
+                    ) : (
+                      automationEvents.map((event) => {
+                        const app = apps.find((a) => a.id === event.app_id);
+                        const label = semanticEventLabel(app?.category, event.table_name, event.operation);
+                        return (
+                          <tr key={event.id} className="hover:bg-gray-50/50">
+                            <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                              {new Date(event.created_at).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-gray-900 font-medium">{app?.name ?? event.app_id.slice(0, 8) + "…"}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{label}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {event.delivered_at ? (
+                                <span className="text-xs text-green-600">✓</span>
+                              ) : (
+                                <span className="text-xs text-amber-600">pending</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </div>
