@@ -305,6 +305,14 @@ function buildUserPrompt(intake: IntakeData): string {
 - Works for both the customer-facing confirmation and the admin view`
     : "";
 
+  const logoUrl = intake.logoPath
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/logos/${intake.logoPath}`
+    : null;
+  const logoLine = logoUrl
+    ? `\n- Logo: ${logoUrl} — use this exact URL directly in an <img>/<Image> tag in the header/nav (and anywhere else a logo naturally belongs, e.g. the login page). Do not fetch, download, or re-host it — just reference the URL as-is.`
+    : "";
+  const backgroundColor = intake.backgroundColor || "#F8FAFC";
+
   return `Build a complete ${categoryDesc} for the following business.
 
 ## Business Details
@@ -321,13 +329,15 @@ ${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarEx
 
 ## Branding
 - Primary color: ${intake.primaryColor}
-- Font: ${intake.font} (from Google Fonts)
+- Background color: ${backgroundColor}
+- Font: ${intake.font} (from Google Fonts)${logoLine}
 
 ## Additional Requirements
 - Include both a customer-facing view AND an admin dashboard
 - Admin dashboard: manage all records, view stats, handle the core workflow
 - Customer view: self-service features relevant to the category
-- Use "${intake.primaryColor}" as the CSS primary color throughout (Tailwind's \`primary\` via config extension or inline hex values)
+- Use "${intake.primaryColor}" as the CSS primary/accent color throughout (buttons, headings, links — Tailwind's \`primary\` via config extension or inline hex values)
+- Use "${backgroundColor}" as the page background color throughout — this is distinct from the primary/accent color above; do not conflate the two
 - Use ${intake.font} from Google Fonts via next/font/google
 - Keep the UX simple and welcoming — the business owner is not technical
 - Include placeholder/mock data so the app looks populated on first run

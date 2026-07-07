@@ -32,6 +32,7 @@ export interface IntakeData {
   category: AppCategory;
   features: string[];
   primaryColor: string;
+  backgroundColor?: string;
   font: string;
   logoPath?: string;
 }

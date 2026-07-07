@@ -156,6 +156,7 @@ const DEFAULT_FORM: FormState = {
   category: "booking",
   features: [],
   primaryColor: "#1A3A5C",
+  backgroundColor: "#F8FAFC",
   font: "Inter",
 };
 
@@ -249,6 +250,7 @@ export default function OnboardForm({
         category: data.category,
         features: data.features,
         primaryColor: data.primaryColor,
+        backgroundColor: data.backgroundColor,
         font: data.font,
         ...(logoPath ? { logoPath } : {}),
       };
@@ -518,6 +520,24 @@ export default function OnboardForm({
                   </div>
                 </div>
 
+                {/* Background color */}
+                <div>
+                  <label className="block text-sm font-medium text-navy-dark mb-2">
+                    Background color
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={data.backgroundColor ?? "#F8FAFC"}
+                      onChange={(e) => update("backgroundColor", e.target.value)}
+                      className="w-12 h-12 rounded-xl border border-gray-300 cursor-pointer p-0.5"
+                    />
+                    <span className="text-sm text-gray-600 font-mono">
+                      {(data.backgroundColor ?? "#F8FAFC").toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Font */}
                 <div>
                   <label className="block text-sm font-medium text-navy-dark mb-2">
@@ -585,7 +605,12 @@ export default function OnboardForm({
                         className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0"
                         style={{ background: data.primaryColor }}
                       />
-                      {data.primaryColor.toUpperCase()} · {data.font}
+                      {data.primaryColor.toUpperCase()}
+                      <span
+                        className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0"
+                        style={{ background: data.backgroundColor ?? "#F8FAFC" }}
+                      />
+                      {(data.backgroundColor ?? "#F8FAFC").toUpperCase()} · {data.font}
                       {logoFile && (
                         <span className="text-green-600 ml-1">· Logo ✓</span>
                       )}
