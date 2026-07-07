@@ -106,12 +106,19 @@ export default function AdminDashboard({
   const [leadStatusFilter, setLeadStatusFilter] = useState<LeadStatus | "all">("all");
   const [leadCategoryFilter, setLeadCategoryFilter] = useState<string>("all");
   const [leadLanguageFilter, setLeadLanguageFilter] = useState<LeadLanguage | "all">("all");
+  const [leadWebsiteFilter, setLeadWebsiteFilter] = useState<"all" | "yes" | "no">("all");
   const [leadMinScore, setLeadMinScore] = useState(0);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [leadsPage, setLeadsPage] = useState(1);
+  const LEADS_PER_PAGE = 30;
 
   useEffect(() => {
     setLeads(initialLeads);
   }, [initialLeads]);
+
+  useEffect(() => {
+    setLeadsPage(1);
+  }, [leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadMinScore]);
 
   async function handleLeadSearch() {
     if (!leadSearchLocation.trim()) return;
@@ -164,10 +171,18 @@ export default function AdminDashboard({
       if (leadStatusFilter !== "all" && l.status !== leadStatusFilter) return false;
       if (leadCategoryFilter !== "all" && l.industry_category !== leadCategoryFilter) return false;
       if (leadLanguageFilter !== "all" && l.detected_language !== leadLanguageFilter) return false;
+      if (leadWebsiteFilter === "yes" && !l.website) return false;
+      if (leadWebsiteFilter === "no" && l.website) return false;
       if (l.final_score < leadMinScore) return false;
       return true;
     });
-  }, [leads, leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadMinScore]);
+  }, [leads, leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadMinScore]);
+
+  const leadsTotalPages = Math.max(1, Math.ceil(filteredLeads.length / LEADS_PER_PAGE));
+  const paginatedLeads = useMemo(
+    () => filteredLeads.slice((leadsPage - 1) * LEADS_PER_PAGE, leadsPage * LEADS_PER_PAGE),
+    [filteredLeads, leadsPage]
+  );
 
   const leadStats = useMemo(() => {
     const buckets = { hot: 0, warm: 0, potential: 0, low: 0 };
@@ -184,17 +199,20 @@ export default function AdminDashboard({
   }, [filteredLeads]);
 
   function exportLeadsCsv() {
-    const headers = ["Business Name", "Category", "Language", "Score", "Status", "Phone", "Email", "Has Website", "Website", "Address", "Discovered"];
+    const headers = ["Business Name", "Category", "Language", "Score", "Yelp Rating", "Yelp Reviews", "Status", "Phone", "Email", "Has Website", "Website", "Distance (mi)", "Address", "Discovered"];
     const rows = filteredLeads.map((l) => [
       l.business_name,
       l.industry_category ?? "",
       l.detected_language === "es" ? "Spanish" : "English",
       String(l.final_score),
+      l.yelp_rating != null ? String(l.yelp_rating) : "",
+      l.yelp_review_count != null ? String(l.yelp_review_count) : "",
       l.status,
       l.phone ?? "",
       l.email ?? "",
       l.website ? "Yes" : "No",
       l.website ?? "",
+      l.distance_miles != null ? String(l.distance_miles) : "",
       l.address ?? "",
       new Date(l.discovered_at).toLocaleDateString(),
     ]);
@@ -1016,6 +1034,15 @@ export default function AdminDashboard({
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
               </select>
+              <select
+                value={leadWebsiteFilter}
+                onChange={(e) => setLeadWebsiteFilter(e.target.value as "all" | "yes" | "no")}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">Website: all</option>
+                <option value="yes">Has website</option>
+                <option value="no">No website</option>
+              </select>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span>Min score</span>
                 <input
@@ -1046,21 +1073,23 @@ export default function AdminDashboard({
                       <Th>Category</Th>
                       <Th>Lang</Th>
                       <Th>Score</Th>
+                      <Th>Yelp</Th>
                       <Th>Website</Th>
+                      <Th>Distance</Th>
                       <Th>Phone</Th>
                       <Th>Email</Th>
                       <Th>Status</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filteredLeads.length === 0 ? (
+                    {paginatedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center py-12 text-gray-400">
+                        <td colSpan={10} className="text-center py-12 text-gray-400">
                           No leads yet — run a search above.
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead) => {
+                      paginatedLeads.map((lead) => {
                         const bucket = scoreBucket(lead.final_score);
                         const bucketCls =
                           bucket.tier === "hot" ? "bg-red-100 text-red-700" :
@@ -1086,6 +1115,13 @@ export default function AdminDashboard({
                                 {lead.final_score}
                               </span>
                             </td>
+                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                              {lead.yelp_rating != null ? (
+                                <span>★{lead.yelp_rating.toFixed(1)} ({lead.yelp_review_count ?? 0})</span>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               {lead.website ? (
                                 <a
@@ -1100,6 +1136,9 @@ export default function AdminDashboard({
                               ) : (
                                 <span className="text-xs text-red-500">✗ No</span>
                               )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                              {lead.distance_miles != null ? `${lead.distance_miles} mi` : <span className="text-gray-300">—</span>}
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-600">{lead.phone ?? <span className="text-gray-300">—</span>}</td>
                             <td className="px-4 py-3 text-xs text-gray-600">{lead.email ?? <span className="text-gray-300">—</span>}</td>
@@ -1121,6 +1160,26 @@ export default function AdminDashboard({
                     )}
                   </tbody>
                 </table>
+              </div>
+              {/* Pagination */}
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                <button
+                  onClick={() => setLeadsPage((p) => Math.max(1, p - 1))}
+                  disabled={leadsPage <= 1}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Prev
+                </button>
+                <span className="text-xs text-gray-500">
+                  Page {leadsPage} of {leadsTotalPages}
+                </span>
+                <button
+                  onClick={() => setLeadsPage((p) => Math.min(leadsTotalPages, p + 1))}
+                  disabled={leadsPage >= leadsTotalPages}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next →
+                </button>
               </div>
             </div>
           </div>

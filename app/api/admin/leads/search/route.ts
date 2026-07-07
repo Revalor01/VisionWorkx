@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
-import { classifyIndustry, detectLanguage, scoreLead } from "@/lib/leadScoring";
+import { classifyIndustry, detectLanguage, distanceMiles, scoreLead } from "@/lib/leadScoring";
+import { findYelpMatch, reviewsHavePainSignal } from "@/lib/yelpEnrichment";
 
 const ADMIN_EMAIL = "sawilliams721@gmail.com";
 
@@ -104,9 +105,13 @@ export async function POST(req: NextRequest) {
   const radiusMeters = Math.min(Math.max(body.radiusMiles ?? 5, 1), 25) * 1609.34;
 
   let elements: OverpassElement[];
+  let originLat: number;
+  let originLon: number;
   try {
-    const { lat, lon } = await geocode(location);
-    elements = await queryOverpass(lat, lon, radiusMeters);
+    const origin = await geocode(location);
+    originLat = origin.lat;
+    originLon = origin.lon;
+    elements = await queryOverpass(originLat, originLon, radiusMeters);
   } catch (err) {
     console.error("[api/admin/leads/search]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 502 });
@@ -124,6 +129,15 @@ export async function POST(req: NextRequest) {
     const hasFacebookOnly = !website && Boolean(tags["contact:facebook"] ?? tags.facebook);
     const { category, multiplier } = classifyIndustry(tags);
     const language = detectLanguage(tags, businessName);
+    const lat = el.lat ?? el.center?.lat ?? null;
+    const lon = el.lon ?? el.center?.lon ?? null;
+    const distance = lat && lon ? distanceMiles(originLat, originLon, lat, lon) : null;
+
+    // Best-effort — a missing key or no Yelp match just means those
+    // signals don't fire, not a failed lead.
+    const yelpMatch = lat && lon ? await findYelpMatch(businessName, lat, lon).catch(() => null) : null;
+    const yelpPainSignal = yelpMatch ? reviewsHavePainSignal(yelpMatch.reviewExcerpts) : false;
+
     const { rawScore, finalScore, signalBreakdown } = scoreLead({
       website,
       phone: tags.phone ?? tags["contact:phone"] ?? null,
@@ -131,10 +145,10 @@ export async function POST(req: NextRequest) {
       openingHours: tags.opening_hours ?? null,
       hasFacebookOnly,
       industryMultiplier: multiplier,
+      yelpReviewCount: yelpMatch?.reviewCount ?? null,
+      yelpRating: yelpMatch?.rating ?? null,
+      yelpReviewsHavePainSignal: yelpPainSignal,
     });
-
-    const lat = el.lat ?? el.center?.lat ?? null;
-    const lon = el.lon ?? el.center?.lon ?? null;
 
     const { error } = await service.from("leads").upsert(
       {
@@ -146,12 +160,17 @@ export async function POST(req: NextRequest) {
         address: formatAddress(tags),
         lat,
         lng: lon,
+        distance_miles: distance,
         phone: tags.phone ?? tags["contact:phone"] ?? null,
         email: tags.email ?? tags["contact:email"] ?? null,
         website,
         has_facebook_only: hasFacebookOnly,
         opening_hours: tags.opening_hours ?? null,
         detected_language: language,
+        yelp_id: yelpMatch?.yelpId ?? null,
+        yelp_rating: yelpMatch?.rating ?? null,
+        yelp_review_count: yelpMatch?.reviewCount ?? null,
+        yelp_review_excerpts: yelpMatch?.reviewExcerpts ?? [],
         raw_score: rawScore,
         industry_multiplier: multiplier,
         final_score: finalScore,

@@ -1,6 +1,26 @@
 import type { LeadSignal } from "@/lib/database.types";
 
 // ---------------------------------------------------------------
+// Distance — straight-line (Haversine) miles from the search origin
+// to a lead's coordinates. Not driving distance, just great-circle;
+// good enough for "how far out is this lead" at the radii this tool
+// searches (1-25 miles).
+// ---------------------------------------------------------------
+
+const EARTH_RADIUS_MILES = 3958.8;
+
+export function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(EARTH_RADIUS_MILES * c * 100) / 100;
+}
+
+// ---------------------------------------------------------------
 // Industry classification — maps raw OSM tags to the multiplier
 // tiers from reference/visionworkx_lead_signals.html (Formula tab).
 // Approximate by nature: OSM tagging doesn't map 1:1 onto the doc's
@@ -100,12 +120,14 @@ export function detectLanguage(tags: Record<string, string>, businessName: strin
 // ---------------------------------------------------------------
 // Scoring — Tiers 1, 3, and the industry multiplier are computed
 // from OSM tags alone (Auto-tier signals per the reference doc).
-// Tier 2 (booking/payment/review-text signals) and most of Tier 4
-// (years operating) need a website scraper or paid review APIs —
-// not wired up in this first version, so they contribute 0 rather
-// than being silently assumed absent. Every fired signal is recorded
-// in signal_breakdown so a score is always auditable, not just a
-// number.
+// Yelp enrichment (optional — only present when YELP_API_KEY is set
+// and a match was found) adds the review-count/rating Tier 3 signals
+// and the review-text pain-keyword Tier 2 signal. Most of Tier 2
+// (booking/payment scrape signals) and Tier 4 (years operating) still
+// aren't wired up — no website scraper yet — so they contribute 0
+// rather than being silently assumed absent. Every fired signal is
+// recorded in signal_breakdown so a score is always auditable, not
+// just a number.
 // ---------------------------------------------------------------
 
 export interface ScorableLead {
@@ -115,6 +137,9 @@ export interface ScorableLead {
   openingHours?: string | null;
   hasFacebookOnly?: boolean;
   industryMultiplier: number;
+  yelpReviewCount?: number | null;
+  yelpRating?: number | null;
+  yelpReviewsHavePainSignal?: boolean;
 }
 
 export interface ScoreResult {
@@ -143,6 +168,24 @@ export function scoreLead(lead: ScorableLead): ScoreResult {
   }
   if (!lead.email) {
     signals.push({ tier: 3, label: "No email address", points: 10, detection: "auto" });
+  }
+
+  // Tier 3 — Yelp-derived (only present with a Yelp match)
+  if (lead.yelpReviewCount !== undefined && lead.yelpReviewCount !== null) {
+    if (lead.yelpReviewCount < 10) {
+      signals.push({ tier: 3, label: "Fewer than 10 reviews", points: 15, detection: "api" });
+    }
+  }
+  if (lead.yelpRating !== undefined && lead.yelpRating !== null) {
+    if (lead.yelpRating < 4.0) {
+      signals.push({ tier: 3, label: "Rating below 4.0", points: 15, detection: "api" });
+    }
+  }
+
+  // Tier 2 — Yelp-derived (best-effort: only the up-to-3 excerpts the
+  // free API returns, not a full review scan)
+  if (lead.yelpReviewsHavePainSignal) {
+    signals.push({ tier: 2, label: "Review mentions booking / wait problems", points: 30, detection: "api" });
   }
 
   const rawScore = signals.reduce((sum, s) => sum + s.points, 0);
