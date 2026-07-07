@@ -87,6 +87,18 @@ export default function AdminDashboard({
   const [revokingBeta, setRevokingBeta] = useState<Record<string, boolean>>({});
   const [revokedBetaIds, setRevokedBetaIds] = useState<Set<string>>(new Set());
   const [revokeErrors, setRevokeErrors] = useState<Record<string, string>>({});
+  const ITEMS_PER_PAGE = 30;
+  const [appsPage, setAppsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [eventsPage, setEventsPage] = useState(1);
+
+  useEffect(() => {
+    setAppsPage(1);
+  }, [appSearch, appStatusFilter]);
+
+  useEffect(() => {
+    setUsersPage(1);
+  }, [userSearch]);
 
   // ── Payments state ─────────────────────────────────────────────
   const [payments, setPayments] = useState<PaymentRow[]>([]);
@@ -314,6 +326,28 @@ export default function AdminDashboard({
       );
   }, [profiles, userSearch, userEmails, apps, subscriptions, deletedUserIds]);
 
+  // ── Pagination ──────────────────────────────────────────────────
+  const appsTotalPages = Math.max(1, Math.ceil(filteredApps.length / ITEMS_PER_PAGE));
+  const appsPageClamped = Math.min(appsPage, appsTotalPages);
+  const paginatedApps = useMemo(
+    () => filteredApps.slice((appsPageClamped - 1) * ITEMS_PER_PAGE, appsPageClamped * ITEMS_PER_PAGE),
+    [filteredApps, appsPageClamped]
+  );
+
+  const usersTotalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const usersPageClamped = Math.min(usersPage, usersTotalPages);
+  const paginatedUsers = useMemo(
+    () => filteredUsers.slice((usersPageClamped - 1) * ITEMS_PER_PAGE, usersPageClamped * ITEMS_PER_PAGE),
+    [filteredUsers, usersPageClamped]
+  );
+
+  const eventsTotalPages = Math.max(1, Math.ceil(automationEvents.length / ITEMS_PER_PAGE));
+  const eventsPageClamped = Math.min(eventsPage, eventsTotalPages);
+  const paginatedEvents = useMemo(
+    () => automationEvents.slice((eventsPageClamped - 1) * ITEMS_PER_PAGE, eventsPageClamped * ITEMS_PER_PAGE),
+    [automationEvents, eventsPageClamped]
+  );
+
   // ── Redeploy action ────────────────────────────────────────────
   async function handleRedeploy(appId: string) {
     setRedeploying((r) => ({ ...r, [appId]: true }));
@@ -538,11 +572,17 @@ export default function AdminDashboard({
             <p className="text-xs text-gray-400">{filteredApps.length} app{filteredApps.length !== 1 ? "s" : ""}</p>
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <AppTable
-                apps={filteredApps}
+                apps={paginatedApps}
                 userEmails={userEmails}
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+              />
+              <Pagination
+                page={appsPageClamped}
+                totalPages={appsTotalPages}
+                onPrev={() => setAppsPage((p) => Math.max(1, p - 1))}
+                onNext={() => setAppsPage((p) => Math.min(appsTotalPages, p + 1))}
               />
             </div>
           </div>
@@ -580,7 +620,7 @@ export default function AdminDashboard({
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((u) => (
+                    paginatedUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-gray-50/50">
                         <td className="px-4 py-3">
                           <div className="font-medium text-gray-900">{u.email || "—"}</div>
@@ -669,6 +709,12 @@ export default function AdminDashboard({
                   )}
                 </tbody>
               </table>
+              <Pagination
+                page={usersPageClamped}
+                totalPages={usersTotalPages}
+                onPrev={() => setUsersPage((p) => Math.max(1, p - 1))}
+                onNext={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+              />
             </div>
           </div>
         )}
@@ -919,14 +965,14 @@ export default function AdminDashboard({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {automationEvents.length === 0 ? (
+                    {paginatedEvents.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="text-center py-12 text-gray-400">
                           No events recorded yet
                         </td>
                       </tr>
                     ) : (
-                      automationEvents.map((event) => {
+                      paginatedEvents.map((event) => {
                         const app = apps.find((a) => a.id === event.app_id);
                         const label = semanticEventLabel(app?.category, event.table_name, event.operation);
                         return (
@@ -954,6 +1000,12 @@ export default function AdminDashboard({
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                page={eventsPageClamped}
+                totalPages={eventsTotalPages}
+                onPrev={() => setEventsPage((p) => Math.max(1, p - 1))}
+                onNext={() => setEventsPage((p) => Math.min(eventsTotalPages, p + 1))}
+              />
             </div>
           </div>
         )}
@@ -1161,26 +1213,12 @@ export default function AdminDashboard({
                   </tbody>
                 </table>
               </div>
-              {/* Pagination */}
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                <button
-                  onClick={() => setLeadsPage((p) => Math.max(1, p - 1))}
-                  disabled={leadsPage <= 1}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  ← Prev
-                </button>
-                <span className="text-xs text-gray-500">
-                  Page {leadsPage} of {leadsTotalPages}
-                </span>
-                <button
-                  onClick={() => setLeadsPage((p) => Math.min(leadsTotalPages, p + 1))}
-                  disabled={leadsPage >= leadsTotalPages}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next →
-                </button>
-              </div>
+              <Pagination
+                page={leadsPage}
+                totalPages={leadsTotalPages}
+                onPrev={() => setLeadsPage((p) => Math.max(1, p - 1))}
+                onNext={() => setLeadsPage((p) => Math.min(leadsTotalPages, p + 1))}
+              />
             </div>
           </div>
         )}
@@ -1246,6 +1284,40 @@ function Th({ children }: { children: React.ReactNode }) {
     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
       {children}
     </th>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+      <button
+        onClick={onPrev}
+        disabled={page <= 1}
+        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        ← Prev
+      </button>
+      <span className="text-xs text-gray-500">
+        Page {page} of {totalPages}
+      </span>
+      <button
+        onClick={onNext}
+        disabled={page >= totalPages}
+        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        Next →
+      </button>
+    </div>
   );
 }
 
