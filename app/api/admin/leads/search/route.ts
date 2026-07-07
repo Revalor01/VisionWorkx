@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
-import { classifyIndustry, scoreLead } from "@/lib/leadScoring";
+import { classifyIndustry, detectLanguage, scoreLead } from "@/lib/leadScoring";
 
 const ADMIN_EMAIL = "sawilliams721@gmail.com";
 
@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
     const website = tags.website ?? tags["contact:website"] ?? null;
     const hasFacebookOnly = !website && Boolean(tags["contact:facebook"] ?? tags.facebook);
     const { category, multiplier } = classifyIndustry(tags);
+    const language = detectLanguage(tags, businessName);
     const { rawScore, finalScore, signalBreakdown } = scoreLead({
       website,
       phone: tags.phone ?? tags["contact:phone"] ?? null,
@@ -150,6 +151,7 @@ export async function POST(req: NextRequest) {
         website,
         has_facebook_only: hasFacebookOnly,
         opening_hours: tags.opening_hours ?? null,
+        detected_language: language,
         raw_score: rawScore,
         industry_multiplier: multiplier,
         final_score: finalScore,

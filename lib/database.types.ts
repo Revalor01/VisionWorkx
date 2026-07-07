@@ -16,6 +16,7 @@ export type AppStatus =
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
 export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
 export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
+export type LeadLanguage = "en" | "es";
 
 export interface LeadSignal {
   tier: 1 | 2 | 3 | 4;
@@ -195,6 +196,7 @@ export type Database = {
           website: string | null;
           has_facebook_only: boolean;
           opening_hours: string | null;
+          detected_language: LeadLanguage;
           raw_score: number;
           industry_multiplier: number;
           final_score: number;
@@ -221,6 +223,7 @@ export type Database = {
           website?: string | null;
           has_facebook_only?: boolean;
           opening_hours?: string | null;
+          detected_language?: LeadLanguage;
           raw_score?: number;
           industry_multiplier?: number;
           final_score?: number;
@@ -240,6 +243,7 @@ export type Database = {
           website?: string | null;
           has_facebook_only?: boolean;
           opening_hours?: string | null;
+          detected_language?: LeadLanguage;
           raw_score?: number;
           industry_multiplier?: number;
           final_score?: number;

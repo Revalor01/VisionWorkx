@@ -70,6 +70,34 @@ export function classifyIndustry(tags: Record<string, string>): IndustryClassifi
 }
 
 // ---------------------------------------------------------------
+// Language detection — flags likely Spanish-speaking businesses so
+// outreach can be pitched in the right language, and so businesses
+// that are a good fit for VisionWorkx's bilingual EN/ES app feature
+// are easy to filter for. This is a name-based heuristic, not a
+// website-content check (that would need a scraper — same gap as the
+// other Manual/Scrape signals in the formula doc). An explicit
+// `name:es` tag is a strong signal; otherwise it falls back to
+// Spanish accented characters and a short list of common business
+// words. Defaults to "en" when nothing matches — this tool only
+// searches US locations, so English is the safe default.
+// ---------------------------------------------------------------
+
+const SPANISH_ACCENT_PATTERN = /[áéíóúñ¿¡]/i;
+const SPANISH_BUSINESS_WORDS = [
+  "taqueria", "taquería", "panaderia", "panadería", "peluqueria", "peluquería",
+  "lavanderia", "lavandería", "restaurante", "mercado", "carniceria", "carnicería",
+  "salon de belleza", "salón de belleza", "farmacia", "ferreteria", "ferretería",
+];
+
+export function detectLanguage(tags: Record<string, string>, businessName: string): "en" | "es" {
+  if (tags["name:es"] && tags["name:es"] === businessName) return "es";
+  if (SPANISH_ACCENT_PATTERN.test(businessName)) return "es";
+  const nameLower = businessName.toLowerCase();
+  if (SPANISH_BUSINESS_WORDS.some((word) => nameLower.includes(word))) return "es";
+  return "en";
+}
+
+// ---------------------------------------------------------------
 // Scoring — Tiers 1, 3, and the industry multiplier are computed
 // from OSM tags alone (Auto-tier signals per the reference doc).
 // Tier 2 (booking/payment/review-text signals) and most of Tier 4

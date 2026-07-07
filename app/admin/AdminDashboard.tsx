@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadStatus, Plan, Profile, Subscription } from "@/lib/database.types";
+import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
 import { scoreBucket } from "@/lib/leadScoring";
@@ -105,6 +105,7 @@ export default function AdminDashboard({
   const [leadSearchResult, setLeadSearchResult] = useState("");
   const [leadStatusFilter, setLeadStatusFilter] = useState<LeadStatus | "all">("all");
   const [leadCategoryFilter, setLeadCategoryFilter] = useState<string>("all");
+  const [leadLanguageFilter, setLeadLanguageFilter] = useState<LeadLanguage | "all">("all");
   const [leadMinScore, setLeadMinScore] = useState(0);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
@@ -162,10 +163,11 @@ export default function AdminDashboard({
     return leads.filter((l) => {
       if (leadStatusFilter !== "all" && l.status !== leadStatusFilter) return false;
       if (leadCategoryFilter !== "all" && l.industry_category !== leadCategoryFilter) return false;
+      if (leadLanguageFilter !== "all" && l.detected_language !== leadLanguageFilter) return false;
       if (l.final_score < leadMinScore) return false;
       return true;
     });
-  }, [leads, leadStatusFilter, leadCategoryFilter, leadMinScore]);
+  }, [leads, leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadMinScore]);
 
   const leadStats = useMemo(() => {
     const buckets = { hot: 0, warm: 0, potential: 0, low: 0 };
@@ -182,14 +184,16 @@ export default function AdminDashboard({
   }, [filteredLeads]);
 
   function exportLeadsCsv() {
-    const headers = ["Business Name", "Category", "Score", "Status", "Phone", "Email", "Website", "Address", "Discovered"];
+    const headers = ["Business Name", "Category", "Language", "Score", "Status", "Phone", "Email", "Has Website", "Website", "Address", "Discovered"];
     const rows = filteredLeads.map((l) => [
       l.business_name,
       l.industry_category ?? "",
+      l.detected_language === "es" ? "Spanish" : "English",
       String(l.final_score),
       l.status,
       l.phone ?? "",
       l.email ?? "",
+      l.website ? "Yes" : "No",
       l.website ?? "",
       l.address ?? "",
       new Date(l.discovered_at).toLocaleDateString(),
@@ -1003,6 +1007,15 @@ export default function AdminDashboard({
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+              <select
+                value={leadLanguageFilter}
+                onChange={(e) => setLeadLanguageFilter(e.target.value as LeadLanguage | "all")}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">All languages</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+              </select>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span>Min score</span>
                 <input
@@ -1031,15 +1044,18 @@ export default function AdminDashboard({
                     <tr>
                       <Th>Business</Th>
                       <Th>Category</Th>
+                      <Th>Lang</Th>
                       <Th>Score</Th>
-                      <Th>Contact</Th>
+                      <Th>Website</Th>
+                      <Th>Phone</Th>
+                      <Th>Email</Th>
                       <Th>Status</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-12 text-gray-400">
+                        <td colSpan={8} className="text-center py-12 text-gray-400">
                           No leads yet — run a search above.
                         </td>
                       </tr>
@@ -1059,15 +1075,34 @@ export default function AdminDashboard({
                             </td>
                             <td className="px-4 py-3 text-gray-600 text-xs">{lead.industry_category ?? "—"}</td>
                             <td className="px-4 py-3">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                lead.detected_language === "es" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500"
+                              }`}>
+                                {lead.detected_language === "es" ? "ES" : "EN"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
                               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bucketCls}`}>
                                 {lead.final_score}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600">
-                              {lead.website && <div className="truncate max-w-[160px]">{lead.website}</div>}
-                              {lead.phone && <div>{lead.phone}</div>}
-                              {!lead.website && !lead.phone && <span className="text-gray-300">—</span>}
+                            <td className="px-4 py-3">
+                              {lead.website ? (
+                                <a
+                                  href={lead.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-green-600 hover:underline"
+                                  title={lead.website}
+                                >
+                                  ✓ Yes
+                                </a>
+                              ) : (
+                                <span className="text-xs text-red-500">✗ No</span>
+                              )}
                             </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">{lead.phone ?? <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 text-xs text-gray-600">{lead.email ?? <span className="text-gray-300">—</span>}</td>
                             <td className="px-4 py-3">
                               <select
                                 value={lead.status}
