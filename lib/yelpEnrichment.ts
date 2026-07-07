@@ -1,9 +1,15 @@
 // Yelp Fusion API enrichment — free tier, no cost. Matches an OSM-found
-// business to its Yelp listing (by name + coordinates) and pulls rating,
-// review count, and up to 3 short review excerpts (Yelp's API doesn't
-// expose full review text on the free tier). Best-effort: if Yelp has
-// no match, callers just get nulls back and scoring proceeds without
-// the Yelp-derived signals rather than failing the whole lead.
+// business to its Yelp listing (by name + coordinates) and pulls rating
+// and review count from Business Search/Details. Review excerpts are
+// also attempted, but verified live (2026-07): the /reviews endpoint
+// 404s on a standard free-tier key even for a valid business ID that
+// Search/Details both resolve fine — Yelp restricts it to approved
+// partners now. Left in place in case that ever changes; until then
+// reviewExcerpts is always empty and the Tier 2 pain-keyword signal
+// never fires, but rating/review_count (the more valuable signals)
+// work normally. Best-effort throughout: if Yelp has no match, callers
+// just get nulls back and scoring proceeds without the Yelp-derived
+// signals rather than failing the whole lead.
 
 const YELP_BASE = "https://api.yelp.com/v3";
 
