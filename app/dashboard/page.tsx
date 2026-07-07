@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import DashboardClient from "./DashboardClient";
-import type { App } from "@/lib/database.types";
+import type { App, AutomationWorkflow } from "@/lib/database.types";
 
 export default async function DashboardPage() {
   const supabase = createServerClient();
@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   if (authError || !user) redirect("/login");
 
-  const [{ data: profile }, { data: apps }] = await Promise.all([
+  const [{ data: profile }, { data: apps }, { data: workflows }] = await Promise.all([
     supabase
       .from("profiles")
       .select("plan, full_name, company_name, created_at")
@@ -24,6 +24,9 @@ export default async function DashboardPage() {
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
+    // RLS scopes this to workflows on the user's own apps — no explicit
+    // filter needed here, the policy does it.
+    supabase.from("automation_workflows").select("*"),
   ]);
 
   return (
@@ -37,6 +40,7 @@ export default async function DashboardPage() {
         createdAt: profile?.created_at ?? new Date().toISOString(),
       }}
       initialApps={(apps ?? []) as App[]}
+      initialWorkflows={(workflows ?? []) as AutomationWorkflow[]}
     />
   );
 }

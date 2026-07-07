@@ -145,6 +145,31 @@ export type Database = {
         };
         Relationships: [];
       };
+      automation_workflows: {
+        Row: {
+          id: string;
+          app_id: string;
+          trigger_type: string;
+          action_type: string;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          app_id: string;
+          trigger_type: string;
+          action_type: string;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          enabled?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -157,3 +182,4 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type App = Database["public"]["Tables"]["apps"]["Row"];
 export type Subscription = Database["public"]["Tables"]["subscriptions"]["Row"];
 export type AutomationEvent = Database["public"]["Tables"]["automation_events"]["Row"];
+export type AutomationWorkflow = Database["public"]["Tables"]["automation_workflows"]["Row"];
