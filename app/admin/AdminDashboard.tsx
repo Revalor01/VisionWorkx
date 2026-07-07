@@ -3,9 +3,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { App, AppCategory, AppStatus, AutomationEvent, Plan, Profile, Subscription } from "@/lib/database.types";
+import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadStatus, Plan, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
+import { scoreBucket } from "@/lib/leadScoring";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ interface AdminDashboardProps {
   undeliveredCount: number;
   oldestUndeliveredAt: string | null;
   instrumentedAppIds: string[];
+  initialLeads: Lead[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ const PLAN_STYLE: Record<Plan, string> = {
   pro:      "bg-amber-100 text-amber-700",
 };
 
-type Tab = "overview" | "apps" | "users" | "payments" | "automations";
+type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,7 @@ export default function AdminDashboard({
   undeliveredCount,
   oldestUndeliveredAt,
   instrumentedAppIds,
+  initialLeads,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -92,6 +95,116 @@ export default function AdminDashboard({
   const [paymentsError, setPaymentsError] = useState("");
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentRow["status"] | "all">("all");
+
+  // ── Leads state ─────────────────────────────────────────────────
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [leadSearchLocation, setLeadSearchLocation] = useState("");
+  const [leadSearchRadius, setLeadSearchRadius] = useState(5);
+  const [searchingLeads, setSearchingLeads] = useState(false);
+  const [leadSearchError, setLeadSearchError] = useState("");
+  const [leadSearchResult, setLeadSearchResult] = useState("");
+  const [leadStatusFilter, setLeadStatusFilter] = useState<LeadStatus | "all">("all");
+  const [leadCategoryFilter, setLeadCategoryFilter] = useState<string>("all");
+  const [leadMinScore, setLeadMinScore] = useState(0);
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLeads(initialLeads);
+  }, [initialLeads]);
+
+  async function handleLeadSearch() {
+    if (!leadSearchLocation.trim()) return;
+    setSearchingLeads(true);
+    setLeadSearchError("");
+    setLeadSearchResult("");
+    try {
+      const res = await fetch("/api/admin/leads/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: leadSearchLocation, radiusMiles: leadSearchRadius }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLeadSearchResult(`Found ${data.found}, saved ${data.upserted}.`);
+        router.refresh();
+      } else {
+        setLeadSearchError(data.error ?? "Search failed");
+      }
+    } catch {
+      setLeadSearchError("Network error");
+    } finally {
+      setSearchingLeads(false);
+    }
+  }
+
+  async function handleLeadStatusChange(leadId: string, status: LeadStatus) {
+    setUpdatingLeadId(leadId);
+    try {
+      const res = await fetch("/api/admin/leads/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, status }),
+      });
+      if (res.ok) {
+        setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, status } : l)));
+      }
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  }
+
+  const leadCategories = useMemo(
+    () => Array.from(new Set(leads.map((l) => l.industry_category).filter(Boolean))) as string[],
+    [leads]
+  );
+
+  const filteredLeads = useMemo(() => {
+    return leads.filter((l) => {
+      if (leadStatusFilter !== "all" && l.status !== leadStatusFilter) return false;
+      if (leadCategoryFilter !== "all" && l.industry_category !== leadCategoryFilter) return false;
+      if (l.final_score < leadMinScore) return false;
+      return true;
+    });
+  }, [leads, leadStatusFilter, leadCategoryFilter, leadMinScore]);
+
+  const leadStats = useMemo(() => {
+    const buckets = { hot: 0, warm: 0, potential: 0, low: 0 };
+    let scoreSum = 0;
+    for (const l of filteredLeads) {
+      buckets[scoreBucket(l.final_score).tier]++;
+      scoreSum += l.final_score;
+    }
+    return {
+      total: filteredLeads.length,
+      avgScore: filteredLeads.length > 0 ? Math.round(scoreSum / filteredLeads.length) : 0,
+      ...buckets,
+    };
+  }, [filteredLeads]);
+
+  function exportLeadsCsv() {
+    const headers = ["Business Name", "Category", "Score", "Status", "Phone", "Email", "Website", "Address", "Discovered"];
+    const rows = filteredLeads.map((l) => [
+      l.business_name,
+      l.industry_category ?? "",
+      String(l.final_score),
+      l.status,
+      l.phone ?? "",
+      l.email ?? "",
+      l.website ?? "",
+      l.address ?? "",
+      new Date(l.discovered_at).toLocaleDateString(),
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   // Auto-refresh — re-runs the server-side data fetch on an interval without
   // a full page reload, so the active tab and filters stay put.
@@ -322,7 +435,7 @@ export default function AdminDashboard({
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
-          {(["overview", "apps", "users", "payments", "automations"] as Tab[]).map((t) => (
+          {(["overview", "apps", "users", "payments", "automations", "leads"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -811,6 +924,161 @@ export default function AdminDashboard({
                               ) : (
                                 <span className="text-xs text-amber-600">pending</span>
                               )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Leads ── */}
+        {tab === "leads" && (
+          <div className="space-y-6">
+            {/* Search */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <h2 className="font-semibold text-gray-900 mb-1">Find Leads</h2>
+              <p className="text-xs text-gray-400 mb-4">Searches OpenStreetMap around a location and scores every business found.</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  placeholder="City, state or ZIP (e.g. Charlotte, NC)"
+                  value={leadSearchLocation}
+                  onChange={(e) => setLeadSearchLocation(e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                />
+                <select
+                  value={leadSearchRadius}
+                  onChange={(e) => setLeadSearchRadius(Number(e.target.value))}
+                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                >
+                  {[1, 3, 5, 10, 15, 25].map((r) => (
+                    <option key={r} value={r}>{r} mi radius</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleLeadSearch}
+                  disabled={searchingLeads || !leadSearchLocation.trim()}
+                  className="px-6 py-2.5 rounded-xl bg-[#1A3A5C] text-white text-sm font-semibold hover:bg-[#2E6DA4] disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {searchingLeads ? "Searching…" : "Search"}
+                </button>
+              </div>
+              {leadSearchResult && <p className="text-xs text-green-600 mt-2">{leadSearchResult}</p>}
+              {leadSearchError && <p className="text-xs text-red-500 mt-2">{leadSearchError}</p>}
+            </div>
+
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+              <StatCard label="Leads (filtered)" value={leadStats.total} />
+              <StatCard label="Avg Score" value={leadStats.avgScore} />
+              <StatCard label="🔥 Hot" value={leadStats.hot} accent="red" />
+              <StatCard label="♨️ Warm" value={leadStats.warm} accent="blue" />
+              <StatCard label="☑ Potential" value={leadStats.potential} accent="green" />
+            </div>
+
+            {/* Filters + export */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <select
+                value={leadStatusFilter}
+                onChange={(e) => setLeadStatusFilter(e.target.value as LeadStatus | "all")}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">All statuses</option>
+                {(["new", "contacted", "responded", "qualified", "converted", "dead"] as LeadStatus[]).map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                value={leadCategoryFilter}
+                onChange={(e) => setLeadCategoryFilter(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">All categories</option>
+                {leadCategories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Min score</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={leadMinScore}
+                  onChange={(e) => setLeadMinScore(Number(e.target.value))}
+                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                />
+              </div>
+              <button
+                onClick={exportLeadsCsv}
+                disabled={filteredLeads.length === 0}
+                className="ml-auto text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                ⬇ Export CSV ({filteredLeads.length})
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <Th>Business</Th>
+                      <Th>Category</Th>
+                      <Th>Score</Th>
+                      <Th>Contact</Th>
+                      <Th>Status</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredLeads.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-gray-400">
+                          No leads yet — run a search above.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredLeads.map((lead) => {
+                        const bucket = scoreBucket(lead.final_score);
+                        const bucketCls =
+                          bucket.tier === "hot" ? "bg-red-100 text-red-700" :
+                          bucket.tier === "warm" ? "bg-amber-100 text-amber-700" :
+                          bucket.tier === "potential" ? "bg-sky-100 text-sky-700" :
+                          "bg-gray-100 text-gray-500";
+                        return (
+                          <tr key={lead.id} className="hover:bg-gray-50/50">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{lead.business_name}</div>
+                              <div className="text-xs text-gray-400">{lead.address ?? "—"}</div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 text-xs">{lead.industry_category ?? "—"}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bucketCls}`}>
+                                {lead.final_score}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {lead.website && <div className="truncate max-w-[160px]">{lead.website}</div>}
+                              {lead.phone && <div>{lead.phone}</div>}
+                              {!lead.website && !lead.phone && <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={lead.status}
+                                disabled={updatingLeadId === lead.id}
+                                onChange={(e) => handleLeadStatusChange(lead.id, e.target.value as LeadStatus)}
+                                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white disabled:opacity-50"
+                              >
+                                {(["new", "contacted", "responded", "qualified", "converted", "dead"] as LeadStatus[]).map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
                             </td>
                           </tr>
                         );

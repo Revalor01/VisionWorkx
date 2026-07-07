@@ -23,6 +23,7 @@ export default async function AdminPage() {
     { data: automationEvents },
     { count: undeliveredCount },
     { data: oldestUndeliveredRows },
+    { data: leads },
   ] = await Promise.all([
     service
       .from("apps")
@@ -50,6 +51,11 @@ export default async function AdminPage() {
       .is("delivered_at", null)
       .order("created_at", { ascending: true })
       .limit(1),
+    service
+      .from("leads")
+      .select("*")
+      .order("final_score", { ascending: false })
+      .limit(1000),
   ]);
 
   const oldestUndeliveredAt = oldestUndeliveredRows?.[0]?.created_at ?? null;
@@ -127,6 +133,7 @@ export default async function AdminPage() {
       undeliveredCount={undeliveredCount ?? 0}
       oldestUndeliveredAt={oldestUndeliveredAt}
       instrumentedAppIds={instrumentedAppIds}
+      initialLeads={leads ?? []}
     />
   );
 }

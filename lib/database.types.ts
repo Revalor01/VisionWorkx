@@ -15,6 +15,14 @@ export type AppStatus =
   | "deploy_failed"; // Vercel deployment failed
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
 export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
+export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
+
+export interface LeadSignal {
+  tier: 1 | 2 | 3 | 4;
+  label: string;
+  points: number;
+  detection: "auto" | "api" | "manual" | "scrape" | "inferred";
+}
 
 export interface IntakeData {
   businessName: string;
@@ -170,6 +178,98 @@ export type Database = {
         };
         Relationships: [];
       };
+      leads: {
+        Row: {
+          id: string;
+          source: string;
+          source_id: string;
+          business_name: string;
+          business_type: string | null;
+          industry_category: string | null;
+          address: string | null;
+          lat: number | null;
+          lng: number | null;
+          phone: string | null;
+          email: string | null;
+          website: string | null;
+          has_facebook_only: boolean;
+          opening_hours: string | null;
+          raw_score: number;
+          industry_multiplier: number;
+          final_score: number;
+          signal_breakdown: LeadSignal[];
+          status: LeadStatus;
+          discovered_at: string;
+          last_contacted_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          source?: string;
+          source_id: string;
+          business_name: string;
+          business_type?: string | null;
+          industry_category?: string | null;
+          address?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          phone?: string | null;
+          email?: string | null;
+          website?: string | null;
+          has_facebook_only?: boolean;
+          opening_hours?: string | null;
+          raw_score?: number;
+          industry_multiplier?: number;
+          final_score?: number;
+          signal_breakdown?: LeadSignal[];
+          status?: LeadStatus;
+          discovered_at?: string;
+          last_contacted_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          business_type?: string | null;
+          industry_category?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          website?: string | null;
+          has_facebook_only?: boolean;
+          opening_hours?: string | null;
+          raw_score?: number;
+          industry_multiplier?: number;
+          final_score?: number;
+          signal_breakdown?: LeadSignal[];
+          status?: LeadStatus;
+          last_contacted_at?: string | null;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      lead_events: {
+        Row: {
+          id: string;
+          lead_id: string;
+          event_type: string;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lead_id: string;
+          event_type: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -183,3 +283,5 @@ export type App = Database["public"]["Tables"]["apps"]["Row"];
 export type Subscription = Database["public"]["Tables"]["subscriptions"]["Row"];
 export type AutomationEvent = Database["public"]["Tables"]["automation_events"]["Row"];
 export type AutomationWorkflow = Database["public"]["Tables"]["automation_workflows"]["Row"];
+export type Lead = Database["public"]["Tables"]["leads"]["Row"];
+export type LeadEvent = Database["public"]["Tables"]["lead_events"]["Row"];
