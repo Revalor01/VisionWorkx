@@ -40,6 +40,13 @@ export interface PromoteTargetAudience {
   location: string;
 }
 
+export type SocialPlatform = "facebook" | "instagram";
+export type SocialVideoStatus = "raw" | "in_editing" | "ready" | "posted";
+export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" | "failed";
+export type SocialInboxSourceType = "dm" | "comment";
+export type SocialInboxClassification = "auto_answered" | "requires_human";
+export type SocialInboxStatus = "open" | "resolved";
+
 export interface LeadSignal {
   tier: 1 | 2 | 3 | 4;
   label: string;
@@ -506,6 +513,201 @@ export type Database = {
         };
         Relationships: [];
       };
+      social_brands: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          voice_notes: string | null;
+          faq_document: string | null;
+          fb_page_id: string | null;
+          ig_business_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          voice_notes?: string | null;
+          faq_document?: string | null;
+          fb_page_id?: string | null;
+          ig_business_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          voice_notes?: string | null;
+          faq_document?: string | null;
+          fb_page_id?: string | null;
+          ig_business_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      social_connections: {
+        Row: {
+          id: string;
+          brand_id: string;
+          fb_page_access_token: string;
+          token_expires_at: string | null;
+          connected_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          fb_page_access_token: string;
+          token_expires_at?: string | null;
+          connected_at?: string;
+        };
+        Update: {
+          fb_page_access_token?: string;
+          token_expires_at?: string | null;
+        };
+        Relationships: [];
+      };
+      social_video_assets: {
+        Row: {
+          id: string;
+          brand_id: string;
+          status: SocialVideoStatus;
+          raw_path: string;
+          final_path: string | null;
+          editor_email: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          status?: SocialVideoStatus;
+          raw_path: string;
+          final_path?: string | null;
+          editor_email?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: SocialVideoStatus;
+          final_path?: string | null;
+          editor_email?: string | null;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      social_content: {
+        Row: {
+          id: string;
+          brand_id: string;
+          video_asset_id: string | null;
+          platform: SocialPlatform;
+          hook: string | null;
+          caption: string;
+          hashtags: string[];
+          status: SocialContentStatus;
+          scheduled_at: string | null;
+          posted_at: string | null;
+          platform_post_id: string | null;
+          failure_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          video_asset_id?: string | null;
+          platform: SocialPlatform;
+          hook?: string | null;
+          caption: string;
+          hashtags?: string[];
+          status?: SocialContentStatus;
+          scheduled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          video_asset_id?: string | null;
+          hook?: string | null;
+          caption?: string;
+          hashtags?: string[];
+          status?: SocialContentStatus;
+          scheduled_at?: string | null;
+          posted_at?: string | null;
+          platform_post_id?: string | null;
+          failure_reason?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      social_inbox_items: {
+        Row: {
+          id: string;
+          brand_id: string;
+          platform: SocialPlatform;
+          source_type: SocialInboxSourceType;
+          sender_id: string;
+          sender_name: string | null;
+          message_text: string;
+          classification: SocialInboxClassification;
+          auto_reply_text: string | null;
+          status: SocialInboxStatus;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          platform: SocialPlatform;
+          source_type: SocialInboxSourceType;
+          sender_id: string;
+          sender_name?: string | null;
+          message_text: string;
+          classification: SocialInboxClassification;
+          auto_reply_text?: string | null;
+          status?: SocialInboxStatus;
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Update: {
+          status?: SocialInboxStatus;
+          resolved_at?: string | null;
+        };
+        Relationships: [];
+      };
+      social_editors: {
+        Row: {
+          email: string;
+          added_at: string;
+        };
+        Insert: {
+          email: string;
+          added_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      social_oauth_sessions: {
+        Row: {
+          id: string;
+          brand_id: string;
+          user_token: string;
+          pages_json: { pageId: string; pageName: string; pageAccessToken: string; igBusinessId: string | null }[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          user_token: string;
+          pages_json: { pageId: string; pageName: string; pageAccessToken: string; igBusinessId: string | null }[];
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -525,3 +727,8 @@ export type PromoteBusiness = Database["public"]["Tables"]["promote_businesses"]
 export type PromoteCreative = Database["public"]["Tables"]["promote_creatives"]["Row"];
 export type PromoteCampaign = Database["public"]["Tables"]["promote_campaigns"]["Row"];
 export type PromoteSubscription = Database["public"]["Tables"]["promote_subscriptions"]["Row"];
+export type SocialBrand = Database["public"]["Tables"]["social_brands"]["Row"];
+export type SocialConnection = Database["public"]["Tables"]["social_connections"]["Row"];
+export type SocialVideoAsset = Database["public"]["Tables"]["social_video_assets"]["Row"];
+export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"];
+export type SocialInboxItem = Database["public"]["Tables"]["social_inbox_items"]["Row"];

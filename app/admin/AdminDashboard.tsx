@@ -475,6 +475,9 @@ export default function AdminDashboard({
             <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-green-400 animate-pulse" : "bg-white/40"}`} />
             Auto-refresh {autoRefresh ? "on" : "off"}
           </button>
+          <Link href="/admin/social" className="text-xs text-white/70 hover:text-white transition-colors">
+            Social Media →
+          </Link>
           <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
             ← Back to Dashboard
           </Link>
