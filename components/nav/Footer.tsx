@@ -25,7 +25,7 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/visonworkx01?igsh=MTJmcGRkN2l5cWVldw=="
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Vision Workx on Instagram"
