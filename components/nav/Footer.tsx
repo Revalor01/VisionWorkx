@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   return (
@@ -53,6 +54,15 @@ export default function Footer() {
                 <svg viewBox="0 0 24 24" fill="#000000" className="w-[16px] h-[16px]">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
+              </a>
+              <a
+                href="https://revalor-automation.vercel.app/revalorllc_redesign"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Revalor LLC"
+                className="inline-flex items-center bg-white rounded-full h-9 px-4 ml-3 hover:bg-gray-100 transition-colors"
+              >
+                <Image src="/revalor-logo.png" alt="Revalor" width={140} height={40} className="h-5 w-auto" />
               </a>
             </div>
           </div>
