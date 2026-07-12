@@ -2,21 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 
-// Instagram permissions deliberately excluded here — both the older
-// ("instagram_basic") and newer ("instagram_business_basic") scope
-// names are rejected by this classic Facebook OAuth dialog for this
-// app. That's a real signal Meta has this app on the newer, separate
-// Instagram Business Login system, which needs its own dedicated
-// authorization flow rather than scopes bundled into this one. Get
-// the Facebook Page connection working first; Instagram is a
-// follow-up with its own OAuth implementation.
-const SCOPES = [
-  "pages_show_list",
-  "pages_read_engagement",
-  "pages_manage_posts",
-  "pages_manage_metadata",
-  "pages_messaging",
-].join(",");
+// This app is tied to a Business Portfolio, and a personal user token
+// (the classic scope=... flow) couldn't enumerate the Business-owned
+// Page via /me/accounts despite the account having full Page access —
+// Meta's own docs say that's expected: Business-owned assets need a
+// Facebook Login for Business flow with a System User token, not a
+// personal user token. This uses a Login Configuration (config_id)
+// created in the Meta App dashboard instead of a raw scope list.
+const CONFIG_ID = process.env.META_LOGIN_CONFIG_ID!;
 
 export async function GET(req: NextRequest) {
   const supabase = createServerClient();
@@ -35,7 +28,7 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set("client_id", process.env.META_APP_ID!);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("state", brandId);
-  authUrl.searchParams.set("scope", SCOPES);
+  authUrl.searchParams.set("config_id", CONFIG_ID);
   authUrl.searchParams.set("response_type", "code");
 
   return NextResponse.redirect(authUrl.toString());
