@@ -62,6 +62,15 @@ export async function getManagedPages(userAccessToken: string): Promise<ManagedP
     access_token: userAccessToken,
     fields: "id,name,access_token,instagram_business_account",
   });
+  // Never log the raw body — it contains each Page's live access_token.
+  console.log(
+    "[getManagedPages] /me/accounts returned",
+    (body.data ?? []).length,
+    "pages; paging:",
+    JSON.stringify(body.paging ?? null),
+    "error:",
+    JSON.stringify(body.error ?? null)
+  );
 
   return (body.data ?? []).map((p: { id: string; name: string; access_token: string; instagram_business_account?: { id: string } }) => ({
     pageId: p.id,

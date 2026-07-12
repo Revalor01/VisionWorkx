@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     const shortLivedToken = await exchangeCodeForUserToken(code, redirectUri);
     const longLivedToken = await exchangeForLongLivedUserToken(shortLivedToken);
     const pages = await getManagedPages(longLivedToken);
+    console.log(`[social/connect/facebook/callback] getManagedPages returned ${pages.length} pages:`, JSON.stringify(pages.map((p) => ({ pageId: p.pageId, pageName: p.pageName }))));
 
     if (pages.length === 0) {
       return NextResponse.redirect(`${appUrl}/admin/social?connectError=no_pages`);
