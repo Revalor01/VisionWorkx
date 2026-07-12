@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 
+// Meta renamed the Instagram permissions to "instagram_business_*" —
+// confirmed against what the app's own Permissions and features page
+// actually offers for the Instagram use case, not the older
+// "instagram_basic"/"instagram_content_publish" names from Meta's
+// older docs, which this app's OAuth dialog rejects as invalid scopes.
 const SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
   "pages_manage_posts",
   "pages_manage_metadata",
   "pages_messaging",
-  "instagram_basic",
-  "instagram_content_publish",
+  "instagram_business_basic",
+  "instagram_business_manage_comments",
+  "instagram_business_manage_messages",
 ].join(",");
 
 export async function GET(req: NextRequest) {
