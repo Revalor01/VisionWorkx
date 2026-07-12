@@ -2,20 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 
-// Meta renamed the Instagram permissions to "instagram_business_*" —
-// confirmed against what the app's own Permissions and features page
-// actually offers for the Instagram use case, not the older
-// "instagram_basic"/"instagram_content_publish" names from Meta's
-// older docs, which this app's OAuth dialog rejects as invalid scopes.
+// Instagram permissions deliberately excluded here — both the older
+// ("instagram_basic") and newer ("instagram_business_basic") scope
+// names are rejected by this classic Facebook OAuth dialog for this
+// app. That's a real signal Meta has this app on the newer, separate
+// Instagram Business Login system, which needs its own dedicated
+// authorization flow rather than scopes bundled into this one. Get
+// the Facebook Page connection working first; Instagram is a
+// follow-up with its own OAuth implementation.
 const SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
   "pages_manage_posts",
   "pages_manage_metadata",
   "pages_messaging",
-  "instagram_business_basic",
-  "instagram_business_manage_comments",
-  "instagram_business_manage_messages",
 ].join(",");
 
 export async function GET(req: NextRequest) {
