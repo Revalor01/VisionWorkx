@@ -3,16 +3,19 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="bg-navy-dark text-blue-100">
+    <footer id="contact" className="bg-navy-dark text-blue-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
-            <p className="text-xl font-bold text-white">Vision Workx</p>
-            <p className="text-sm text-blue-300 mt-1">A Revalor Company</p>
-            <p className="mt-4 text-sm leading-relaxed max-w-xs">
-              AI-powered custom apps for small businesses. Describe it. We build
-              it. No code. No agency.
+            <p className="text-xl font-bold text-white whitespace-nowrap">
+              Vision Workx <span className="text-blue-300 font-medium text-base">- A Revalor Company</span>
             </p>
+            <a
+              href="mailto:info@revalorllc.com"
+              className="mt-10 inline-block border border-blue-500/60 text-blue-200 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-900/40 hover:text-white transition-colors"
+            >
+              Contact Us →
+            </a>
             <div className="flex items-center gap-3 mt-5">
               <a
                 href="https://www.facebook.com/profile.php?id=61591555628574"
@@ -63,6 +66,12 @@ export default function Footer() {
                 className="inline-flex items-center bg-white rounded-full h-9 px-4 ml-3 hover:bg-gray-100 transition-colors"
               >
                 <Image src="/revalor-logo.png" alt="Revalor" width={140} height={40} className="h-5 w-auto" />
+              </a>
+              <a
+                href="mailto:info@revalorllc.com"
+                className="text-sm text-blue-200 hover:text-white transition-colors ml-1"
+              >
+                info@revalorllc.com
               </a>
             </div>
           </div>

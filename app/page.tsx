@@ -283,6 +283,35 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Problem ─── */}
+      <section className="py-20 px-4 bg-off-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-navy-dark">
+            Most small businesses waste time on manual tasks.
+          </h2>
+          <ul className="mt-8 flex flex-wrap justify-center gap-3">
+            {[
+              "Booking and scheduling",
+              "Customer follow-ups",
+              "Invoicing and quotes",
+              "CRM and customer management",
+              "Membership and portal access",
+            ].map((item) => (
+              <li
+                key={item}
+                className="text-sm font-medium text-navy bg-white border border-gray-200 px-4 py-2 rounded-full"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-8 text-gray-600 text-lg">
+            Vision Workx automates these tasks and builds the app your
+            business needs — instantly.
+          </p>
+        </div>
+      </section>
+
       {/* ─── How It Works ─── */}
       <section id="how-it-works" className="py-24 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
@@ -444,12 +473,34 @@ export default function LandingPage() {
       {/* ─── Pricing ─── */}
       <PricingSection />
 
-      {/* ─── Why Vision Workx ─── */}
-      <section className="py-24 px-4 bg-white">
+      {/* ─── Why Vision Workx Exists ─── */}
+      <section id="why-choose-us" className="py-24 px-4 bg-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
+            ⚙️ Why Vision Workx Exists
+          </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-navy-dark mb-6">
+            Built to give you your time back
+          </h2>
+          <p className="text-gray-600 text-lg leading-relaxed">
+            Small businesses run on passion — but that passion gets buried
+            under endless admin, scattered tools, and tech that slows
+            everything down. Owners waste hours managing bookings, payments,
+            customers, and workflows that never quite fit together. Vision
+            Workx fixes that by turning your entire process into a simple,
+            automated app built instantly by AI. No coding, no developers, no
+            delays. Just clarity, control, and more time to grow your
+            business.
+          </p>
+        </div>
+      </section>
+
+      {/* ─── Why Choose Vision Workx ─── */}
+      <section className="pt-6 pb-24 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-              Why Vision Workx
+              Why Choose Vision Workx
             </p>
             <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
               Built for business owners, not developers
