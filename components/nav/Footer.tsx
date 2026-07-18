@@ -59,6 +59,17 @@ export default function Footer() {
                 </svg>
               </a>
               <a
+                href="https://www.tiktok.com/@vision.workx"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Vision Workx on TikTok"
+                className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white hover:bg-gray-100 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="#000000" className="w-[18px] h-[18px]">
+                  <path d="M16.6 5.82c-.9-.98-1.39-2.26-1.39-3.6h-3.09v13.79c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3c.31 0 .61.05.9.13V9.9a6.14 6.14 0 0 0-.9-.07c-3.36 0-6.09 2.73-6.09 6.09s2.73 6.08 6.09 6.08 6.08-2.72 6.08-6.08V8.86a9.15 9.15 0 0 0 5.33 1.71V7.48a5.6 5.6 0 0 1-3.93-1.66z" />
+                </svg>
+              </a>
+              <a
                 href="https://revalor-automation.vercel.app/revalorllc_redesign"
                 target="_blank"
                 rel="noopener noreferrer"
