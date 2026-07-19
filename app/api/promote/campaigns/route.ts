@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { planAllowsPlatform } from "@/lib/promote/planGates";
+import { isAdmin } from "@/lib/social/authGuard";
 import type { PromoteCampaignObjective, PromoteCampaignPlatform, PromoteTargetAudience } from "@/lib/database.types";
 
 export async function GET() {
@@ -95,7 +96,11 @@ export async function POST(req: NextRequest) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const activePlan = sub?.status === "active" || sub?.status === "trialing" ? sub.plan : null;
+  const activePlan = isAdmin(user)
+    ? "pro"
+    : sub?.status === "active" || sub?.status === "trialing"
+      ? sub.plan
+      : null;
   if (!planAllowsPlatform(activePlan, body.platform)) {
     return NextResponse.json(
       { error: "PLAN_LIMIT", upgrade: true, message: "Your plan doesn't include this platform" },

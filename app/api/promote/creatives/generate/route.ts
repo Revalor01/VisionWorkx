@@ -3,6 +3,7 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { generateAdCopy, type AdObjective, type AdTone } from "@/lib/promote/copyGenerator";
 import { fetchImageBuffer, renderAdTemplate, type TemplateId } from "@/lib/promote/templateRenderer";
 import { limitsForPlan } from "@/lib/promote/planGates";
+import { isAdmin } from "@/lib/social/authGuard";
 import type { PromoteCreativeFormat } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -83,7 +84,11 @@ export async function POST(req: NextRequest) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const activePlan = sub?.status === "active" || sub?.status === "trialing" ? sub.plan : null;
+  const activePlan = isAdmin(user)
+    ? "pro"
+    : sub?.status === "active" || sub?.status === "trialing"
+      ? sub.plan
+      : null;
   const limits = limitsForPlan(activePlan);
 
   if (limits.creativesPerMonth !== -1) {

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerClient } from "@/lib/supabase";
+import { isAdmin } from "@/lib/social/authGuard";
 import SignOutButton from "./SignOutButton";
 
 const NAV_ITEMS = [
@@ -33,7 +34,11 @@ export default async function PromoteDashboardLayout({ children }: { children: R
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const activePlan = sub?.status === "active" || sub?.status === "trialing" ? sub.plan : null;
+  const activePlan = isAdmin(user)
+    ? "pro"
+    : sub?.status === "active" || sub?.status === "trialing"
+      ? sub.plan
+      : null;
 
   return (
     <div className="min-h-screen bg-promote-bg text-promote-text flex">
