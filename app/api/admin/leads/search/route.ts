@@ -121,71 +121,85 @@ export async function POST(req: NextRequest) {
   const service = createServiceClient();
   let upserted = 0;
 
-  for (const el of elements) {
-    const tags = el.tags ?? {};
-    const businessName = tags.name;
-    if (!businessName) continue; // unnamed nodes aren't usable leads
+  // Enrichment (Yelp + Google Places) is the bottleneck — up to 4
+  // sequential network round-trips per lead. Run the two enrichment
+  // calls per lead in parallel, and process leads themselves in
+  // concurrent batches, or a large result set blows past the
+  // function's execution time limit.
+  const BATCH_SIZE = 8;
+  const usableElements = elements.filter((el) => el.tags?.name);
 
-    const website = tags.website ?? tags["contact:website"] ?? null;
-    const hasFacebookOnly = !website && Boolean(tags["contact:facebook"] ?? tags.facebook);
-    const { category, multiplier } = classifyIndustry(tags);
-    const language = detectLanguage(tags, businessName);
-    const lat = el.lat ?? el.center?.lat ?? null;
-    const lon = el.lon ?? el.center?.lon ?? null;
-    const distance = lat && lon ? distanceMiles(originLat, originLon, lat, lon) : null;
+  for (let i = 0; i < usableElements.length; i += BATCH_SIZE) {
+    const batch = usableElements.slice(i, i + BATCH_SIZE);
 
-    // Best-effort — a missing key or no match just means those signals
-    // don't fire, not a failed lead. Yelp's /reviews endpoint 404s on
-    // free-tier keys, so review text comes from Google Places instead;
-    // Yelp Business Search still supplies rating/review_count.
-    const yelpMatch = lat && lon ? await findYelpMatch(businessName, lat, lon).catch(() => null) : null;
-    const reviewExcerpts =
-      lat && lon ? await findGoogleReviewExcerpts(businessName, lat, lon).catch(() => []) : [];
-    const yelpPainSignal = reviewsHavePainSignal(reviewExcerpts);
+    const results = await Promise.all(
+      batch.map(async (el) => {
+        const tags = el.tags ?? {};
+        const businessName = tags.name!;
+        const website = tags.website ?? tags["contact:website"] ?? null;
+        const hasFacebookOnly = !website && Boolean(tags["contact:facebook"] ?? tags.facebook);
+        const { category, multiplier } = classifyIndustry(tags);
+        const language = detectLanguage(tags, businessName);
+        const lat = el.lat ?? el.center?.lat ?? null;
+        const lon = el.lon ?? el.center?.lon ?? null;
+        const distance = lat && lon ? distanceMiles(originLat, originLon, lat, lon) : null;
 
-    const { rawScore, finalScore, signalBreakdown } = scoreLead({
-      website,
-      phone: tags.phone ?? tags["contact:phone"] ?? null,
-      email: tags.email ?? tags["contact:email"] ?? null,
-      openingHours: tags.opening_hours ?? null,
-      hasFacebookOnly,
-      industryMultiplier: multiplier,
-      yelpReviewCount: yelpMatch?.reviewCount ?? null,
-      yelpRating: yelpMatch?.rating ?? null,
-      yelpReviewsHavePainSignal: yelpPainSignal,
-    });
+        // Best-effort — a missing key or no match just means those
+        // signals don't fire, not a failed lead. Yelp's /reviews
+        // endpoint 404s on free-tier keys, so review text comes from
+        // Google Places instead; Yelp Business Search still supplies
+        // rating/review_count.
+        const [yelpMatch, reviewExcerpts] = await Promise.all([
+          lat && lon ? findYelpMatch(businessName, lat, lon).catch(() => null) : Promise.resolve(null),
+          lat && lon ? findGoogleReviewExcerpts(businessName, lat, lon).catch(() => []) : Promise.resolve([]),
+        ]);
+        const yelpPainSignal = reviewsHavePainSignal(reviewExcerpts);
 
-    const { error } = await service.from("leads").upsert(
-      {
-        source: "osm",
-        source_id: String(el.id),
-        business_name: businessName,
-        business_type: tags.shop ?? tags.amenity ?? tags.craft ?? tags.leisure ?? null,
-        industry_category: category,
-        address: formatAddress(tags),
-        lat,
-        lng: lon,
-        distance_miles: distance,
-        phone: tags.phone ?? tags["contact:phone"] ?? null,
-        email: tags.email ?? tags["contact:email"] ?? null,
-        website,
-        has_facebook_only: hasFacebookOnly,
-        opening_hours: tags.opening_hours ?? null,
-        detected_language: language,
-        yelp_id: yelpMatch?.yelpId ?? null,
-        yelp_rating: yelpMatch?.rating ?? null,
-        yelp_review_count: yelpMatch?.reviewCount ?? null,
-        yelp_review_excerpts: reviewExcerpts,
-        raw_score: rawScore,
-        industry_multiplier: multiplier,
-        final_score: finalScore,
-        signal_breakdown: signalBreakdown,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "source,source_id", ignoreDuplicates: false }
+        const { rawScore, finalScore, signalBreakdown } = scoreLead({
+          website,
+          phone: tags.phone ?? tags["contact:phone"] ?? null,
+          email: tags.email ?? tags["contact:email"] ?? null,
+          openingHours: tags.opening_hours ?? null,
+          hasFacebookOnly,
+          industryMultiplier: multiplier,
+          yelpReviewCount: yelpMatch?.reviewCount ?? null,
+          yelpRating: yelpMatch?.rating ?? null,
+          yelpReviewsHavePainSignal: yelpPainSignal,
+        });
+
+        return service.from("leads").upsert(
+          {
+            source: "osm",
+            source_id: String(el.id),
+            business_name: businessName,
+            business_type: tags.shop ?? tags.amenity ?? tags.craft ?? tags.leisure ?? null,
+            industry_category: category,
+            address: formatAddress(tags),
+            lat,
+            lng: lon,
+            distance_miles: distance,
+            phone: tags.phone ?? tags["contact:phone"] ?? null,
+            email: tags.email ?? tags["contact:email"] ?? null,
+            website,
+            has_facebook_only: hasFacebookOnly,
+            opening_hours: tags.opening_hours ?? null,
+            detected_language: language,
+            yelp_id: yelpMatch?.yelpId ?? null,
+            yelp_rating: yelpMatch?.rating ?? null,
+            yelp_review_count: yelpMatch?.reviewCount ?? null,
+            yelp_review_excerpts: reviewExcerpts,
+            raw_score: rawScore,
+            industry_multiplier: multiplier,
+            final_score: finalScore,
+            signal_breakdown: signalBreakdown,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "source,source_id", ignoreDuplicates: false }
+        );
+      })
     );
 
-    if (!error) upserted++;
+    upserted += results.filter((r) => !r.error).length;
   }
 
   return NextResponse.json({ ok: true, found: elements.length, upserted });
