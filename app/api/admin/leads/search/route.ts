@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { classifyIndustry, detectLanguage, distanceMiles, scoreLead } from "@/lib/leadScoring";
 import { findYelpMatch, reviewsHavePainSignal } from "@/lib/yelpEnrichment";
+import { findGoogleReviewExcerpts } from "@/lib/googlePlacesEnrichment";
 
 const ADMIN_EMAIL = "sawilliams721@gmail.com";
 
@@ -133,10 +134,14 @@ export async function POST(req: NextRequest) {
     const lon = el.lon ?? el.center?.lon ?? null;
     const distance = lat && lon ? distanceMiles(originLat, originLon, lat, lon) : null;
 
-    // Best-effort — a missing key or no Yelp match just means those
-    // signals don't fire, not a failed lead.
+    // Best-effort — a missing key or no match just means those signals
+    // don't fire, not a failed lead. Yelp's /reviews endpoint 404s on
+    // free-tier keys, so review text comes from Google Places instead;
+    // Yelp Business Search still supplies rating/review_count.
     const yelpMatch = lat && lon ? await findYelpMatch(businessName, lat, lon).catch(() => null) : null;
-    const yelpPainSignal = yelpMatch ? reviewsHavePainSignal(yelpMatch.reviewExcerpts) : false;
+    const reviewExcerpts =
+      lat && lon ? await findGoogleReviewExcerpts(businessName, lat, lon).catch(() => []) : [];
+    const yelpPainSignal = reviewsHavePainSignal(reviewExcerpts);
 
     const { rawScore, finalScore, signalBreakdown } = scoreLead({
       website,
@@ -170,7 +175,7 @@ export async function POST(req: NextRequest) {
         yelp_id: yelpMatch?.yelpId ?? null,
         yelp_rating: yelpMatch?.rating ?? null,
         yelp_review_count: yelpMatch?.reviewCount ?? null,
-        yelp_review_excerpts: yelpMatch?.reviewExcerpts ?? [],
+        yelp_review_excerpts: reviewExcerpts,
         raw_score: rawScore,
         industry_multiplier: multiplier,
         final_score: finalScore,
