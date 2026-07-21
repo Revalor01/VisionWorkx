@@ -146,7 +146,13 @@ export default function AdminDashboard({
       const data = await res.json();
       if (res.ok) {
         setLeadSearchResult(`Found ${data.found}, saved ${data.upserted}.`);
-        router.refresh();
+        if (data.leads?.length) {
+          setLeads((prev) => {
+            const byId = new Map(prev.map((l) => [l.id, l]));
+            for (const lead of data.leads as Lead[]) byId.set(lead.id, lead);
+            return Array.from(byId.values());
+          });
+        }
       } else {
         setLeadSearchError(data.error ?? "Search failed");
       }

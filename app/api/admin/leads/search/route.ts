@@ -3,6 +3,7 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { classifyIndustry, detectLanguage, distanceMiles, scoreLead } from "@/lib/leadScoring";
 import { findYelpMatch, reviewsHavePainSignal } from "@/lib/yelpEnrichment";
 import { findGoogleReviewExcerpts } from "@/lib/googlePlacesEnrichment";
+import type { Lead } from "@/lib/database.types";
 
 const ADMIN_EMAIL = "sawilliams721@gmail.com";
 
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceClient();
   let upserted = 0;
+  const searchResultLeads: Lead[] = [];
 
   // Enrichment (Yelp + Google Places) is the bottleneck — up to 4
   // sequential network round-trips per lead. Run the two enrichment
@@ -195,12 +197,17 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           },
           { onConflict: "source,source_id", ignoreDuplicates: false }
-        );
+        ).select().single();
       })
     );
 
-    upserted += results.filter((r) => !r.error).length;
+    for (const r of results) {
+      if (!r.error && r.data) {
+        upserted++;
+        searchResultLeads.push(r.data);
+      }
+    }
   }
 
-  return NextResponse.json({ ok: true, found: elements.length, upserted });
+  return NextResponse.json({ ok: true, found: elements.length, upserted, leads: searchResultLeads });
 }
