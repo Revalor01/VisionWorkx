@@ -119,6 +119,7 @@ export default function AdminDashboard({
   const [leadCategoryFilter, setLeadCategoryFilter] = useState<string>("all");
   const [leadLanguageFilter, setLeadLanguageFilter] = useState<LeadLanguage | "all">("all");
   const [leadWebsiteFilter, setLeadWebsiteFilter] = useState<"all" | "yes" | "no">("all");
+  const [leadEmailFilter, setLeadEmailFilter] = useState<"all" | "yes" | "no">("all");
   const [leadMinScore, setLeadMinScore] = useState(0);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [leadsPage, setLeadsPage] = useState(1);
@@ -130,7 +131,7 @@ export default function AdminDashboard({
 
   useEffect(() => {
     setLeadsPage(1);
-  }, [leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadMinScore]);
+  }, [leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadEmailFilter, leadMinScore]);
 
   async function handleLeadSearch() {
     if (!leadSearchLocation.trim()) return;
@@ -192,10 +193,12 @@ export default function AdminDashboard({
       if (leadLanguageFilter !== "all" && l.detected_language !== leadLanguageFilter) return false;
       if (leadWebsiteFilter === "yes" && !l.website) return false;
       if (leadWebsiteFilter === "no" && l.website) return false;
+      if (leadEmailFilter === "yes" && !l.email) return false;
+      if (leadEmailFilter === "no" && l.email) return false;
       if (l.final_score < leadMinScore) return false;
       return true;
     });
-  }, [leads, leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadMinScore]);
+  }, [leads, leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadEmailFilter, leadMinScore]);
 
   const leadsTotalPages = Math.max(1, Math.ceil(filteredLeads.length / LEADS_PER_PAGE));
   const paginatedLeads = useMemo(
@@ -1105,6 +1108,15 @@ export default function AdminDashboard({
                 <option value="yes">Has website</option>
                 <option value="no">No website</option>
               </select>
+              <select
+                value={leadEmailFilter}
+                onChange={(e) => setLeadEmailFilter(e.target.value as "all" | "yes" | "no")}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">Email: all</option>
+                <option value="yes">Has email</option>
+                <option value="no">No email</option>
+              </select>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span>Min score</span>
                 <input
@@ -1190,10 +1202,10 @@ export default function AdminDashboard({
                                   href={lead.website}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-green-600 hover:underline"
+                                  className="text-xs text-green-600 hover:underline block max-w-[160px] truncate"
                                   title={lead.website}
                                 >
-                                  ✓ Yes
+                                  {lead.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                                 </a>
                               ) : (
                                 <span className="text-xs text-red-500">✗ No</span>
@@ -1203,7 +1215,19 @@ export default function AdminDashboard({
                               {lead.distance_miles != null ? `${lead.distance_miles} mi` : <span className="text-gray-300">—</span>}
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-600">{lead.phone ?? <span className="text-gray-300">—</span>}</td>
-                            <td className="px-4 py-3 text-xs text-gray-600">{lead.email ?? <span className="text-gray-300">—</span>}</td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {lead.email ? (
+                                <a
+                                  href={`mailto:${lead.email}`}
+                                  className="text-green-600 hover:underline block max-w-[180px] truncate"
+                                  title={lead.email}
+                                >
+                                  {lead.email}
+                                </a>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3">
                               <select
                                 value={lead.status}
