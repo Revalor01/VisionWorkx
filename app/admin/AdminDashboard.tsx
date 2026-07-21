@@ -150,8 +150,9 @@ export default function AdminDashboard({
           setLeads((prev) => {
             const byId = new Map(prev.map((l) => [l.id, l]));
             for (const lead of data.leads as Lead[]) byId.set(lead.id, lead);
-            return Array.from(byId.values());
+            return Array.from(byId.values()).sort((a, b) => b.final_score - a.final_score);
           });
+          setLeadsPage(1);
         }
       } else {
         setLeadSearchError(data.error ?? "Search failed");
