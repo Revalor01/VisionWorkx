@@ -124,6 +124,14 @@ export default function AdminDashboard({
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [leadsPage, setLeadsPage] = useState(1);
   const LEADS_PER_PAGE = 30;
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailMode, setEmailMode] = useState<"generic" | "custom">("generic");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [emailSendError, setEmailSendError] = useState("");
+  const [emailSendResult, setEmailSendResult] = useState("");
 
   useEffect(() => {
     setLeads(initialLeads);
@@ -178,6 +186,66 @@ export default function AdminDashboard({
       }
     } finally {
       setUpdatingLeadId(null);
+    }
+  }
+
+  function toggleLeadSelected(leadId: string) {
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  }
+
+  function toggleSelectAllFiltered() {
+    setSelectedLeadIds((prev) => {
+      const allSelected = filteredLeads.length > 0 && filteredLeads.every((l) => prev.has(l.id));
+      if (allSelected) return new Set();
+      return new Set(filteredLeads.map((l) => l.id));
+    });
+  }
+
+  const selectedEmailableCount = useMemo(
+    () => leads.filter((l) => selectedLeadIds.has(l.id) && l.email).length,
+    [leads, selectedLeadIds]
+  );
+
+  async function handleSendLeadEmails() {
+    setSendingEmails(true);
+    setEmailSendError("");
+    setEmailSendResult("");
+    try {
+      const res = await fetch("/api/admin/leads/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadIds: Array.from(selectedLeadIds),
+          mode: emailMode,
+          subject: emailMode === "custom" ? emailSubject : undefined,
+          body: emailMode === "custom" ? emailBody : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEmailSendResult(`Sent ${data.sent}, skipped ${data.skipped} (no email), ${data.failed.length} failed.`);
+        if (data.sentLeadIds?.length) {
+          const sentIds = new Set<string>(data.sentLeadIds);
+          setLeads((prev) =>
+            prev.map((l) => (sentIds.has(l.id) && l.status === "new" ? { ...l, status: "contacted" as LeadStatus } : l))
+          );
+        }
+        setSelectedLeadIds(new Set());
+        setEmailModalOpen(false);
+        setEmailSubject("");
+        setEmailBody("");
+      } else {
+        setEmailSendError(data.error ?? "Send failed");
+      }
+    } catch {
+      setEmailSendError("Network error");
+    } finally {
+      setSendingEmails(false);
     }
   }
 
@@ -1129,13 +1197,21 @@ export default function AdminDashboard({
                 />
               </div>
               <button
+                onClick={() => setEmailModalOpen(true)}
+                disabled={selectedEmailableCount === 0}
+                className="ml-auto text-xs font-semibold px-4 py-2 rounded-xl bg-[#1A3A5C] text-white hover:bg-[#2E6DA4] disabled:opacity-50 disabled:hover:bg-[#1A3A5C] transition-colors whitespace-nowrap"
+              >
+                ✉ Email Selected ({selectedEmailableCount})
+              </button>
+              <button
                 onClick={exportLeadsCsv}
                 disabled={filteredLeads.length === 0}
-                className="ml-auto text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 ⬇ Export CSV ({filteredLeads.length})
               </button>
             </div>
+            {emailSendResult && <p className="text-xs text-green-600">{emailSendResult}</p>}
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -1143,6 +1219,14 @@ export default function AdminDashboard({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
+                      <Th>
+                        <input
+                          type="checkbox"
+                          checked={filteredLeads.length > 0 && filteredLeads.every((l) => selectedLeadIds.has(l.id))}
+                          onChange={toggleSelectAllFiltered}
+                          className="rounded border-gray-300"
+                        />
+                      </Th>
                       <Th>Business</Th>
                       <Th>Category</Th>
                       <Th>Lang</Th>
@@ -1158,7 +1242,7 @@ export default function AdminDashboard({
                   <tbody className="divide-y divide-gray-50">
                     {paginatedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-12 text-gray-400">
+                        <td colSpan={11} className="text-center py-12 text-gray-400">
                           No leads yet — run a search above.
                         </td>
                       </tr>
@@ -1172,6 +1256,14 @@ export default function AdminDashboard({
                           "bg-gray-100 text-gray-500";
                         return (
                           <tr key={lead.id} className="hover:bg-gray-50/50">
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedLeadIds.has(lead.id)}
+                                onChange={() => toggleLeadSelected(lead.id)}
+                                className="rounded border-gray-300"
+                              />
+                            </td>
                             <td className="px-4 py-3">
                               <div className="font-medium text-gray-900">{lead.business_name}</div>
                               <div className="text-xs text-gray-400">{lead.address ?? "—"}</div>
@@ -1254,6 +1346,87 @@ export default function AdminDashboard({
                 onNext={() => setLeadsPage((p) => Math.min(leadsTotalPages, p + 1))}
               />
             </div>
+
+            {/* Email compose modal */}
+            {emailModalOpen && (
+              <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+                  <h3 className="text-lg font-bold text-[#1A3A5C] mb-1">Email {selectedEmailableCount} lead{selectedEmailableCount === 1 ? "" : "s"}</h3>
+                  <p className="text-xs text-gray-400 mb-4">The Revalor Media Guide PDF is attached automatically to every send.</p>
+                  {emailSendError && <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{emailSendError}</div>}
+
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => setEmailMode("generic")}
+                      className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
+                        emailMode === "generic" ? "bg-[#1A3A5C] text-white border-[#1A3A5C]" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      Generic Text
+                    </button>
+                    <button
+                      onClick={() => setEmailMode("custom")}
+                      className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
+                        emailMode === "custom" ? "bg-[#1A3A5C] text-white border-[#1A3A5C]" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      Freeform
+                    </button>
+                  </div>
+
+                  {emailMode === "generic" ? (
+                    <div className="mb-4 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-600 space-y-2">
+                      <p className="font-semibold text-gray-500">Subject: A quick idea for [Business Name]</p>
+                      <p>Hi [Business Name] team,</p>
+                      <p>I&apos;m reaching out from Revalor LLC — we build software that helps businesses like yours save time and grow. I&apos;ve attached a quick guide to what we offer.</p>
+                      <p>Happy to answer any questions.</p>
+                      <p>Best,<br />Revalor Team</p>
+                    </div>
+                  ) : (
+                    <div className="mb-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
+                        <input
+                          type="text"
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="e.g. A quick idea for {{business_name}}"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Body</label>
+                        <textarea
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          rows={6}
+                          placeholder="Hi {{business_name}} team, ..."
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        />
+                        <p className="text-[11px] text-gray-400 mt-1">Use <code>{"{{business_name}}"}</code> to personalize each email.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setEmailModalOpen(false)}
+                      disabled={sendingEmails}
+                      className="text-sm font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSendLeadEmails}
+                      disabled={sendingEmails || (emailMode === "custom" && (!emailSubject.trim() || !emailBody.trim()))}
+                      className="text-sm font-semibold px-4 py-2 rounded-xl bg-[#1A3A5C] text-white hover:bg-[#2E6DA4] disabled:opacity-50"
+                    >
+                      {sendingEmails ? "Sending…" : `Send to ${selectedEmailableCount}`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
