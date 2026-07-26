@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, Profile, Subscription } from "@/lib/database.types";
+import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
 import { scoreBucket } from "@/lib/leadScoring";
@@ -20,6 +20,7 @@ interface AdminDashboardProps {
   oldestUndeliveredAt: string | null;
   instrumentedAppIds: string[];
   initialLeads: Lead[];
+  initialPartners: PartnerApplication[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -55,7 +56,19 @@ const PLAN_STYLE: Record<Plan, string> = {
   pro:      "bg-amber-100 text-amber-700",
 };
 
-type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads";
+const PARTNER_STATUS_STYLE: Record<PartnerStatus, { label: string; cls: string }> = {
+  pending:  { label: "Pending Review", cls: "bg-amber-100 text-amber-700" },
+  approved: { label: "Approved",       cls: "bg-green-100 text-green-700" },
+  denied:   { label: "Denied",         cls: "bg-red-100 text-red-700" },
+};
+
+const PARTNER_TIER_STYLE: Record<PartnerTier, { label: string; cls: string }> = {
+  tier_1: { label: "Tier 1 — High Value", cls: "bg-violet-100 text-violet-700" },
+  tier_2: { label: "Tier 2 — Standard",   cls: "bg-sky-100 text-sky-700" },
+  tier_3: { label: "Tier 3 — Entry",      cls: "bg-gray-100 text-gray-600" },
+};
+
+type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads" | "partners";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -69,6 +82,7 @@ export default function AdminDashboard({
   oldestUndeliveredAt,
   instrumentedAppIds,
   initialLeads,
+  initialPartners,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -140,6 +154,59 @@ export default function AdminDashboard({
   useEffect(() => {
     setLeadsPage(1);
   }, [leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadEmailFilter, leadMinScore]);
+
+  // ── Partners state ─────────────────────────────────────────────
+  const [partners, setPartners] = useState<PartnerApplication[]>(initialPartners);
+  const [partnerStatusFilter, setPartnerStatusFilter] = useState<PartnerStatus | "all">("all");
+  const [partnerTierFilter, setPartnerTierFilter] = useState<PartnerTier | "all">("all");
+  const [updatingPartnerId, setUpdatingPartnerId] = useState<string | null>(null);
+  const [partnerDecisionNotes, setPartnerDecisionNotes] = useState<Record<string, string>>({});
+  const [partnersPage, setPartnersPage] = useState(1);
+  const PARTNERS_PER_PAGE = 30;
+
+  useEffect(() => {
+    setPartners(initialPartners);
+  }, [initialPartners]);
+
+  useEffect(() => {
+    setPartnersPage(1);
+  }, [partnerStatusFilter, partnerTierFilter]);
+
+  async function handlePartnerDecision(applicationId: string, decision: "approved" | "denied") {
+    setUpdatingPartnerId(applicationId);
+    try {
+      const res = await fetch("/api/admin/partners/decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, decision, notes: partnerDecisionNotes[applicationId] }),
+      });
+      if (res.ok) {
+        setPartners((prev) =>
+          prev.map((p) => (p.id === applicationId ? { ...p, status: decision } : p))
+        );
+      }
+    } finally {
+      setUpdatingPartnerId(null);
+    }
+  }
+
+  const filteredPartners = useMemo(() => {
+    return partners.filter((p) => {
+      if (partnerStatusFilter !== "all" && p.status !== partnerStatusFilter) return false;
+      if (partnerTierFilter !== "all" && p.tier !== partnerTierFilter) return false;
+      return true;
+    });
+  }, [partners, partnerStatusFilter, partnerTierFilter]);
+
+  const partnersTotalPages = Math.max(1, Math.ceil(filteredPartners.length / PARTNERS_PER_PAGE));
+  const paginatedPartners = useMemo(
+    () => filteredPartners.slice((partnersPage - 1) * PARTNERS_PER_PAGE, partnersPage * PARTNERS_PER_PAGE),
+    [filteredPartners, partnersPage]
+  );
+
+  function partnerUploadUrl(path: string): string {
+    return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/partner-uploads/${path}`;
+  }
 
   async function handleLeadSearch() {
     if (!leadSearchLocation.trim()) return;
@@ -572,7 +639,7 @@ export default function AdminDashboard({
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
-          {(["overview", "apps", "users", "payments", "automations", "leads"] as Tab[]).map((t) => (
+          {(["overview", "apps", "users", "payments", "automations", "leads", "partners"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -1427,6 +1494,213 @@ export default function AdminDashboard({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Partners ── */}
+        {tab === "partners" && (
+          <div className="space-y-6">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard label="Applications (filtered)" value={filteredPartners.length} />
+              <StatCard
+                label="Pending Review"
+                value={partners.filter((p) => p.status === "pending").length}
+                accent="blue"
+              />
+              <StatCard
+                label="Approved"
+                value={partners.filter((p) => p.status === "approved").length}
+                accent="green"
+              />
+              <StatCard
+                label="Tier 1 Partners"
+                value={partners.filter((p) => p.tier === "tier_1" && p.status === "approved").length}
+                accent="red"
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <select
+                value={partnerStatusFilter}
+                onChange={(e) => setPartnerStatusFilter(e.target.value as PartnerStatus | "all")}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">All statuses</option>
+                {(["pending", "approved", "denied"] as PartnerStatus[]).map((s) => (
+                  <option key={s} value={s}>{PARTNER_STATUS_STYLE[s].label}</option>
+                ))}
+              </select>
+              <select
+                value={partnerTierFilter}
+                onChange={(e) => setPartnerTierFilter(e.target.value as PartnerTier | "all")}
+                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              >
+                <option value="all">All tiers</option>
+                {(["tier_1", "tier_2", "tier_3"] as PartnerTier[]).map((t) => (
+                  <option key={t} value={t}>{PARTNER_TIER_STYLE[t].label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <Th>Business</Th>
+                      <Th>Industry</Th>
+                      <Th>Score</Th>
+                      <Th>Tier</Th>
+                      <Th>Discount</Th>
+                      <Th>Budget / Reach / Referrals</Th>
+                      <Th>Uploads</Th>
+                      <Th>Status</Th>
+                      <Th>Decision</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {paginatedPartners.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="text-center py-12 text-gray-400">
+                          No partner applications yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedPartners.map((p) => (
+                        <tr key={p.id} className="hover:bg-gray-50/50 align-top">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">{p.business_name}</div>
+                            <div className="text-xs text-gray-400">{p.owner_name}</div>
+                            <a href={`mailto:${p.email}`} className="text-xs text-green-600 hover:underline block">
+                              {p.email}
+                            </a>
+                            <div className="text-xs text-gray-400">{p.phone}</div>
+                            {p.online_presence_url && (
+                              <a
+                                href={p.online_presence_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-green-600 hover:underline block max-w-[160px] truncate"
+                                title={p.online_presence_url}
+                              >
+                                {p.online_presence_url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {p.industry.replace(/_/g, " ")}
+                            <div className="text-gray-400 mt-1 max-w-[180px]">
+                              {p.services_offered.join(", ")}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700"
+                              title={p.score_breakdown.map((s) => `${s.label}: ${s.points}`).join("\n")}
+                            >
+                              {p.total_score}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {p.tier && (
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${PARTNER_TIER_STYLE[p.tier].cls}`}>
+                                {PARTNER_TIER_STYLE[p.tier].label}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600">
+                            {p.discount_percentage != null ? `${p.discount_percentage}%` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            <div>{p.budget_range.replace(/_/g, " – $")}</div>
+                            <div>{p.social_reach_range.replace(/_/g, " – ")} reach</div>
+                            <div>{p.referral_network_size.replace(/_/g, " – ")} referrals</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1 max-w-[140px]">
+                              {p.logo_path && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={partnerUploadUrl(p.logo_path)}
+                                  alt={`${p.business_name} logo`}
+                                  className="w-10 h-10 rounded-lg object-contain border border-gray-200 bg-white"
+                                />
+                              )}
+                              {p.photo_paths.map((path) => (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  key={path}
+                                  src={partnerUploadUrl(path)}
+                                  alt={`${p.business_name} photo`}
+                                  className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                                />
+                              ))}
+                              {!p.logo_path && p.photo_paths.length === 0 && (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${PARTNER_STATUS_STYLE[p.status].cls}`}>
+                              {PARTNER_STATUS_STYLE[p.status].label}
+                            </span>
+                            {p.reviewed_by && (
+                              <div className="text-[10px] text-gray-400 mt-1">
+                                by {p.reviewed_by}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 min-w-[180px]">
+                            {p.status === "pending" ? (
+                              <div className="space-y-2">
+                                <textarea
+                                  value={partnerDecisionNotes[p.id] ?? ""}
+                                  onChange={(e) =>
+                                    setPartnerDecisionNotes((prev) => ({ ...prev, [p.id]: e.target.value }))
+                                  }
+                                  placeholder="Notes (optional)"
+                                  rows={2}
+                                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 resize-none"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handlePartnerDecision(p.id, "approved")}
+                                    disabled={updatingPartnerId === p.id}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handlePartnerDecision(p.id, "denied")}
+                                    disabled={updatingPartnerId === p.id}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                                  >
+                                    Deny
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              p.admin_notes && (
+                                <p className="text-xs text-gray-400 max-w-[180px]">{p.admin_notes}</p>
+                              )
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={partnersPage}
+                totalPages={partnersTotalPages}
+                onPrev={() => setPartnersPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPartnersPage((p) => Math.min(partnersTotalPages, p + 1))}
+              />
+            </div>
           </div>
         )}
       </div>

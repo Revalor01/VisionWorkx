@@ -54,6 +54,27 @@ export interface LeadSignal {
   detection: "auto" | "api" | "manual" | "scrape" | "inferred";
 }
 
+export type PartnerIndustry =
+  | "health_wellness"
+  | "home_services_trades"
+  | "food_beverage"
+  | "fitness"
+  | "professional_services"
+  | "automotive"
+  | "retail"
+  | "other";
+export type PartnerBudgetRange = "under_500" | "500_1500" | "1500_5000" | "5000_plus";
+export type PartnerSocialReachRange = "under_500" | "500_2500" | "2500_10000" | "10000_50000" | "50000_plus";
+export type PartnerReferralNetworkSize = "0_5" | "6_15" | "16_40" | "41_plus";
+export type PartnerTier = "tier_1" | "tier_2" | "tier_3";
+export type PartnerStatus = "pending" | "approved" | "denied";
+
+export interface PartnerScoreSignal {
+  dimension: "industry_fit" | "promotional_reach" | "budget_alignment" | "project_complexity" | "referral_potential";
+  label: string;
+  points: number;
+}
+
 export interface IntakeData {
   businessName: string;
   businessType: string;
@@ -708,6 +729,70 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      partner_applications: {
+        Row: {
+          id: string;
+          business_name: string;
+          owner_name: string;
+          email: string;
+          phone: string;
+          industry: PartnerIndustry;
+          services_offered: string[];
+          services_offered_other: string | null;
+          online_presence_url: string | null;
+          budget_range: PartnerBudgetRange;
+          social_reach_range: PartnerSocialReachRange;
+          referral_network_size: PartnerReferralNetworkSize;
+          why_partner: string;
+          logo_path: string | null;
+          photo_paths: string[];
+          score_breakdown: PartnerScoreSignal[];
+          total_score: number;
+          tier: PartnerTier | null;
+          discount_percentage: number | null;
+          status: PartnerStatus;
+          admin_notes: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_name: string;
+          owner_name: string;
+          email: string;
+          phone: string;
+          industry: PartnerIndustry;
+          services_offered: string[];
+          services_offered_other?: string | null;
+          online_presence_url?: string | null;
+          budget_range: PartnerBudgetRange;
+          social_reach_range: PartnerSocialReachRange;
+          referral_network_size: PartnerReferralNetworkSize;
+          why_partner: string;
+          logo_path?: string | null;
+          photo_paths?: string[];
+          score_breakdown?: PartnerScoreSignal[];
+          total_score?: number;
+          tier?: PartnerTier | null;
+          discount_percentage?: number | null;
+          status?: PartnerStatus;
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: PartnerStatus;
+          admin_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -732,3 +817,4 @@ export type SocialConnection = Database["public"]["Tables"]["social_connections"
 export type SocialVideoAsset = Database["public"]["Tables"]["social_video_assets"]["Row"];
 export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"];
 export type SocialInboxItem = Database["public"]["Tables"]["social_inbox_items"]["Row"];
+export type PartnerApplication = Database["public"]["Tables"]["partner_applications"]["Row"];

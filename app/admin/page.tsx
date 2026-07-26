@@ -24,6 +24,7 @@ export default async function AdminPage() {
     { count: undeliveredCount },
     { data: oldestUndeliveredRows },
     { data: leads },
+    { data: partners },
   ] = await Promise.all([
     service
       .from("apps")
@@ -55,6 +56,11 @@ export default async function AdminPage() {
       .from("leads")
       .select("*")
       .order("final_score", { ascending: false })
+      .limit(1000),
+    service
+      .from("partner_applications")
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(1000),
   ]);
 
@@ -134,6 +140,8 @@ export default async function AdminPage() {
       oldestUndeliveredAt={oldestUndeliveredAt}
       instrumentedAppIds={instrumentedAppIds}
       initialLeads={leads ?? []}
+      initialPartners={partners ?? []}
     />
+
   );
 }
