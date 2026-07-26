@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
+import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerReferral, PartnerReferralStatus, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
 import { scoreBucket } from "@/lib/leadScoring";
@@ -21,6 +21,7 @@ interface AdminDashboardProps {
   instrumentedAppIds: string[];
   initialLeads: Lead[];
   initialPartners: PartnerApplication[];
+  initialReferrals: PartnerReferral[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -68,7 +69,14 @@ const PARTNER_TIER_STYLE: Record<PartnerTier, { label: string; cls: string }> = 
   tier_3: { label: "Tier 3 — Entry",      cls: "bg-gray-100 text-gray-600" },
 };
 
-type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads" | "partners";
+const PARTNER_REFERRAL_STATUS_STYLE: Record<PartnerReferralStatus, { label: string; cls: string }> = {
+  submitted: { label: "Submitted", cls: "bg-gray-100 text-gray-600" },
+  contacted: { label: "Contacted", cls: "bg-amber-100 text-amber-700" },
+  converted: { label: "Converted", cls: "bg-green-100 text-green-700" },
+  declined:  { label: "Declined",  cls: "bg-red-100 text-red-700" },
+};
+
+type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads" | "partners" | "referrals";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -83,6 +91,7 @@ export default function AdminDashboard({
   instrumentedAppIds,
   initialLeads,
   initialPartners,
+  initialReferrals,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -211,6 +220,52 @@ export default function AdminDashboard({
   function partnerUploadUrl(path: string): string {
     return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/partner-uploads/${path}`;
   }
+
+  // ── Referrals state ────────────────────────────────────────────
+  const [referrals, setReferrals] = useState<PartnerReferral[]>(initialReferrals);
+  const [referralStatusFilter, setReferralStatusFilter] = useState<PartnerReferralStatus | "all">("all");
+  const [updatingReferralId, setUpdatingReferralId] = useState<string | null>(null);
+  const [referralsPage, setReferralsPage] = useState(1);
+  const REFERRALS_PER_PAGE = 30;
+
+  useEffect(() => {
+    setReferrals(initialReferrals);
+  }, [initialReferrals]);
+
+  useEffect(() => {
+    setReferralsPage(1);
+  }, [referralStatusFilter]);
+
+  const partnersById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners]);
+
+  async function handleReferralStatusChange(referralId: string, status: PartnerReferralStatus) {
+    setUpdatingReferralId(referralId);
+    try {
+      const res = await fetch("/api/admin/partners/referrals/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralId, status }),
+      });
+      if (res.ok) {
+        setReferrals((prev) => prev.map((r) => (r.id === referralId ? { ...r, status } : r)));
+        // Status change may also update the referring partner's bonus
+        // discount server-side — refresh so Partners tab reflects it.
+        router.refresh();
+      }
+    } finally {
+      setUpdatingReferralId(null);
+    }
+  }
+
+  const filteredReferrals = useMemo(() => {
+    return referrals.filter((r) => referralStatusFilter === "all" || r.status === referralStatusFilter);
+  }, [referrals, referralStatusFilter]);
+
+  const referralsTotalPages = Math.max(1, Math.ceil(filteredReferrals.length / REFERRALS_PER_PAGE));
+  const paginatedReferrals = useMemo(
+    () => filteredReferrals.slice((referralsPage - 1) * REFERRALS_PER_PAGE, referralsPage * REFERRALS_PER_PAGE),
+    [filteredReferrals, referralsPage]
+  );
 
   async function handleLeadSearch() {
     if (!leadSearchLocation.trim()) return;
@@ -643,7 +698,7 @@ export default function AdminDashboard({
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
-          {(["overview", "apps", "users", "payments", "automations", "leads", "partners"] as Tab[]).map((t) => (
+          {(["overview", "apps", "users", "payments", "automations", "leads", "partners", "referrals"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -1717,6 +1772,117 @@ export default function AdminDashboard({
                 totalPages={partnersTotalPages}
                 onPrev={() => setPartnersPage((p) => Math.max(1, p - 1))}
                 onNext={() => setPartnersPage((p) => Math.min(partnersTotalPages, p + 1))}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Referrals ── */}
+        {tab === "referrals" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard label="Referrals (filtered)" value={filteredReferrals.length} />
+              <StatCard
+                label="Submitted"
+                value={referrals.filter((r) => r.status === "submitted").length}
+              />
+              <StatCard
+                label="Contacted"
+                value={referrals.filter((r) => r.status === "contacted").length}
+                accent="blue"
+              />
+              <StatCard
+                label="Converted"
+                value={referrals.filter((r) => r.status === "converted").length}
+                accent="green"
+              />
+            </div>
+
+            <select
+              value={referralStatusFilter}
+              onChange={(e) => setReferralStatusFilter(e.target.value as PartnerReferralStatus | "all")}
+              className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+            >
+              <option value="all">All statuses</option>
+              {(["submitted", "contacted", "converted", "declined"] as PartnerReferralStatus[]).map((s) => (
+                <option key={s} value={s}>{PARTNER_REFERRAL_STATUS_STYLE[s].label}</option>
+              ))}
+            </select>
+
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <Th>Referred Business</Th>
+                      <Th>Referred By</Th>
+                      <Th>Contact</Th>
+                      <Th>Status</Th>
+                      <Th>Submitted</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {paginatedReferrals.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-gray-400">
+                          No referrals yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedReferrals.map((r) => {
+                        const referrer = partnersById.get(r.partner_application_id);
+                        return (
+                          <tr key={r.id} className="hover:bg-gray-50/50 align-top">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{r.referred_business_name}</div>
+                              {r.notes && <div className="text-xs text-gray-400 max-w-[200px]">{r.notes}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {referrer ? (
+                                <>
+                                  <div className="font-medium text-gray-900">{referrer.business_name}</div>
+                                  {referrer.tier && (
+                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${PARTNER_TIER_STYLE[referrer.tier].cls}`}>
+                                      {PARTNER_TIER_STYLE[referrer.tier].label}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600">
+                              {r.referred_contact_name && <div>{r.referred_contact_name}</div>}
+                              {r.referred_email && <div className="text-gray-400">{r.referred_email}</div>}
+                              {r.referred_phone && <div className="text-gray-400">{r.referred_phone}</div>}
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={r.status}
+                                disabled={updatingReferralId === r.id}
+                                onChange={(e) => handleReferralStatusChange(r.id, e.target.value as PartnerReferralStatus)}
+                                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white disabled:opacity-50"
+                              >
+                                {(["submitted", "contacted", "converted", "declined"] as PartnerReferralStatus[]).map((s) => (
+                                  <option key={s} value={s}>{PARTNER_REFERRAL_STATUS_STYLE[s].label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                              {new Date(r.created_at).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={referralsPage}
+                totalPages={referralsTotalPages}
+                onPrev={() => setReferralsPage((p) => Math.max(1, p - 1))}
+                onNext={() => setReferralsPage((p) => Math.min(referralsTotalPages, p + 1))}
               />
             </div>
           </div>

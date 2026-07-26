@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { TIER_LABELS } from "@/lib/partners/scoring";
+import { generateReferralCode } from "@/lib/partners/referrals";
 import { sendAgreementAcceptedEmail } from "@/lib/partners/email";
 import type { PartnerTier } from "@/lib/database.types";
+
+const REFERRAL_CODE_ATTEMPTS = 3;
 
 export async function POST() {
   const supabase = createServerClient();
@@ -33,10 +36,16 @@ export async function POST() {
   }
 
   const now = new Date().toISOString();
-  const { error: updateError } = await service
-    .from("partner_applications")
-    .update({ agreement_accepted_at: now, updated_at: now })
-    .eq("id", application.id);
+
+  let updateError: { message: string } | null = null;
+  for (let attempt = 0; attempt < REFERRAL_CODE_ATTEMPTS; attempt++) {
+    const { error } = await service
+      .from("partner_applications")
+      .update({ agreement_accepted_at: now, updated_at: now, referral_code: generateReferralCode() })
+      .eq("id", application.id);
+    updateError = error;
+    if (!error || error.code !== "23505") break; // 23505 = unique_violation, retry with a new code
+  }
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });

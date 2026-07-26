@@ -95,3 +95,14 @@ export async function sendAgreementAcceptedEmail(businessName: string, tierLabel
     `),
   });
 }
+
+export async function sendReferralSubmittedEmail(businessName: string, referredBusinessName: string): Promise<void> {
+  await sendEmail({
+    to: "admin@revalorllc.com",
+    subject: `${businessName} referred a new business`,
+    html: wrapper(`
+      <h1 style="color:#ffffff;font-size:22px;margin:0 0 12px">New referral</h1>
+      <p style="font-size:15px;line-height:1.6"><strong>${businessName}</strong> just referred <strong>${referredBusinessName}</strong> in the partner dashboard.</p>
+    `),
+  });
+}

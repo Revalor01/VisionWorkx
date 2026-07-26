@@ -4,6 +4,7 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import AppNavbar from "@/components/nav/AppNavbar";
 import AgreementView from "@/components/partners/AgreementView";
 import AcceptAgreementButton from "@/components/partners/AcceptAgreementButton";
+import PartnerDashboardClient from "@/components/partners/PartnerDashboardClient";
 
 export default async function PartnerPage() {
   const supabase = createServerClient();
@@ -22,16 +23,19 @@ export default async function PartnerPage() {
     .eq("id", user.id)
     .single();
 
+  const APPLICATION_COLUMNS =
+    "id, business_name, status, agreement_terms, agreement_accepted_at, referral_code, completed_promotional_actions, converted_referral_count, referral_bonus_discount_percentage";
+
   let { data: application } = await service
     .from("partner_applications")
-    .select("id, business_name, status, agreement_terms, agreement_accepted_at")
+    .select(APPLICATION_COLUMNS)
     .eq("account_user_id", user.id)
     .maybeSingle();
 
   if (!application && user.email) {
     const { data: unlinked } = await service
       .from("partner_applications")
-      .select("id, business_name, status, agreement_terms, agreement_accepted_at")
+      .select(APPLICATION_COLUMNS)
       .eq("email", user.email)
       .eq("status", "approved")
       .is("account_user_id", null)
@@ -46,6 +50,16 @@ export default async function PartnerPage() {
         .eq("id", unlinked.id);
       application = unlinked;
     }
+  }
+
+  let referrals: { id: string; referred_business_name: string; status: string; created_at: string }[] = [];
+  if (application?.agreement_accepted_at) {
+    const { data } = await service
+      .from("partner_referrals")
+      .select("id, referred_business_name, status, created_at")
+      .eq("partner_application_id", application.id)
+      .order("created_at", { ascending: false });
+    referrals = data ?? [];
   }
 
   return (
@@ -71,21 +85,26 @@ export default async function PartnerPage() {
             <h1 className="text-xl font-bold text-navy-dark mb-2">Your agreement is being prepared</h1>
             <p className="text-gray-500 text-sm">Check back shortly — we&apos;ll email you once it&apos;s ready.</p>
           </div>
-        ) : (
+        ) : !application.agreement_accepted_at ? (
           <div className="space-y-6">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-navy-dark mb-1">Your Partnership Agreement</h1>
               <p className="text-gray-500 text-sm">{application.business_name}</p>
             </div>
             <AgreementView terms={application.agreement_terms} />
-            {application.agreement_accepted_at ? (
-              <p className="text-center text-sm text-green-600 font-medium">
-                Accepted on {new Date(application.agreement_accepted_at).toLocaleDateString()}
-              </p>
-            ) : (
-              <AcceptAgreementButton />
-            )}
+            <AcceptAgreementButton />
           </div>
+        ) : (
+          <PartnerDashboardClient
+            businessName={application.business_name}
+            agreementTerms={application.agreement_terms}
+            agreementAcceptedAt={application.agreement_accepted_at}
+            referralCode={application.referral_code}
+            completedPromotionalActions={application.completed_promotional_actions}
+            convertedReferralCount={application.converted_referral_count}
+            referralBonusDiscountPercentage={application.referral_bonus_discount_percentage}
+            initialReferrals={referrals}
+          />
         )}
       </main>
     </div>

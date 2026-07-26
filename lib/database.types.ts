@@ -75,6 +75,8 @@ export interface PartnerScoreSignal {
   points: number;
 }
 
+export type PartnerReferralStatus = "submitted" | "contacted" | "converted" | "declined";
+
 export interface AgreementTerms {
   tier: PartnerTier;
   tierLabel: string;
@@ -771,6 +773,10 @@ export type Database = {
           agreement_terms: AgreementTerms | null;
           agreement_generated_at: string | null;
           agreement_accepted_at: string | null;
+          referral_code: string | null;
+          completed_promotional_actions: string[];
+          converted_referral_count: number;
+          referral_bonus_discount_percentage: number;
           created_at: string;
           updated_at: string;
         };
@@ -802,6 +808,10 @@ export type Database = {
           agreement_terms?: AgreementTerms | null;
           agreement_generated_at?: string | null;
           agreement_accepted_at?: string | null;
+          referral_code?: string | null;
+          completed_promotional_actions?: string[];
+          converted_referral_count?: number;
+          referral_bonus_discount_percentage?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -814,6 +824,41 @@ export type Database = {
           agreement_terms?: AgreementTerms | null;
           agreement_generated_at?: string | null;
           agreement_accepted_at?: string | null;
+          referral_code?: string | null;
+          completed_promotional_actions?: string[];
+          converted_referral_count?: number;
+          referral_bonus_discount_percentage?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      partner_referrals: {
+        Row: {
+          id: string;
+          partner_application_id: string;
+          referred_business_name: string;
+          referred_contact_name: string | null;
+          referred_email: string | null;
+          referred_phone: string | null;
+          notes: string | null;
+          status: PartnerReferralStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_application_id: string;
+          referred_business_name: string;
+          referred_contact_name?: string | null;
+          referred_email?: string | null;
+          referred_phone?: string | null;
+          notes?: string | null;
+          status?: PartnerReferralStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: PartnerReferralStatus;
           updated_at?: string;
         };
         Relationships: [];
@@ -843,3 +888,4 @@ export type SocialVideoAsset = Database["public"]["Tables"]["social_video_assets
 export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"];
 export type SocialInboxItem = Database["public"]["Tables"]["social_inbox_items"]["Row"];
 export type PartnerApplication = Database["public"]["Tables"]["partner_applications"]["Row"];
+export type PartnerReferral = Database["public"]["Tables"]["partner_referrals"]["Row"];
