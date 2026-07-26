@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { TIER_LABELS } from "@/lib/partners/scoring";
+import { generateAgreementTerms } from "@/lib/partners/agreement";
 import { sendApplicationApprovedEmail, sendApplicationDeniedEmail } from "@/lib/partners/email";
 import type { PartnerStatus, PartnerTier } from "@/lib/database.types";
 
@@ -43,14 +44,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: fetchError?.message ?? "Application not found" }, { status: 404 });
   }
 
+  const now = new Date().toISOString();
+  const agreementTerms = decision === "approved" ? generateAgreementTerms(application) : null;
+
   const { error: updateError } = await service
     .from("partner_applications")
     .update({
       status: decision,
       admin_notes: body.notes ?? null,
       reviewed_by: user.email,
-      reviewed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      reviewed_at: now,
+      updated_at: now,
+      ...(agreementTerms ? { agreement_terms: agreementTerms, agreement_generated_at: now } : {}),
     })
     .eq("id", applicationId);
 
@@ -58,13 +63,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  if (decision === "approved") {
+  if (decision === "approved" && agreementTerms) {
     const tier = (application.tier ?? "tier_3") as PartnerTier;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app";
+    const encodedEmail = encodeURIComponent(application.email);
     await sendApplicationApprovedEmail(
       application.email,
       application.business_name,
       TIER_LABELS[tier],
       application.discount_percentage ?? 0,
+      `${appUrl}/signup?email=${encodedEmail}&next=/partner`,
+      `${appUrl}/login?next=/partner`,
     );
   } else {
     await sendApplicationDeniedEmail(application.email, application.business_name);

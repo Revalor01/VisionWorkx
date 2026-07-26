@@ -9,6 +9,7 @@ import PasswordInput from "@/components/PasswordInput";
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/dashboard";
 
   const [form, setForm] = useState({
     fullName: "",
@@ -54,7 +55,7 @@ function SignupForm() {
 
     if (data.session) {
       // Email confirmation disabled in Supabase dashboard — session is live immediately
-      router.push("/dashboard");
+      router.push(next);
       router.refresh();
     } else {
       // Email confirmation required — ask the user to check their inbox

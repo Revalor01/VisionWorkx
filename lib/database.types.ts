@@ -75,6 +75,19 @@ export interface PartnerScoreSignal {
   points: number;
 }
 
+export interface AgreementTerms {
+  tier: PartnerTier;
+  tierLabel: string;
+  discountPercentage: number;
+  businessName: string;
+  requiredPromotionalActions: string[];
+  referralExpectations: string;
+  scopeNote: string;
+  timeline: string;
+  paymentStructure: string;
+  generatedAt: string;
+}
+
 export interface IntakeData {
   businessName: string;
   businessType: string;
@@ -754,6 +767,10 @@ export type Database = {
           admin_notes: string | null;
           reviewed_by: string | null;
           reviewed_at: string | null;
+          account_user_id: string | null;
+          agreement_terms: AgreementTerms | null;
+          agreement_generated_at: string | null;
+          agreement_accepted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -781,6 +798,10 @@ export type Database = {
           admin_notes?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
+          account_user_id?: string | null;
+          agreement_terms?: AgreementTerms | null;
+          agreement_generated_at?: string | null;
+          agreement_accepted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -789,6 +810,10 @@ export type Database = {
           admin_notes?: string | null;
           reviewed_by?: string | null;
           reviewed_at?: string | null;
+          account_user_id?: string | null;
+          agreement_terms?: AgreementTerms | null;
+          agreement_generated_at?: string | null;
+          agreement_accepted_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];

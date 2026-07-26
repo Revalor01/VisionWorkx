@@ -9,20 +9,28 @@ const RESEND_KEY = process.env.RESEND_API_KEY;
 
 async function sendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
   if (!RESEND_KEY) return;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "VisionWorkx Partnerships <partnerships@notify.revalorllc.com>",
-      to: [params.to],
-      reply_to: "admin@revalorllc.com",
-      subject: params.subject,
-      html: params.html,
-    }),
-  }).catch((err) => console.error("[partners/email] send failed:", err));
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "VisionWorkx Partnerships <partnerships@notify.revalorllc.com>",
+        to: [params.to],
+        reply_to: "admin@revalorllc.com",
+        subject: params.subject,
+        html: params.html,
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error(`[partners/email] Resend ${res.status}: ${text}`);
+    }
+  } catch (err) {
+    console.error("[partners/email] send failed:", err);
+  }
 }
 
 function wrapper(bodyHtml: string): string {
@@ -49,13 +57,19 @@ export async function sendApplicationApprovedEmail(
   businessName: string,
   tierLabel: string,
   discountPercentage: number,
+  signupUrl: string,
+  loginUrl: string,
 ): Promise<void> {
   await sendEmail({
     to,
     subject: "You're approved as a VisionWorkx partner",
     html: wrapper(`
       <h1 style="color:#ffffff;font-size:24px;margin:0 0 12px">Welcome aboard, ${businessName}</h1>
-      <p style="font-size:15px;line-height:1.6">Your application was approved as a <strong>${tierLabel}</strong>, which comes with a ${discountPercentage}% partner discount. We'll be in touch shortly with next steps.</p>
+      <p style="font-size:15px;line-height:1.6">Your application was approved as a <strong>${tierLabel}</strong>, which comes with a ${discountPercentage}% partner discount. Your partnership agreement is ready — create an account (or log in) to review and accept it.</p>
+      <p style="margin:30px 0">
+        <a href="${signupUrl}" style="background:#4f8ef7;color:#ffffff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:700">Review Your Agreement &rarr;</a>
+      </p>
+      <p style="font-size:13px;color:#8b90a0">Already have an account? <a href="${loginUrl}" style="color:#4f8ef7">Log in</a> instead.</p>
     `),
   });
 }
@@ -67,6 +81,17 @@ export async function sendApplicationDeniedEmail(to: string, businessName: strin
     html: wrapper(`
       <h1 style="color:#ffffff;font-size:22px;margin:0 0 12px">Thanks for applying, ${businessName}</h1>
       <p style="font-size:15px;line-height:1.6">After review, we're not able to move forward with a partnership at this time. We'd welcome a future application if your business changes.</p>
+    `),
+  });
+}
+
+export async function sendAgreementAcceptedEmail(businessName: string, tierLabel: string): Promise<void> {
+  await sendEmail({
+    to: "admin@revalorllc.com",
+    subject: `${businessName} accepted their partnership agreement`,
+    html: wrapper(`
+      <h1 style="color:#ffffff;font-size:22px;margin:0 0 12px">Agreement accepted</h1>
+      <p style="font-size:15px;line-height:1.6"><strong>${businessName}</strong> (${tierLabel}) just accepted their partnership agreement in the app.</p>
     `),
   });
 }

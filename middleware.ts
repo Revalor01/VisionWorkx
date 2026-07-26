@@ -8,7 +8,7 @@ const TRIAL_DAYS = 14;
 // Routes that redirect authenticated users away (login/signup)
 const AUTH_ONLY_ROUTES = ["/login", "/signup"];
 // Routes that require a valid session
-const AUTH_REQUIRED = ["/dashboard", "/onboard", "/generate", "/billing"];
+const AUTH_REQUIRED = ["/dashboard", "/onboard", "/generate", "/billing", "/partner"];
 // Routes that additionally require an active subscription or in-trial status
 const SUBSCRIPTION_REQUIRED = ["/onboard", "/generate"];
 
@@ -52,7 +52,7 @@ export async function middleware(req: NextRequest) {
   // Redirect unauthenticated users to login
   if (AUTH_REQUIRED.some((r) => path.startsWith(r)) && !user) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirectTo", path);
+    loginUrl.searchParams.set("next", path);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -103,6 +103,7 @@ export const config = {
     "/onboard/:path*",
     "/generate/:path*",
     "/billing/:path*",
+    "/partner/:path*",
     "/login",
     "/signup",
   ],

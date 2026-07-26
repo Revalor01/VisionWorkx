@@ -184,6 +184,10 @@ export default function AdminDashboard({
         setPartners((prev) =>
           prev.map((p) => (p.id === applicationId ? { ...p, status: decision } : p))
         );
+        // Approving also generates the agreement server-side (agreement_terms,
+        // agreement_generated_at) — refresh so the Agreement column reflects
+        // that instead of the stale pre-approval values from initialPartners.
+        router.refresh();
       }
     } finally {
       setUpdatingPartnerId(null);
@@ -1558,13 +1562,14 @@ export default function AdminDashboard({
                       <Th>Budget / Reach / Referrals</Th>
                       <Th>Uploads</Th>
                       <Th>Status</Th>
+                      <Th>Agreement</Th>
                       <Th>Decision</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {paginatedPartners.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="text-center py-12 text-gray-400">
+                        <td colSpan={10} className="text-center py-12 text-gray-400">
                           No partner applications yet.
                         </td>
                       </tr>
@@ -1651,6 +1656,19 @@ export default function AdminDashboard({
                               <div className="text-[10px] text-gray-400 mt-1">
                                 by {p.reviewed_by}
                               </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs whitespace-nowrap">
+                            {p.status !== "approved" ? (
+                              <span className="text-gray-300">—</span>
+                            ) : p.agreement_accepted_at ? (
+                              <span className="font-semibold text-green-700">
+                                Accepted {new Date(p.agreement_accepted_at).toLocaleDateString()}
+                              </span>
+                            ) : p.agreement_terms ? (
+                              <span className="font-semibold text-amber-700">Awaiting acceptance</span>
+                            ) : (
+                              <span className="text-gray-400">Not generated</span>
                             )}
                           </td>
                           <td className="px-4 py-3 min-w-[180px]">
