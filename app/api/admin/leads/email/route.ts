@@ -40,11 +40,7 @@ async function sendLeadEmail(params: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      // TODO: switch to an @revalorllc.com sender once that domain is
-      // verified in Resend (onboarding@resend.dev is the sandbox sender —
-      // it can only deliver to the Resend account's own verified email,
-      // not to real lead inboxes).
-      from: "Revalor LLC <onboarding@resend.dev>",
+      from: "Revalor LLC <outreach@notify.revalorllc.com>",
       to: [params.to],
       reply_to: "admin@revalorllc.com",
       subject: params.subject,

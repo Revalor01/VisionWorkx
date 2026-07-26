@@ -13,7 +13,7 @@ async function sendEmail(params: { to: string; subject: string; html: string }):
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "VisionWorkx Promote <onboarding@resend.dev>",
+      from: "VisionWorkx Promote <promote@notify.revalorllc.com>",
       to: [params.to],
       subject: params.subject,
       html: params.html,

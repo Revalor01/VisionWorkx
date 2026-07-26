@@ -1,14 +1,9 @@
 // Reuses the raw-fetch Resend pattern already used across the repo
 // (e.g. lib/promote/email.ts, app/api/admin/leads/email/route.ts).
-//
-// NOTE: the sender below is still Resend's sandbox address
-// (onboarding@resend.dev), which can only deliver to the Resend
-// account's own verified email — not to real applicant inboxes. This
-// is the same pre-existing, already-tracked gap noted in
-// app/api/admin/leads/email/route.ts (switch to an @revalorllc.com
-// sender once that domain is verified in Resend). These sends will
-// succeed as API calls but won't land in a real applicant's inbox
-// until that domain verification happens.
+// Sends from notify.revalorllc.com, a verified Resend sending domain
+// kept separate from revalorllc.com's real mailboxes (support@,
+// info@, admin@, etc. — hosted on SiteGround) to avoid any collision
+// with that live mail setup.
 
 const RESEND_KEY = process.env.RESEND_API_KEY;
 
@@ -21,7 +16,7 @@ async function sendEmail(params: { to: string; subject: string; html: string }):
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "VisionWorkx Partnerships <onboarding@resend.dev>",
+      from: "VisionWorkx Partnerships <partnerships@notify.revalorllc.com>",
       to: [params.to],
       reply_to: "admin@revalorllc.com",
       subject: params.subject,

@@ -782,7 +782,7 @@ CREATE TRIGGER emit_automation_event
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Vision Workx <onboarding@resend.dev>",
+        from: "Vision Workx <notifications@notify.revalorllc.com>",
         to: [userEmail],
         subject: `Your app "${app.name}" is live!`,
         html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px"><h1 style="color:#1A3A5C">Your app is live!</h1><p>Your <strong>${app.name}</strong> app is deployed and connected to your database.</p><p style="margin:30px 0"><a href="${finalUrl}" style="background:#1A3A5C;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Your Live App →</a></p><p style="color:#666;font-size:14px">Vision Workx · A Revalor Company</p></div>`,
