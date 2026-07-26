@@ -10,7 +10,13 @@ import {
 } from "@/lib/features";
 
 export const runtime = "nodejs";
-export const maxDuration = 300; // 5 min — requires Vercel Pro in production
+// A single streamed completion (up to 32000 output tokens) for a large,
+// feature-rich app can legitimately run past 5 minutes. 300s was getting
+// hard-killed by the platform mid-stream — same failure mode as the deploy
+// route: no catch block runs on a platform-level kill, so apps.status got
+// stuck on "generating" forever. Confirmed via Vercel runtime error logs
+// (Task timed out after 300 seconds, routes=/api/generate).
+export const maxDuration = 900;
 
 // ---------------------------------------------------------------
 // System prompt
