@@ -3,7 +3,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+// One deployment + one poll loop now covers the whole pipeline (previously
+// two full sequential deployments, each with its own 10-minute poll budget,
+// routinely exceeded a 300s ceiling and got hard-killed by the platform
+// mid-poll, leaving apps.status stuck at "deploying" with no error ever
+// recorded). 800s leaves headroom above the single ~9-minute poll deadline
+// below for migration/schema/repair work.
+export const maxDuration = 800;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN!;
@@ -611,6 +617,30 @@ function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// Creates the Vercel project up front (or reuses it on a redeploy) so env
+// vars can be set before the build ever starts — NEXT_PUBLIC_* vars are
+// baked in at build time, so setting them after a deployment already exists
+// only takes effect on a *subsequent* build, which is what used to force a
+// second full deployment.
+async function getOrCreateVercelProject(name: string): Promise<string> {
+  const createRes = await fetch(vercelUrl("/v9/projects"), {
+    method: "POST",
+    headers: vercelHeaders,
+    body: JSON.stringify({ name, framework: "nextjs" }),
+  });
+  if (createRes.ok) {
+    const data = await createRes.json();
+    return data.id;
+  }
+  if (createRes.status === 409) {
+    const existing = await vercelGet(`/v9/projects/${name}`);
+    return existing.id;
+  }
+  throw new Error(
+    `Vercel project create failed → ${createRes.status}: ${(await createRes.text()).slice(0, 400)}`
+  );
+}
+
 async function runDeploy(appId: string, userEmail: string | null) {
   const SCHEMA = `app_${appId.slice(0, 8)}`;
 
@@ -712,7 +742,19 @@ CREATE TRIGGER emit_automation_event
   // 5. Mark deploying
   await supabasePatch("apps", appId, { status: "deploying" });
 
-  // 6. Create Vercel deployment
+  // 6. Get or create the Vercel project, then set env vars + disable SSO
+  // protection BEFORE the deployment/build is created — NEXT_PUBLIC_* vars
+  // must be present at build time, so doing this first means a single
+  // deployment's build already has them (no second rebuild needed).
+  const vercelProjectId = await getOrCreateVercelProject(projectName);
+  await setVercelEnvVars(vercelProjectId, SCHEMA);
+  await fetch(vercelUrl(`/v9/projects/${vercelProjectId}`), {
+    method: "PATCH",
+    headers: vercelHeaders,
+    body: JSON.stringify({ ssoProtection: null }),
+  });
+
+  // 7. Create the single Vercel deployment
   const deployment = await vercelPost("/v13/deployments", {
     name: projectName,
     files: files.map((f) => ({ file: f.path, data: f.content })),
@@ -726,20 +768,10 @@ CREATE TRIGGER emit_automation_event
   });
 
   const deployId = deployment.id;
-  const vercelProjectId = deployment.projectId;
-
-  // 7. Set env vars
-  await setVercelEnvVars(vercelProjectId, SCHEMA);
-
-  // Disable SSO protection
-  await fetch(vercelUrl(`/v9/projects/${vercelProjectId}`), {
-    method: "PATCH",
-    headers: vercelHeaders,
-    body: JSON.stringify({ ssoProtection: null }),
-  });
+  const finalUrl = `https://${deployment.url}`;
 
   // 8. Poll for READY
-  const deadline = Date.now() + 10 * 60 * 1000;
+  const deadline = Date.now() + 9 * 60 * 1000;
   while (Date.now() < deadline) {
     await delay(8000);
     const status = await vercelGet(`/v13/deployments/${deployId}`);
@@ -749,26 +781,7 @@ CREATE TRIGGER emit_automation_event
     }
   }
 
-  // 9. Redeploy so env vars take effect
-  const redeploy = await vercelPost("/v13/deployments", {
-    name: projectName,
-    deploymentId: deployId,
-    target: "production",
-  });
-  const redeployId = redeploy.id;
-  const finalUrl = `https://${redeploy.url}`;
-
-  const deadline2 = Date.now() + 10 * 60 * 1000;
-  while (Date.now() < deadline2) {
-    await delay(8000);
-    const status = await vercelGet(`/v13/deployments/${redeployId}`);
-    if (status.readyState === "READY") break;
-    if (status.readyState === "ERROR" || status.readyState === "CANCELED") {
-      throw new Error(`Redeploy ${status.readyState}`);
-    }
-  }
-
-  // 10. Save URL + email
+  // 9. Save URL + email
   await supabasePatch("apps", appId, {
     deploy_url: finalUrl,
     status: "deployed",
