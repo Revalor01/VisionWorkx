@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { uploadLogo as uploadLogoFile, logoPathToUrl } from "@/lib/uploadLogo";
 import type { AppCategory, IntakeData, Plan } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -187,7 +188,9 @@ export default function OnboardForm({
   );
   const [categorySelected, setCategorySelected] = useState(Boolean(initialData));
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(
+    initialData?.logoPath ? logoPathToUrl(initialData.logoPath) : null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -218,20 +221,7 @@ export default function OnboardForm({
 
   async function uploadLogo(): Promise<string | null> {
     if (!logoFile) return null;
-
-    const ext = logoFile.name.split(".").pop() ?? "png";
-    const path = `${userId}/${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("logos")
-      .upload(path, logoFile, { upsert: false });
-
-    if (uploadError) {
-      console.error("[logo upload]", uploadError.message);
-      return null;
-    }
-
-    return path;
+    return uploadLogoFile(supabase, userId, logoFile);
   }
 
   async function handleGenerate() {
@@ -240,7 +230,15 @@ export default function OnboardForm({
     setError("");
 
     try {
-      const logoPath = await uploadLogo();
+      const uploadedLogoPath = await uploadLogo();
+      // uploadedLogoPath set: a new file was picked this session, use it.
+      // Otherwise, if the preview still shows the existing logo untouched,
+      // preserve initialData.logoPath — omitting it here would silently
+      // drop a previously-saved logo on any edit that doesn't re-upload.
+      // If the user clicked "Remove," logoPreview is null and the logo is
+      // intentionally omitted.
+      const logoPath =
+        uploadedLogoPath ?? (logoPreview ? initialData?.logoPath : undefined);
 
       const intake: IntakeData = {
         businessName: data.businessName,
@@ -611,7 +609,7 @@ export default function OnboardForm({
                         style={{ background: data.backgroundColor ?? "#F8FAFC" }}
                       />
                       {(data.backgroundColor ?? "#F8FAFC").toUpperCase()} · {data.font}
-                      {logoFile && (
+                      {logoPreview && (
                         <span className="text-green-600 ml-1">· Logo ✓</span>
                       )}
                     </span>

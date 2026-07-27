@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
+import type { IntakeData } from "@/lib/database.types";
+
+// Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
+// validated before ever being interpolated into raw SQL for the site_settings
+// seed. No quotes, semicolons, or backslashes are possible in a matching value.
+const LOGO_PATH_RE = /^[a-zA-Z0-9-]+\/[a-zA-Z0-9_.-]+$/;
 
 export const runtime = "nodejs";
 // One deployment + one poll loop now covers the whole pipeline (previously
@@ -646,13 +652,72 @@ async function runDeploy(appId: string, userEmail: string | null) {
 
   // 1. Fetch app record
   const appRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status`,
+    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status,intake_data`,
     { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
   );
   const [app] = await appRes.json();
   if (!app?.generated_code) throw new Error("No generated code");
 
-  // 2. Create schema + run migration
+  // 2. Create schema + platform-owned site_settings table, seeded with the
+  // logo from intake data if present. Runs unconditionally (independent of
+  // whether the AI emitted a migration file) since this table must exist for
+  // every tenant, and it's created by our own code — not the AI — so its
+  // shape stays stable regardless of what gets generated.
+  //
+  // The seed write happens in this SAME raw-SQL call, not via a
+  // PostgREST-based client afterward — exposeSchemaInPostgREST() below
+  // patches the Management API's schema-exposure config, but PostgREST's
+  // own schema cache reloads asynchronously, so a PostgREST write against
+  // this schema immediately after can fail with "Invalid schema" (PGRST106)
+  // before the cache catches up. Using the Management API's direct-SQL path
+  // for the seed sidesteps that race entirely.
+  //
+  // intake.logoPath is client-controlled JSON with no server-side validation
+  // elsewhere in the app, so it's validated against LOGO_PATH_RE before ever
+  // being interpolated into SQL — the allowed character set excludes quotes,
+  // semicolons, and backslashes, so a value that passes is safe to embed.
+  const intake = app.intake_data as IntakeData | null;
+  const seedLogoUrl =
+    intake?.logoPath && LOGO_PATH_RE.test(intake.logoPath)
+      ? `${SUPABASE_URL}/storage/v1/object/public/logos/${intake.logoPath}`
+      : null;
+
+  const platformSchemaSql = `
+CREATE SCHEMA IF NOT EXISTS "${SCHEMA}";
+
+CREATE TABLE IF NOT EXISTS "${SCHEMA}".site_settings (
+  id boolean PRIMARY KEY DEFAULT true,
+  logo_url text,
+  social_links jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT site_settings_singleton CHECK (id)
+);
+
+ALTER TABLE "${SCHEMA}".site_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "site_settings: public read" ON "${SCHEMA}".site_settings;
+CREATE POLICY "site_settings: public read" ON "${SCHEMA}".site_settings
+  FOR SELECT TO anon, authenticated USING (true);
+
+GRANT USAGE ON SCHEMA "${SCHEMA}" TO service_role;
+GRANT ALL ON "${SCHEMA}".site_settings TO service_role;
+GRANT SELECT ON "${SCHEMA}".site_settings TO anon, authenticated;
+
+INSERT INTO "${SCHEMA}".site_settings (id) VALUES (true) ON CONFLICT (id) DO NOTHING;
+${seedLogoUrl ? `UPDATE "${SCHEMA}".site_settings SET logo_url = '${seedLogoUrl}', updated_at = now() WHERE id = true;` : ""}
+`;
+  try {
+    await supabaseSQL(platformSchemaSql);
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (!msg.includes("already exists")) throw err;
+  }
+
+  // 2b. Expose schema in PostgREST before the AI migration runs, so the
+  // schema is queryable as soon as possible.
+  await exposeSchemaInPostgREST(SCHEMA);
+
+  // 3. Run the AI's migration, if any
   const migrationFile = parseGeneratedCode(app.generated_code).find(
     (f) => f.path.includes("migrations") && f.path.endsWith(".sql")
   );
@@ -688,13 +753,15 @@ GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
       if (!msg.includes("already exists")) throw err;
     }
 
-    // 2b. Attach automation-event triggers to every table in the tenant
+    // 3b. Attach automation-event triggers to every table in the tenant
     // schema, so Revalor Automations can observe row-level changes via
     // public.automation_events. Idempotent (safe on redeploys) and
     // non-fatal — instrumentation must never block a customer's deploy.
+    // Excludes site_settings: it's platform config, not business data, and
+    // instrumenting it would leak settings-page edits into automation_events.
     try {
       const tables = (await supabaseSQL(
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = '${SCHEMA}' AND table_type = 'BASE TABLE';`
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = '${SCHEMA}' AND table_type = 'BASE TABLE' AND table_name != 'site_settings';`
       )) as { table_name: string }[];
 
       if (tables.length > 0) {
@@ -717,9 +784,6 @@ CREATE TRIGGER emit_automation_event
       );
     }
   }
-
-  // 3. Expose schema in PostgREST
-  await exposeSchemaInPostgREST(SCHEMA);
 
   // 4. Parse + patch files
   const projectName = slugify(app.name, appId);

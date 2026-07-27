@@ -113,7 +113,59 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
       }
       \`\`\`
     - Foreign keys like \`references auth.users(id)\` are fine and expected — only CREATE/ALTER/DROP statements targeting auth.* or public.* are forbidden
-    - All tables you create must live implicitly in the tenant's own schema (the migration runs with search_path already scoped to it) — never schema-qualify a CREATE/ALTER/DROP with \`public.\` or \`auth.\``;
+    - All tables you create must live implicitly in the tenant's own schema (the migration runs with search_path already scoped to it) — never schema-qualify a CREATE/ALTER/DROP with \`public.\` or \`auth.\`
+
+12. CRITICAL — a \`site_settings\` table already exists in your schema before your migration ever runs (the platform creates it, not you). It holds the business's logo and social media links, which the business owner can update at any time from their VisionWorkx dashboard WITHOUT redeploying this app. Because of that:
+    - NEVER create a table named \`site_settings\` yourself, and NEVER INSERT/UPDATE/DELETE it — it is READ-ONLY from your generated code, SELECT only.
+    - NEVER hardcode a literal logo image URL or a literal social media link anywhere in your code — always read them from \`site_settings\` at runtime.
+    - Shape (already exists, do not create it): \`site_settings(id boolean, logo_url text | null, social_links jsonb, updated_at timestamptz)\`. \`social_links\` keys you may read, all optional: \`instagram\`, \`facebook\`, \`tiktok\`, \`twitter\`, \`linkedin\`, \`youtube\`.
+    - Fetch it in \`app/layout.tsx\` (or a component it renders, e.g. a shared header/footer) using \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — server-side only, NEVER from a Client Component or the browser client.
+    - The file that fetches it MUST include \`export const dynamic = 'force-dynamic'\` — without this, Next.js freezes the value at build time via static generation, and a business owner's settings changes will silently never appear without a full rebuild.
+    - Render the logo and each social link ONLY when present — never a placeholder image or a dead/example link. Never use \`dangerouslySetInnerHTML\` for these values.
+
+    Required pattern:
+    \`\`\`typescript
+    // app/layout.tsx
+    export const dynamic = 'force-dynamic'
+
+    import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+    async function getSiteSettings() {
+      const supabase = createServerSupabaseClient()
+      const { data } = await supabase
+        .from('site_settings')
+        .select('logo_url, social_links')
+        .single()
+      return data
+    }
+
+    export default async function RootLayout({ children }: { children: React.ReactNode }) {
+      const settings = await getSiteSettings()
+
+      return (
+        <html lang="en">
+          <body>
+            <header>
+              {settings?.logo_url && (
+                <img src={settings.logo_url} alt="Logo" className="h-10 object-contain" />
+              )}
+              {/* ...nav... */}
+            </header>
+            {children}
+            <footer>
+              {settings?.social_links?.instagram && (
+                <a href={settings.social_links.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>
+              )}
+              {settings?.social_links?.facebook && (
+                <a href={settings.social_links.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>
+              )}
+              {/* only render a link for keys that are actually present in social_links */}
+            </footer>
+          </body>
+        </html>
+      )
+    }
+    \`\`\``;
 
 // ---------------------------------------------------------------
 // POST /api/generate
@@ -311,12 +363,6 @@ function buildUserPrompt(intake: IntakeData): string {
 - Works for both the customer-facing confirmation and the admin view`
     : "";
 
-  const logoUrl = intake.logoPath
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/logos/${intake.logoPath}`
-    : null;
-  const logoLine = logoUrl
-    ? `\n- Logo: ${logoUrl} — use this exact URL directly in an <img>/<Image> tag in the header/nav (and anywhere else a logo naturally belongs, e.g. the login page). Do not fetch, download, or re-host it — just reference the URL as-is.`
-    : "";
   const backgroundColor = intake.backgroundColor || "#F8FAFC";
 
   return `Build a complete ${categoryDesc} for the following business.
@@ -336,7 +382,8 @@ ${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarEx
 ## Branding
 - Primary color: ${intake.primaryColor}
 - Background color: ${backgroundColor}
-- Font: ${intake.font} (from Google Fonts)${logoLine}
+- Font: ${intake.font} (from Google Fonts)
+- Logo and social media links: read from \`site_settings\` at runtime per rule 12 — do NOT hardcode a logo URL or social link here or anywhere else
 
 ## Additional Requirements
 - Include both a customer-facing view AND an admin dashboard

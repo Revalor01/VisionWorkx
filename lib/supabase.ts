@@ -40,3 +40,14 @@ export function createServiceClient() {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
+
+// Service role client scoped to a generated app's own tenant schema (e.g. "app_c0640777").
+// Use ONLY in server-side API routes that need to read/write a specific tenant's tables
+// directly (e.g. site_settings) — same trust level as createServiceClient, just schema-scoped.
+export function createTenantServiceClient(schema: string) {
+  return createClient(
+    supabaseUrl,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema }, auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
