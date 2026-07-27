@@ -41,8 +41,15 @@ export default async function AppSettingsPage({
       .eq("id", true)
       .single();
     if (error) {
-      if (error.code === "42P01") unavailable = true;
-      else throw error;
+      // PGRST205: PostgREST's own "table not in schema cache" error (the
+      // common case — app deployed before this feature shipped). 42P01:
+      // Postgres' raw "undefined_table" error, in case it surfaces that way
+      // instead. Neither is a real failure worth logging as an error.
+      if (error.code === "PGRST205" || error.code === "42P01") {
+        unavailable = true;
+      } else {
+        throw error;
+      }
     } else {
       settings = data as SiteSettings;
     }

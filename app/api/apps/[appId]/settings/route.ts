@@ -62,8 +62,9 @@ export async function GET(req: NextRequest, { params }: { params: { appId: strin
     .single();
 
   if (error) {
-    // 42P01 = table does not exist — app was deployed before this feature shipped.
-    if (error.code === "42P01") {
+    // PGRST205 (PostgREST "table not in schema cache") or 42P01 (Postgres
+    // "undefined_table") — app was deployed before this feature shipped.
+    if (error.code === "PGRST205" || error.code === "42P01") {
       return NextResponse.json(
         { error: "Settings aren't available for this app yet.", unavailable: true },
         { status: 404 }
@@ -135,7 +136,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { appId: str
     .eq("id", true);
 
   if (tenantError) {
-    if (tenantError.code === "42P01") {
+    if (tenantError.code === "PGRST205" || tenantError.code === "42P01") {
       return NextResponse.json(
         { error: "Settings aren't available for this app yet.", unavailable: true },
         { status: 404 }
