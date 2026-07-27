@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
+import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
 import type { IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -204,6 +205,30 @@ function findMissingLocalImports(files: { path: string; content: string }[]): st
   return Array.from(missing);
 }
 
+// SYSTEM_PROMPT rule 13 forbids literal hex colors so the AI's UI stays
+// runtime-configurable via site_settings, but nothing enforces that at the
+// build level — a stray bg-[#1A3A5C] compiles and deploys fine, it just
+// silently won't respond to a future color change. Log-only for now: unlike
+// findMissingLocalImports's target (a guaranteed build failure), this is a
+// low-urgency cosmetic gap, and a mechanical rewrite risks a real
+// correctness regression (an arbitrary-value hex class isn't necessarily
+// "the brand color done wrong" — could be an intentional error-red or
+// muted-gray) that would need a second Claude call to judge safely.
+const HEX_COLOR_CLASS_RE =
+  /\b(?:bg|text|border|ring|from|via|to|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]/g;
+
+function findLiteralColorClasses(
+  files: { path: string; content: string }[]
+): { path: string; count: number }[] {
+  return files
+    .filter((f) => /\.(tsx?|jsx?)$/.test(f.path))
+    .map((f) => ({
+      path: f.path,
+      count: (f.content.match(HEX_COLOR_CLASS_RE) ?? []).length,
+    }))
+    .filter((r) => r.count > 0);
+}
+
 // One focused follow-up call asking only for the missing files, instead of
 // a full regeneration — much cheaper, and gives the same model the exact
 // gap to fill in rather than hoping a second one-shot attempt does better.
@@ -289,6 +314,37 @@ function patchFiles(files: { path: string; content: string }[]) {
       path: "next.config.mjs",
       content: `/** @type {import('next').NextConfig} */\nconst nextConfig = {};\nexport default nextConfig;\n`,
     });
+  }
+
+  // tailwind.config.ts is platform-owned, like the Supabase client files
+  // below — always fully overwritten regardless of what the AI generated.
+  // It maps the `primary`/`background` Tailwind theme tokens to CSS
+  // variables that app/layout.tsx sets at runtime from site_settings (per
+  // SYSTEM_PROMPT rule 13), so this mapping can never be missing or wrong.
+  // rgb(var(--x) / <alpha-value>) is the shadcn/ui convention — it requires
+  // the CSS variable to hold space-separated RGB components, which is
+  // exactly what hexToRgbTriplet() produces for site_settings.*_color_rgb.
+  const TAILWIND_CONFIG_CONTENT = `import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
+        background: "rgb(var(--color-background) / <alpha-value>)",
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;
+`;
+  const twIdx = out.findIndex((f) => /^tailwind\.config\.(ts|js|mjs|cjs)$/.test(f.path));
+  if (twIdx >= 0) {
+    out[twIdx] = { path: "tailwind.config.ts", content: TAILWIND_CONFIG_CONTENT };
+  } else {
+    out.push({ path: "tailwind.config.ts", content: TAILWIND_CONFIG_CONTENT });
   }
 
   if (!has("tsconfig.json")) {
@@ -560,6 +616,11 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
       pkg.dependencies = pkg.dependencies || {};
       if (!pkg.dependencies["lucide-react"])
         pkg.dependencies["lucide-react"] = "^0.344.0";
+      // tailwind.config.ts's rgb(var(--x) / <alpha-value>) mapping requires
+      // Tailwind v3+ — nothing else in this pipeline pins it.
+      pkg.devDependencies = pkg.devDependencies || {};
+      if (!pkg.devDependencies["tailwindcss"])
+        pkg.devDependencies["tailwindcss"] = "^3.4.0";
       pkgFile.content = JSON.stringify(pkg, null, 2);
     } catch { /* leave as-is */ }
   }
@@ -676,11 +737,23 @@ async function runDeploy(appId: string, userEmail: string | null) {
   // elsewhere in the app, so it's validated against LOGO_PATH_RE before ever
   // being interpolated into SQL — the allowed character set excludes quotes,
   // semicolons, and backslashes, so a value that passes is safe to embed.
+  // Colors are validated the same way against HEX_COLOR_RE. Unlike logo/
+  // social, colors always get seeded with SOME valid value (a UI needs
+  // colors to render at all) — falling back to the same defaults already
+  // hardcoded elsewhere in this codebase (OnboardForm.tsx, buildUserPrompt).
   const intake = app.intake_data as IntakeData | null;
   const seedLogoUrl =
     intake?.logoPath && LOGO_PATH_RE.test(intake.logoPath)
       ? `${SUPABASE_URL}/storage/v1/object/public/logos/${intake.logoPath}`
       : null;
+  const seedPrimaryHex =
+    intake?.primaryColor && HEX_COLOR_RE.test(intake.primaryColor)
+      ? intake.primaryColor
+      : "#1A3A5C";
+  const seedBackgroundHex =
+    intake?.backgroundColor && HEX_COLOR_RE.test(intake.backgroundColor)
+      ? intake.backgroundColor
+      : "#F8FAFC";
 
   const platformSchemaSql = `
 CREATE SCHEMA IF NOT EXISTS "${SCHEMA}";
@@ -689,9 +762,19 @@ CREATE TABLE IF NOT EXISTS "${SCHEMA}".site_settings (
   id boolean PRIMARY KEY DEFAULT true,
   logo_url text,
   social_links jsonb NOT NULL DEFAULT '{}'::jsonb,
+  primary_color text,
+  primary_color_rgb text,
+  background_color text,
+  background_color_rgb text,
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT site_settings_singleton CHECK (id)
 );
+
+ALTER TABLE "${SCHEMA}".site_settings
+  ADD COLUMN IF NOT EXISTS primary_color text,
+  ADD COLUMN IF NOT EXISTS primary_color_rgb text,
+  ADD COLUMN IF NOT EXISTS background_color text,
+  ADD COLUMN IF NOT EXISTS background_color_rgb text;
 
 ALTER TABLE "${SCHEMA}".site_settings ENABLE ROW LEVEL SECURITY;
 
@@ -704,7 +787,14 @@ GRANT ALL ON "${SCHEMA}".site_settings TO service_role;
 GRANT SELECT ON "${SCHEMA}".site_settings TO anon, authenticated;
 
 INSERT INTO "${SCHEMA}".site_settings (id) VALUES (true) ON CONFLICT (id) DO NOTHING;
-${seedLogoUrl ? `UPDATE "${SCHEMA}".site_settings SET logo_url = '${seedLogoUrl}', updated_at = now() WHERE id = true;` : ""}
+UPDATE "${SCHEMA}".site_settings SET
+  logo_url = ${seedLogoUrl ? `'${seedLogoUrl}'` : "logo_url"},
+  primary_color = '${seedPrimaryHex}',
+  primary_color_rgb = '${hexToRgbTriplet(seedPrimaryHex)}',
+  background_color = '${seedBackgroundHex}',
+  background_color_rgb = '${hexToRgbTriplet(seedBackgroundHex)}',
+  updated_at = now()
+WHERE id = true;
 `;
   try {
     await supabaseSQL(platformSchemaSql);
@@ -789,6 +879,14 @@ CREATE TRIGGER emit_automation_event
   const projectName = slugify(app.name, appId);
   const rawFiles = parseGeneratedCode(app.generated_code);
   let files = patchFiles(rawFiles);
+
+  const literalColorHits = findLiteralColorClasses(files);
+  if (literalColorHits.length > 0) {
+    console.warn(
+      `[api/deploy] Literal hex color classes found (rule 13 non-compliance) in ${literalColorHits.length} file(s):`,
+      literalColorHits
+    );
+  }
 
   // 4b. Detect files referenced but never generated, attempt one focused repair
   let missingImports = findMissingLocalImports(files);

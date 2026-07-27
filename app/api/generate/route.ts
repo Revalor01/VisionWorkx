@@ -115,15 +115,15 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
     - Foreign keys like \`references auth.users(id)\` are fine and expected — only CREATE/ALTER/DROP statements targeting auth.* or public.* are forbidden
     - All tables you create must live implicitly in the tenant's own schema (the migration runs with search_path already scoped to it) — never schema-qualify a CREATE/ALTER/DROP with \`public.\` or \`auth.\`
 
-12. CRITICAL — a \`site_settings\` table already exists in your schema before your migration ever runs (the platform creates it, not you). It holds the business's logo and social media links, which the business owner can update at any time from their VisionWorkx dashboard WITHOUT redeploying this app. Because of that:
+12. CRITICAL — a \`site_settings\` table already exists in your schema before your migration ever runs (the platform creates it, not you). It holds the business's logo, social media links, and brand colors, which the business owner can update at any time from their VisionWorkx dashboard WITHOUT redeploying this app. Because of that:
     - NEVER create a table named \`site_settings\` yourself, and NEVER INSERT/UPDATE/DELETE it — it is READ-ONLY from your generated code, SELECT only.
-    - NEVER hardcode a literal logo image URL or a literal social media link anywhere in your code — always read them from \`site_settings\` at runtime.
-    - Shape (already exists, do not create it): \`site_settings(id boolean, logo_url text | null, social_links jsonb, updated_at timestamptz)\`. \`social_links\` keys you may read, all optional: \`instagram\`, \`facebook\`, \`tiktok\`, \`twitter\`, \`linkedin\`, \`youtube\`.
-    - Fetch it in \`app/layout.tsx\` (or a component it renders, e.g. a shared header/footer) using \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — server-side only, NEVER from a Client Component or the browser client.
+    - NEVER hardcode a literal logo image URL or a literal social media link anywhere in your code — always read them from \`site_settings\` at runtime. (Brand colors work the same way — see rule 13.)
+    - Shape (already exists, do not create it): \`site_settings(id boolean, logo_url text | null, social_links jsonb, primary_color_rgb text, background_color_rgb text, updated_at timestamptz)\`. \`social_links\` keys you may read, all optional: \`instagram\`, \`facebook\`, \`tiktok\`, \`twitter\`, \`linkedin\`, \`youtube\`.
+    - Fetch it ONCE in \`app/layout.tsx\` (or a component it renders, e.g. a shared header/footer) using \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — server-side only, NEVER from a Client Component or the browser client. This single fetch also supplies the color variables rule 13 needs — never add a second \`site_settings\` query anywhere else.
     - The file that fetches it MUST include \`export const dynamic = 'force-dynamic'\` — without this, Next.js freezes the value at build time via static generation, and a business owner's settings changes will silently never appear without a full rebuild.
     - Render the logo and each social link ONLY when present — never a placeholder image or a dead/example link. Never use \`dangerouslySetInnerHTML\` for these values.
 
-    Required pattern:
+    Required pattern (includes the color variables rule 13 needs):
     \`\`\`typescript
     // app/layout.tsx
     export const dynamic = 'force-dynamic'
@@ -134,7 +134,7 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
       const supabase = createServerSupabaseClient()
       const { data } = await supabase
         .from('site_settings')
-        .select('logo_url, social_links')
+        .select('logo_url, social_links, primary_color_rgb, background_color_rgb')
         .single()
       return data
     }
@@ -144,6 +144,9 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
 
       return (
         <html lang="en">
+          <head>
+            <style>{\`:root{--color-primary:\${settings?.primary_color_rgb ?? '26 58 92'};--color-background:\${settings?.background_color_rgb ?? '248 250 252'}}\`}</style>
+          </head>
           <body>
             <header>
               {settings?.logo_url && (
@@ -165,7 +168,13 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
         </html>
       )
     }
-    \`\`\``;
+    \`\`\`
+
+13. CRITICAL — the app's primary/background colors are runtime-configurable, exactly like the logo and social links in rule 12 (same site_settings mechanism, same single fetch — do not add a second query). Because of that:
+    - NEVER write a literal hex color anywhere in your code — no \`bg-[#1A3A5C]\`, no \`text-[#F8FAFC]\`, no inline \`style={{ color: '#...' }}\`, no hex string embedded in ANY Tailwind arbitrary-value class (\`bg-[...]\`, \`text-[...]\`, \`border-[...]\`, \`ring-[...]\`, \`from-[...]\`, \`via-[...]\`, \`to-[...]\`).
+    - Use ONLY the Tailwind theme utility classes \`primary\` and \`background\` for all brand-color usage: \`bg-primary\`, \`text-primary\`, \`border-primary\`, \`hover:bg-primary/90\`, \`bg-primary/10\`, \`bg-background\`, etc. The \`/NN\` opacity-modifier syntax works normally on these — use it instead of a different literal color for hover/muted/subtle states.
+    - \`tailwind.config.ts\` is platform-owned — it already maps \`primary\`/\`background\` to CSS variables for you. Do NOT create, edit, or rely on your own \`tailwind.config.ts\` content; anything you write there (colors, fonts, plugins) will be discarded and replaced before deploy. Apply your chosen font via the font object's \`.className\` directly on \`<html>\`/\`<body>\` — never via a tailwind.config fontFamily extension.
+    - You do NOT need to know the actual color values, ever. Build entirely color-value-agnostic UI using only the \`primary\`/\`background\` theme names — the platform supplies the real values at runtime via the \`<style>\` tag already shown in rule 12's required pattern above.`;
 
 // ---------------------------------------------------------------
 // POST /api/generate
@@ -363,8 +372,6 @@ function buildUserPrompt(intake: IntakeData): string {
 - Works for both the customer-facing confirmation and the admin view`
     : "";
 
-  const backgroundColor = intake.backgroundColor || "#F8FAFC";
-
   return `Build a complete ${categoryDesc} for the following business.
 
 ## Business Details
@@ -380,17 +387,14 @@ ${intake.category}
 ${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}
 
 ## Branding
-- Primary color: ${intake.primaryColor}
-- Background color: ${backgroundColor}
-- Font: ${intake.font} (from Google Fonts)
+- Primary/background colors are runtime-configurable — do NOT hardcode any hex color. Use ONLY the \`primary\`/\`background\` Tailwind theme tokens per rule 13 (bg-primary, text-primary, bg-background, hover:bg-primary/90, etc.)
+- Font: ${intake.font} (from Google Fonts) — apply via the font object's \`.className\`, never via tailwind.config
 - Logo and social media links: read from \`site_settings\` at runtime per rule 12 — do NOT hardcode a logo URL or social link here or anywhere else
 
 ## Additional Requirements
 - Include both a customer-facing view AND an admin dashboard
 - Admin dashboard: manage all records, view stats, handle the core workflow
 - Customer view: self-service features relevant to the category
-- Use "${intake.primaryColor}" as the CSS primary/accent color throughout (buttons, headings, links — Tailwind's \`primary\` via config extension or inline hex values)
-- Use "${backgroundColor}" as the page background color throughout — this is distinct from the primary/accent color above; do not conflate the two
 - Use ${intake.font} from Google Fonts via next/font/google
 - Keep the UX simple and welcoming — the business owner is not technical
 - Include placeholder/mock data so the app looks populated on first run

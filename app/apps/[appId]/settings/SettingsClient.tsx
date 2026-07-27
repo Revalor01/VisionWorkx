@@ -26,6 +26,7 @@ export default function SettingsClient({
   plan,
   initialSettings,
   unavailable,
+  colorsUnavailable,
 }: {
   appId: string;
   appName: string;
@@ -33,8 +34,14 @@ export default function SettingsClient({
   userName: string | null;
   userEmail: string | null;
   plan: Plan;
-  initialSettings: { logo_url: string | null; social_links: Record<string, string> } | null;
+  initialSettings: {
+    logo_url: string | null;
+    social_links: Record<string, string>;
+    primary_color?: string | null;
+    background_color?: string | null;
+  } | null;
   unavailable: boolean;
+  colorsUnavailable: boolean;
 }) {
   const supabase = useMemo(() => createBrowserClient(), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +53,12 @@ export default function SettingsClient({
   const [logoRemoved, setLogoRemoved] = useState(false);
   const [socialLinks, setSocialLinks] = useState<Record<string, string>>(
     initialSettings?.social_links ?? {}
+  );
+  const [primaryColor, setPrimaryColor] = useState(
+    initialSettings?.primary_color ?? "#1A3A5C"
+  );
+  const [backgroundColor, setBackgroundColor] = useState(
+    initialSettings?.background_color ?? "#F8FAFC"
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -101,6 +114,7 @@ export default function SettingsClient({
         body: JSON.stringify({
           ...(logoPath !== undefined ? { logoPath } : {}),
           socialLinks,
+          ...(colorsUnavailable ? {} : { primaryColor, backgroundColor }),
         }),
       });
 
@@ -201,6 +215,52 @@ export default function SettingsClient({
                 className="hidden"
               />
             </section>
+
+            {!colorsUnavailable && (
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                <h2 className="font-semibold text-navy-dark mb-4">Brand Colors</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-navy-dark mb-2">
+                      Primary color
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => {
+                          setPrimaryColor(e.target.value);
+                          setSaved(false);
+                        }}
+                        className="w-12 h-12 rounded-xl border border-gray-300 cursor-pointer p-0.5"
+                      />
+                      <span className="text-sm text-gray-600 font-mono">
+                        {primaryColor.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-navy-dark mb-2">
+                      Background color
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => {
+                          setBackgroundColor(e.target.value);
+                          setSaved(false);
+                        }}
+                        className="w-12 h-12 rounded-xl border border-gray-300 cursor-pointer p-0.5"
+                      />
+                      <span className="text-sm text-gray-600 font-mono">
+                        {backgroundColor.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="font-semibold text-navy-dark mb-1">Social Media Links</h2>

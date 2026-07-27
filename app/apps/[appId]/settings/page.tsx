@@ -31,22 +31,41 @@ export default async function AppSettingsPage({
   const SCHEMA = `app_${params.appId.slice(0, 8)}`;
   const tenantClient = createTenantServiceClient(SCHEMA);
 
-  type SiteSettings = { logo_url: string | null; social_links: Record<string, string> };
+  type SiteSettings = {
+    logo_url: string | null;
+    social_links: Record<string, string>;
+    primary_color?: string | null;
+    background_color?: string | null;
+  };
   let settings: SiteSettings | null = null;
   let unavailable = false;
+  let colorsUnavailable = false;
   try {
     const { data, error } = await tenantClient
       .from("site_settings")
-      .select("logo_url, social_links")
+      .select("logo_url, social_links, primary_color, background_color")
       .eq("id", true)
       .single();
     if (error) {
       // PGRST205: PostgREST's own "table not in schema cache" error (the
-      // common case — app deployed before this feature shipped). 42P01:
-      // Postgres' raw "undefined_table" error, in case it surfaces that way
-      // instead. Neither is a real failure worth logging as an error.
+      // common case — app deployed before the logo/social feature shipped).
+      // 42P01: Postgres' raw "undefined_table" error, in case it surfaces
+      // that way instead. Neither is a real failure worth logging as one.
       if (error.code === "PGRST205" || error.code === "42P01") {
         unavailable = true;
+      } else if (error.code === "PGRST204" || error.code === "42703") {
+        // "Middle vintage" app: site_settings exists (logo/social work) but
+        // predates the color columns until its next deploy. Fall back to a
+        // logo/social-only select so that tier stays functional, and hide
+        // only the Brand Colors section rather than the whole page.
+        const { data: fallbackData, error: fallbackError } = await tenantClient
+          .from("site_settings")
+          .select("logo_url, social_links")
+          .eq("id", true)
+          .single();
+        if (fallbackError) throw fallbackError;
+        settings = fallbackData as SiteSettings;
+        colorsUnavailable = true;
       } else {
         throw error;
       }
@@ -68,6 +87,7 @@ export default async function AppSettingsPage({
       plan={(profile?.plan ?? "free") as "free" | "starter" | "growth" | "pro"}
       initialSettings={settings}
       unavailable={unavailable}
+      colorsUnavailable={colorsUnavailable}
     />
   );
 }
