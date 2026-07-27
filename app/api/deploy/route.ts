@@ -378,6 +378,52 @@ export default config;
     });
   }
 
+  // Same class of gap as missing local imports (findMissingLocalImports
+  // below) — the AI occasionally omits package.json entirely from its own
+  // output. Unlike a missing component file, this doesn't surface until the
+  // Vercel build itself fails at "npm install" with an ENOENT on
+  // package.json, so it's worth guaranteeing up front rather than relying on
+  // the AI to always emit one. Deps are additive with the lucide-react/
+  // tailwindcss patch below, which only runs once this file is guaranteed
+  // to exist.
+  if (!has("package.json")) {
+    out.push({
+      path: "package.json",
+      content: JSON.stringify(
+        {
+          name: "vision-workx-app",
+          version: "0.1.0",
+          private: true,
+          scripts: {
+            dev: "next dev",
+            build: "next build",
+            start: "next start",
+            lint: "next lint",
+          },
+          dependencies: {
+            "@supabase/ssr": "^0.3.0",
+            "@supabase/supabase-js": "^2.39.0",
+            next: "14.1.0",
+            react: "^18",
+            "react-dom": "^18",
+          },
+          devDependencies: {
+            "@types/node": "^20",
+            "@types/react": "^18",
+            "@types/react-dom": "^18",
+            autoprefixer: "^10.0.1",
+            eslint: "^8",
+            "eslint-config-next": "14.1.0",
+            postcss: "^8",
+            typescript: "^5",
+          },
+        },
+        null,
+        2
+      ),
+    });
+  }
+
   const browserClientContent = `import { createBrowserClient } from '@supabase/ssr';
 
 const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public';
