@@ -374,20 +374,20 @@ function AppCard({
       )}
 
       {/* Action buttons */}
-      <div className="mt-auto flex gap-2">
+      <div className="mt-auto flex flex-wrap gap-2">
         {app.status === "deployed" && app.deploy_url && (
           <a
             href={app.deploy_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 text-center text-xs font-semibold bg-navy-dark text-white py-2.5 rounded-xl hover:bg-navy transition-colors"
+            className="flex-1 min-w-[90px] text-center text-xs font-semibold bg-navy-dark text-white py-2.5 rounded-xl hover:bg-navy transition-colors"
           >
             View App ↗
           </a>
         )}
 
         {(app.status === "ready" || app.status === "deploying") && (
-          <span className="flex-1 text-center text-xs font-medium text-blue-500 bg-blue-50 py-2.5 rounded-xl">
+          <span className="flex-1 min-w-[90px] text-center text-xs font-medium text-blue-500 bg-blue-50 py-2.5 rounded-xl">
             Deploying…
           </span>
         )}
@@ -395,7 +395,7 @@ function AppCard({
         {app.status === "generating" && (
           <Link
             href={`/generate?appId=${app.id}`}
-            className="flex-1 text-center text-xs font-medium text-amber-700 bg-amber-50 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
+            className="flex-1 min-w-[90px] text-center text-xs font-medium text-amber-700 bg-amber-50 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
           >
             View Progress →
           </Link>
@@ -404,7 +404,7 @@ function AppCard({
         {app.status === "deployed" && app.deploy_url && (
           <Link
             href={`/apps/${app.id}/settings`}
-            className="flex-1 text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 min-w-[90px] text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
           >
             Settings
           </Link>
@@ -412,7 +412,7 @@ function AppCard({
 
         <Link
           href={`/onboard?edit=${app.id}`}
-          className="flex-1 text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+          className="flex-1 min-w-[90px] text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
         >
           Edit
         </Link>

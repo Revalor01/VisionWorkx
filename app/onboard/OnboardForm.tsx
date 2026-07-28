@@ -598,20 +598,23 @@ export default function OnboardForm({
                 <ReviewRow
                   label="Branding"
                   value={
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0"
-                        style={{ background: data.primaryColor }}
-                      />
-                      {data.primaryColor.toUpperCase()}
-                      <span
-                        className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0"
-                        style={{ background: data.backgroundColor ?? "#F8FAFC" }}
-                      />
-                      {(data.backgroundColor ?? "#F8FAFC").toUpperCase()} · {data.font}
-                      {logoPreview && (
-                        <span className="text-green-600 ml-1">· Logo ✓</span>
-                      )}
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="inline-flex items-center gap-1">
+                        <span
+                          className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0"
+                          style={{ background: data.primaryColor }}
+                        />
+                        {data.primaryColor.toUpperCase()}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <span
+                          className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0"
+                          style={{ background: data.backgroundColor ?? "#F8FAFC" }}
+                        />
+                        {(data.backgroundColor ?? "#F8FAFC").toUpperCase()}
+                      </span>
+                      <span>{data.font}</span>
+                      {logoPreview && <span className="text-green-600">Logo ✓</span>}
                     </span>
                   }
                 />
@@ -710,7 +713,7 @@ function ReviewRow({
       <span className="text-xs font-semibold text-gray-500 w-20 shrink-0 pt-0.5 uppercase tracking-wide">
         {label}
       </span>
-      <span className="text-sm text-navy-dark">{value}</span>
+      <span className="text-sm text-navy-dark min-w-0 break-words">{value}</span>
     </div>
   );
 }
