@@ -7,6 +7,12 @@ import PricingSection from "@/components/landing/PricingSection";
 
 const EXAMPLES = [
   {
+    name: "Green Blade Lawn Care",
+    category: "Booking & Scheduling",
+    image: "/examples/green-blade-lawn-care.png",
+    url: "https://vw-green-blade-lawn-care-booking-c0640777-hxd7fq3op.vercel.app",
+  },
+  {
     name: "Peak Performance Gym",
     category: "Booking & Scheduling",
     image: "/examples/peak-performance-gym.png",
