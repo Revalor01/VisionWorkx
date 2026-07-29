@@ -5,6 +5,7 @@ import {
   createTenantServiceClient,
 } from "@/lib/supabase";
 import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
+import { loadSiteSettingsCascade } from "@/lib/siteSettings";
 import type { IntakeData } from "@/lib/database.types";
 
 const SOCIAL_LINK_KEYS = [
@@ -25,6 +26,18 @@ const SOCIAL_URL_RE = /^https:\/\/[^\s"'<>]{1,500}$/;
 // convention uploadLogo() writes: "<userId>/<timestamp>.<ext>") — never an
 // arbitrary external URL, to prevent hot-linking/spoofing via this API.
 const LOGO_PATH_RE = /^[a-zA-Z0-9-]+\/[a-zA-Z0-9_.-]+$/;
+
+const MAX_GALLERY_PHOTOS = 9;
+
+// galleryPhotos entries must be full public URLs under our own
+// gallery-photos bucket, in exactly the shape uploadGalleryPhoto() produces
+// — same reasoning as LOGO_PATH_RE — never an arbitrary external URL (this
+// prevents hot-linking/spoofing via this API).
+const GALLERY_PHOTO_URL_RE = new RegExp(
+  "^" +
+    process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+    "/storage/v1/object/public/gallery-photos/[a-zA-Z0-9-]+/[a-zA-Z0-9_.-]+$"
+);
 
 async function loadOwnedDeployedApp(appId: string, userId: string) {
   const serviceClient = createServiceClient();
@@ -56,43 +69,22 @@ export async function GET(req: NextRequest, { params }: { params: { appId: strin
 
   const SCHEMA = `app_${params.appId.slice(0, 8)}`;
   const tenantClient = createTenantServiceClient(SCHEMA);
-  const { data: settings, error } = await tenantClient
-    .from("site_settings")
-    .select("logo_url, social_links, updated_at, primary_color, background_color")
-    .eq("id", true)
-    .single();
+  const result = await loadSiteSettingsCascade(tenantClient);
 
-  if (error) {
-    // PGRST205 (PostgREST "table not in schema cache") or 42P01 (Postgres
-    // "undefined_table") — app was deployed before the logo/social feature
-    // shipped, no site_settings table at all.
-    if (error.code === "PGRST205" || error.code === "42P01") {
-      return NextResponse.json(
-        { error: "Settings aren't available for this app yet.", unavailable: true },
-        { status: 404 }
-      );
-    }
-    // PGRST204 (PostgREST "column not in schema cache") or 42703 (Postgres
-    // "undefined_column") — a "middle vintage" app: deployed after logo/
-    // social shipped but before colors did, so site_settings exists but
-    // without the color columns until its next deploy. Fall back to the
-    // logo/social-only select so that tier keeps working, and let the
-    // client hide just the color section rather than the whole page.
-    if (error.code === "PGRST204" || error.code === "42703") {
-      const { data: fallbackSettings, error: fallbackError } = await tenantClient
-        .from("site_settings")
-        .select("logo_url, social_links, updated_at")
-        .eq("id", true)
-        .single();
-      if (fallbackError) {
-        return NextResponse.json({ error: fallbackError.message }, { status: 500 });
-      }
-      return NextResponse.json({ settings: fallbackSettings, colorsUnavailable: true });
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (result.status === "unavailable") {
+    return NextResponse.json(
+      { error: "Settings aren't available for this app yet.", unavailable: true },
+      { status: 404 }
+    );
   }
-
-  return NextResponse.json({ settings });
+  if (result.status === "error") {
+    return NextResponse.json({ error: result.message }, { status: 500 });
+  }
+  return NextResponse.json({
+    settings: result.settings,
+    colorsUnavailable: result.colorsUnavailable,
+    galleryUnavailable: result.galleryUnavailable,
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { appId: string } }) {
@@ -110,6 +102,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { appId: str
     socialLinks?: Record<string, string>;
     primaryColor?: string;
     backgroundColor?: string;
+    galleryPhotos?: string[];
   };
   try {
     body = await req.json();
@@ -137,6 +130,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { appId: str
   }
   if (body.backgroundColor !== undefined && !HEX_COLOR_RE.test(body.backgroundColor)) {
     return NextResponse.json({ error: "Invalid background color" }, { status: 400 });
+  }
+
+  // Validate galleryPhotos — full-array replacement, same mental model as
+  // socialLinks. Server-side cap enforcement regardless of client UI state.
+  if (body.galleryPhotos !== undefined) {
+    if (!Array.isArray(body.galleryPhotos)) {
+      return NextResponse.json({ error: "Invalid gallery photos" }, { status: 400 });
+    }
+    if (body.galleryPhotos.length > MAX_GALLERY_PHOTOS) {
+      return NextResponse.json(
+        { error: `A maximum of ${MAX_GALLERY_PHOTOS} gallery photos is allowed.` },
+        { status: 400 }
+      );
+    }
+    for (const url of body.galleryPhotos) {
+      if (typeof url !== "string" || !GALLERY_PHOTO_URL_RE.test(url)) {
+        return NextResponse.json({ error: "Invalid gallery photo URL" }, { status: 400 });
+      }
+    }
   }
 
   // Validate + whitelist social links
@@ -170,6 +182,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { appId: str
     update.background_color = body.backgroundColor;
     update.background_color_rgb = hexToRgbTriplet(body.backgroundColor);
   }
+  if (body.galleryPhotos !== undefined) update.gallery_photos = body.galleryPhotos;
 
   const { error: tenantError } = await tenantClient
     .from("site_settings")
@@ -183,12 +196,33 @@ export async function PATCH(req: NextRequest, { params }: { params: { appId: str
         { status: 404 }
       );
     }
-    // Middle-vintage app: color columns don't exist yet. Only reachable if
-    // a caller sends color fields directly — the settings page itself hides
-    // that UI once GET reports colorsUnavailable.
+    // Middle-vintage app: color and/or gallery columns don't exist yet.
+    // Only reachable if a caller sends those fields directly — the settings
+    // page itself hides that UI once GET reports the flag. The missing-
+    // column error alone can't tell us which column was missing, so
+    // disambiguate by which fields this request actually touched.
     if (tenantError.code === "PGRST204" || tenantError.code === "42703") {
+      const touchedGallery = body.galleryPhotos !== undefined;
+      const touchedColors =
+        body.primaryColor !== undefined || body.backgroundColor !== undefined;
+      if (touchedGallery && !touchedColors) {
+        return NextResponse.json(
+          { error: "Gallery photos aren't available for this app yet.", galleryUnavailable: true },
+          { status: 404 }
+        );
+      }
+      if (touchedColors && !touchedGallery) {
+        return NextResponse.json(
+          { error: "Brand colors aren't available for this app yet.", colorsUnavailable: true },
+          { status: 404 }
+        );
+      }
       return NextResponse.json(
-        { error: "Brand colors aren't available for this app yet.", colorsUnavailable: true },
+        {
+          error: "Some settings aren't available for this app yet.",
+          colorsUnavailable: true,
+          galleryUnavailable: true,
+        },
         { status: 404 }
       );
     }

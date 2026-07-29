@@ -118,8 +118,8 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
 12. CRITICAL — a \`site_settings\` table already exists in your schema before your migration ever runs (the platform creates it, not you). It holds the business's logo, social media links, and brand colors, which the business owner can update at any time from their VisionWorkx dashboard WITHOUT redeploying this app. Because of that:
     - NEVER create a table named \`site_settings\` yourself, and NEVER INSERT/UPDATE/DELETE it — it is READ-ONLY from your generated code, SELECT only.
     - NEVER hardcode a literal logo image URL or a literal social media link anywhere in your code — always read them from \`site_settings\` at runtime. (Brand colors work the same way — see rule 13.)
-    - Shape (already exists, do not create it): \`site_settings(id boolean, logo_url text | null, social_links jsonb, primary_color_rgb text, background_color_rgb text, updated_at timestamptz)\`. \`social_links\` keys you may read, all optional: \`instagram\`, \`facebook\`, \`tiktok\`, \`twitter\`, \`linkedin\`, \`youtube\`.
-    - Fetch it ONCE in \`app/layout.tsx\` (or a component it renders, e.g. a shared header/footer) using \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — server-side only, NEVER from a Client Component or the browser client. This single fetch also supplies the color variables rule 13 needs — never add a second \`site_settings\` query anywhere else.
+    - Shape (already exists, do not create it): \`site_settings(id boolean, logo_url text | null, social_links jsonb, primary_color_rgb text, background_color_rgb text, gallery_photos jsonb, updated_at timestamptz)\`. \`social_links\` keys you may read, all optional: \`instagram\`, \`facebook\`, \`tiktok\`, \`twitter\`, \`linkedin\`, \`youtube\`. \`gallery_photos\` is a JSON array of full image URL strings — do NOT fetch it here; see rule 14, it is fetched separately by the public homepage only.
+    - Fetch it ONCE in \`app/layout.tsx\` (or a component it renders, e.g. a shared header/footer) using \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — server-side only, NEVER from a Client Component or the browser client. This single fetch also supplies the color variables rule 13 needs. The ONLY exception to "never add a second \`site_settings\` query" is the public homepage's own gallery-photos fetch described in rule 14 below — every other file must reuse this layout fetch and must never query \`site_settings\` itself.
     - The file that fetches it MUST include \`export const dynamic = 'force-dynamic'\` — without this, Next.js freezes the value at build time via static generation, and a business owner's settings changes will silently never appear without a full rebuild.
     - Render the logo and each social link ONLY when present — never a placeholder image or a dead/example link. Never use \`dangerouslySetInnerHTML\` for these values.
 
@@ -174,7 +174,56 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
     - NEVER write a literal hex color anywhere in your code — no \`bg-[#1A3A5C]\`, no \`text-[#F8FAFC]\`, no inline \`style={{ color: '#...' }}\`, no hex string embedded in ANY Tailwind arbitrary-value class (\`bg-[...]\`, \`text-[...]\`, \`border-[...]\`, \`ring-[...]\`, \`from-[...]\`, \`via-[...]\`, \`to-[...]\`).
     - Use ONLY the Tailwind theme utility classes \`primary\` and \`background\` for all brand-color usage: \`bg-primary\`, \`text-primary\`, \`border-primary\`, \`hover:bg-primary/90\`, \`bg-primary/10\`, \`bg-background\`, etc. The \`/NN\` opacity-modifier syntax works normally on these — use it instead of a different literal color for hover/muted/subtle states.
     - \`tailwind.config.ts\` is platform-owned — it already maps \`primary\`/\`background\` to CSS variables for you. Do NOT create, edit, or rely on your own \`tailwind.config.ts\` content; anything you write there (colors, fonts, plugins) will be discarded and replaced before deploy. Apply your chosen font via the font object's \`.className\` directly on \`<html>\`/\`<body>\` — never via a tailwind.config fontFamily extension.
-    - You do NOT need to know the actual color values, ever. Build entirely color-value-agnostic UI using only the \`primary\`/\`background\` theme names — the platform supplies the real values at runtime via the \`<style>\` tag already shown in rule 12's required pattern above.`;
+    - You do NOT need to know the actual color values, ever. Build entirely color-value-agnostic UI using only the \`primary\`/\`background\` theme names — the platform supplies the real values at runtime via the \`<style>\` tag already shown in rule 12's required pattern above.
+
+14. CRITICAL — the business's photo gallery ("Our Recent Work") is runtime-configurable content in the same \`site_settings\` row rule 12 describes, in a \`gallery_photos\` column: a JSON array of full public image URLs (already-hosted — use directly as an \`<img src>\`, never transform, resize, or re-host them). This is the ONE exception to rule 12's single-fetch rule, because this content is homepage-specific, not global layout chrome:
+    - Fetch \`gallery_photos\` in \`app/page.tsx\` ONLY (the public homepage) — nowhere else. NEVER add this query to \`app/layout.tsx\` or any other page/component.
+    - \`app/page.tsx\` MUST also include \`export const dynamic = 'force-dynamic'\`.
+    - Select ONLY the \`gallery_photos\` column here — never re-select \`logo_url\`/\`social_links\`/color columns, those already came from the layout fetch.
+    - If the array is empty (or the fetch returns null), render NOTHING — no section heading, no placeholder grid, no empty state. Most generated apps start with zero gallery photos.
+    - Give each \`<img>\` a generic, distinguishing alt text of the form \`"Recent project photo \${index + 1}"\` (1-indexed) — there is no per-photo caption stored, never invent one, never reuse identical alt text across images.
+
+    Required pattern:
+    \`\`\`typescript
+    // app/page.tsx
+    export const dynamic = 'force-dynamic'
+
+    import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+    async function getGalleryPhotos() {
+      const supabase = createServerSupabaseClient()
+      const { data } = await supabase
+        .from('site_settings')
+        .select('gallery_photos')
+        .single()
+      return (data?.gallery_photos as string[] | undefined) ?? []
+    }
+
+    export default async function HomePage() {
+      const galleryPhotos = await getGalleryPhotos()
+
+      return (
+        <>
+          {/* ...rest of homepage... */}
+          {galleryPhotos.length > 0 && (
+            <section aria-label="Our recent work">
+              <h2>Our Recent Work</h2>
+              <div className="grid grid-cols-3 gap-4">
+                {galleryPhotos.map((url, index) => (
+                  <img
+                    key={url}
+                    src={url}
+                    alt={\`Recent project photo \${index + 1}\`}
+                    className="w-full aspect-square object-cover rounded-lg"
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )
+    }
+    \`\`\``;
 
 // ---------------------------------------------------------------
 // POST /api/generate

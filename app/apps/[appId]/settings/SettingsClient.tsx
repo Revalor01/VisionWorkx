@@ -6,6 +6,13 @@ import Image from "next/image";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { uploadLogo } from "@/lib/uploadLogo";
+import {
+  GALLERY_PHOTOS_BUCKET,
+  MAX_GALLERY_PHOTOS,
+  galleryPhotoPathToUrl,
+  galleryPhotoUrlToPath,
+  uploadGalleryPhoto,
+} from "@/lib/uploadGalleryPhoto";
 import type { Plan } from "@/lib/database.types";
 
 const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = [
@@ -27,6 +34,7 @@ export default function SettingsClient({
   initialSettings,
   unavailable,
   colorsUnavailable,
+  galleryUnavailable,
 }: {
   appId: string;
   appName: string;
@@ -39,9 +47,11 @@ export default function SettingsClient({
     social_links: Record<string, string>;
     primary_color?: string | null;
     background_color?: string | null;
+    gallery_photos?: string[];
   } | null;
   unavailable: boolean;
   colorsUnavailable: boolean;
+  galleryUnavailable: boolean;
 }) {
   const supabase = useMemo(() => createBrowserClient(), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +70,13 @@ export default function SettingsClient({
   const [backgroundColor, setBackgroundColor] = useState(
     initialSettings?.background_color ?? "#F8FAFC"
   );
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>(
+    initialSettings?.gallery_photos ?? []
+  );
+  const [galleryNewFiles, setGalleryNewFiles] = useState<File[]>([]);
+  const [galleryRemovedUrls, setGalleryRemovedUrls] = useState<string[]>([]);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const totalGalleryCount = galleryPhotos.length + galleryNewFiles.length;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -94,6 +111,25 @@ export default function SettingsClient({
     });
   }
 
+  function handleGalleryFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    const room = MAX_GALLERY_PHOTOS - totalGalleryCount;
+    setGalleryNewFiles((prev) => [...prev, ...files.slice(0, room)]);
+    setSaved(false);
+    e.target.value = "";
+  }
+
+  function handleRemoveExistingPhoto(url: string) {
+    setGalleryPhotos((prev) => prev.filter((u) => u !== url));
+    setGalleryRemovedUrls((prev) => [...prev, url]);
+    setSaved(false);
+  }
+
+  function handleRemovePendingPhoto(index: number) {
+    setGalleryNewFiles((prev) => prev.filter((_, i) => i !== index));
+    setSaved(false);
+  }
+
   async function handleSave() {
     setSaving(true);
     setError("");
@@ -108,6 +144,22 @@ export default function SettingsClient({
         logoPath = null;
       }
 
+      // Upload new gallery photos before the PATCH, and only delete removed
+      // ones after it succeeds — so a failed PATCH never loses a photo the
+      // user wanted to keep, and a failed delete just leaves a harmless
+      // orphan (the DB, the render source of truth, is already correct).
+      let uploadedUrls: string[] = [];
+      if (galleryNewFiles.length > 0) {
+        const results = await Promise.all(
+          galleryNewFiles.map((file, i) => uploadGalleryPhoto(supabase, userId, file, i))
+        );
+        if (results.some((p) => p === null)) {
+          throw new Error("One or more photo uploads failed. Please try again.");
+        }
+        uploadedUrls = (results as string[]).map(galleryPhotoPathToUrl);
+      }
+      const finalGalleryPhotos = [...galleryPhotos, ...uploadedUrls];
+
       const res = await fetch(`/api/apps/${appId}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -115,6 +167,7 @@ export default function SettingsClient({
           ...(logoPath !== undefined ? { logoPath } : {}),
           socialLinks,
           ...(colorsUnavailable ? {} : { primaryColor, backgroundColor }),
+          ...(galleryUnavailable ? {} : { galleryPhotos: finalGalleryPhotos }),
         }),
       });
 
@@ -122,6 +175,21 @@ export default function SettingsClient({
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
+
+      if (galleryRemovedUrls.length > 0) {
+        const paths = galleryRemovedUrls
+          .map(galleryPhotoUrlToPath)
+          .filter((p): p is string => p !== null);
+        if (paths.length > 0) {
+          const { error: removeError } = await supabase.storage
+            .from(GALLERY_PHOTOS_BUCKET)
+            .remove(paths);
+          if (removeError) console.error("[gallery photo delete]", removeError.message);
+        }
+      }
+      setGalleryPhotos(finalGalleryPhotos);
+      setGalleryNewFiles([]);
+      setGalleryRemovedUrls([]);
 
       setSaved(true);
       setLogoRemoved(false);
@@ -259,6 +327,78 @@ export default function SettingsClient({
                     </div>
                   </div>
                 </div>
+              </section>
+            )}
+
+            {!galleryUnavailable && (
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-semibold text-navy-dark">Photo Gallery</h2>
+                  <span className="text-xs text-gray-400">
+                    {totalGalleryCount} / {MAX_GALLERY_PHOTOS}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mb-4">
+                  Showcase recent work on your homepage — up to {MAX_GALLERY_PHOTOS} photos.
+                </p>
+                {totalGalleryCount > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {galleryPhotos.map((url) => (
+                      <div
+                        key={url}
+                        className="relative aspect-square rounded-xl border border-gray-200 overflow-hidden bg-gray-50"
+                      >
+                        <Image src={url} alt="Gallery photo" fill className="object-cover" unoptimized />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingPhoto(url)}
+                          aria-label="Remove photo"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-sm flex items-center justify-center hover:bg-black/80 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {galleryNewFiles.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="relative aspect-square rounded-xl border border-gray-200 overflow-hidden bg-gray-50"
+                      >
+                        <Image
+                          src={URL.createObjectURL(file)}
+                          alt="Pending gallery photo"
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePendingPhoto(index)}
+                          aria-label="Remove photo"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-sm flex items-center justify-center hover:bg-black/80 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  disabled={totalGalleryCount >= MAX_GALLERY_PHOTOS}
+                  className="text-sm font-medium text-navy border border-navy px-4 py-2 rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                >
+                  Add photos
+                </button>
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  onChange={handleGalleryFilesChange}
+                  className="hidden"
+                />
               </section>
             )}
 

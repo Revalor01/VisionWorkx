@@ -812,6 +812,7 @@ CREATE TABLE IF NOT EXISTS "${SCHEMA}".site_settings (
   primary_color_rgb text,
   background_color text,
   background_color_rgb text,
+  gallery_photos jsonb NOT NULL DEFAULT '[]'::jsonb,
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT site_settings_singleton CHECK (id)
 );
@@ -820,7 +821,8 @@ ALTER TABLE "${SCHEMA}".site_settings
   ADD COLUMN IF NOT EXISTS primary_color text,
   ADD COLUMN IF NOT EXISTS primary_color_rgb text,
   ADD COLUMN IF NOT EXISTS background_color text,
-  ADD COLUMN IF NOT EXISTS background_color_rgb text;
+  ADD COLUMN IF NOT EXISTS background_color_rgb text,
+  ADD COLUMN IF NOT EXISTS gallery_photos jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 ALTER TABLE "${SCHEMA}".site_settings ENABLE ROW LEVEL SECURITY;
 

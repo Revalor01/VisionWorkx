@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerClient, createTenantServiceClient } from "@/lib/supabase";
+import { loadSiteSettingsCascade } from "@/lib/siteSettings";
 import SettingsClient from "./SettingsClient";
 
 export default async function AppSettingsPage({
@@ -36,45 +37,23 @@ export default async function AppSettingsPage({
     social_links: Record<string, string>;
     primary_color?: string | null;
     background_color?: string | null;
+    gallery_photos?: string[];
   };
   let settings: SiteSettings | null = null;
   let unavailable = false;
   let colorsUnavailable = false;
-  try {
-    const { data, error } = await tenantClient
-      .from("site_settings")
-      .select("logo_url, social_links, primary_color, background_color")
-      .eq("id", true)
-      .single();
-    if (error) {
-      // PGRST205: PostgREST's own "table not in schema cache" error (the
-      // common case — app deployed before the logo/social feature shipped).
-      // 42P01: Postgres' raw "undefined_table" error, in case it surfaces
-      // that way instead. Neither is a real failure worth logging as one.
-      if (error.code === "PGRST205" || error.code === "42P01") {
-        unavailable = true;
-      } else if (error.code === "PGRST204" || error.code === "42703") {
-        // "Middle vintage" app: site_settings exists (logo/social work) but
-        // predates the color columns until its next deploy. Fall back to a
-        // logo/social-only select so that tier stays functional, and hide
-        // only the Brand Colors section rather than the whole page.
-        const { data: fallbackData, error: fallbackError } = await tenantClient
-          .from("site_settings")
-          .select("logo_url, social_links")
-          .eq("id", true)
-          .single();
-        if (fallbackError) throw fallbackError;
-        settings = fallbackData as SiteSettings;
-        colorsUnavailable = true;
-      } else {
-        throw error;
-      }
-    } else {
-      settings = data as SiteSettings;
-    }
-  } catch (err) {
-    console.error(`[apps/settings] failed to load site_settings for ${SCHEMA}:`, err);
+  let galleryUnavailable = false;
+
+  const result = await loadSiteSettingsCascade(tenantClient);
+  if (result.status === "unavailable") {
     unavailable = true;
+  } else if (result.status === "error") {
+    console.error(`[apps/settings] failed to load site_settings for ${SCHEMA}:`, result.message);
+    unavailable = true;
+  } else {
+    settings = result.settings as SiteSettings;
+    colorsUnavailable = result.colorsUnavailable;
+    galleryUnavailable = result.galleryUnavailable;
   }
 
   return (
@@ -88,6 +67,7 @@ export default async function AppSettingsPage({
       initialSettings={settings}
       unavailable={unavailable}
       colorsUnavailable={colorsUnavailable}
+      galleryUnavailable={galleryUnavailable}
     />
   );
 }
