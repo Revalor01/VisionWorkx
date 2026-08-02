@@ -25,6 +25,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing priceId" }, { status: 400 });
   }
 
+  // Only allow checkout against our own known plan prices — never trust an
+  // arbitrary Stripe price ID supplied by the client.
+  const ALLOWED_PRICE_IDS = [
+    process.env.STRIPE_STARTER_PRICE_ID,
+    process.env.STRIPE_GROWTH_PRICE_ID,
+    process.env.STRIPE_PRO_PRICE_ID,
+  ].filter(Boolean);
+  if (!ALLOWED_PRICE_IDS.includes(priceId)) {
+    return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });
+  }
+
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const serviceClient = createServiceClient();
 
