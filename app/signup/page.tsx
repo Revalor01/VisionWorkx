@@ -180,7 +180,15 @@ function SignupForm() {
             </button>
 
             <p className="text-xs text-center text-gray-500">
-              By signing up you agree to our Terms of Service and Privacy Policy.
+              By signing up you agree to our{" "}
+              <Link href="/terms" className="text-navy underline">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="text-navy underline">
+                Privacy Policy
+              </Link>
+              .
             </p>
           </form>
 

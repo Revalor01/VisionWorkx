@@ -112,7 +112,15 @@ export default function Footer() {
 
         <div className="border-t border-blue-800 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-blue-400">
           <p>© {new Date().getFullYear()} Vision Workx · A Revalor Company. All rights reserved.</p>
-          <p className="italic">Confidential</p>
+          <div className="flex items-center gap-4">
+            <Link href="/terms" className="hover:text-white transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">
+              Privacy Policy
+            </Link>
+            <p className="italic">Confidential</p>
+          </div>
         </div>
       </div>
     </footer>
