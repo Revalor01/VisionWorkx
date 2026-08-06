@@ -245,6 +245,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      automation_usage: {
+        Row: {
+          id: string;
+          user_id: string;
+          period: string;
+          sent_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          period: string;
+          sent_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          sent_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       leads: {
         Row: {
           id: string;

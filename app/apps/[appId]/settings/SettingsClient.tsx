@@ -54,6 +54,7 @@ export default function SettingsClient({
   plan,
   initialSettings,
   initialWorkflows,
+  automationUsage,
   unavailable,
   colorsUnavailable,
   galleryUnavailable,
@@ -73,6 +74,7 @@ export default function SettingsClient({
     gallery_photos?: string[];
   } | null;
   initialWorkflows: AutomationWorkflow[];
+  automationUsage: { sent: number; limit: number };
   unavailable: boolean;
   colorsUnavailable: boolean;
   galleryUnavailable: boolean;
@@ -382,6 +384,36 @@ export default function SettingsClient({
                     />
                   </button>
                 </div>
+                <p
+                  className={`text-xs mt-3 ${
+                    automationUsage.sent >= automationUsage.limit * 0.8
+                      ? "text-amber-700"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {automationUsage.sent} / {automationUsage.limit} sent this month
+                  {automationUsage.sent >= automationUsage.limit && (
+                    <>
+                      {" "}
+                      — limit reached, sends are paused until next month.{" "}
+                      <Link href="/billing" className="font-semibold underline">
+                        Upgrade
+                      </Link>{" "}
+                      to send more.
+                    </>
+                  )}
+                  {automationUsage.sent >= automationUsage.limit * 0.8 &&
+                    automationUsage.sent < automationUsage.limit && (
+                      <>
+                        {" "}
+                        — approaching your monthly limit.{" "}
+                        <Link href="/billing" className="font-semibold underline">
+                          Upgrade
+                        </Link>{" "}
+                        for more.
+                      </>
+                    )}
+                </p>
               </section>
             )}
 

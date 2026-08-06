@@ -101,6 +101,7 @@ interface DashboardClientProps {
   };
   initialApps: App[];
   initialWorkflows: AutomationWorkflow[];
+  automationUsage: { sent: number; limit: number };
 }
 
 // ── Component ───────────────────────────────────────────────────
@@ -111,6 +112,7 @@ export default function DashboardClient({
   profile,
   initialApps,
   initialWorkflows,
+  automationUsage,
 }: DashboardClientProps) {
   const supabase = useMemo(() => createBrowserClient(), []);
   const [apps, setApps] = useState<App[]>(initialApps);
@@ -152,6 +154,13 @@ export default function DashboardClient({
   const limit = PLAN_APP_LIMITS[profile.plan];
   const appsUsed = apps.length;
   const atLimit = limit !== Infinity && appsUsed >= limit;
+
+  // Only shown to accounts that actually have an automation-capable app —
+  // no point surfacing an "emails sent" bar to someone with only an
+  // inventory or invoicing app, which have no automations yet.
+  const hasAutomationCapableApp = apps.some((a) => AUTOMATION_BY_CATEGORY[a.category]);
+  const automationAtLimit = automationUsage.sent >= automationUsage.limit;
+  const automationNearLimit = automationUsage.sent >= automationUsage.limit * 0.8;
   const hasGenerating = apps.some(
     (a) => a.status === "generating" || a.status === "ready" || a.status === "deploying"
   );
@@ -241,6 +250,42 @@ export default function DashboardClient({
                   Upgrade
                 </Link>{" "}
                 to create more apps.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── Automation usage bar ── */}
+        {hasAutomationCapableApp && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-8">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-sm font-semibold text-navy-dark">Automation emails</p>
+              <p className="text-sm text-gray-500">
+                {automationUsage.sent} / {automationUsage.limit}
+              </p>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2.5">
+              <div
+                className={`h-2.5 rounded-full transition-all duration-500 ${
+                  automationNearLimit ? "bg-amber-500" : "bg-navy-dark"
+                }`}
+                style={{
+                  width: `${Math.min(
+                    (automationUsage.sent / automationUsage.limit) * 100,
+                    100
+                  )}%`,
+                }}
+              />
+            </div>
+            {automationNearLimit && (
+              <p className="text-xs text-amber-700 mt-2">
+                {automationAtLimit
+                  ? "You've hit this month's automation email limit — sends are paused until next month."
+                  : "You're approaching this month's automation email limit."}{" "}
+                <Link href="/billing" className="font-semibold underline">
+                  Upgrade
+                </Link>{" "}
+                to send more.
               </p>
             )}
           </div>
