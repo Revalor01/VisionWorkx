@@ -13,7 +13,7 @@ import {
   galleryPhotoUrlToPath,
   uploadGalleryPhoto,
 } from "@/lib/uploadGalleryPhoto";
-import type { Plan } from "@/lib/database.types";
+import type { AppCategory, AutomationWorkflow, Plan } from "@/lib/database.types";
 
 const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = [
   { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourbusiness" },
@@ -24,20 +24,43 @@ const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = 
   { key: "youtube", label: "YouTube", placeholder: "https://youtube.com/@yourbusiness" },
 ];
 
+// The action engine only supports these two trigger/action pairs today (see
+// revalor-automation/lib/actions.mjs) — one per category. Extend this map
+// if/when more automations ship rather than building a generic list UI now.
+const AUTOMATION_BY_CATEGORY: Partial<
+  Record<AppCategory, { trigger: string; action: string; label: string; description: string }>
+> = {
+  booking: {
+    trigger: "booking.created",
+    action: "send_confirmation_email",
+    label: "Booking confirmation emails",
+    description: "Automatically email customers a confirmation as soon as they book.",
+  },
+  crm: {
+    trigger: "lead.created",
+    action: "send_lead_acknowledgment",
+    label: "Lead acknowledgment emails",
+    description: "Automatically email new leads a quick acknowledgment when they reach out.",
+  },
+};
+
 export default function SettingsClient({
   appId,
   appName,
+  appCategory,
   userId,
   userName,
   userEmail,
   plan,
   initialSettings,
+  initialWorkflows,
   unavailable,
   colorsUnavailable,
   galleryUnavailable,
 }: {
   appId: string;
   appName: string;
+  appCategory: AppCategory;
   userId: string;
   userName: string | null;
   userEmail: string | null;
@@ -49,12 +72,55 @@ export default function SettingsClient({
     background_color?: string | null;
     gallery_photos?: string[];
   } | null;
+  initialWorkflows: AutomationWorkflow[];
   unavailable: boolean;
   colorsUnavailable: boolean;
   galleryUnavailable: boolean;
 }) {
   const supabase = useMemo(() => createBrowserClient(), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const automation = AUTOMATION_BY_CATEGORY[appCategory];
+  const [workflows, setWorkflows] = useState<AutomationWorkflow[]>(initialWorkflows);
+  const [automationSaving, setAutomationSaving] = useState(false);
+  const [automationError, setAutomationError] = useState("");
+  const automationEnabled =
+    automation &&
+    (workflows.find(
+      (w) => w.trigger_type === automation.trigger && w.action_type === automation.action
+    )?.enabled ??
+      false);
+
+  async function toggleAutomation(nextEnabled: boolean) {
+    if (!automation) return;
+    setAutomationSaving(true);
+    setAutomationError("");
+
+    const { data, error } = await supabase
+      .from("automation_workflows")
+      .upsert(
+        {
+          app_id: appId,
+          trigger_type: automation.trigger,
+          action_type: automation.action,
+          enabled: nextEnabled,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "app_id,trigger_type,action_type" }
+      )
+      .select()
+      .single();
+
+    if (error) {
+      setAutomationError(error.message);
+    } else if (data) {
+      setWorkflows((prev) => [
+        ...prev.filter((w) => w.id !== data.id),
+        data as AutomationWorkflow,
+      ]);
+    }
+    setAutomationSaving(false);
+  }
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(
@@ -283,6 +349,41 @@ export default function SettingsClient({
                 className="hidden"
               />
             </section>
+
+            {automation && (
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                <h2 className="font-semibold text-navy-dark mb-1">Automations</h2>
+                <p className="text-xs text-gray-400 mb-4">
+                  Automated emails triggered by activity on your live app — no redeploy needed to
+                  change these.
+                </p>
+                {automationError && (
+                  <p className="text-xs text-red-600 mb-3">{automationError}</p>
+                )}
+                <div className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-navy-dark">{automation.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{automation.description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={automationEnabled}
+                    disabled={automationSaving}
+                    onClick={() => toggleAutomation(!automationEnabled)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                      automationEnabled ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                        automationEnabled ? "translate-x-[18px]" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </section>
+            )}
 
             {!colorsUnavailable && (
               <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">

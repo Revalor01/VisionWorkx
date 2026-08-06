@@ -6,11 +6,24 @@ import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { App, AppCategory, AppStatus, AutomationWorkflow, Plan } from "@/lib/database.types";
 
-// The one automation the action engine actually supports today. Kept as
-// named constants rather than a config system — there's exactly one
-// trigger/action pair right now (see revalor-automation/lib/actions.mjs).
-const BOOKING_CONFIRMATION_TRIGGER = "booking.created";
-const BOOKING_CONFIRMATION_ACTION = "send_confirmation_email";
+// The action engine only supports these two trigger/action pairs today, one
+// per category (see revalor-automation/lib/actions.mjs). Mirrors the same
+// map in app/apps/[appId]/settings/SettingsClient.tsx — extend both if/when
+// more automations ship.
+const AUTOMATION_BY_CATEGORY: Partial<
+  Record<AppCategory, { trigger: string; action: string; label: string }>
+> = {
+  booking: {
+    trigger: "booking.created",
+    action: "send_confirmation_email",
+    label: "Booking confirmation emails",
+  },
+  crm: {
+    trigger: "lead.created",
+    action: "send_lead_acknowledgment",
+    label: "Lead acknowledgment emails",
+  },
+};
 
 // ── Constants ───────────────────────────────────────────────────
 
@@ -105,15 +118,20 @@ export default function DashboardClient({
   const [pollCount, setPollCount] = useState(0);
   const [togglingAppId, setTogglingAppId] = useState<string | null>(null);
 
-  async function toggleBookingConfirmation(appId: string, nextEnabled: boolean) {
+  async function toggleAutomation(
+    appId: string,
+    trigger: string,
+    action: string,
+    nextEnabled: boolean
+  ) {
     setTogglingAppId(appId);
     const { data, error } = await supabase
       .from("automation_workflows")
       .upsert(
         {
           app_id: appId,
-          trigger_type: BOOKING_CONFIRMATION_TRIGGER,
-          action_type: BOOKING_CONFIRMATION_ACTION,
+          trigger_type: trigger,
+          action_type: action,
           enabled: nextEnabled,
           updated_at: new Date().toISOString(),
         },
@@ -250,22 +268,31 @@ export default function DashboardClient({
           <EmptyState plan={profile.plan} atLimit={atLimit} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {apps.map((app) => (
-              <AppCard
-                key={app.id}
-                app={app}
-                confirmationEnabled={
-                  workflows.find(
-                    (w) =>
-                      w.app_id === app.id &&
-                      w.trigger_type === BOOKING_CONFIRMATION_TRIGGER &&
-                      w.action_type === BOOKING_CONFIRMATION_ACTION
-                  )?.enabled ?? false
-                }
-                toggling={togglingAppId === app.id}
-                onToggleConfirmation={(next) => toggleBookingConfirmation(app.id, next)}
-              />
-            ))}
+            {apps.map((app) => {
+              const automation = AUTOMATION_BY_CATEGORY[app.category];
+              return (
+                <AppCard
+                  key={app.id}
+                  app={app}
+                  automation={automation}
+                  automationEnabled={
+                    !!automation &&
+                    (workflows.find(
+                      (w) =>
+                        w.app_id === app.id &&
+                        w.trigger_type === automation.trigger &&
+                        w.action_type === automation.action
+                    )?.enabled ??
+                      false)
+                  }
+                  toggling={togglingAppId === app.id}
+                  onToggleAutomation={(next) =>
+                    automation &&
+                    toggleAutomation(app.id, automation.trigger, automation.action, next)
+                  }
+                />
+              );
+            })}
           </div>
         )}
       </main>
@@ -277,14 +304,16 @@ export default function DashboardClient({
 
 function AppCard({
   app,
-  confirmationEnabled,
+  automation,
+  automationEnabled,
   toggling,
-  onToggleConfirmation,
+  onToggleAutomation,
 }: {
   app: App;
-  confirmationEnabled: boolean;
+  automation: { trigger: string; action: string; label: string } | undefined;
+  automationEnabled: boolean;
   toggling: boolean;
-  onToggleConfirmation: (next: boolean) => void;
+  onToggleAutomation: (next: boolean) => void;
 }) {
   const status = STATUS_CONFIG[app.status] ?? STATUS_CONFIG.failed;
   const icon = CATEGORY_ICONS[app.category] ?? "🛠️";
@@ -350,23 +379,21 @@ function AppCard({
       )}
 
       {/* Automations */}
-      {app.status === "deployed" && app.category === "booking" && (
+      {app.status === "deployed" && automation && (
         <div className="flex items-center justify-between gap-3 text-xs bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 mb-4">
-          <span className="text-gray-600 font-medium">
-            Booking confirmation emails
-          </span>
+          <span className="text-gray-600 font-medium">{automation.label}</span>
           <button
             role="switch"
-            aria-checked={confirmationEnabled}
+            aria-checked={automationEnabled}
             disabled={toggling}
-            onClick={() => onToggleConfirmation(!confirmationEnabled)}
+            onClick={() => onToggleAutomation(!automationEnabled)}
             className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-              confirmationEnabled ? "bg-green-500" : "bg-gray-300"
+              automationEnabled ? "bg-green-500" : "bg-gray-300"
             }`}
           >
             <span
               className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                confirmationEnabled ? "translate-x-[18px]" : "translate-x-1"
+                automationEnabled ? "translate-x-[18px]" : "translate-x-1"
               }`}
             />
           </button>

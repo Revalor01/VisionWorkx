@@ -16,14 +16,18 @@ export default async function AppSettingsPage({
 
   if (authError || !user) redirect("/login");
 
-  const [{ data: profile }, { data: app }] = await Promise.all([
+  const [{ data: profile }, { data: app }, { data: workflows }] = await Promise.all([
     supabase.from("profiles").select("plan, full_name").eq("id", user.id).single(),
     supabase
       .from("apps")
-      .select("id, user_id, name, status, deploy_url")
+      .select("id, user_id, name, status, deploy_url, category")
       .eq("id", params.appId)
       .eq("user_id", user.id)
       .single(),
+    supabase
+      .from("automation_workflows")
+      .select("id, app_id, trigger_type, action_type, enabled, created_at, updated_at")
+      .eq("app_id", params.appId),
   ]);
 
   if (!app) redirect("/dashboard");
@@ -60,11 +64,13 @@ export default async function AppSettingsPage({
     <SettingsClient
       appId={params.appId}
       appName={app.name}
+      appCategory={app.category}
       userId={user.id}
       userName={profile?.full_name ?? null}
       userEmail={user.email ?? null}
       plan={(profile?.plan ?? "free") as "free" | "starter" | "growth" | "pro"}
       initialSettings={settings}
+      initialWorkflows={workflows ?? []}
       unavailable={unavailable}
       colorsUnavailable={colorsUnavailable}
       galleryUnavailable={galleryUnavailable}
