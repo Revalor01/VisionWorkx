@@ -161,30 +161,38 @@ export default function LandingPage() {
       <section className="bg-navy-dark text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
-                <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
-              </span>
-              <span className="text-xl font-bold tracking-tight">Vision Workx</span>
-            </Link>
-            <a
-              href="https://revalor-automation.vercel.app/"
-              className="text-xs text-blue-300 hover:text-white transition-colors"
-            >
-              by Revalor
-            </a>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="flex items-center gap-2.5 hover:[text-shadow:0_0_10px_rgba(232,184,75,0.75)] transition-all"
+              >
+                <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
+                  <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
+                </span>
+                <span className="text-xl font-bold tracking-tight text-promote-gold">Vision Workx</span>
+              </Link>
+              <a
+                href="https://revalor-automation.vercel.app/"
+                className="text-xs text-blue-300 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
+              >
+                by Revalor
+              </a>
+            </div>
             <Link
               href="/web-app-vs-web-page"
-              className="text-sm font-medium text-blue-100 hover:text-white transition-colors"
+              className="text-sm font-medium text-blue-100 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
             >
               Web App vs. Web Page
             </Link>
-            <Link href="/#contact" className="text-sm font-medium text-blue-100 hover:text-white transition-colors">
+            <Link
+              href="/#contact"
+              className="text-sm font-medium text-blue-100 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
+            >
               Contact Us
             </Link>
             <Link
               href="/signup"
-              className="text-sm font-semibold bg-navy text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+              className="text-sm font-semibold text-blue-100 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
             >
               Start Free Trial
             </Link>

@@ -24,7 +24,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="whitespace-nowrap hover:text-navy-dark transition-colors"
+                className="whitespace-nowrap hover:text-navy-dark focus-visible:text-navy-dark hover:[text-shadow:0_0_10px_rgba(26,58,92,0.6)] focus-visible:[text-shadow:0_0_10px_rgba(26,58,92,0.6)] transition-all"
               >
                 {link.label}
               </Link>
@@ -58,7 +58,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium text-gray-600 hover:text-navy-dark hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors"
+                className="text-sm font-medium text-gray-600 hover:text-navy-dark hover:bg-gray-200 hover:[text-shadow:0_0_10px_rgba(26,58,92,0.6)] px-3 py-2 rounded-lg transition-all"
               >
                 {link.label}
               </Link>
