@@ -190,12 +190,6 @@ export default function LandingPage() {
             >
               Contact Us
             </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-semibold text-blue-100 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
-            >
-              Start Free Trial
-            </Link>
           </div>
         </div>
       </section>
