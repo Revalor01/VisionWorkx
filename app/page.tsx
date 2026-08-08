@@ -207,7 +207,7 @@ export default function LandingPage() {
           }}
         />
 
-        <div className="relative max-w-6xl mx-auto px-4 pt-24 pb-16">
+        <div className="relative max-w-6xl mx-auto px-4 pt-8 pb-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left — CTA */}
             <div className="text-center lg:text-left">
@@ -273,7 +273,7 @@ export default function LandingPage() {
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-blue-400 ml-auto">
+                    <span className="text-xs text-blue-400 ml-auto border border-promote-gold rounded-full px-2.5 py-1">
                       Step 1 of 5
                     </span>
                   </div>
