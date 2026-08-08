@@ -85,7 +85,7 @@ const CATEGORIES = [
     features: [
       "Real-time stock tracking",
       "Order management",
-      "Low-stock alerts",
+      "Barcode & SKU lookup",
       "Supplier contacts",
       "Sales reporting",
     ],
