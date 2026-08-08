@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 
 const NAV_LINKS = [
-  { href: "/web-app-vs-web-page", label: "Web App vs. Web Page" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#categories", label: "Features" },
   { href: "/#pricing", label: "Pricing" },
@@ -54,10 +53,11 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile nav links */}
+        {/* Mobile nav links — includes Web App vs. Web Page, hidden on this row on desktop
+            since it moved down to row 2, but still needs a place on mobile. */}
         {mobileMenuOpen && (
           <nav className="md:hidden flex flex-col gap-1 pb-3">
-            {NAV_LINKS.map((link) => (
+            {[{ href: "/web-app-vs-web-page", label: "Web App vs. Web Page" }, ...NAV_LINKS].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -71,20 +71,20 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* Row 2: logo + contact us + start free trial */}
-      <div className="border-t border-gray-200">
+      {/* Row 2: logo + web app vs web page + contact us + start free trial */}
+      <div className="bg-navy-dark text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2.5">
               <Link href="/" className="flex items-center gap-2.5">
-                <span className="bg-white border border-gray-200 rounded-lg p-1.5 flex items-center justify-center shrink-0">
+                <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
                   <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
                 </span>
                 <span className="text-xl font-bold tracking-tight">Vision Workx</span>
               </Link>
               <a
                 href="https://revalor-automation.vercel.app/"
-                className="text-xs text-gray-500 hover:text-navy-dark transition-colors hidden sm:block"
+                className="text-xs text-blue-300 hover:text-white transition-colors hidden sm:block"
               >
                 by Revalor
               </a>
@@ -92,8 +92,14 @@ export default function Navbar() {
 
             <div className="flex items-center gap-4">
               <Link
+                href="/web-app-vs-web-page"
+                className="hidden md:block text-sm font-medium text-blue-100 hover:text-white transition-colors"
+              >
+                Web App vs. Web Page
+              </Link>
+              <Link
                 href="/#contact"
-                className="text-sm font-medium text-gray-600 hover:text-navy-dark transition-colors"
+                className="text-sm font-medium text-blue-100 hover:text-white transition-colors"
               >
                 Contact Us
               </Link>
