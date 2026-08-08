@@ -669,7 +669,7 @@ export default function AdminDashboard({
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap justify-end">
           <button
             onClick={() => setAutoRefresh((v) => !v)}
             className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
@@ -685,6 +685,25 @@ export default function AdminDashboard({
           <Link href="/admin/ops" className="text-xs text-white/70 hover:text-white transition-colors">
             Ops →
           </Link>
+          <span className="hidden sm:inline text-white/20">|</span>
+          <a
+            href="https://chorebit.vercel.app/admin"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
+            Chorebit →
+          </a>
+          <a
+            href="https://feelflow-eight.vercel.app/admin"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
+            FeelFlow →
+          </a>
+          <a
+            href="https://mindbit-one.vercel.app/admin"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
+            MindBit →
+          </a>
           <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
             ← Back to Dashboard
           </Link>
