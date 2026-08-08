@@ -513,6 +513,39 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── VisionWorkx Automation ─── */}
+      <section className="py-20 px-4 bg-navy-dark text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-sm font-semibold text-promote-gold uppercase tracking-widest mb-3">
+            ⚡ Included With Every App
+          </p>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <span className="text-promote-gold">VisionWorkx Automation</span> comes built in
+          </h2>
+          <p className="text-blue-100 text-lg leading-relaxed max-w-2xl mx-auto">
+            Every app you build ships with automation already running — instant
+            booking confirmations and lead acknowledgment emails, no setup and no
+            add-on purchase. Turn it on or off anytime from your dashboard.
+          </p>
+
+          <div className="mt-10 grid grid-cols-3 gap-4 max-w-lg mx-auto">
+            {[
+              { tier: "Starter", count: "100" },
+              { tier: "Growth", count: "500" },
+              { tier: "Pro", count: "2,000" },
+            ].map((t) => (
+              <div key={t.tier} className="bg-white/5 border border-blue-800 rounded-xl p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-blue-300 mb-1">
+                  {t.tier}
+                </div>
+                <div className="text-2xl font-bold text-promote-gold">{t.count}</div>
+                <div className="text-xs text-blue-300">emails / mo</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── Pricing ─── */}
       <PricingSection />
 
