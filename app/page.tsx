@@ -58,7 +58,7 @@ const CATEGORIES = [
     for: "Salons · Clinics · Gyms · Studios",
     features: [
       "Public booking page",
-      "Email confirmations & reminders",
+      "Deposit & cancellation policies",
       "Staff scheduling",
       "Calendar management",
       "Payment collection",
@@ -72,7 +72,7 @@ const CATEGORIES = [
     features: [
       "Contact management",
       "Lead pipeline tracking",
-      "Follow-up automation",
+      "Deal stage tracking",
       "Notes & activity history",
       "Revenue reporting",
     ],
