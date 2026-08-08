@@ -248,7 +248,7 @@ export default function LandingPage() {
 
             {/* Right — Browser mockup */}
             <div className="hidden lg:block">
-              <div className="rounded-2xl border border-blue-700/50 bg-blue-950/60 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+              <div className="rounded-2xl border border-promote-gold bg-blue-950/60 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-sm">
                 {/* Browser chrome */}
                 <div className="flex items-center gap-2 px-4 py-3 bg-blue-900/70 border-b border-blue-700/50">
                   <span className="w-3 h-3 rounded-full bg-red-400/80" />
