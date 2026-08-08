@@ -157,6 +157,41 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col bg-white">
       <Navbar />
 
+      {/* ─── Brand strip ─── */}
+      <section className="bg-navy-dark text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
+                <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
+              </span>
+              <span className="text-xl font-bold tracking-tight">Vision Workx</span>
+            </Link>
+            <a
+              href="https://revalor-automation.vercel.app/"
+              className="text-xs text-blue-300 hover:text-white transition-colors"
+            >
+              by Revalor
+            </a>
+            <Link
+              href="/web-app-vs-web-page"
+              className="text-sm font-medium text-blue-100 hover:text-white transition-colors"
+            >
+              Web App vs. Web Page
+            </Link>
+            <Link href="/#contact" className="text-sm font-medium text-blue-100 hover:text-white transition-colors">
+              Contact Us
+            </Link>
+            <Link
+              href="/signup"
+              className="text-sm font-semibold bg-navy text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Start Free Trial
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Hero ─── */}
       <section className="relative bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] text-white overflow-hidden">
         {/* subtle grid overlay */}
