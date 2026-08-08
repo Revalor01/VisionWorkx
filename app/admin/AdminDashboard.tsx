@@ -687,19 +687,19 @@ export default function AdminDashboard({
           </Link>
           <span className="hidden sm:inline text-white/20">|</span>
           <a
-            href="https://chorebit.vercel.app/admin"
+            href="/api/admin/sso/issue?target=chorebit"
             className="text-xs text-white/70 hover:text-white transition-colors"
           >
             Chorebit →
           </a>
           <a
-            href="https://feelflow-eight.vercel.app/admin"
+            href="/api/admin/sso/issue?target=feelflow"
             className="text-xs text-white/70 hover:text-white transition-colors"
           >
             FeelFlow →
           </a>
           <a
-            href="https://mindbit-one.vercel.app/admin"
+            href="/api/admin/sso/issue?target=mindbit"
             className="text-xs text-white/70 hover:text-white transition-colors"
           >
             MindBit →

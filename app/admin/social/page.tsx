@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { ADMIN_EMAIL, isAdminOrEditor } from "@/lib/social/authGuard";
+import { ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
 import SocialDashboard from "./SocialDashboard";
 
 export default async function AdminSocialPage() {
@@ -10,9 +12,12 @@ export default async function AdminSocialPage() {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) redirect("/dashboard");
+  const cookieStore = cookies();
+  const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
 
-  const isAdmin = user.email === ADMIN_EMAIL;
+  if (!isSsoAdmin && (authError || !user)) redirect("/dashboard");
+
+  const isAdmin = isSsoAdmin || user?.email === ADMIN_EMAIL;
   const allowed = isAdmin || (await isAdminOrEditor(user));
   if (!allowed) redirect("/dashboard");
 

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
+import { ADMIN_SSO_COOKIE, ADMIN_EMAIL, verifySessionCookie } from "@/lib/adminSso";
 import AdminDashboard from "./AdminDashboard";
-
-const ADMIN_EMAIL = "sawilliams721@gmail.com";
 
 export default async function AdminPage() {
   const supabase = createServerClient();
@@ -11,7 +11,10 @@ export default async function AdminPage() {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user || user.email !== ADMIN_EMAIL) redirect("/dashboard");
+  const cookieStore = cookies();
+  const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
+  const isRealAdmin = !authError && !!user && user.email === ADMIN_EMAIL;
+  if (!isRealAdmin && !isSsoAdmin) redirect("/dashboard");
 
   const service = createServiceClient();
 

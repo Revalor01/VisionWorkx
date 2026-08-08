@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createServerClient } from "@/lib/supabase";
+import { ADMIN_EMAIL, ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
 import OpsDashboard from "./OpsDashboard";
 
-const ADMIN_EMAIL = "sawilliams721@gmail.com";
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || "team_MO27qs6ulec4Ev0kpSJCeYpd";
 
 export type SupabaseProjectRow = {
@@ -79,7 +80,10 @@ export default async function AdminOpsPage() {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user || user.email !== ADMIN_EMAIL) redirect("/dashboard");
+  const cookieStore = cookies();
+  const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
+  const isRealAdmin = !authError && !!user && user.email === ADMIN_EMAIL;
+  if (!isRealAdmin && !isSsoAdmin) redirect("/dashboard");
 
   const mgmtToken = process.env.SUPABASE_MANAGEMENT_TOKEN;
   const vercelToken = process.env.VERCEL_API_TOKEN;
