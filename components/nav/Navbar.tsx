@@ -10,7 +10,6 @@ const NAV_LINKS = [
   { href: "/#categories", label: "Features" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/#why-choose-us", label: "Why Choose Us" },
-  { href: "/#contact", label: "Contact Us" },
 ];
 
 export default function Navbar() {
@@ -19,22 +18,8 @@ export default function Navbar() {
   return (
     <header className="bg-gray-100 text-navy-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Row 1: nav links + log in */}
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-2.5">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="bg-white border border-gray-200 rounded-lg p-1.5 flex items-center justify-center shrink-0">
-                <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
-              </span>
-              <span className="text-xl font-bold tracking-tight">Vision Workx</span>
-            </Link>
-            <a
-              href="https://revalor-automation.vercel.app/"
-              className="text-xs text-gray-500 hover:text-navy-dark transition-colors hidden sm:block"
-            >
-              by Revalor
-            </a>
-          </div>
-
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
             {NAV_LINKS.map((link) => (
               <Link key={link.href} href={link.href} className="hover:text-navy-dark transition-colors">
@@ -43,18 +28,12 @@ export default function Navbar() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 ml-auto">
             <Link
               href="/login"
               className="text-sm font-medium text-gray-600 hover:text-navy-dark transition-colors"
             >
               Log in
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-semibold bg-navy text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Start Free Trial
             </Link>
 
             {/* Mobile menu toggle */}
@@ -90,6 +69,43 @@ export default function Navbar() {
             ))}
           </nav>
         )}
+      </div>
+
+      {/* Row 2: logo + contact us + start free trial */}
+      <div className="border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2.5">
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="bg-white border border-gray-200 rounded-lg p-1.5 flex items-center justify-center shrink-0">
+                  <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
+                </span>
+                <span className="text-xl font-bold tracking-tight">Vision Workx</span>
+              </Link>
+              <a
+                href="https://revalor-automation.vercel.app/"
+                className="text-xs text-gray-500 hover:text-navy-dark transition-colors hidden sm:block"
+              >
+                by Revalor
+              </a>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Link
+                href="/#contact"
+                className="text-sm font-medium text-gray-600 hover:text-navy-dark transition-colors"
+              >
+                Contact Us
+              </Link>
+              <Link
+                href="/signup"
+                className="text-sm font-semibold bg-navy text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Start Free Trial
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
   );
