@@ -147,7 +147,7 @@ const WHY_VISION_WORKX = [
 ];
 
 const STATS = [
-  { value: "500+", label: "Apps Generated" },
+  { value: "100+", label: "Apps Generated" },
   { value: "48hr", label: "Average Delivery" },
   { value: "4.9★", label: "Customer Rating" },
 ];
