@@ -15,6 +15,8 @@ export type AppStatus =
   | "deploy_failed"; // Vercel deployment failed
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
 export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
+export type BlogProductSlug = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
+export type BlogPostStatus = "draft" | "published";
 export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
 export type LeadLanguage = "en" | "es";
 
@@ -264,6 +266,96 @@ export type Database = {
           sent_count?: number;
           updated_at?: string;
         };
+        Relationships: [];
+      };
+      blog_keywords: {
+        Row: {
+          id: string;
+          product: BlogProductSlug;
+          keyword: string;
+          volume: number | null;
+          difficulty: number | null;
+          cpc: number | null;
+          source: string;
+          used: boolean;
+          discovered_at: string;
+        };
+        Insert: {
+          id?: string;
+          product: BlogProductSlug;
+          keyword: string;
+          volume?: number | null;
+          difficulty?: number | null;
+          cpc?: number | null;
+          source?: string;
+          used?: boolean;
+          discovered_at?: string;
+        };
+        Update: {
+          used?: boolean;
+        };
+        Relationships: [];
+      };
+      blog_posts: {
+        Row: {
+          id: string;
+          product: BlogProductSlug;
+          keyword: string;
+          title: string;
+          slug: string;
+          meta_description: string | null;
+          excerpt: string | null;
+          body: string;
+          faqs: { question: string; answer: string }[];
+          tags: string[];
+          seo_score: number | null;
+          status: BlogPostStatus;
+          created_at: string;
+          published_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          product: BlogProductSlug;
+          keyword: string;
+          title: string;
+          slug: string;
+          meta_description?: string | null;
+          excerpt?: string | null;
+          body: string;
+          faqs?: { question: string; answer: string }[];
+          tags?: string[];
+          seo_score?: number | null;
+          status?: BlogPostStatus;
+          created_at?: string;
+          published_at?: string | null;
+        };
+        Update: {
+          title?: string;
+          meta_description?: string | null;
+          excerpt?: string | null;
+          body?: string;
+          faqs?: { question: string; answer: string }[];
+          tags?: string[];
+          seo_score?: number | null;
+          status?: BlogPostStatus;
+          published_at?: string | null;
+        };
+        Relationships: [];
+      };
+      blog_run_log: {
+        Row: {
+          id: string;
+          run_at: string;
+          status: string;
+          summary: string | null;
+        };
+        Insert: {
+          id?: string;
+          run_at?: string;
+          status: string;
+          summary?: string | null;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       leads: {
@@ -910,3 +1002,6 @@ export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"
 export type SocialInboxItem = Database["public"]["Tables"]["social_inbox_items"]["Row"];
 export type PartnerApplication = Database["public"]["Tables"]["partner_applications"]["Row"];
 export type PartnerReferral = Database["public"]["Tables"]["partner_referrals"]["Row"];
+export type BlogPost = Database["public"]["Tables"]["blog_posts"]["Row"];
+export type BlogKeyword = Database["public"]["Tables"]["blog_keywords"]["Row"];
+export type BlogRunLogEntry = Database["public"]["Tables"]["blog_run_log"]["Row"];
