@@ -4,11 +4,11 @@ import { useState } from "react";
 import type { SocialBrand, SocialContent, SocialContentStatus, SocialPlatform, SocialVideoAsset } from "@/lib/database.types";
 
 const STATUS_STYLE: Record<SocialContentStatus, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  approved: "bg-sky-100 text-sky-700",
-  scheduled: "bg-amber-100 text-amber-700",
-  posted: "bg-green-100 text-green-700",
-  failed: "bg-red-100 text-red-700",
+  draft: "bg-zinc-800 text-zinc-300",
+  approved: "bg-sky-900/40 text-sky-300",
+  scheduled: "bg-amber-900/40 text-amber-300",
+  posted: "bg-green-900/40 text-green-300",
+  failed: "bg-red-900/40 text-red-300",
 };
 
 export default function ContentTab({
@@ -93,7 +93,7 @@ export default function ContentTab({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-[#1A3A5C]">Content Calendar</h2>
+        <h2 className="text-lg font-semibold text-white">Content Calendar</h2>
         <button
           onClick={() => setModalOpen(true)}
           disabled={brands.length === 0}
@@ -109,7 +109,7 @@ export default function ContentTab({
             key={s}
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-              statusFilter === s ? "bg-[#1A3A5C] text-white" : "bg-white border border-gray-200 text-gray-600"
+              statusFilter === s ? "bg-[#1A3A5C] text-white" : "bg-black border border-green-600 text-zinc-300"
             }`}
           >
             {s}
@@ -118,41 +118,41 @@ export default function ContentTab({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-gray-400 text-sm">
+        <div className="bg-black border border-dashed border-zinc-700 rounded-xl p-10 text-center text-zinc-500 text-sm">
           No content{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""} yet.
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((c) => (
-            <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4">
+            <div key={c.id} className="bg-[#0d0d0d] border border-green-600 rounded-xl p-4">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500">{brandName(c.brand_id)}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{c.platform}</span>
+                  <span className="text-xs font-medium text-zinc-400">{brandName(c.brand_id)}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 capitalize">{c.platform}</span>
                   <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[c.status]}`}>
                     {c.status}
                   </span>
                 </div>
-                <button onClick={() => deleteContent(c.id)} className="text-xs text-red-500 hover:underline">
+                <button onClick={() => deleteContent(c.id)} className="text-xs text-red-400 hover:underline">
                   Delete
                 </button>
               </div>
-              {c.hook && <p className="font-medium text-sm text-[#1A3A5C] mb-1">{c.hook}</p>}
-              <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{c.caption}</p>
+              {c.hook && <p className="font-medium text-sm text-white mb-1">{c.hook}</p>}
+              <p className="text-sm text-zinc-200 whitespace-pre-wrap mb-2">{c.caption}</p>
               {c.hashtags.length > 0 && (
-                <p className="text-xs text-gray-400 mb-3">{c.hashtags.map((h) => `#${h}`).join(" ")}</p>
+                <p className="text-xs text-zinc-500 mb-3">{c.hashtags.map((h) => `#${h}`).join(" ")}</p>
               )}
               {c.status === "failed" && c.failure_reason && (
-                <p className="text-xs text-red-600 mb-2">Failed: {c.failure_reason}</p>
+                <p className="text-xs text-red-400 mb-2">Failed: {c.failure_reason}</p>
               )}
 
               {c.platform === "instagram" && (c.status === "draft" || c.status === "approved") && (
                 <div className="mb-2">
-                  <label className="text-xs text-gray-500 mr-2">Video asset (required for Instagram):</label>
+                  <label className="text-xs text-zinc-400 mr-2">Video asset (required for Instagram):</label>
                   <select
                     value={c.video_asset_id ?? ""}
                     onChange={(e) => linkVideoAsset(c.id, e.target.value)}
-                    className="text-xs border border-gray-300 rounded-lg px-2 py-1"
+                    className="text-xs border border-zinc-700 rounded-lg px-2 py-1"
                   >
                     <option value="">— none —</option>
                     {videoAssets
@@ -176,19 +176,19 @@ export default function ContentTab({
                       type="datetime-local"
                       value={scheduleDrafts[c.id] ?? ""}
                       onChange={(e) => setScheduleDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                      className="text-xs border border-gray-300 rounded-lg px-2 py-1"
+                      className="text-xs border border-zinc-700 rounded-lg px-2 py-1"
                     />
                     <button
                       onClick={() => scheduleDrafts[c.id] && updateStatus(c.id, "scheduled", new Date(scheduleDrafts[c.id]).toISOString())}
                       disabled={!scheduleDrafts[c.id]}
-                      className="text-xs font-medium text-amber-700 hover:underline disabled:opacity-40"
+                      className="text-xs font-medium text-amber-400 hover:underline disabled:opacity-40"
                     >
                       Schedule
                     </button>
                   </>
                 )}
                 {c.status === "scheduled" && c.scheduled_at && (
-                  <span className="text-xs text-gray-500">Scheduled for {new Date(c.scheduled_at).toLocaleString()}</span>
+                  <span className="text-xs text-zinc-400">Scheduled for {new Date(c.scheduled_at).toLocaleString()}</span>
                 )}
               </div>
             </div>
@@ -198,25 +198,25 @@ export default function ContentTab({
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold text-[#1A3A5C] mb-4">Generate content</h3>
-            {error && <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
+          <div className="bg-[#0d0d0d] border border-green-600 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-white mb-4">Generate content</h3>
+            {error && <div className="mb-3 p-2 rounded-lg bg-red-950/40 border border-red-800 text-red-400 text-sm">{error}</div>}
 
-            <label className="block text-xs font-medium text-gray-500 mb-1">Brand</label>
-            <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4">
+            <label className="block text-xs font-medium text-zinc-400 mb-1">Brand</label>
+            <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm mb-4">
               {brands.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
 
-            <label className="block text-xs font-medium text-gray-500 mb-1">Platforms</label>
+            <label className="block text-xs font-medium text-zinc-400 mb-1">Platforms</label>
             <div className="flex gap-2 mb-4">
               {(["facebook", "instagram"] as SocialPlatform[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => togglePlatform(p)}
                   className={`px-3 py-1.5 rounded-lg text-sm capitalize border transition-colors ${
-                    platforms.includes(p) ? "border-[#1A3A5C] bg-blue-50 text-[#1A3A5C]" : "border-gray-300 text-gray-600"
+                    platforms.includes(p) ? "border-[#1A3A5C] bg-blue-950/40 text-white" : "border-zinc-700 text-zinc-300"
                   }`}
                 >
                   {p}
@@ -224,18 +224,18 @@ export default function ContentTab({
               ))}
             </div>
 
-            <label className="block text-xs font-medium text-gray-500 mb-1">Number of posts (max 14)</label>
+            <label className="block text-xs font-medium text-zinc-400 mb-1">Number of posts (max 14)</label>
             <input
               type="number"
               min={1}
               max={14}
               value={postCount}
               onChange={(e) => setPostCount(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5"
+              className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm mb-5"
             />
 
             <div className="flex gap-3">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border border-zinc-700 text-sm">
                 Cancel
               </button>
               <button

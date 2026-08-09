@@ -99,7 +99,7 @@ export default function OpsDashboard({
                   <strong className="text-zinc-200">{formatBytes(totalBytes)}</strong> (each project&apos;s Pro
                   plan allowance is its own 8&nbsp;GB — the bar below is per project, not shared)
                 </p>
-                <div className="bg-[#1a1a1a] border border-zinc-800 rounded-xl overflow-x-auto">
+                <div className="bg-[#1a1a1a] border border-green-600 rounded-xl overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
@@ -164,7 +164,7 @@ export default function OpsDashboard({
                   </a>{" "}
                   for that. This lists deployment status per project instead.
                 </p>
-                <div className="bg-[#1a1a1a] border border-zinc-800 rounded-xl overflow-x-auto">
+                <div className="bg-[#1a1a1a] border border-green-600 rounded-xl overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">

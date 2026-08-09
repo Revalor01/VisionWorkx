@@ -34,11 +34,11 @@ export default function SocialDashboard({
   const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox"] : ["video"];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-black">
       <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Social Media</span>
+          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Social Media</span>
         </div>
         {isAdmin && (
           <Link href="/admin" className="text-xs text-white/70 hover:text-white transition-colors">
@@ -49,17 +49,17 @@ export default function SocialDashboard({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#1A3A5C]">Social Media Manager</h1>
-          <p className="text-gray-500 text-sm mt-1">Facebook &amp; Instagram — internal Revalor use only</p>
+          <h1 className="text-2xl font-bold text-white">Social Media Manager</h1>
+          <p className="text-zinc-400 text-sm mt-1">Facebook &amp; Instagram — internal Revalor use only</p>
         </div>
 
-        <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-[#0d0d0d] border border-green-600 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-medium capitalize transition-colors shrink-0 relative ${
-                tab === t ? "bg-[#1A3A5C] text-white" : "text-gray-600 hover:bg-gray-100"
+                tab === t ? "bg-[#1A3A5C] text-white" : "text-zinc-300 hover:bg-zinc-800"
               }`}
             >
               {t}

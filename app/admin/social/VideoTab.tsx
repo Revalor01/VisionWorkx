@@ -12,10 +12,10 @@ const STATUS_LABEL: Record<SocialVideoStatus, string> = {
 };
 
 const STATUS_STYLE: Record<SocialVideoStatus, string> = {
-  raw: "bg-gray-100 text-gray-600",
-  in_editing: "bg-amber-100 text-amber-700",
-  ready: "bg-green-100 text-green-700",
-  posted: "bg-sky-100 text-sky-700",
+  raw: "bg-zinc-800 text-zinc-300",
+  in_editing: "bg-amber-900/40 text-amber-300",
+  ready: "bg-green-900/40 text-green-300",
+  posted: "bg-sky-900/40 text-sky-300",
 };
 
 export default function VideoTab({
@@ -104,11 +104,11 @@ export default function VideoTab({
 
   return (
     <div>
-      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-        <h2 className="text-lg font-semibold text-[#1A3A5C] mb-3">Upload raw footage</h2>
-        {error && <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
+      <div className="bg-[#0d0d0d] border border-green-600 rounded-xl p-5 mb-6">
+        <h2 className="text-lg font-semibold text-white mb-3">Upload raw footage</h2>
+        {error && <div className="mb-3 p-2 rounded-lg bg-red-950/40 border border-red-800 text-red-400 text-sm">{error}</div>}
         <div className="flex gap-3 items-center">
-          <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="border border-zinc-700 rounded-lg px-3 py-2 text-sm">
             {brands.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
@@ -121,20 +121,20 @@ export default function VideoTab({
             disabled={uploading || !brandId}
             className="text-sm"
           />
-          {uploading && <span className="text-sm text-gray-500">Uploading…</span>}
+          {uploading && <span className="text-sm text-zinc-400">Uploading…</span>}
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {videoAssets.map((asset) => (
-          <div key={asset.id} className="bg-white border border-gray-200 rounded-xl p-4">
+          <div key={asset.id} className="bg-[#0d0d0d] border border-green-600 rounded-xl p-4">
             <div className="flex justify-between items-start mb-2">
-              <span className="text-xs font-medium text-gray-500">{brandName(asset.brand_id)}</span>
+              <span className="text-xs font-medium text-zinc-400">{brandName(asset.brand_id)}</span>
               <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[asset.status]}`}>
                 {STATUS_LABEL[asset.status]}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mb-3 font-mono">{asset.raw_path.split("/").pop()}</p>
+            <p className="text-xs text-zinc-500 mb-3 font-mono">{asset.raw_path.split("/").pop()}</p>
 
             {asset.status !== "ready" && asset.status !== "posted" && (
               <div className="mb-2">
@@ -145,14 +145,14 @@ export default function VideoTab({
                   onChange={(e) => e.target.files?.[0] && handleFinalUpload(asset, e.target.files[0])}
                   className="text-xs w-full"
                 />
-                <p className="text-[11px] text-gray-400 mt-1">Upload finished edit to mark Ready</p>
+                <p className="text-[11px] text-zinc-500 mt-1">Upload finished edit to mark Ready</p>
               </div>
             )}
 
             <select
               value={asset.status}
               onChange={(e) => updateAsset(asset.id, { status: e.target.value as SocialVideoStatus })}
-              className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5"
+              className="w-full text-xs border border-zinc-700 rounded-lg px-2 py-1.5"
             >
               {(Object.keys(STATUS_LABEL) as SocialVideoStatus[]).map((s) => (
                 <option key={s} value={s}>{STATUS_LABEL[s]}</option>

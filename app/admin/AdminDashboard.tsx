@@ -42,38 +42,38 @@ const CATEGORY_ICONS: Record<AppCategory, string> = {
 };
 
 const STATUS_STYLE: Record<AppStatus, { label: string; cls: string }> = {
-  generating: { label: "Generating", cls: "bg-amber-100 text-amber-700" },
-  ready:      { label: "Queued",     cls: "bg-sky-100 text-sky-700" },
-  deploying:  { label: "Deploying",  cls: "bg-blue-100 text-blue-700" },
-  deployed:   { label: "Live",       cls: "bg-green-100 text-green-700" },
-  failed:     { label: "Failed",     cls: "bg-red-100 text-red-700" },
-  deploy_failed: { label: "Deploy Failed", cls: "bg-red-100 text-red-700" },
+  generating: { label: "Generating", cls: "bg-amber-900/40 text-amber-300" },
+  ready:      { label: "Queued",     cls: "bg-sky-900/40 text-sky-300" },
+  deploying:  { label: "Deploying",  cls: "bg-blue-900/40 text-blue-300" },
+  deployed:   { label: "Live",       cls: "bg-green-900/40 text-green-300" },
+  failed:     { label: "Failed",     cls: "bg-red-900/40 text-red-300" },
+  deploy_failed: { label: "Deploy Failed", cls: "bg-red-900/40 text-red-300" },
 };
 
 const PLAN_STYLE: Record<Plan, string> = {
-  free:     "bg-gray-100 text-gray-600",
-  starter:  "bg-sky-100 text-sky-700",
-  growth:   "bg-violet-100 text-violet-700",
-  pro:      "bg-amber-100 text-amber-700",
+  free:     "bg-zinc-800 text-zinc-300",
+  starter:  "bg-sky-900/40 text-sky-300",
+  growth:   "bg-violet-900/40 text-violet-300",
+  pro:      "bg-amber-900/40 text-amber-300",
 };
 
 const PARTNER_STATUS_STYLE: Record<PartnerStatus, { label: string; cls: string }> = {
-  pending:  { label: "Pending Review", cls: "bg-amber-100 text-amber-700" },
-  approved: { label: "Approved",       cls: "bg-green-100 text-green-700" },
-  denied:   { label: "Denied",         cls: "bg-red-100 text-red-700" },
+  pending:  { label: "Pending Review", cls: "bg-amber-900/40 text-amber-300" },
+  approved: { label: "Approved",       cls: "bg-green-900/40 text-green-300" },
+  denied:   { label: "Denied",         cls: "bg-red-900/40 text-red-300" },
 };
 
 const PARTNER_TIER_STYLE: Record<PartnerTier, { label: string; cls: string }> = {
-  tier_1: { label: "Tier 1 — High Value", cls: "bg-violet-100 text-violet-700" },
-  tier_2: { label: "Tier 2 — Standard",   cls: "bg-sky-100 text-sky-700" },
-  tier_3: { label: "Tier 3 — Entry",      cls: "bg-gray-100 text-gray-600" },
+  tier_1: { label: "Tier 1 — High Value", cls: "bg-violet-900/40 text-violet-300" },
+  tier_2: { label: "Tier 2 — Standard",   cls: "bg-sky-900/40 text-sky-300" },
+  tier_3: { label: "Tier 3 — Entry",      cls: "bg-zinc-800 text-zinc-300" },
 };
 
 const PARTNER_REFERRAL_STATUS_STYLE: Record<PartnerReferralStatus, { label: string; cls: string }> = {
-  submitted: { label: "Submitted", cls: "bg-gray-100 text-gray-600" },
-  contacted: { label: "Contacted", cls: "bg-amber-100 text-amber-700" },
-  converted: { label: "Converted", cls: "bg-green-100 text-green-700" },
-  declined:  { label: "Declined",  cls: "bg-red-100 text-red-700" },
+  submitted: { label: "Submitted", cls: "bg-zinc-800 text-zinc-300" },
+  contacted: { label: "Contacted", cls: "bg-amber-900/40 text-amber-300" },
+  converted: { label: "Converted", cls: "bg-green-900/40 text-green-300" },
+  declined:  { label: "Declined",  cls: "bg-red-900/40 text-red-300" },
 };
 
 type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads" | "partners" | "referrals";
@@ -662,21 +662,21 @@ export default function AdminDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-black">
       {/* Header */}
       <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
+          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
         </div>
         <div className="flex items-center gap-4 flex-wrap justify-end">
           <button
             onClick={() => setAutoRefresh((v) => !v)}
             className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-              autoRefresh ? "bg-green-500/20 text-green-300" : "bg-white/10 text-white/70 hover:text-white"
+              autoRefresh ? "bg-green-500/20 text-green-300" : "bg-black/10 text-white/70 hover:text-white"
             }`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-green-400 animate-pulse" : "bg-white/40"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-green-400 animate-pulse" : "bg-black/40"}`} />
             Auto-refresh {autoRefresh ? "on" : "off"}
           </button>
           <Link href="/admin/social" className="text-xs text-white/70 hover:text-white transition-colors">
@@ -717,12 +717,12 @@ export default function AdminDashboard({
 
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#1A3A5C]">Management Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">All customers, apps, and deployments across Vision Workx</p>
+          <h1 className="text-2xl font-bold text-white">Management Dashboard</h1>
+          <p className="text-zinc-400 text-sm mt-1">All customers, apps, and deployments across Vision Workx</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-[#0d0d0d] border border-green-600 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {(["overview", "apps", "users", "payments", "automations", "leads", "partners", "referrals"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -730,7 +730,7 @@ export default function AdminDashboard({
               className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-medium capitalize transition-colors shrink-0 ${
                 tab === t
                   ? "bg-[#1A3A5C] text-white"
-                  : "text-gray-500 hover:text-gray-900"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               {t}
@@ -750,8 +750,8 @@ export default function AdminDashboard({
             </div>
 
             {/* Status breakdown */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">App Pipeline Status</h2>
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 p-6">
+              <h2 className="font-semibold text-white mb-4">App Pipeline Status</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <PipelineStat label="Generating" count={stats.generating} color="amber" />
                 <PipelineStat label="Deploying" count={stats.deploying} color="blue" />
@@ -761,10 +761,10 @@ export default function AdminDashboard({
             </div>
 
             {/* Recent apps */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900">Recent Apps</h2>
-                <button onClick={() => setTab("apps")} className="text-xs text-[#2E6DA4] hover:underline">
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
+              <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+                <h2 className="font-semibold text-white">Recent Apps</h2>
+                <button onClick={() => setTab("apps")} className="text-xs text-blue-400 hover:underline">
                   View all →
                 </button>
               </div>
@@ -788,12 +788,12 @@ export default function AdminDashboard({
                 placeholder="Search apps, users, categories…"
                 value={appSearch}
                 onChange={(e) => setAppSearch(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="flex-1 border border-green-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               />
               <select
                 value={appStatusFilter}
                 onChange={(e) => setAppStatusFilter(e.target.value as AppStatus | "all")}
-                className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20 bg-white"
+                className="border border-green-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20 bg-black"
               >
                 <option value="all">All statuses</option>
                 {(Object.keys(STATUS_STYLE) as AppStatus[]).map((s) => (
@@ -801,8 +801,8 @@ export default function AdminDashboard({
                 ))}
               </select>
             </div>
-            <p className="text-xs text-gray-400">{filteredApps.length} app{filteredApps.length !== 1 ? "s" : ""}</p>
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <p className="text-xs text-zinc-500">{filteredApps.length} app{filteredApps.length !== 1 ? "s" : ""}</p>
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
               <AppTable
                 apps={paginatedApps}
                 userEmails={userEmails}
@@ -828,12 +828,12 @@ export default function AdminDashboard({
               placeholder="Search by email, name, company…"
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              className="w-full sm:w-96 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              className="w-full sm:w-96 border border-green-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
             />
-            <p className="text-xs text-gray-400">{filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}</p>
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+            <p className="text-xs text-zinc-500">{filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}</p>
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-zinc-900 border-b border-zinc-800">
                   <tr>
                     <Th>User</Th>
                     <Th>Plan</Th>
@@ -844,20 +844,20 @@ export default function AdminDashboard({
                     <Th>&nbsp;</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-zinc-800">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-12 text-gray-400">
+                      <td colSpan={7} className="text-center py-12 text-zinc-500">
                         No users found
                       </td>
                     </tr>
                   ) : (
                     paginatedUsers.map((u) => (
-                      <tr key={u.id} className="hover:bg-gray-50/50">
+                      <tr key={u.id} className="hover:bg-zinc-900/50">
                         <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">{u.email || "—"}</div>
+                          <div className="font-medium text-white">{u.email || "—"}</div>
                           {(u.full_name || u.company_name) && (
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-zinc-500">
                               {[u.full_name, u.company_name].filter(Boolean).join(" · ")}
                             </div>
                           )}
@@ -868,31 +868,31 @@ export default function AdminDashboard({
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-gray-900 font-medium">{u.appCount}</span>
+                          <span className="text-white font-medium">{u.appCount}</span>
                           {u.liveCount > 0 && (
-                            <span className="ml-1.5 text-xs text-green-600">({u.liveCount} live)</span>
+                            <span className="ml-1.5 text-xs text-green-400">({u.liveCount} live)</span>
                           )}
                         </td>
                         <td className="px-4 py-3">
                           {u.sub ? (
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              u.sub.status === "active" ? "bg-green-100 text-green-700" :
-                              u.sub.status === "trialing" ? "bg-sky-100 text-sky-700" :
-                              u.sub.status === "past_due" ? "bg-red-100 text-red-700" :
-                              "bg-gray-100 text-gray-500"
+                              u.sub.status === "active" ? "bg-green-900/40 text-green-300" :
+                              u.sub.status === "trialing" ? "bg-sky-900/40 text-sky-300" :
+                              u.sub.status === "past_due" ? "bg-red-900/40 text-red-300" :
+                              "bg-zinc-800 text-zinc-400"
                             }`}>
                               {u.sub.status}
                             </span>
                           ) : (
-                            <span className="text-xs text-gray-400">No subscription</span>
+                            <span className="text-xs text-zinc-500">No subscription</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">
+                        <td className="px-4 py-3 text-zinc-400 text-xs">
                           {u.sub?.current_period_end
                             ? new Date(u.sub.current_period_end).toLocaleDateString()
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -900,11 +900,11 @@ export default function AdminDashboard({
                             {!revokedBetaIds.has(u.id) &&
                             (grantedBetaIds.has(u.id) || (u.sub?.status === "active" && !u.sub?.stripe_subscription_id)) ? (
                               <>
-                                <span className="text-xs font-medium text-green-600">Beta ✓</span>
+                                <span className="text-xs font-medium text-green-400">Beta ✓</span>
                                 <button
                                   onClick={() => handleRevokeBetaAccess(u.id, u.email)}
                                   disabled={revokingBeta[u.id]}
-                                  className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                                  className="text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:underline disabled:opacity-50 disabled:no-underline"
                                 >
                                   {revokingBeta[u.id] ? "Revoking…" : "Revoke"}
                                 </button>
@@ -913,7 +913,7 @@ export default function AdminDashboard({
                               <button
                                 onClick={() => handleGrantBetaAccess(u.id, u.email)}
                                 disabled={grantingBeta[u.id]}
-                                className="text-xs font-medium text-navy hover:text-navy-dark hover:underline disabled:opacity-50 disabled:no-underline"
+                                className="text-xs font-medium text-sky-400 hover:text-sky-300 hover:underline disabled:opacity-50 disabled:no-underline"
                               >
                                 {grantingBeta[u.id] ? "Granting…" : "Grant Beta"}
                               </button>
@@ -921,19 +921,19 @@ export default function AdminDashboard({
                             <button
                               onClick={() => handleDeleteUser(u.id, u.email)}
                               disabled={deletingUsers[u.id]}
-                              className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50 disabled:no-underline"
+                              className="text-xs font-medium text-red-400 hover:text-red-400 hover:underline disabled:opacity-50 disabled:no-underline"
                             >
                               {deletingUsers[u.id] ? "Deleting…" : "Delete"}
                             </button>
                           </div>
                           {grantErrors[u.id] && (
-                            <div className="text-[11px] text-red-500 mt-0.5">{grantErrors[u.id]}</div>
+                            <div className="text-[11px] text-red-400 mt-0.5">{grantErrors[u.id]}</div>
                           )}
                           {revokeErrors[u.id] && (
-                            <div className="text-[11px] text-red-500 mt-0.5">{revokeErrors[u.id]}</div>
+                            <div className="text-[11px] text-red-400 mt-0.5">{revokeErrors[u.id]}</div>
                           )}
                           {deleteErrors[u.id] && (
-                            <div className="text-[11px] text-red-500 mt-0.5">{deleteErrors[u.id]}</div>
+                            <div className="text-[11px] text-red-400 mt-0.5">{deleteErrors[u.id]}</div>
                           )}
                         </td>
                       </tr>
@@ -955,10 +955,10 @@ export default function AdminDashboard({
         {tab === "payments" && (
           <div className="space-y-4">
             {paymentsLoading && (
-              <div className="text-center py-16 text-gray-400 text-sm animate-pulse">Loading payments from Stripe…</div>
+              <div className="text-center py-16 text-zinc-500 text-sm animate-pulse">Loading payments from Stripe…</div>
             )}
             {paymentsError && (
-              <div className="text-center py-16 text-red-500 text-sm">{paymentsError}</div>
+              <div className="text-center py-16 text-red-400 text-sm">{paymentsError}</div>
             )}
             {!paymentsLoading && !paymentsError && (
               <>
@@ -994,12 +994,12 @@ export default function AdminDashboard({
                     placeholder="Search by email or name…"
                     value={paymentSearch}
                     onChange={(e) => setPaymentSearch(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                    className="flex-1 border border-green-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
                   />
                   <select
                     value={paymentStatusFilter}
                     onChange={(e) => setPaymentStatusFilter(e.target.value as PaymentRow["status"] | "all")}
-                    className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                    className="border border-green-600 rounded-xl px-4 py-2.5 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
                   >
                     <option value="all">All statuses</option>
                     <option value="paid">Paid</option>
@@ -1010,9 +1010,9 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Table */}
-                <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
+                <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-100">
+                    <thead className="bg-zinc-900 border-b border-zinc-800">
                       <tr>
                         <Th>Customer</Th>
                         <Th>Plan</Th>
@@ -1023,7 +1023,7 @@ export default function AdminDashboard({
                         <Th>Invoice</Th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-zinc-800">
                       {payments
                         .filter((p) => {
                           const q = paymentSearch.toLowerCase();
@@ -1038,35 +1038,35 @@ export default function AdminDashboard({
                           const isFailed = p.status === "open" && p.attemptCount > 0;
                           const statusLabel = isFailed ? "Failed" : p.status.charAt(0).toUpperCase() + p.status.slice(1);
                           const statusCls = isPaid
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-green-900/40 text-green-300"
                             : isFailed
-                            ? "bg-red-100 text-red-700"
+                            ? "bg-red-900/40 text-red-300"
                             : p.status === "open"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-gray-100 text-gray-500";
+                            ? "bg-amber-900/40 text-amber-300"
+                            : "bg-zinc-800 text-zinc-400";
                           const amount = (p.amount / 100).toLocaleString("en-US", { style: "currency", currency: p.currency.toUpperCase() });
                           return (
-                            <tr key={p.id} className={`hover:bg-gray-50/50 ${isFailed ? "bg-red-50/30" : ""}`}>
+                            <tr key={p.id} className={`hover:bg-zinc-900/50 ${isFailed ? "bg-red-950/30" : ""}`}>
                               <td className="px-4 py-3">
-                                <div className="font-medium text-gray-900">{p.customerEmail}</div>
-                                {p.customerName && <div className="text-xs text-gray-400">{p.customerName}</div>}
+                                <div className="font-medium text-white">{p.customerEmail}</div>
+                                {p.customerName && <div className="text-xs text-zinc-500">{p.customerName}</div>}
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-xs text-gray-600">{p.plan ?? "—"}</span>
+                                <span className="text-xs text-zinc-300">{p.plan ?? "—"}</span>
                               </td>
-                              <td className="px-4 py-3 font-semibold text-gray-900">{amount}</td>
+                              <td className="px-4 py-3 font-semibold text-white">{amount}</td>
                               <td className="px-4 py-3">
                                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCls}`}>
                                   {statusLabel}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                              <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
                                 {new Date(p.created * 1000).toLocaleDateString()}
                               </td>
-                              <td className="px-4 py-3 text-gray-500 text-xs">
+                              <td className="px-4 py-3 text-zinc-400 text-xs">
                                 {p.attemptCount}
                                 {p.nextPaymentAttempt && (
-                                  <span className="ml-1 text-amber-600">
+                                  <span className="ml-1 text-amber-400">
                                     (retry {new Date(p.nextPaymentAttempt * 1000).toLocaleDateString()})
                                   </span>
                                 )}
@@ -1075,11 +1075,11 @@ export default function AdminDashboard({
                                 <div className="flex items-center gap-2">
                                   {p.hostedUrl && (
                                     <a href={p.hostedUrl} target="_blank" rel="noreferrer"
-                                      className="text-xs text-[#2E6DA4] hover:underline">View</a>
+                                      className="text-xs text-blue-400 hover:underline">View</a>
                                   )}
                                   {p.pdfUrl && (
                                     <a href={p.pdfUrl} target="_blank" rel="noreferrer"
-                                      className="text-xs text-gray-400 hover:underline">PDF</a>
+                                      className="text-xs text-zinc-500 hover:underline">PDF</a>
                                   )}
                                 </div>
                               </td>
@@ -1088,7 +1088,7 @@ export default function AdminDashboard({
                         })}
                       {payments.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="text-center py-12 text-gray-400">
+                          <td colSpan={7} className="text-center py-12 text-zinc-500">
                             No invoices found in Stripe
                           </td>
                         </tr>
@@ -1125,51 +1125,51 @@ export default function AdminDashboard({
             </div>
 
             {/* Per-app instrumentation status */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-900">App Instrumentation</h2>
-                <p className="text-xs text-gray-400 mt-0.5">
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
+              <div className="px-6 py-4 border-b border-zinc-800">
+                <h2 className="font-semibold text-white">App Instrumentation</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
                   Whether emit_automation_event is actually attached in each app&apos;s tenant schema
                 </p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-zinc-900 border-b border-zinc-800">
                     <tr>
                       <Th>App</Th>
                       <Th>Status</Th>
                       <Th>Instrumented</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-800">
                     {apps.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="text-center py-12 text-gray-400">
+                        <td colSpan={3} className="text-center py-12 text-zinc-500">
                           No apps found
                         </td>
                       </tr>
                     ) : (
                       apps.map((app) => (
-                        <tr key={app.id} className="hover:bg-gray-50/50">
+                        <tr key={app.id} className="hover:bg-zinc-900/50">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <span className="text-base">{CATEGORY_ICONS[app.category]}</span>
                               <div>
-                                <div className="font-medium text-gray-900">{app.name}</div>
-                                <div className="text-xs text-gray-400 capitalize">{app.category}</div>
+                                <div className="font-medium text-white">{app.name}</div>
+                                <div className="text-xs text-zinc-500 capitalize">{app.category}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${(STATUS_STYLE[app.status] ?? { cls: "bg-gray-100 text-gray-500" }).cls}`}>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${(STATUS_STYLE[app.status] ?? { cls: "bg-zinc-800 text-zinc-400" }).cls}`}>
                               {(STATUS_STYLE[app.status] ?? { label: app.status }).label}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             {instrumentedSet.has(app.id) ? (
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Yes</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-900/40 text-green-300">Yes</span>
                             ) : (
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">No</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">No</span>
                             )}
                           </td>
                         </tr>
@@ -1181,14 +1181,14 @@ export default function AdminDashboard({
             </div>
 
             {/* Recent events */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-900">Recent Events</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Last {automationEvents.length} events across all apps</p>
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
+              <div className="px-6 py-4 border-b border-zinc-800">
+                <h2 className="font-semibold text-white">Recent Events</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Last {automationEvents.length} events across all apps</p>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100 sticky top-0">
+                  <thead className="bg-zinc-900 border-b border-zinc-800 sticky top-0">
                     <tr>
                       <Th>Time</Th>
                       <Th>App</Th>
@@ -1196,10 +1196,10 @@ export default function AdminDashboard({
                       <Th>Delivered</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-800">
                     {paginatedEvents.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-12 text-gray-400">
+                        <td colSpan={4} className="text-center py-12 text-zinc-500">
                           No events recorded yet
                         </td>
                       </tr>
@@ -1208,21 +1208,21 @@ export default function AdminDashboard({
                         const app = apps.find((a) => a.id === event.app_id);
                         const label = semanticEventLabel(app?.category, event.table_name, event.operation);
                         return (
-                          <tr key={event.id} className="hover:bg-gray-50/50">
-                            <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                          <tr key={event.id} className="hover:bg-zinc-900/50">
+                            <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
                               {new Date(event.created_at).toLocaleString()}
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-gray-900 font-medium">{app?.name ?? event.app_id.slice(0, 8) + "…"}</span>
+                              <span className="text-white font-medium">{app?.name ?? event.app_id.slice(0, 8) + "…"}</span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{label}</span>
+                              <span className="font-mono text-xs bg-zinc-800 text-zinc-200 px-2 py-0.5 rounded">{label}</span>
                             </td>
                             <td className="px-4 py-3">
                               {event.delivered_at ? (
-                                <span className="text-xs text-green-600">✓</span>
+                                <span className="text-xs text-green-400">✓</span>
                               ) : (
-                                <span className="text-xs text-amber-600">pending</span>
+                                <span className="text-xs text-amber-400">pending</span>
                               )}
                             </td>
                           </tr>
@@ -1246,21 +1246,21 @@ export default function AdminDashboard({
         {tab === "leads" && (
           <div className="space-y-6">
             {/* Search */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h2 className="font-semibold text-gray-900 mb-1">Find Leads</h2>
-              <p className="text-xs text-gray-400 mb-4">Searches OpenStreetMap around a location and scores every business found.</p>
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 p-6">
+              <h2 className="font-semibold text-white mb-1">Find Leads</h2>
+              <p className="text-xs text-zinc-400 mb-4">Searches OpenStreetMap around a location and scores every business found.</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
                   placeholder="City, state or ZIP (e.g. Charlotte, NC)"
                   value={leadSearchLocation}
                   onChange={(e) => setLeadSearchLocation(e.target.value)}
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                  className="flex-1 border border-green-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
                 />
                 <select
                   value={leadSearchRadius}
                   onChange={(e) => setLeadSearchRadius(Number(e.target.value))}
-                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                  className="border border-green-600 rounded-xl px-4 py-2.5 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
                 >
                   {[1, 3, 5, 10, 15, 25].map((r) => (
                     <option key={r} value={r}>{r} mi radius</option>
@@ -1274,8 +1274,8 @@ export default function AdminDashboard({
                   {searchingLeads ? "Searching…" : "Search"}
                 </button>
               </div>
-              {leadSearchResult && <p className="text-xs text-green-600 mt-2">{leadSearchResult}</p>}
-              {leadSearchError && <p className="text-xs text-red-500 mt-2">{leadSearchError}</p>}
+              {leadSearchResult && <p className="text-xs text-green-400 mt-2">{leadSearchResult}</p>}
+              {leadSearchError && <p className="text-xs text-red-400 mt-2">{leadSearchError}</p>}
             </div>
 
             {/* Stat cards */}
@@ -1292,7 +1292,7 @@ export default function AdminDashboard({
               <select
                 value={leadStatusFilter}
                 onChange={(e) => setLeadStatusFilter(e.target.value as LeadStatus | "all")}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">All statuses</option>
                 {(["new", "contacted", "responded", "qualified", "converted", "dead"] as LeadStatus[]).map((s) => (
@@ -1302,7 +1302,7 @@ export default function AdminDashboard({
               <select
                 value={leadCategoryFilter}
                 onChange={(e) => setLeadCategoryFilter(e.target.value)}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">All categories</option>
                 {leadCategories.map((c) => (
@@ -1312,7 +1312,7 @@ export default function AdminDashboard({
               <select
                 value={leadLanguageFilter}
                 onChange={(e) => setLeadLanguageFilter(e.target.value as LeadLanguage | "all")}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">All languages</option>
                 <option value="en">English</option>
@@ -1321,7 +1321,7 @@ export default function AdminDashboard({
               <select
                 value={leadWebsiteFilter}
                 onChange={(e) => setLeadWebsiteFilter(e.target.value as "all" | "yes" | "no")}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">Website: all</option>
                 <option value="yes">Has website</option>
@@ -1330,13 +1330,13 @@ export default function AdminDashboard({
               <select
                 value={leadEmailFilter}
                 onChange={(e) => setLeadEmailFilter(e.target.value as "all" | "yes" | "no")}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">Email: all</option>
                 <option value="yes">Has email</option>
                 <option value="no">No email</option>
               </select>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-zinc-300">
                 <span>Min score</span>
                 <input
                   type="number"
@@ -1344,7 +1344,7 @@ export default function AdminDashboard({
                   max={100}
                   value={leadMinScore}
                   onChange={(e) => setLeadMinScore(Number(e.target.value))}
-                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                  className="w-20 border border-green-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
                 />
               </div>
               <button
@@ -1357,25 +1357,25 @@ export default function AdminDashboard({
               <button
                 onClick={exportLeadsCsv}
                 disabled={filteredLeads.length === 0}
-                className="text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="text-xs font-semibold px-4 py-2 rounded-xl border border-green-600 text-zinc-200 hover:bg-zinc-900 disabled:opacity-50 transition-colors"
               >
                 ⬇ Export CSV ({filteredLeads.length})
               </button>
             </div>
-            {emailSendResult && <p className="text-xs text-green-600">{emailSendResult}</p>}
+            {emailSendResult && <p className="text-xs text-green-400">{emailSendResult}</p>}
 
             {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-zinc-900 border-b border-zinc-800">
                     <tr>
                       <Th>
                         <input
                           type="checkbox"
                           checked={filteredLeads.length > 0 && filteredLeads.every((l) => selectedLeadIds.has(l.id))}
                           onChange={toggleSelectAllFiltered}
-                          className="rounded border-gray-300"
+                          className="rounded border-zinc-700"
                         />
                       </Th>
                       <Th>Business</Th>
@@ -1390,10 +1390,10 @@ export default function AdminDashboard({
                       <Th>Status</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-800">
                     {paginatedLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="text-center py-12 text-gray-400">
+                        <td colSpan={11} className="text-center py-12 text-zinc-500">
                           No leads yet — run a search above.
                         </td>
                       </tr>
@@ -1401,28 +1401,28 @@ export default function AdminDashboard({
                       paginatedLeads.map((lead) => {
                         const bucket = scoreBucket(lead.final_score);
                         const bucketCls =
-                          bucket.tier === "hot" ? "bg-red-100 text-red-700" :
-                          bucket.tier === "warm" ? "bg-amber-100 text-amber-700" :
-                          bucket.tier === "potential" ? "bg-sky-100 text-sky-700" :
-                          "bg-gray-100 text-gray-500";
+                          bucket.tier === "hot" ? "bg-red-900/40 text-red-300" :
+                          bucket.tier === "warm" ? "bg-amber-900/40 text-amber-300" :
+                          bucket.tier === "potential" ? "bg-sky-900/40 text-sky-300" :
+                          "bg-zinc-800 text-zinc-400";
                         return (
-                          <tr key={lead.id} className="hover:bg-gray-50/50">
+                          <tr key={lead.id} className="hover:bg-zinc-900/50">
                             <td className="px-4 py-3">
                               <input
                                 type="checkbox"
                                 checked={selectedLeadIds.has(lead.id)}
                                 onChange={() => toggleLeadSelected(lead.id)}
-                                className="rounded border-gray-300"
+                                className="rounded border-zinc-700"
                               />
                             </td>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">{lead.business_name}</div>
-                              <div className="text-xs text-gray-400">{lead.address ?? "—"}</div>
+                              <div className="font-medium text-white">{lead.business_name}</div>
+                              <div className="text-xs text-zinc-500">{lead.address ?? "—"}</div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">{lead.industry_category ?? "—"}</td>
+                            <td className="px-4 py-3 text-zinc-300 text-xs">{lead.industry_category ?? "—"}</td>
                             <td className="px-4 py-3">
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                lead.detected_language === "es" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500"
+                                lead.detected_language === "es" ? "bg-violet-900/40 text-violet-300" : "bg-zinc-800 text-zinc-400"
                               }`}>
                                 {lead.detected_language === "es" ? "ES" : "EN"}
                               </span>
@@ -1432,11 +1432,11 @@ export default function AdminDashboard({
                                 {lead.final_score}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            <td className="px-4 py-3 text-xs text-zinc-300 whitespace-nowrap">
                               {lead.yelp_rating != null ? (
                                 <span>★{lead.yelp_rating.toFixed(1)} ({lead.yelp_review_count ?? 0})</span>
                               ) : (
-                                <span className="text-gray-300">—</span>
+                                <span className="text-zinc-600">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -1445,30 +1445,30 @@ export default function AdminDashboard({
                                   href={lead.website}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-green-600 hover:underline block max-w-[160px] truncate"
+                                  className="text-xs text-green-400 hover:underline block max-w-[160px] truncate"
                                   title={lead.website}
                                 >
                                   {lead.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                                 </a>
                               ) : (
-                                <span className="text-xs text-red-500">✗ No</span>
+                                <span className="text-xs text-red-400">✗ No</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                              {lead.distance_miles != null ? `${lead.distance_miles} mi` : <span className="text-gray-300">—</span>}
+                            <td className="px-4 py-3 text-xs text-zinc-300 whitespace-nowrap">
+                              {lead.distance_miles != null ? `${lead.distance_miles} mi` : <span className="text-zinc-600">—</span>}
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600">{lead.phone ?? <span className="text-gray-300">—</span>}</td>
-                            <td className="px-4 py-3 text-xs text-gray-600">
+                            <td className="px-4 py-3 text-xs text-zinc-300">{lead.phone ?? <span className="text-zinc-600">—</span>}</td>
+                            <td className="px-4 py-3 text-xs text-zinc-300">
                               {lead.email ? (
                                 <a
                                   href={`mailto:${lead.email}`}
-                                  className="text-green-600 hover:underline block max-w-[180px] truncate"
+                                  className="text-green-400 hover:underline block max-w-[180px] truncate"
                                   title={lead.email}
                                 >
                                   {lead.email}
                                 </a>
                               ) : (
-                                <span className="text-gray-300">—</span>
+                                <span className="text-zinc-600">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -1476,7 +1476,7 @@ export default function AdminDashboard({
                                 value={lead.status}
                                 disabled={updatingLeadId === lead.id}
                                 onChange={(e) => handleLeadStatusChange(lead.id, e.target.value as LeadStatus)}
-                                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white disabled:opacity-50"
+                                className="text-xs border border-green-600 rounded-lg px-2 py-1 bg-black disabled:opacity-50"
                               >
                                 {(["new", "contacted", "responded", "qualified", "converted", "dead"] as LeadStatus[]).map((s) => (
                                   <option key={s} value={s}>{s}</option>
@@ -1501,16 +1501,16 @@ export default function AdminDashboard({
             {/* Email compose modal */}
             {emailModalOpen && (
               <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-                  <h3 className="text-lg font-bold text-[#1A3A5C] mb-1">Email {selectedEmailableCount} lead{selectedEmailableCount === 1 ? "" : "s"}</h3>
-                  <p className="text-xs text-gray-400 mb-4">The Revalor Media Guide PDF is attached automatically to every send.</p>
-                  {emailSendError && <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{emailSendError}</div>}
+                <div className="bg-[#0d0d0d] border border-green-600 rounded-2xl p-6 w-full max-w-lg">
+                  <h3 className="text-lg font-bold text-white mb-1">Email {selectedEmailableCount} lead{selectedEmailableCount === 1 ? "" : "s"}</h3>
+                  <p className="text-xs text-zinc-400 mb-4">The Revalor Media Guide PDF is attached automatically to every send.</p>
+                  {emailSendError && <div className="mb-3 p-2 rounded-lg bg-red-50 border border-red-200 text-red-400 text-sm">{emailSendError}</div>}
 
                   <div className="flex gap-2 mb-4">
                     <button
                       onClick={() => setEmailMode("generic")}
                       className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
-                        emailMode === "generic" ? "bg-[#1A3A5C] text-white border-[#1A3A5C]" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        emailMode === "generic" ? "bg-[#1A3A5C] text-white border-[#1A3A5C]" : "border-green-600 text-zinc-300 hover:bg-zinc-900"
                       }`}
                     >
                       Generic Text
@@ -1518,7 +1518,7 @@ export default function AdminDashboard({
                     <button
                       onClick={() => setEmailMode("custom")}
                       className={`flex-1 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
-                        emailMode === "custom" ? "bg-[#1A3A5C] text-white border-[#1A3A5C]" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        emailMode === "custom" ? "bg-[#1A3A5C] text-white border-[#1A3A5C]" : "border-green-600 text-zinc-300 hover:bg-zinc-900"
                       }`}
                     >
                       Freeform
@@ -1526,8 +1526,8 @@ export default function AdminDashboard({
                   </div>
 
                   {emailMode === "generic" ? (
-                    <div className="mb-4 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-600 space-y-2">
-                      <p className="font-semibold text-gray-500">Subject: A quick idea for [Business Name]</p>
+                    <div className="mb-4 p-3 rounded-xl bg-zinc-900 border border-green-600 text-xs text-zinc-300 space-y-2">
+                      <p className="font-semibold text-zinc-400">Subject: A quick idea for [Business Name]</p>
                       <p>Hi [Business Name] team,</p>
                       <p>I&apos;m reaching out from Revalor LLC — we build software that helps businesses like yours save time and grow. I&apos;ve attached a quick guide to what we offer.</p>
                       <p>Happy to answer any questions.</p>
@@ -1536,25 +1536,25 @@ export default function AdminDashboard({
                   ) : (
                     <div className="mb-4 space-y-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
+                        <label className="block text-xs font-medium text-zinc-400 mb-1">Subject</label>
                         <input
                           type="text"
                           value={emailSubject}
                           onChange={(e) => setEmailSubject(e.target.value)}
                           placeholder="e.g. A quick idea for {{business_name}}"
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                          className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Body</label>
+                        <label className="block text-xs font-medium text-zinc-400 mb-1">Body</label>
                         <textarea
                           value={emailBody}
                           onChange={(e) => setEmailBody(e.target.value)}
                           rows={6}
                           placeholder="Hi {{business_name}} team, ..."
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                          className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm"
                         />
-                        <p className="text-[11px] text-gray-400 mt-1">Use <code>{"{{business_name}}"}</code> to personalize each email.</p>
+                        <p className="text-[11px] text-zinc-500 mt-1">Use <code>{"{{business_name}}"}</code> to personalize each email.</p>
                       </div>
                     </div>
                   )}
@@ -1563,7 +1563,7 @@ export default function AdminDashboard({
                     <button
                       onClick={() => setEmailModalOpen(false)}
                       disabled={sendingEmails}
-                      className="text-sm font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      className="text-sm font-semibold px-4 py-2 rounded-xl border border-green-600 text-zinc-200 hover:bg-zinc-900 disabled:opacity-50"
                     >
                       Cancel
                     </button>
@@ -1609,7 +1609,7 @@ export default function AdminDashboard({
               <select
                 value={partnerStatusFilter}
                 onChange={(e) => setPartnerStatusFilter(e.target.value as PartnerStatus | "all")}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">All statuses</option>
                 {(["pending", "approved", "denied"] as PartnerStatus[]).map((s) => (
@@ -1619,7 +1619,7 @@ export default function AdminDashboard({
               <select
                 value={partnerTierFilter}
                 onChange={(e) => setPartnerTierFilter(e.target.value as PartnerTier | "all")}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+                className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
               >
                 <option value="all">All tiers</option>
                 {(["tier_1", "tier_2", "tier_3"] as PartnerTier[]).map((t) => (
@@ -1629,10 +1629,10 @@ export default function AdminDashboard({
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-zinc-900 border-b border-zinc-800">
                     <tr>
                       <Th>Business</Th>
                       <Th>Industry</Th>
@@ -1646,44 +1646,44 @@ export default function AdminDashboard({
                       <Th>Decision</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-800">
                     {paginatedPartners.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center py-12 text-gray-400">
+                        <td colSpan={10} className="text-center py-12 text-zinc-500">
                           No partner applications yet.
                         </td>
                       </tr>
                     ) : (
                       paginatedPartners.map((p) => (
-                        <tr key={p.id} className="hover:bg-gray-50/50 align-top">
+                        <tr key={p.id} className="hover:bg-zinc-900/50 align-top">
                           <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">{p.business_name}</div>
-                            <div className="text-xs text-gray-400">{p.owner_name}</div>
-                            <a href={`mailto:${p.email}`} className="text-xs text-green-600 hover:underline block">
+                            <div className="font-medium text-white">{p.business_name}</div>
+                            <div className="text-xs text-zinc-500">{p.owner_name}</div>
+                            <a href={`mailto:${p.email}`} className="text-xs text-green-400 hover:underline block">
                               {p.email}
                             </a>
-                            <div className="text-xs text-gray-400">{p.phone}</div>
+                            <div className="text-xs text-zinc-500">{p.phone}</div>
                             {p.online_presence_url && (
                               <a
                                 href={p.online_presence_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-green-600 hover:underline block max-w-[160px] truncate"
+                                className="text-xs text-green-400 hover:underline block max-w-[160px] truncate"
                                 title={p.online_presence_url}
                               >
                                 {p.online_presence_url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                               </a>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
+                          <td className="px-4 py-3 text-xs text-zinc-300">
                             {p.industry.replace(/_/g, " ")}
-                            <div className="text-gray-400 mt-1 max-w-[180px]">
+                            <div className="text-zinc-500 mt-1 max-w-[180px]">
                               {p.services_offered.join(", ")}
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700"
+                              className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300"
                               title={p.score_breakdown.map((s) => `${s.label}: ${s.points}`).join("\n")}
                             >
                               {p.total_score}
@@ -1696,10 +1696,10 @@ export default function AdminDashboard({
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
+                          <td className="px-4 py-3 text-xs text-zinc-300">
                             {p.discount_percentage != null ? `${p.discount_percentage}%` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                          <td className="px-4 py-3 text-xs text-zinc-300 whitespace-nowrap">
                             <div>{p.budget_range.replace(/_/g, " – $")}</div>
                             <div>{p.social_reach_range.replace(/_/g, " – ")} reach</div>
                             <div>{p.referral_network_size.replace(/_/g, " – ")} referrals</div>
@@ -1711,7 +1711,7 @@ export default function AdminDashboard({
                                 <img
                                   src={partnerUploadUrl(p.logo_path)}
                                   alt={`${p.business_name} logo`}
-                                  className="w-10 h-10 rounded-lg object-contain border border-gray-200 bg-white"
+                                  className="w-10 h-10 rounded-lg object-contain border border-green-600 bg-white"
                                 />
                               )}
                               {p.photo_paths.map((path) => (
@@ -1720,11 +1720,11 @@ export default function AdminDashboard({
                                   key={path}
                                   src={partnerUploadUrl(path)}
                                   alt={`${p.business_name} photo`}
-                                  className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                                  className="w-10 h-10 rounded-lg object-cover border border-green-600"
                                 />
                               ))}
                               {!p.logo_path && p.photo_paths.length === 0 && (
-                                <span className="text-xs text-gray-300">—</span>
+                                <span className="text-xs text-zinc-600">—</span>
                               )}
                             </div>
                           </td>
@@ -1733,22 +1733,22 @@ export default function AdminDashboard({
                               {PARTNER_STATUS_STYLE[p.status].label}
                             </span>
                             {p.reviewed_by && (
-                              <div className="text-[10px] text-gray-400 mt-1">
+                              <div className="text-[10px] text-zinc-500 mt-1">
                                 by {p.reviewed_by}
                               </div>
                             )}
                           </td>
                           <td className="px-4 py-3 text-xs whitespace-nowrap">
                             {p.status !== "approved" ? (
-                              <span className="text-gray-300">—</span>
+                              <span className="text-zinc-600">—</span>
                             ) : p.agreement_accepted_at ? (
-                              <span className="font-semibold text-green-700">
+                              <span className="font-semibold text-green-400">
                                 Accepted {new Date(p.agreement_accepted_at).toLocaleDateString()}
                               </span>
                             ) : p.agreement_terms ? (
-                              <span className="font-semibold text-amber-700">Awaiting acceptance</span>
+                              <span className="font-semibold text-amber-400">Awaiting acceptance</span>
                             ) : (
-                              <span className="text-gray-400">Not generated</span>
+                              <span className="text-zinc-500">Not generated</span>
                             )}
                           </td>
                           <td className="px-4 py-3 min-w-[180px]">
@@ -1761,7 +1761,7 @@ export default function AdminDashboard({
                                   }
                                   placeholder="Notes (optional)"
                                   rows={2}
-                                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 resize-none"
+                                  className="w-full text-xs border border-green-600 rounded-lg px-2 py-1.5 resize-none"
                                 />
                                 <div className="flex gap-2">
                                   <button
@@ -1774,7 +1774,7 @@ export default function AdminDashboard({
                                   <button
                                     onClick={() => handlePartnerDecision(p.id, "denied")}
                                     disabled={updatingPartnerId === p.id}
-                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-800 text-red-400 hover:bg-red-950/40 disabled:opacity-50 transition-colors"
                                   >
                                     Deny
                                   </button>
@@ -1782,7 +1782,7 @@ export default function AdminDashboard({
                               </div>
                             ) : (
                               p.admin_notes && (
-                                <p className="text-xs text-gray-400 max-w-[180px]">{p.admin_notes}</p>
+                                <p className="text-xs text-zinc-500 max-w-[180px]">{p.admin_notes}</p>
                               )
                             )}
                           </td>
@@ -1826,7 +1826,7 @@ export default function AdminDashboard({
             <select
               value={referralStatusFilter}
               onChange={(e) => setReferralStatusFilter(e.target.value as PartnerReferralStatus | "all")}
-              className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
+              className="border border-green-600 rounded-xl px-4 py-2 text-sm bg-black focus:outline-none focus:ring-2 focus:ring-[#1A3A5C]/20"
             >
               <option value="all">All statuses</option>
               {(["submitted", "contacted", "converted", "declined"] as PartnerReferralStatus[]).map((s) => (
@@ -1834,10 +1834,10 @@ export default function AdminDashboard({
               ))}
             </select>
 
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-zinc-900 border-b border-zinc-800">
                     <tr>
                       <Th>Referred Business</Th>
                       <Th>Referred By</Th>
@@ -1846,10 +1846,10 @@ export default function AdminDashboard({
                       <Th>Submitted</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-zinc-800">
                     {paginatedReferrals.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-12 text-gray-400">
+                        <td colSpan={5} className="text-center py-12 text-zinc-500">
                           No referrals yet.
                         </td>
                       </tr>
@@ -1857,15 +1857,15 @@ export default function AdminDashboard({
                       paginatedReferrals.map((r) => {
                         const referrer = partnersById.get(r.partner_application_id);
                         return (
-                          <tr key={r.id} className="hover:bg-gray-50/50 align-top">
+                          <tr key={r.id} className="hover:bg-zinc-900/50 align-top">
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">{r.referred_business_name}</div>
-                              {r.notes && <div className="text-xs text-gray-400 max-w-[200px]">{r.notes}</div>}
+                              <div className="font-medium text-white">{r.referred_business_name}</div>
+                              {r.notes && <div className="text-xs text-zinc-500 max-w-[200px]">{r.notes}</div>}
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600">
+                            <td className="px-4 py-3 text-xs text-zinc-300">
                               {referrer ? (
                                 <>
-                                  <div className="font-medium text-gray-900">{referrer.business_name}</div>
+                                  <div className="font-medium text-white">{referrer.business_name}</div>
                                   {referrer.tier && (
                                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${PARTNER_TIER_STYLE[referrer.tier].cls}`}>
                                       {PARTNER_TIER_STYLE[referrer.tier].label}
@@ -1873,27 +1873,27 @@ export default function AdminDashboard({
                                   )}
                                 </>
                               ) : (
-                                <span className="text-gray-300">—</span>
+                                <span className="text-zinc-600">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600">
+                            <td className="px-4 py-3 text-xs text-zinc-300">
                               {r.referred_contact_name && <div>{r.referred_contact_name}</div>}
-                              {r.referred_email && <div className="text-gray-400">{r.referred_email}</div>}
-                              {r.referred_phone && <div className="text-gray-400">{r.referred_phone}</div>}
+                              {r.referred_email && <div className="text-zinc-500">{r.referred_email}</div>}
+                              {r.referred_phone && <div className="text-zinc-500">{r.referred_phone}</div>}
                             </td>
                             <td className="px-4 py-3">
                               <select
                                 value={r.status}
                                 disabled={updatingReferralId === r.id}
                                 onChange={(e) => handleReferralStatusChange(r.id, e.target.value as PartnerReferralStatus)}
-                                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white disabled:opacity-50"
+                                className="text-xs border border-green-600 rounded-lg px-2 py-1 bg-black disabled:opacity-50"
                               >
                                 {(["submitted", "contacted", "converted", "declined"] as PartnerReferralStatus[]).map((s) => (
                                   <option key={s} value={s}>{PARTNER_REFERRAL_STATUS_STYLE[s].label}</option>
                                 ))}
                               </select>
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
+                            <td className="px-4 py-3 text-xs text-zinc-300 whitespace-nowrap">
                               {new Date(r.created_at).toLocaleDateString()}
                             </td>
                           </tr>
@@ -1931,17 +1931,17 @@ function StatCard({
   accent?: "green" | "blue" | "red";
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-5">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
+    <div className="bg-[#0d0d0d] rounded-2xl border border-green-600 p-5">
+      <p className="text-xs text-zinc-400 mb-1">{label}</p>
       <p className={`text-2xl font-bold ${
-        accent === "green" ? "text-green-600" :
-        accent === "blue" ? "text-[#2E6DA4]" :
-        accent === "red" ? "text-red-600" :
-        "text-[#1A3A5C]"
+        accent === "green" ? "text-green-400" :
+        accent === "blue" ? "text-blue-400" :
+        accent === "red" ? "text-red-400" :
+        "text-white"
       }`}>
         {value}
       </p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -1956,10 +1956,10 @@ function PipelineStat({
   color: "amber" | "blue" | "green" | "red";
 }) {
   const cls = {
-    amber: "text-amber-600 bg-amber-50",
-    blue: "text-blue-600 bg-blue-50",
-    green: "text-green-600 bg-green-50",
-    red: "text-red-600 bg-red-50",
+    amber: "text-amber-400 bg-amber-950",
+    blue: "text-blue-400 bg-blue-950",
+    green: "text-green-400 bg-green-950",
+    red: "text-red-400 bg-red-950",
   }[color];
   return (
     <div className={`rounded-xl px-4 py-3 ${cls}`}>
@@ -1971,7 +1971,7 @@ function PipelineStat({
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+    <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">
       {children}
     </th>
   );
@@ -1989,21 +1989,21 @@ function Pagination({
   onNext: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-800">
       <button
         onClick={onPrev}
         disabled={page <= 1}
-        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-600 text-zinc-200 hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         ← Prev
       </button>
-      <span className="text-xs text-gray-500">
+      <span className="text-xs text-zinc-400">
         Page {page} of {totalPages}
       </span>
       <button
         onClick={onNext}
         disabled={page >= totalPages}
-        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-600 text-zinc-200 hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         Next →
       </button>
@@ -2030,7 +2030,7 @@ function AppTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b border-gray-100">
+        <thead className="bg-zinc-900 border-b border-zinc-800">
           <tr>
             <Th>App</Th>
             <Th>User</Th>
@@ -2040,36 +2040,36 @@ function AppTable({
             <Th>Actions</Th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-zinc-800">
           {apps.length === 0 ? (
             <tr>
-              <td colSpan={6} className="text-center py-12 text-gray-400">
+              <td colSpan={6} className="text-center py-12 text-zinc-500">
                 No apps found
               </td>
             </tr>
           ) : (
             apps.map((app) => {
-              const statusCfg = STATUS_STYLE[app.status] ?? { label: app.status, cls: "bg-gray-100 text-gray-500" };
+              const statusCfg = STATUS_STYLE[app.status] ?? { label: app.status, cls: "bg-zinc-800 text-zinc-400" };
               const email = userEmails[app.user_id] ?? app.user_id.slice(0, 8) + "…";
               const msg = redeployMessages[app.id];
               return (
-                <tr key={app.id} className="hover:bg-gray-50/50">
+                <tr key={app.id} className="hover:bg-zinc-900/50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="text-base">{CATEGORY_ICONS[app.category]}</span>
                       <div>
-                        <div className="font-medium text-gray-900">{app.name}</div>
-                        <div className="text-xs text-gray-400 capitalize">{app.category}</div>
+                        <div className="font-medium text-white">{app.name}</div>
+                        <div className="text-xs text-zinc-500 capitalize">{app.category}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">{email}</td>
+                  <td className="px-4 py-3 text-zinc-300 text-xs">{email}</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCfg.cls}`}>
                       {statusCfg.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                  <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
                     {new Date(app.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
@@ -2078,12 +2078,12 @@ function AppTable({
                         href={app.deploy_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-[#2E6DA4] hover:underline truncate block max-w-[160px]"
+                        className="text-xs text-blue-400 hover:underline truncate block max-w-[160px]"
                       >
                         {app.deploy_url.replace("https://", "")}
                       </a>
                     ) : (
-                      <span className="text-xs text-gray-300">—</span>
+                      <span className="text-xs text-zinc-600">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -2098,7 +2098,7 @@ function AppTable({
                         </button>
                       )}
                       {msg && (
-                        <span className={`text-xs ${msg.includes("✓") ? "text-green-600" : "text-red-500"}`}>
+                        <span className={`text-xs ${msg.includes("✓") ? "text-green-400" : "text-red-400"}`}>
                           {msg}
                         </span>
                       )}

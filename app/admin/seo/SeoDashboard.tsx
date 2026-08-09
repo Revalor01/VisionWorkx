@@ -66,11 +66,11 @@ export default function SeoDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-black">
       <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">SEO</span>
+          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">SEO</span>
         </div>
         <Link href="/admin" className="text-xs text-white/70 hover:text-white transition-colors">
           ← Back to Admin
@@ -80,13 +80,13 @@ export default function SeoDashboard({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-[#1A3A5C]">SEO Content</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <h1 className="text-2xl font-bold text-white">SEO Content</h1>
+            <p className="text-zinc-400 text-sm mt-1">
               Weekly keyword research + AI blog posts marketing the Revalor product lineup — internal use only.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {genError && <span className="text-xs text-red-600">{genError}</span>}
+            {genError && <span className="text-xs text-red-400">{genError}</span>}
             <button
               onClick={handleGenerate}
               disabled={generating}
@@ -97,7 +97,7 @@ export default function SeoDashboard({
           </div>
         </div>
 
-        <div className="flex gap-1 mb-6 bg-white border border-gray-200 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-[#0d0d0d] border border-green-600 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {([
             ["drafts", `Drafts (${drafts.length})`],
             ["published", `Published (${published.length})`],
@@ -108,7 +108,7 @@ export default function SeoDashboard({
               key={t}
               onClick={() => setTab(t)}
               className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-medium transition-colors shrink-0 ${
-                tab === t ? "bg-[#1A3A5C] text-white" : "text-gray-600 hover:bg-gray-100"
+                tab === t ? "bg-[#1A3A5C] text-white" : "text-zinc-300 hover:bg-zinc-800"
               }`}
             >
               {label}
@@ -119,7 +119,7 @@ export default function SeoDashboard({
         {tab === "drafts" && (
           <div className="space-y-3">
             {drafts.length === 0 && (
-              <p className="text-sm text-gray-400 py-8 text-center">
+              <p className="text-sm text-zinc-500 py-8 text-center">
                 No drafts yet — hit &quot;Generate Now&quot; or wait for Monday&apos;s cron.
               </p>
             )}
@@ -138,10 +138,10 @@ export default function SeoDashboard({
         )}
 
         {tab === "published" && (
-          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+          <div className="bg-[#0d0d0d] border border-green-600 rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wide text-gray-400 border-b border-gray-100">
+                <tr className="text-left text-[10px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
                   <th className="px-4 py-2.5 font-semibold">Title</th>
                   <th className="px-4 py-2.5 font-semibold">Product</th>
                   <th className="px-4 py-2.5 font-semibold">Score</th>
@@ -153,9 +153,9 @@ export default function SeoDashboard({
                 {published.map((post) => (
                   <tr key={post.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-4 py-2.5 font-medium text-gray-800">{post.title}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{PRODUCTS[post.product].name}</td>
-                    <td className="px-4 py-2.5 text-gray-700">{post.seo_score ?? "—"}/100</td>
-                    <td className="px-4 py-2.5 text-gray-400">
+                    <td className="px-4 py-2.5 text-zinc-400">{PRODUCTS[post.product].name}</td>
+                    <td className="px-4 py-2.5 text-zinc-200">{post.seo_score ?? "—"}/100</td>
+                    <td className="px-4 py-2.5 text-zinc-500">
                       {post.published_at ? new Date(post.published_at).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-4 py-2.5">
@@ -172,7 +172,7 @@ export default function SeoDashboard({
                 ))}
                 {published.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
+                    <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
                       Nothing published yet.
                     </td>
                   </tr>
@@ -183,10 +183,10 @@ export default function SeoDashboard({
         )}
 
         {tab === "keywords" && (
-          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+          <div className="bg-[#0d0d0d] border border-green-600 rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wide text-gray-400 border-b border-gray-100">
+                <tr className="text-left text-[10px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
                   <th className="px-4 py-2.5 font-semibold">Keyword</th>
                   <th className="px-4 py-2.5 font-semibold">Product</th>
                   <th className="px-4 py-2.5 font-semibold">Source</th>
@@ -197,16 +197,16 @@ export default function SeoDashboard({
                 {initialKeywords.map((kw) => (
                   <tr key={kw.id} className="border-b border-gray-50 last:border-0">
                     <td className="px-4 py-2.5 font-medium text-gray-800">{kw.keyword}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{PRODUCTS[kw.product].name}</td>
-                    <td className="px-4 py-2.5 text-gray-400">{kw.source}</td>
-                    <td className="px-4 py-2.5 text-gray-400">
+                    <td className="px-4 py-2.5 text-zinc-400">{PRODUCTS[kw.product].name}</td>
+                    <td className="px-4 py-2.5 text-zinc-500">{kw.source}</td>
+                    <td className="px-4 py-2.5 text-zinc-500">
                       {new Date(kw.discovered_at).toLocaleDateString()}
                     </td>
                   </tr>
                 ))}
                 {initialKeywords.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-gray-400">
+                    <td colSpan={4} className="px-4 py-6 text-center text-zinc-500">
                       No unused keywords queued.
                     </td>
                   </tr>
@@ -217,10 +217,10 @@ export default function SeoDashboard({
         )}
 
         {tab === "log" && (
-          <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+          <div className="bg-[#0d0d0d] border border-green-600 rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wide text-gray-400 border-b border-gray-100">
+                <tr className="text-left text-[10px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
                   <th className="px-4 py-2.5 font-semibold">Run</th>
                   <th className="px-4 py-2.5 font-semibold">Status</th>
                   <th className="px-4 py-2.5 font-semibold">Summary</th>
@@ -229,20 +229,20 @@ export default function SeoDashboard({
               <tbody>
                 {runLog.map((entry) => (
                   <tr key={entry.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-4 py-2.5 text-gray-400">{new Date(entry.run_at).toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-zinc-500">{new Date(entry.run_at).toLocaleString()}</td>
                     <td
                       className={`px-4 py-2.5 font-medium ${
-                        entry.status === "success" ? "text-green-600" : "text-red-600"
+                        entry.status === "success" ? "text-green-400" : "text-red-400"
                       }`}
                     >
                       {entry.status}
                     </td>
-                    <td className="px-4 py-2.5 text-gray-600">{entry.summary}</td>
+                    <td className="px-4 py-2.5 text-zinc-300">{entry.summary}</td>
                   </tr>
                 ))}
                 {runLog.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-6 text-center text-gray-400">
+                    <td colSpan={3} className="px-4 py-6 text-center text-zinc-500">
                       No runs yet.
                     </td>
                   </tr>
@@ -289,42 +289,42 @@ function DraftCard({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-[#0d0d0d] border border-green-600 rounded-xl overflow-hidden">
       <button onClick={onToggle} className="w-full flex items-center justify-between px-5 py-4 text-left">
         <div>
           <p className="font-semibold text-gray-800">{post.title}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-zinc-500 mt-0.5">
             {PRODUCTS[post.product].name} · &quot;{post.keyword}&quot; · score {post.seo_score ?? "—"}/100
           </p>
         </div>
-        <span className="text-gray-400 text-sm">{expanded ? "▲" : "▼"}</span>
+        <span className="text-zinc-500 text-sm">{expanded ? "▲" : "▼"}</span>
       </button>
 
       {expanded && (
-        <div className="border-t border-gray-100 px-5 py-4 space-y-3">
+        <div className="border-t border-zinc-800 px-5 py-4 space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-500">Title</label>
+            <label className="text-xs font-medium text-zinc-400">Title</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-zinc-700 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500">Meta description</label>
+            <label className="text-xs font-medium text-zinc-400">Meta description</label>
             <input
               value={metaDescription}
               onChange={(e) => setMetaDescription(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-zinc-700 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500">Body (markdown)</label>
+            <label className="text-xs font-medium text-zinc-400">Body (markdown)</label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={14}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+              className="mt-1 w-full rounded-lg border border-zinc-700 px-3 py-2 text-sm font-mono"
             />
           </div>
 
@@ -332,7 +332,7 @@ function DraftCard({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-900 disabled:opacity-50"
             >
               {saving ? "Saving…" : saved ? "Saved ✓" : "Save"}
             </button>
@@ -342,7 +342,7 @@ function DraftCard({
             >
               Publish
             </button>
-            <button onClick={onReject} className="ml-auto text-sm text-red-600 hover:underline">
+            <button onClick={onReject} className="ml-auto text-sm text-red-400 hover:underline">
               Reject &amp; delete
             </button>
           </div>
