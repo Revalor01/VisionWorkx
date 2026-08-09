@@ -35,9 +35,16 @@ export async function GET(req: NextRequest) {
 
       if (!brand || !connection) throw new Error("Brand not connected to a Facebook Page");
 
-      const captionWithTags = post.hashtags.length > 0
+      let captionWithTags = post.hashtags.length > 0
         ? `${post.caption}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`
         : post.caption;
+
+      // Facebook unfurls the link into an image/title preview card using
+      // the target page's Open Graph tags — Instagram captions aren't
+      // clickable, so the link is only useful on Facebook.
+      if (post.platform === "facebook" && brand.website_url) {
+        captionWithTags = `${captionWithTags}\n\n${brand.website_url}`;
+      }
 
       let platformPostId: string;
 

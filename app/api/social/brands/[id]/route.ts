@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } = await supabase.auth.getUser();
   if (!isAdmin(user)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { name?: string; voiceNotes?: string; faqDocument?: string };
+  let body: { name?: string; voiceNotes?: string; faqDocument?: string; websiteUrl?: string };
   try {
     body = await req.json();
   } catch {
@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.name !== undefined) update.name = body.name;
   if (body.voiceNotes !== undefined) update.voice_notes = body.voiceNotes;
   if (body.faqDocument !== undefined) update.faq_document = body.faqDocument;
+  if (body.websiteUrl !== undefined) update.website_url = body.websiteUrl || null;
 
   const service = createServiceClient();
   const { error } = await service.from("social_brands").update(update).eq("id", params.id);

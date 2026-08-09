@@ -29,7 +29,7 @@ function BrandsTabInner({
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
-  const [editing, setEditing] = useState<Record<string, { voiceNotes: string; faqDocument: string }>>({});
+  const [editing, setEditing] = useState<Record<string, { voiceNotes: string; faqDocument: string; websiteUrl: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
   async function addBrand() {
@@ -48,14 +48,27 @@ function BrandsTabInner({
   }
 
   function fieldsFor(brand: SocialBrand) {
-    return editing[brand.id] ?? { voiceNotes: brand.voice_notes ?? "", faqDocument: brand.faq_document ?? "" };
+    return (
+      editing[brand.id] ?? {
+        voiceNotes: brand.voice_notes ?? "",
+        faqDocument: brand.faq_document ?? "",
+        websiteUrl: brand.website_url ?? "",
+      }
+    );
   }
 
-  function updateField(brandId: string, field: "voiceNotes" | "faqDocument", value: string) {
+  function updateField(brandId: string, field: "voiceNotes" | "faqDocument" | "websiteUrl", value: string) {
     const brand = brands.find((b) => b.id === brandId)!;
     setEditing((prev) => ({
       ...prev,
-      [brandId]: { ...(prev[brandId] ?? { voiceNotes: brand.voice_notes ?? "", faqDocument: brand.faq_document ?? "" }), [field]: value },
+      [brandId]: {
+        ...(prev[brandId] ?? {
+          voiceNotes: brand.voice_notes ?? "",
+          faqDocument: brand.faq_document ?? "",
+          websiteUrl: brand.website_url ?? "",
+        }),
+        [field]: value,
+      },
     }));
   }
 
@@ -66,10 +79,14 @@ function BrandsTabInner({
       await fetch(`/api/social/brands/${brand.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voiceNotes: fields.voiceNotes, faqDocument: fields.faqDocument }),
+        body: JSON.stringify({ voiceNotes: fields.voiceNotes, faqDocument: fields.faqDocument, websiteUrl: fields.websiteUrl }),
       });
       setBrands((prev) =>
-        prev.map((b) => (b.id === brand.id ? { ...b, voice_notes: fields.voiceNotes, faq_document: fields.faqDocument } : b))
+        prev.map((b) =>
+          b.id === brand.id
+            ? { ...b, voice_notes: fields.voiceNotes, faq_document: fields.faqDocument, website_url: fields.websiteUrl || null }
+            : b
+        )
       );
     } finally {
       setSaving(null);
@@ -134,6 +151,13 @@ function BrandsTabInner({
                   </a>
                 )}
               </div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Website link (added to Facebook posts)</label>
+              <input
+                value={fields.websiteUrl}
+                onChange={(e) => updateField(brand.id, "websiteUrl", e.target.value)}
+                placeholder="https://chorebit.vercel.app"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3"
+              />
               <label className="block text-xs font-medium text-gray-500 mb-1">Brand voice notes</label>
               <textarea
                 value={fields.voiceNotes}

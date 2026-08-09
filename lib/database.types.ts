@@ -671,6 +671,7 @@ export type Database = {
           faq_document: string | null;
           fb_page_id: string | null;
           ig_business_id: string | null;
+          website_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -682,6 +683,7 @@ export type Database = {
           faq_document?: string | null;
           fb_page_id?: string | null;
           ig_business_id?: string | null;
+          website_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -691,6 +693,7 @@ export type Database = {
           faq_document?: string | null;
           fb_page_id?: string | null;
           ig_business_id?: string | null;
+          website_url?: string | null;
           updated_at?: string;
         };
         Relationships: [];
