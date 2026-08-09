@@ -21,9 +21,27 @@ async function getPost(slug: string) {
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const post = await getPost(params.slug);
   if (!post) return {};
+
+  const title = `${post.title} — Revalor Blog`;
+  const description = post.meta_description ?? post.excerpt ?? undefined;
+  const image = "/VisionWorks.png";
+
   return {
-    title: `${post.title} — Revalor Blog`,
-    description: post.meta_description ?? post.excerpt ?? undefined,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      publishedTime: post.published_at ?? undefined,
+      images: [{ url: image, width: 1024, height: 1024 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
   };
 }
 

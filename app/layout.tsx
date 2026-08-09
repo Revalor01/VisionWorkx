@@ -4,10 +4,29 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app";
+const TITLE = "Vision Workx — AI-Powered Apps for Small Businesses";
+const DESCRIPTION =
+  "Describe the app you need in plain English. We build and deploy it in days — no code, no agency.";
+
 export const metadata: Metadata = {
-  title: "Vision Workx — AI-Powered Apps for Small Businesses",
-  description:
-    "Describe the app you need in plain English. We build and deploy it in days — no code, no agency.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Vision Workx",
+    images: [{ url: "/VisionWorks.png", width: 1024, height: 1024 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/VisionWorks.png"],
+  },
 };
 
 export default function RootLayout({
