@@ -151,8 +151,8 @@ export default function SeoDashboard({
               </thead>
               <tbody>
                 {published.map((post) => (
-                  <tr key={post.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-gray-800">{post.title}</td>
+                  <tr key={post.id} className="border-b border-zinc-800 last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-white">{post.title}</td>
                     <td className="px-4 py-2.5 text-zinc-400">{PRODUCTS[post.product].name}</td>
                     <td className="px-4 py-2.5 text-zinc-200">{post.seo_score ?? "—"}/100</td>
                     <td className="px-4 py-2.5 text-zinc-500">
@@ -195,8 +195,8 @@ export default function SeoDashboard({
               </thead>
               <tbody>
                 {initialKeywords.map((kw) => (
-                  <tr key={kw.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-gray-800">{kw.keyword}</td>
+                  <tr key={kw.id} className="border-b border-zinc-800 last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-white">{kw.keyword}</td>
                     <td className="px-4 py-2.5 text-zinc-400">{PRODUCTS[kw.product].name}</td>
                     <td className="px-4 py-2.5 text-zinc-500">{kw.source}</td>
                     <td className="px-4 py-2.5 text-zinc-500">
@@ -228,7 +228,7 @@ export default function SeoDashboard({
               </thead>
               <tbody>
                 {runLog.map((entry) => (
-                  <tr key={entry.id} className="border-b border-gray-50 last:border-0">
+                  <tr key={entry.id} className="border-b border-zinc-800 last:border-0">
                     <td className="px-4 py-2.5 text-zinc-500">{new Date(entry.run_at).toLocaleString()}</td>
                     <td
                       className={`px-4 py-2.5 font-medium ${
@@ -292,7 +292,7 @@ function DraftCard({
     <div className="bg-[#0d0d0d] border border-green-600 rounded-xl overflow-hidden">
       <button onClick={onToggle} className="w-full flex items-center justify-between px-5 py-4 text-left">
         <div>
-          <p className="font-semibold text-gray-800">{post.title}</p>
+          <p className="font-semibold text-white">{post.title}</p>
           <p className="text-xs text-zinc-500 mt-0.5">
             {PRODUCTS[post.product].name} · &quot;{post.keyword}&quot; · score {post.seo_score ?? "—"}/100
           </p>
