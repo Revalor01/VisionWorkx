@@ -18,6 +18,7 @@ export type VercelProjectRow = {
   state: string;
   domain: string | null;
   deployedAt: string | null;
+  errorLink: string | null;
 };
 
 async function fetchSupabaseProjects(token: string): Promise<SupabaseProjectRow[]> {
@@ -56,19 +57,45 @@ async function fetchVercelProjects(token: string): Promise<VercelProjectRow[]> {
     name: string;
     targets?: {
       production?: {
+        id?: string;
         alias?: string[];
         readyState?: string;
         createdAt?: number;
       };
     };
   };
-  return ((data.projects ?? []) as VercelApiProject[]).map((p) => {
+
+  const projects = (data.projects ?? []) as VercelApiProject[];
+
+  // Vercel's project-list endpoint doesn't include *why* a deployment is
+  // blocked/errored — only the deployment endpoint has errorLink. Fetch it,
+  // but only for projects that actually need it, to keep this cheap.
+  const errorLinks = await Promise.all(
+    projects.map(async (p) => {
+      const prod = p.targets?.production;
+      if (!prod?.id || prod.readyState === "READY") return null;
+      try {
+        const dRes = await fetch(`https://api.vercel.com/v13/deployments/${prod.id}?teamId=${VERCEL_TEAM_ID}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!dRes.ok) return null;
+        const dJson = await dRes.json();
+        return (dJson.errorLink as string | undefined) ?? null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return projects.map((p, i) => {
     const prod = p.targets?.production;
     return {
       name: p.name,
       state: prod?.readyState ?? "—",
       domain: prod?.alias?.[0] ?? null,
       deployedAt: prod?.createdAt ? new Date(prod.createdAt).toISOString() : null,
+      errorLink: errorLinks[i],
     };
   });
 }

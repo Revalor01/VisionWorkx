@@ -184,10 +184,22 @@ export default function OpsDashboard({
                                 ? "text-green-400"
                                 : p.state === "ERROR"
                                   ? "text-red-400"
-                                  : "text-zinc-500"
+                                  : p.state === "BLOCKED"
+                                    ? "text-amber-400"
+                                    : "text-zinc-500"
                             }`}
                           >
                             {p.state}
+                            {p.errorLink && (
+                              <a
+                                href={p.errorLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-[11px] font-normal text-amber-500/80 hover:text-amber-400 hover:underline mt-0.5"
+                              >
+                                why? →
+                              </a>
+                            )}
                           </td>
                           <td className="px-4 py-2.5">
                             {p.domain ? (
