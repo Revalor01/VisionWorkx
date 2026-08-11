@@ -402,6 +402,42 @@ function ContentCard({
   linkVideoAsset: (id: string, videoAssetId: string) => Promise<void>;
   deleteContent: (id: string) => Promise<void>;
 }) {
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [hasImage, setHasImage] = useState(!!c.image_path);
+
+  async function generateImage() {
+    setGeneratingImage(true);
+    setImageError("");
+    try {
+      const res = await fetch(`/api/social/content/${c.id}/generate-image`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setPreviewDataUrl(body.dataUrl);
+      setHasImage(true);
+    } catch (err) {
+      setImageError((err as Error).message);
+    } finally {
+      setGeneratingImage(false);
+    }
+  }
+
+  async function loadExistingImage() {
+    if (previewDataUrl) {
+      setPreviewDataUrl(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/social/content/${c.id}/image-url`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setPreviewDataUrl(body.url);
+    } catch (err) {
+      setImageError((err as Error).message);
+    }
+  }
+
   return (
     <div className="bg-[#0d0d0d] border border-green-600 rounded-xl p-4">
       <div className="flex justify-between items-start mb-2">
@@ -425,9 +461,35 @@ function ContentCard({
         <p className="text-xs text-red-400 mb-2">Failed: {c.failure_reason}</p>
       )}
 
+      {(c.status === "draft" || c.status === "approved" || c.status === "scheduled") && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={generateImage}
+              disabled={generatingImage}
+              className="text-xs font-medium text-purple-400 hover:underline disabled:opacity-50"
+            >
+              {generatingImage ? "Generating…" : hasImage ? "Regenerate image" : "Generate image"}
+            </button>
+            {hasImage && (
+              <button onClick={loadExistingImage} className="text-xs font-medium text-sky-400 hover:underline">
+                {previewDataUrl ? "Hide preview" : "Show image"}
+              </button>
+            )}
+          </div>
+          {imageError && <p className="text-xs text-red-400 mt-1">{imageError}</p>}
+          {previewDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewDataUrl} alt="Generated post image" className="mt-2 w-40 rounded-lg border border-zinc-700" />
+          )}
+        </div>
+      )}
+
       {c.platform === "instagram" && (c.status === "draft" || c.status === "approved") && (
         <div className="mb-2">
-          <label className="text-xs text-zinc-400 mr-2">Video asset (required for Instagram):</label>
+          <label className="text-xs text-zinc-400 mr-2">
+            Video asset {hasImage ? "(optional — a generated image is already linked)" : "(or generate an image above)"}:
+          </label>
           <select
             value={c.video_asset_id ?? ""}
             onChange={(e) => linkVideoAsset(c.id, e.target.value)}

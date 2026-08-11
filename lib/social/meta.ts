@@ -95,6 +95,22 @@ export async function publishFacebookPost(params: {
   return { postId: body.id };
 }
 
+// Posts a photo directly (not just a link-unfurl preview) — the photo's
+// caption is the full post text, same as a /feed post.
+export async function publishFacebookPhotoPost(params: {
+  pageId: string;
+  pageAccessToken: string;
+  imageUrl: string;
+  caption: string;
+}): Promise<{ postId: string }> {
+  const body = await graphFetch(
+    `/${params.pageId}/photos`,
+    { url: params.imageUrl, caption: params.caption, access_token: params.pageAccessToken },
+    "POST"
+  );
+  return { postId: body.post_id ?? body.id };
+}
+
 // Instagram requires a publicly fetchable media URL — pass a signed URL
 // with enough TTL for Meta's servers to fetch it during container creation.
 export async function publishInstagramPost(params: {

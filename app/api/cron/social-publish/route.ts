@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { publishFacebookPost, publishInstagramPost } from "@/lib/social/meta";
+import { publishFacebookPost, publishFacebookPhotoPost, publishInstagramPost } from "@/lib/social/meta";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const BUCKET = "social-video-assets";
+const VIDEO_BUCKET = "social-video-assets";
+const IMAGE_BUCKET = "social-content-images";
 const SIGNED_URL_TTL_SECONDS = 3600; // long enough for Meta's servers to fetch the media during processing
 
 export async function GET(req: NextRequest) {
@@ -50,17 +51,32 @@ export async function GET(req: NextRequest) {
 
       if (post.platform === "facebook") {
         if (!brand.fb_page_id) throw new Error("Brand has no connected fb_page_id");
-        const result = await publishFacebookPost({
-          pageId: brand.fb_page_id,
-          pageAccessToken: connection.fb_page_access_token,
-          message: captionWithTags,
-        });
-        platformPostId = result.postId;
+
+        if (post.image_path) {
+          const { data: signed, error: signError } = await service.storage
+            .from(IMAGE_BUCKET)
+            .createSignedUrl(post.image_path, SIGNED_URL_TTL_SECONDS);
+          if (signError || !signed) throw new Error("Failed to sign image URL for Facebook publish");
+          const result = await publishFacebookPhotoPost({
+            pageId: brand.fb_page_id,
+            pageAccessToken: connection.fb_page_access_token,
+            imageUrl: signed.signedUrl,
+            caption: captionWithTags,
+          });
+          platformPostId = result.postId;
+        } else {
+          const result = await publishFacebookPost({
+            pageId: brand.fb_page_id,
+            pageAccessToken: connection.fb_page_access_token,
+            message: captionWithTags,
+          });
+          platformPostId = result.postId;
+        }
       } else {
         if (!brand.ig_business_id) throw new Error("Brand has no connected ig_business_id");
 
         let mediaUrl: string;
-        let isVideo = false;
+        let isVideo: boolean;
         if (post.video_asset_id) {
           const { data: asset } = await service
             .from("social_video_assets")
@@ -69,13 +85,20 @@ export async function GET(req: NextRequest) {
             .maybeSingle();
           if (!asset?.final_path) throw new Error("Linked video asset has no final_path");
           const { data: signed, error: signError } = await service.storage
-            .from(BUCKET)
+            .from(VIDEO_BUCKET)
             .createSignedUrl(asset.final_path, SIGNED_URL_TTL_SECONDS);
           if (signError || !signed) throw new Error("Failed to sign media URL for Instagram publish");
           mediaUrl = signed.signedUrl;
           isVideo = true;
+        } else if (post.image_path) {
+          const { data: signed, error: signError } = await service.storage
+            .from(IMAGE_BUCKET)
+            .createSignedUrl(post.image_path, SIGNED_URL_TTL_SECONDS);
+          if (signError || !signed) throw new Error("Failed to sign image URL for Instagram publish");
+          mediaUrl = signed.signedUrl;
+          isVideo = false;
         } else {
-          throw new Error("Instagram posts require a linked video asset in this version");
+          throw new Error("Instagram posts require a linked video asset or a generated image");
         }
 
         const result = await publishInstagramPost({

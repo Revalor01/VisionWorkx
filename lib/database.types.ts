@@ -756,6 +756,7 @@ export type Database = {
           id: string;
           brand_id: string;
           video_asset_id: string | null;
+          image_path: string | null;
           platform: SocialPlatform;
           hook: string | null;
           caption: string;
@@ -772,6 +773,7 @@ export type Database = {
           id?: string;
           brand_id: string;
           video_asset_id?: string | null;
+          image_path?: string | null;
           platform: SocialPlatform;
           hook?: string | null;
           caption: string;
@@ -783,6 +785,7 @@ export type Database = {
         };
         Update: {
           video_asset_id?: string | null;
+          image_path?: string | null;
           hook?: string | null;
           caption?: string;
           hashtags?: string[];
