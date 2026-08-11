@@ -3,7 +3,7 @@ import { generateImage } from "ai";
 // Routed through Vercel AI Gateway — plain "provider/model" string,
 // authenticated automatically via Vercel OIDC in production, no
 // separate API key needed.
-const IMAGE_MODEL = "google/gemini-2.5-flash-image";
+const IMAGE_MODEL = "bfl/flux-2-pro";
 
 export interface GeneratedContentImage {
   base64: string;
