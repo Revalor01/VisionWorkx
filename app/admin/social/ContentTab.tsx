@@ -23,6 +23,13 @@ function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// new Date("YYYY-MM-DD") parses as UTC midnight, which can render as the
+// previous day in timezones behind UTC — build the Date from local parts.
+function parseDayKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export default function ContentTab({
   brands,
   content,
@@ -296,7 +303,7 @@ export default function ContentTab({
           {selectedDay && (
             <div>
               <p className="text-sm font-semibold text-white mb-3">
-                {new Date(selectedDay).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+                {parseDayKey(selectedDay).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
                 {selectedDayPosts.length === 0 && <span className="text-zinc-500 font-normal"> — nothing scheduled</span>}
               </p>
               <div className="space-y-3">
