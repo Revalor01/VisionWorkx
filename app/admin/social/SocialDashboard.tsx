@@ -7,9 +7,10 @@ import BrandsTab from "./BrandsTab";
 import ContentTab from "./ContentTab";
 import VideoTab from "./VideoTab";
 import InboxTab from "./InboxTab";
+import RecapTab from "./RecapTab";
 import HelpTab from "./HelpTab";
 
-type Tab = "brands" | "content" | "video" | "inbox" | "help";
+type Tab = "brands" | "content" | "video" | "inbox" | "recap" | "help";
 
 export default function SocialDashboard({
   isAdmin,
@@ -32,7 +33,7 @@ export default function SocialDashboard({
 
   const openInboxCount = inboxItems.filter((i) => i.status === "open" && i.classification === "requires_human").length;
 
-  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "help"] : ["video"];
+  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "recap", "help"] : ["video"];
 
   return (
     <div className="min-h-screen bg-black">
@@ -77,6 +78,7 @@ export default function SocialDashboard({
         {tab === "content" && <ContentTab brands={brands} content={content} setContent={setContent} videoAssets={videoAssets} />}
         {tab === "video" && <VideoTab brands={brands} videoAssets={videoAssets} setVideoAssets={setVideoAssets} />}
         {tab === "inbox" && <InboxTab brands={brands} inboxItems={inboxItems} setInboxItems={setInboxItems} />}
+        {tab === "recap" && <RecapTab />}
         {tab === "help" && <HelpTab />}
       </div>
     </div>

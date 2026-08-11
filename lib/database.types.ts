@@ -358,6 +358,39 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      weekly_recaps: {
+        Row: {
+          id: string;
+          week_start: string;
+          stats: Record<string, unknown>;
+          script: string | null;
+          video_prompt: string | null;
+          video_path: string | null;
+          status: "draft" | "video_ready";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          week_start: string;
+          stats: Record<string, unknown>;
+          script?: string | null;
+          video_prompt?: string | null;
+          video_path?: string | null;
+          status?: "draft" | "video_ready";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          stats?: Record<string, unknown>;
+          script?: string | null;
+          video_prompt?: string | null;
+          video_path?: string | null;
+          status?: "draft" | "video_ready";
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       leads: {
         Row: {
           id: string;
@@ -1011,3 +1044,4 @@ export type PartnerReferral = Database["public"]["Tables"]["partner_referrals"][
 export type BlogPost = Database["public"]["Tables"]["blog_posts"]["Row"];
 export type BlogKeyword = Database["public"]["Tables"]["blog_keywords"]["Row"];
 export type BlogRunLogEntry = Database["public"]["Tables"]["blog_run_log"]["Row"];
+export type WeeklyRecap = Database["public"]["Tables"]["weekly_recaps"]["Row"];
