@@ -9,6 +9,15 @@ const BRAND_LOGOS: Record<string, string> = {
   "Revalor Kids": "/revalor-kids-logo.png",
 };
 
+// "Revalor Kids" is an umbrella brand covering three separate apps —
+// show each one so it's clear at a glance what content under this
+// brand is actually promoting.
+const REVALOR_KIDS_PRODUCTS = [
+  { name: "Chorebit", logo: "/chorebit-logo.png" },
+  { name: "FeelFlow", logo: "/feelflow-logo.png" },
+  { name: "MindBit", logo: "/mindbit-logo.png" },
+];
+
 function FacebookIcon({ active }: { active: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
@@ -197,6 +206,18 @@ function BrandsTabInner({
                   )}
                 </div>
               </div>
+              {brand.name === "Revalor Kids" && (
+                <div className="flex items-center gap-3 mb-4 p-2 bg-black border border-zinc-800 rounded-lg">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Covers</span>
+                  {REVALOR_KIDS_PRODUCTS.map((p) => (
+                    <div key={p.name} className="flex items-center gap-1.5" title={p.name}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.logo} alt={`${p.name} logo`} className="w-5 h-5 rounded object-contain" />
+                      <span className="text-xs text-zinc-300">{p.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <label className="block text-xs font-medium text-zinc-400 mb-1">Website link (added to Facebook posts)</label>
               <input
                 value={fields.websiteUrl}
