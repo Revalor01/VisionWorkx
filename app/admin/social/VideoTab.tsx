@@ -33,6 +33,33 @@ export default function VideoTab({
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const finalFileInputRef = useRef<Record<string, HTMLInputElement | null>>({});
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<Record<string, string>>({});
+
+  async function togglePreview(asset: SocialVideoAsset, which: "raw" | "final") {
+    const key = `${asset.id}:${which}`;
+    if (previewUrls[key]) {
+      setPreviewUrls((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
+    setPreviewLoading(key);
+    setPreviewError((prev) => ({ ...prev, [key]: "" }));
+    try {
+      const res = await fetch(`/api/social/video-assets/${asset.id}/preview-url?which=${which}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setPreviewUrls((prev) => ({ ...prev, [key]: body.url }));
+    } catch (err) {
+      setPreviewError((prev) => ({ ...prev, [key]: (err as Error).message }));
+    } finally {
+      setPreviewLoading(null);
+    }
+  }
 
   async function handleRawUpload(file: File) {
     if (!brandId) return;
@@ -135,6 +162,45 @@ export default function VideoTab({
               </span>
             </div>
             <p className="text-xs text-zinc-500 mb-3 font-mono">{asset.raw_path.split("/").pop()}</p>
+
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => togglePreview(asset, "raw")}
+                disabled={previewLoading === `${asset.id}:raw`}
+                className="text-xs font-medium text-sky-400 hover:underline disabled:opacity-50"
+              >
+                {previewLoading === `${asset.id}:raw`
+                  ? "Loading…"
+                  : previewUrls[`${asset.id}:raw`]
+                    ? "Hide raw"
+                    : "Preview raw"}
+              </button>
+              {asset.final_path && (
+                <button
+                  onClick={() => togglePreview(asset, "final")}
+                  disabled={previewLoading === `${asset.id}:final`}
+                  className="text-xs font-medium text-sky-400 hover:underline disabled:opacity-50"
+                >
+                  {previewLoading === `${asset.id}:final`
+                    ? "Loading…"
+                    : previewUrls[`${asset.id}:final`]
+                      ? "Hide final"
+                      : "Preview final"}
+                </button>
+              )}
+            </div>
+            {previewError[`${asset.id}:raw`] && (
+              <p className="text-xs text-red-400 mb-2">{previewError[`${asset.id}:raw`]}</p>
+            )}
+            {previewError[`${asset.id}:final`] && (
+              <p className="text-xs text-red-400 mb-2">{previewError[`${asset.id}:final`]}</p>
+            )}
+            {previewUrls[`${asset.id}:raw`] && (
+              <video controls src={previewUrls[`${asset.id}:raw`]} className="w-full rounded-lg mb-3 bg-black" />
+            )}
+            {previewUrls[`${asset.id}:final`] && (
+              <video controls src={previewUrls[`${asset.id}:final`]} className="w-full rounded-lg mb-3 bg-black" />
+            )}
 
             {asset.status !== "ready" && asset.status !== "posted" && (
               <div className="mb-2">
