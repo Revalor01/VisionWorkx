@@ -31,6 +31,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
       brandVoiceNotes: brand.voice_notes,
       hook: post.hook,
       caption: post.caption,
+      platform: post.platform,
     });
 
     const ext = extFor(image.mediaType);
