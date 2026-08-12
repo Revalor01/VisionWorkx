@@ -17,7 +17,9 @@ export async function generateRecapVideo(videoPrompt: string): Promise<Generated
     duration: 10,
     generateAudio: true,
     providerOptions: {
-      klingai: { mode: "std" },
+      // Kling only supports native audio in pro mode — std mode rejects
+      // generateAudio: true outright.
+      klingai: { mode: "pro" },
     },
   });
 
