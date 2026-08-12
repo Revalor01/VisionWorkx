@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { WeeklyRecap } from "@/lib/database.types";
+import MediaSpendCard from "./MediaSpendCard";
 
 export default function RecapTab() {
   const [recaps, setRecaps] = useState<WeeklyRecap[]>([]);
@@ -9,6 +10,7 @@ export default function RecapTab() {
   const [generatingScript, setGeneratingScript] = useState(false);
   const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [errorSource, setErrorSource] = useState<"script" | "video" | null>(null);
   const [editing, setEditing] = useState<Record<string, { script: string; videoPrompt: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
@@ -31,6 +33,7 @@ export default function RecapTab() {
   async function generateScript() {
     setGeneratingScript(true);
     setError("");
+    setErrorSource(null);
     try {
       const res = await fetch("/api/admin/recap/generate-script", { method: "POST" });
       const body = await res.json();
@@ -41,6 +44,7 @@ export default function RecapTab() {
       });
     } catch (err) {
       setError((err as Error).message);
+      setErrorSource("script");
     } finally {
       setGeneratingScript(false);
     }
@@ -77,6 +81,7 @@ export default function RecapTab() {
     await saveEdits(recap);
     setGeneratingVideoId(recap.id);
     setError("");
+    setErrorSource(null);
     try {
       const res = await fetch(`/api/admin/recap/${recap.id}/generate-video`, { method: "POST" });
       const body = await res.json();
@@ -85,6 +90,7 @@ export default function RecapTab() {
       loadPreview(recap.id);
     } catch (err) {
       setError((err as Error).message);
+      setErrorSource("video");
     } finally {
       setGeneratingVideoId(null);
     }
@@ -127,7 +133,31 @@ export default function RecapTab() {
         </button>
       </div>
 
-      {error && <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
+      <MediaSpendCard focus="video" />
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">
+          {error}
+          {errorSource === "video" && (
+            <p className="mt-2 text-xs text-red-600">
+              Automated video generation failed. Check the{" "}
+              <a
+                href="https://vercel.com/dashboard/ai-gateway"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-red-800"
+              >
+                Vercel AI Gateway dashboard
+              </a>{" "}
+              for the underlying error (rate limit, outage, billing), or generate the clip manually at{" "}
+              <a href="https://klingai.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-800">
+                klingai.com
+              </a>{" "}
+              and upload it in the Video tab.
+            </p>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-slate-400">Loading…</p>

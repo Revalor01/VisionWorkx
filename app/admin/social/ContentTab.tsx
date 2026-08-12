@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { SocialBrand, SocialContent, SocialContentStatus, SocialPlatform, SocialVideoAsset } from "@/lib/database.types";
+import MediaSpendCard from "./MediaSpendCard";
 
 const STATUS_STYLE: Record<SocialContentStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
@@ -180,6 +181,8 @@ export default function ContentTab({
           </button>
         </div>
       </div>
+
+      <MediaSpendCard focus="image" />
 
       {view === "list" ? (
         <>
