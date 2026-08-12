@@ -42,7 +42,7 @@ export interface PromoteTargetAudience {
   location: string;
 }
 
-export type SocialPlatform = "facebook" | "instagram";
+export type SocialPlatform = "facebook" | "instagram" | "tiktok";
 export type SocialVideoStatus = "raw" | "in_editing" | "ready" | "posted";
 export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" | "failed";
 export type SocialInboxSourceType = "dm" | "comment";
@@ -705,6 +705,8 @@ export type Database = {
           fb_page_id: string | null;
           ig_business_id: string | null;
           website_url: string | null;
+          tiktok_open_id: string | null;
+          tiktok_username: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -717,6 +719,8 @@ export type Database = {
           fb_page_id?: string | null;
           ig_business_id?: string | null;
           website_url?: string | null;
+          tiktok_open_id?: string | null;
+          tiktok_username?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -727,6 +731,8 @@ export type Database = {
           fb_page_id?: string | null;
           ig_business_id?: string | null;
           website_url?: string | null;
+          tiktok_open_id?: string | null;
+          tiktok_username?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -750,6 +756,46 @@ export type Database = {
           fb_page_access_token?: string;
           token_expires_at?: string | null;
         };
+        Relationships: [];
+      };
+      social_tiktok_connections: {
+        Row: {
+          id: string;
+          brand_id: string;
+          access_token: string;
+          refresh_token: string;
+          access_token_expires_at: string;
+          connected_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          access_token: string;
+          refresh_token: string;
+          access_token_expires_at: string;
+          connected_at?: string;
+        };
+        Update: {
+          access_token?: string;
+          refresh_token?: string;
+          access_token_expires_at?: string;
+        };
+        Relationships: [];
+      };
+      social_tiktok_oauth_sessions: {
+        Row: {
+          id: string;
+          brand_id: string;
+          code_verifier: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          code_verifier: string;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       social_video_assets: {

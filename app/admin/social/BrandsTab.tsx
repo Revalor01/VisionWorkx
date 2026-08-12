@@ -49,6 +49,17 @@ function InstagramIcon({ active, uid }: { active: boolean; uid: string }) {
   );
 }
 
+function TikTokIcon({ active }: { active: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
+      <path
+        fill="#000000"
+        d="M16.6 5.82c-.9-.98-1.39-2.26-1.39-3.6h-3.09v13.79c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3c.31 0 .61.05.9.13V9.9a6.14 6.14 0 0 0-.9-.07c-3.36 0-6.09 2.73-6.09 6.09s2.73 6.08 6.09 6.08 6.08-2.72 6.08-6.08V8.86a9.15 9.15 0 0 0 5.33 1.71V7.48a5.6 5.6 0 0 1-3.93-1.66z"
+      />
+    </svg>
+  );
+}
+
 export default function BrandsTab(props: {
   brands: SocialBrand[];
   setBrands: React.Dispatch<React.SetStateAction<SocialBrand[]>>;
@@ -189,12 +200,13 @@ function BrandsTabInner({
                   )}
                   <h3 className="font-semibold text-[#1A3A5C]">{brand.name}</h3>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <FacebookIcon active={!!brand.fb_page_id} />
                   <InstagramIcon active={!!brand.ig_business_id} uid={brand.id} />
+                  <TikTokIcon active={!!brand.tiktok_open_id} />
                   {brand.fb_page_id ? (
                     <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                      Connected
+                      FB Connected
                     </span>
                   ) : (
                     <a
@@ -202,6 +214,21 @@ function BrandsTabInner({
                       className="text-xs font-medium text-[#1877F2] hover:underline"
                     >
                       Connect Facebook
+                    </a>
+                  )}
+                  {brand.tiktok_open_id ? (
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700"
+                      title={brand.tiktok_username ?? undefined}
+                    >
+                      TikTok Connected
+                    </span>
+                  ) : (
+                    <a
+                      href={`/api/social/connect/tiktok/connect?brandId=${brand.id}`}
+                      className="text-xs font-medium text-black hover:underline"
+                    >
+                      Connect TikTok
                     </a>
                   )}
                 </div>
