@@ -205,9 +205,18 @@ function BrandsTabInner({
                   <InstagramIcon active={!!brand.ig_business_id} uid={brand.id} />
                   <TikTokIcon active={!!brand.tiktok_open_id} />
                   {brand.fb_page_id ? (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                      FB Connected
-                    </span>
+                    <>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        FB Connected
+                      </span>
+                      <a
+                        href={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
+                        className="text-[10px] font-medium text-[#1877F2] hover:underline"
+                        title="Re-run Facebook connect — use this after linking an Instagram account to this Page, to pull it in"
+                      >
+                        Reconnect
+                      </a>
+                    </>
                   ) : (
                     <a
                       href={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
