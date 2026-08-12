@@ -113,8 +113,8 @@ export default function RecapTab() {
     <div>
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-white">Weekly Recap</h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <h2 className="text-lg font-semibold text-[#1A3A5C]">Weekly Recap</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
             Real stats pulled from all four products, turned into a short personal recap video to share yourself.
           </p>
         </div>
@@ -127,12 +127,12 @@ export default function RecapTab() {
         </button>
       </div>
 
-      {error && <div className="mb-4 p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-400 text-sm">{error}</div>}
+      {error && <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className="text-sm text-slate-400">Loading…</p>
       ) : recaps.length === 0 ? (
-        <div className="bg-black border border-dashed border-zinc-700 rounded-xl p-10 text-center text-zinc-500 text-sm">
+        <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
           No recaps yet — click &ldquo;Generate this week&apos;s script&rdquo; to pull real stats and draft one.
         </div>
       ) : (
@@ -141,59 +141,59 @@ export default function RecapTab() {
             const fields = fieldsFor(recap);
             const stats = recap.stats as Record<string, Record<string, number>>;
             return (
-              <div key={recap.id} className="bg-[#0d0d0d] border border-green-600 rounded-xl p-4">
+              <div key={recap.id} className="bg-white border border-green-600 rounded-xl p-4">
                 <div className="flex justify-between items-start mb-3">
-                  <span className="text-sm font-semibold text-white">Week of {recap.week_start}</span>
+                  <span className="text-sm font-semibold text-[#1A3A5C]">Week of {recap.week_start}</span>
                   <span
                     className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                      recap.status === "video_ready" ? "bg-green-900/40 text-green-300" : "bg-zinc-800 text-zinc-300"
+                      recap.status === "video_ready" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
                     }`}
                   >
                     {recap.status === "video_ready" ? "Video ready" : "Draft"}
                   </span>
                 </div>
 
-                <div className="grid sm:grid-cols-4 gap-2 mb-3 text-xs text-zinc-400">
+                <div className="grid sm:grid-cols-4 gap-2 mb-3 text-xs text-slate-500">
                   {Object.entries(stats ?? {}).map(([product, values]) => (
-                    <div key={product} className="bg-black border border-zinc-800 rounded-lg p-2">
-                      <p className="font-semibold text-zinc-300 capitalize mb-1">{product}</p>
+                    <div key={product} className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                      <p className="font-semibold text-slate-600 capitalize mb-1">{product}</p>
                       {Object.entries(values).map(([k, v]) => (
                         <p key={k}>
-                          {k}: <span className="text-white">{v}</span>
+                          {k}: <span className="text-[#1A3A5C]">{v}</span>
                         </p>
                       ))}
                     </div>
                   ))}
                 </div>
 
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Script / caption</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Script / caption</label>
                 <textarea
                   value={fields.script}
                   onChange={(e) => updateField(recap.id, "script", e.target.value)}
                   rows={3}
-                  className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm mb-3 resize-none bg-black text-white"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3 resize-none bg-white text-slate-800"
                 />
 
-                <label className="block text-xs font-medium text-zinc-400 mb-1">Video visual prompt</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Video visual prompt</label>
                 <textarea
                   value={fields.videoPrompt}
                   onChange={(e) => updateField(recap.id, "videoPrompt", e.target.value)}
                   rows={2}
-                  className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm mb-3 resize-none bg-black text-white"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3 resize-none bg-white text-slate-800"
                 />
 
                 <div className="flex items-center gap-3 flex-wrap">
                   <button
                     onClick={() => saveEdits(recap)}
                     disabled={saving === recap.id}
-                    className="text-xs font-medium text-sky-400 hover:underline disabled:opacity-50"
+                    className="text-xs font-medium text-sky-600 hover:underline disabled:opacity-50"
                   >
                     {saving === recap.id ? "Saving…" : "Save edits"}
                   </button>
                   <button
                     onClick={() => generateVideo(recap)}
                     disabled={generatingVideoId === recap.id || !fields.videoPrompt}
-                    className="text-xs font-medium text-purple-400 hover:underline disabled:opacity-50"
+                    className="text-xs font-medium text-purple-600 hover:underline disabled:opacity-50"
                   >
                     {generatingVideoId === recap.id
                       ? "Generating video… this can take a minute or two"
@@ -202,7 +202,7 @@ export default function RecapTab() {
                         : "Generate video"}
                   </button>
                   {recap.status === "video_ready" && (
-                    <button onClick={() => loadPreview(recap.id)} className="text-xs font-medium text-amber-400 hover:underline">
+                    <button onClick={() => loadPreview(recap.id)} className="text-xs font-medium text-amber-600 hover:underline">
                       {previewUrls[recap.id] ? "Hide preview" : "Show video"}
                     </button>
                   )}

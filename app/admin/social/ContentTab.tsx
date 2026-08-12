@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import type { SocialBrand, SocialContent, SocialContentStatus, SocialPlatform, SocialVideoAsset } from "@/lib/database.types";
 
 const STATUS_STYLE: Record<SocialContentStatus, string> = {
-  draft: "bg-zinc-800 text-zinc-300",
-  approved: "bg-sky-900/40 text-sky-300",
-  scheduled: "bg-amber-900/40 text-amber-300",
-  posted: "bg-green-900/40 text-green-300",
-  failed: "bg-red-900/40 text-red-300",
+  draft: "bg-slate-100 text-slate-600",
+  approved: "bg-sky-100 text-sky-700",
+  scheduled: "bg-amber-100 text-amber-700",
+  posted: "bg-green-100 text-green-700",
+  failed: "bg-red-100 text-red-700",
 };
 
 const STATUS_DOT: Record<SocialContentStatus, string> = {
@@ -151,13 +151,13 @@ export default function ContentTab({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-white">Content Calendar</h2>
+        <h2 className="text-lg font-semibold text-[#1A3A5C]">Content Calendar</h2>
         <div className="flex items-center gap-3">
-          <div className="flex bg-black border border-green-600 rounded-lg p-0.5">
+          <div className="flex bg-white border border-green-600 rounded-lg p-0.5">
             <button
               onClick={() => setView("list")}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                view === "list" ? "bg-[#1A3A5C] text-white" : "text-zinc-400"
+                view === "list" ? "bg-[#1A3A5C] text-white" : "text-slate-500"
               }`}
             >
               List
@@ -165,7 +165,7 @@ export default function ContentTab({
             <button
               onClick={() => setView("calendar")}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                view === "calendar" ? "bg-[#1A3A5C] text-white" : "text-zinc-400"
+                view === "calendar" ? "bg-[#1A3A5C] text-white" : "text-slate-500"
               }`}
             >
               Calendar
@@ -189,7 +189,7 @@ export default function ContentTab({
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-                  statusFilter === s ? "bg-[#1A3A5C] text-white" : "bg-black border border-green-600 text-zinc-300"
+                  statusFilter === s ? "bg-[#1A3A5C] text-white" : "bg-white border border-green-600 text-slate-600"
                 }`}
               >
                 {s}
@@ -198,7 +198,7 @@ export default function ContentTab({
           </div>
 
           {filtered.length === 0 ? (
-            <div className="bg-black border border-dashed border-zinc-700 rounded-xl p-10 text-center text-zinc-500 text-sm">
+            <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
               No content{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""} yet.
             </div>
           ) : (
@@ -222,15 +222,15 @@ export default function ContentTab({
       ) : (
         <div>
           {unscheduled.length > 0 && (
-            <div className="mb-4 p-3 bg-black border border-dashed border-zinc-700 rounded-xl">
-              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
+            <div className="mb-4 p-3 bg-white border border-dashed border-slate-300 rounded-xl">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                 Unscheduled ({unscheduled.length})
               </p>
               <div className="flex flex-wrap gap-2">
                 {unscheduled.map((c) => (
                   <span
                     key={c.id}
-                    className="text-xs px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300"
+                    className="text-xs px-2 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-600"
                     title={c.hook || c.caption}
                   >
                     {brandName(c.brand_id)} · {c.platform} · {(c.hook || c.caption).slice(0, 30)}
@@ -244,16 +244,16 @@ export default function ContentTab({
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-              className="text-sm text-zinc-400 hover:text-white px-2"
+              className="text-sm text-slate-500 hover:text-[#1A3A5C] px-2"
             >
               ← Prev
             </button>
-            <p className="text-sm font-semibold text-white">
+            <p className="text-sm font-semibold text-[#1A3A5C]">
               {calendarMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
             </p>
             <button
               onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-              className="text-sm text-zinc-400 hover:text-white px-2"
+              className="text-sm text-slate-500 hover:text-[#1A3A5C] px-2"
             >
               Next →
             </button>
@@ -261,7 +261,7 @@ export default function ContentTab({
 
           <div className="grid grid-cols-7 gap-1 mb-4">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="text-center text-[10px] font-semibold uppercase tracking-wide text-zinc-500 py-1">
+              <div key={d} className="text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400 py-1">
                 {d}
               </div>
             ))}
@@ -277,23 +277,23 @@ export default function ContentTab({
                   onClick={() => setSelectedDay(key === selectedDay ? null : key)}
                   className={`min-h-[84px] rounded-lg border p-1.5 text-left align-top transition-colors ${
                     isSelected
-                      ? "border-purple-500 bg-purple-950/20"
+                      ? "border-purple-500 bg-purple-50"
                       : isToday
-                        ? "border-sky-500 bg-sky-950/10"
-                        : "border-zinc-800 bg-black hover:border-zinc-600"
+                        ? "border-sky-500 bg-sky-50"
+                        : "border-slate-200 bg-white hover:border-slate-400"
                   }`}
                 >
-                  <span className={`text-xs ${isToday ? "text-sky-400 font-semibold" : "text-zinc-400"}`}>
+                  <span className={`text-xs ${isToday ? "text-sky-600 font-semibold" : "text-slate-500"}`}>
                     {date.getDate()}
                   </span>
                   <div className="mt-1 space-y-0.5">
                     {posts.slice(0, 3).map((p) => (
                       <div key={p.id} className="flex items-center gap-1">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[p.status]}`} />
-                        <span className="text-[10px] text-zinc-400 truncate">{brandName(p.brand_id)}</span>
+                        <span className="text-[10px] text-slate-500 truncate">{brandName(p.brand_id)}</span>
                       </div>
                     ))}
-                    {posts.length > 3 && <p className="text-[10px] text-zinc-500">+{posts.length - 3} more</p>}
+                    {posts.length > 3 && <p className="text-[10px] text-slate-400">+{posts.length - 3} more</p>}
                   </div>
                 </button>
               );
@@ -302,9 +302,9 @@ export default function ContentTab({
 
           {selectedDay && (
             <div>
-              <p className="text-sm font-semibold text-white mb-3">
+              <p className="text-sm font-semibold text-[#1A3A5C] mb-3">
                 {parseDayKey(selectedDay).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-                {selectedDayPosts.length === 0 && <span className="text-zinc-500 font-normal"> — nothing scheduled</span>}
+                {selectedDayPosts.length === 0 && <span className="text-slate-400 font-normal"> — nothing scheduled</span>}
               </p>
               <div className="space-y-3">
                 {selectedDayPosts.map((c) => (
@@ -328,25 +328,25 @@ export default function ContentTab({
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0d0d0d] border border-green-600 rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold text-white mb-4">Generate content</h3>
-            {error && <div className="mb-3 p-2 rounded-lg bg-red-950/40 border border-red-800 text-red-400 text-sm">{error}</div>}
+          <div className="bg-white border border-green-600 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-[#1A3A5C] mb-4">Generate content</h3>
+            {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
 
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Brand</label>
-            <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm mb-4">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Brand</label>
+            <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-4">
               {brands.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
             </select>
 
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Platforms</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Platforms</label>
             <div className="flex gap-2 mb-4">
               {(["facebook", "instagram"] as SocialPlatform[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => togglePlatform(p)}
                   className={`px-3 py-1.5 rounded-lg text-sm capitalize border transition-colors ${
-                    platforms.includes(p) ? "border-[#1A3A5C] bg-blue-950/40 text-white" : "border-zinc-700 text-zinc-300"
+                    platforms.includes(p) ? "border-[#1A3A5C] bg-blue-100 text-[#1A3A5C]" : "border-slate-300 text-slate-600"
                   }`}
                 >
                   {p}
@@ -354,18 +354,18 @@ export default function ContentTab({
               ))}
             </div>
 
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Number of posts (max 14)</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Number of posts (max 14)</label>
             <input
               type="number"
               min={1}
               max={14}
               value={postCount}
               onChange={(e) => setPostCount(Number(e.target.value))}
-              className="w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm mb-5"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-5"
             />
 
             <div className="flex gap-3">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border border-zinc-700 text-sm">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm">
                 Cancel
               </button>
               <button
@@ -439,26 +439,26 @@ function ContentCard({
   }
 
   return (
-    <div className="bg-[#0d0d0d] border border-green-600 rounded-xl p-4">
+    <div className="bg-white border border-green-600 rounded-xl p-4">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-zinc-400">{brandName(c.brand_id)}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 capitalize">{c.platform}</span>
+          <span className="text-xs font-medium text-slate-500">{brandName(c.brand_id)}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize">{c.platform}</span>
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[c.status]}`}>
             {c.status}
           </span>
         </div>
-        <button onClick={() => deleteContent(c.id)} className="text-xs text-red-400 hover:underline">
+        <button onClick={() => deleteContent(c.id)} className="text-xs text-red-600 hover:underline">
           Delete
         </button>
       </div>
-      {c.hook && <p className="font-medium text-sm text-white mb-1">{c.hook}</p>}
-      <p className="text-sm text-zinc-200 whitespace-pre-wrap mb-2">{c.caption}</p>
+      {c.hook && <p className="font-medium text-sm text-[#1A3A5C] mb-1">{c.hook}</p>}
+      <p className="text-sm text-slate-700 whitespace-pre-wrap mb-2">{c.caption}</p>
       {c.hashtags.length > 0 && (
-        <p className="text-xs text-zinc-500 mb-3">{c.hashtags.map((h) => `#${h}`).join(" ")}</p>
+        <p className="text-xs text-slate-400 mb-3">{c.hashtags.map((h) => `#${h}`).join(" ")}</p>
       )}
       {c.status === "failed" && c.failure_reason && (
-        <p className="text-xs text-red-400 mb-2">Failed: {c.failure_reason}</p>
+        <p className="text-xs text-red-600 mb-2">Failed: {c.failure_reason}</p>
       )}
 
       {(c.status === "draft" || c.status === "approved" || c.status === "scheduled") && (
@@ -467,33 +467,33 @@ function ContentCard({
             <button
               onClick={generateImage}
               disabled={generatingImage}
-              className="text-xs font-medium text-purple-400 hover:underline disabled:opacity-50"
+              className="text-xs font-medium text-purple-600 hover:underline disabled:opacity-50"
             >
               {generatingImage ? "Generating…" : hasImage ? "Regenerate image" : "Generate image"}
             </button>
             {hasImage && (
-              <button onClick={loadExistingImage} className="text-xs font-medium text-sky-400 hover:underline">
+              <button onClick={loadExistingImage} className="text-xs font-medium text-sky-600 hover:underline">
                 {previewDataUrl ? "Hide preview" : "Show image"}
               </button>
             )}
           </div>
-          {imageError && <p className="text-xs text-red-400 mt-1">{imageError}</p>}
+          {imageError && <p className="text-xs text-red-600 mt-1">{imageError}</p>}
           {previewDataUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewDataUrl} alt="Generated post image" className="mt-2 w-40 rounded-lg border border-zinc-700" />
+            <img src={previewDataUrl} alt="Generated post image" className="mt-2 w-40 rounded-lg border border-slate-300" />
           )}
         </div>
       )}
 
       {c.platform === "instagram" && (c.status === "draft" || c.status === "approved") && (
         <div className="mb-2">
-          <label className="text-xs text-zinc-400 mr-2">
+          <label className="text-xs text-slate-500 mr-2">
             Video asset {hasImage ? "(optional — a generated image is already linked)" : "(or generate an image above)"}:
           </label>
           <select
             value={c.video_asset_id ?? ""}
             onChange={(e) => linkVideoAsset(c.id, e.target.value)}
-            className="text-xs border border-zinc-700 rounded-lg px-2 py-1"
+            className="text-xs border border-slate-300 rounded-lg px-2 py-1"
           >
             <option value="">— none —</option>
             {videoAssets
@@ -517,19 +517,19 @@ function ContentCard({
               type="datetime-local"
               value={scheduleDrafts[c.id] ?? ""}
               onChange={(e) => setScheduleDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))}
-              className="text-xs border border-zinc-700 rounded-lg px-2 py-1"
+              className="text-xs border border-slate-300 rounded-lg px-2 py-1"
             />
             <button
               onClick={() => scheduleDrafts[c.id] && updateStatus(c.id, "scheduled", new Date(scheduleDrafts[c.id]).toISOString())}
               disabled={!scheduleDrafts[c.id]}
-              className="text-xs font-medium text-amber-400 hover:underline disabled:opacity-40"
+              className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-40"
             >
               Schedule
             </button>
           </>
         )}
         {c.status === "scheduled" && c.scheduled_at && (
-          <span className="text-xs text-zinc-400">Scheduled for {new Date(c.scheduled_at).toLocaleString()}</span>
+          <span className="text-xs text-slate-500">Scheduled for {new Date(c.scheduled_at).toLocaleString()}</span>
         )}
       </div>
     </div>
