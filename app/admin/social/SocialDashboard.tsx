@@ -39,7 +39,7 @@ export default function SocialDashboard({
     <div className="min-h-screen bg-blue-50">
       <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight">Vision Workx</span>
+          <span className="text-lg font-bold tracking-tight">Revalor</span>
           <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Social Media</span>
         </div>
         {isAdmin && (
