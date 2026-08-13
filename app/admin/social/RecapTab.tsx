@@ -96,6 +96,16 @@ export default function RecapTab() {
     }
   }
 
+  async function downloadVideo(recapId: string) {
+    const res = await fetch(`/api/admin/recap/${recapId}/video-url?download=1`);
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? `HTTP ${res.status}`);
+      return;
+    }
+    window.location.href = body.url;
+  }
+
   async function loadPreview(recapId: string) {
     if (previewUrls[recapId]) {
       setPreviewUrls((prev) => {
@@ -232,9 +242,14 @@ export default function RecapTab() {
                         : "Generate video"}
                   </button>
                   {recap.status === "video_ready" && (
-                    <button onClick={() => loadPreview(recap.id)} className="text-xs font-medium text-amber-600 hover:underline">
-                      {previewUrls[recap.id] ? "Hide preview" : "Show video"}
-                    </button>
+                    <>
+                      <button onClick={() => loadPreview(recap.id)} className="text-xs font-medium text-amber-600 hover:underline">
+                        {previewUrls[recap.id] ? "Hide preview" : "Show video"}
+                      </button>
+                      <button onClick={() => downloadVideo(recap.id)} className="text-xs font-medium text-emerald-600 hover:underline">
+                        Download
+                      </button>
+                    </>
                   )}
                 </div>
 
