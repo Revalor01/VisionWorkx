@@ -20,6 +20,9 @@ export type BlogPostStatus = "draft" | "published";
 export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
 export type LeadLanguage = "en" | "es";
 
+export type MarketingProduct = "visionworkx" | "chorebit" | "feelflow" | "mindbit";
+export type MarketingCampaignStatus = "draft" | "sending" | "sent" | "failed";
+
 export type PromotePlan = "starter" | "growth" | "pro";
 export type PromoteCreativeFormat = "1080x1080" | "1080x1920" | "1200x628";
 export type PromoteCreativeStatus = "draft" | "approved" | "archived";
@@ -389,6 +392,61 @@ export type Database = {
           status?: "draft" | "video_ready";
           updated_at?: string;
         };
+        Relationships: [];
+      };
+      marketing_campaigns: {
+        Row: {
+          id: string;
+          product: MarketingProduct;
+          subject: string;
+          body_html: string;
+          status: MarketingCampaignStatus;
+          recipient_count: number;
+          sent_count: number;
+          failed_count: number;
+          created_at: string;
+          updated_at: string;
+          sent_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          product: MarketingProduct;
+          subject: string;
+          body_html: string;
+          status?: MarketingCampaignStatus;
+          recipient_count?: number;
+          sent_count?: number;
+          failed_count?: number;
+          created_at?: string;
+          updated_at?: string;
+          sent_at?: string | null;
+        };
+        Update: {
+          subject?: string;
+          body_html?: string;
+          status?: MarketingCampaignStatus;
+          recipient_count?: number;
+          sent_count?: number;
+          failed_count?: number;
+          updated_at?: string;
+          sent_at?: string | null;
+        };
+        Relationships: [];
+      };
+      marketing_unsubscribes: {
+        Row: {
+          id: string;
+          product: MarketingProduct;
+          email: string;
+          unsubscribed_at: string;
+        };
+        Insert: {
+          id?: string;
+          product: MarketingProduct;
+          email: string;
+          unsubscribed_at?: string;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       leads: {
@@ -1091,3 +1149,5 @@ export type BlogPost = Database["public"]["Tables"]["blog_posts"]["Row"];
 export type BlogKeyword = Database["public"]["Tables"]["blog_keywords"]["Row"];
 export type BlogRunLogEntry = Database["public"]["Tables"]["blog_run_log"]["Row"];
 export type WeeklyRecap = Database["public"]["Tables"]["weekly_recaps"]["Row"];
+export type MarketingCampaign = Database["public"]["Tables"]["marketing_campaigns"]["Row"];
+export type MarketingUnsubscribe = Database["public"]["Tables"]["marketing_unsubscribes"]["Row"];

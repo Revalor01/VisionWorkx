@@ -5,11 +5,11 @@ import { createServiceClient } from "@/lib/supabase";
 // so cross-product stats have to go through the Management API's SQL
 // endpoint rather than a local Supabase client. Same technique the Ops
 // Dashboard already uses for storage-size aggregation.
-const CHOREBIT_REF = "kkpwgnmhtcidnrnlwcll";
-const FEELFLOW_REF = "duiyxiransdeqokwldqy";
-const MINDBIT_REF = "uftlgnmvjjmuedotrewz";
+export const CHOREBIT_REF = "kkpwgnmhtcidnrnlwcll";
+export const FEELFLOW_REF = "duiyxiransdeqokwldqy";
+export const MINDBIT_REF = "uftlgnmvjjmuedotrewz";
 
-async function runManagementQuery(projectRef: string, sql: string): Promise<Record<string, unknown>[]> {
+export async function runManagementQuery(projectRef: string, sql: string): Promise<Record<string, unknown>[]> {
   const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
   if (!token) throw new Error("SUPABASE_MANAGEMENT_TOKEN is not configured");
 
