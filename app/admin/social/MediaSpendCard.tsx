@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { MediaSpendSummary } from "@/lib/social/gatewaySpend";
 
 function formatUsd(amount: number): string {
-  return amount.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return `$${amount.toFixed(2)}`;
 }
 
 // Shared by RecapTab (video) and ContentTab (images) — both generate media
