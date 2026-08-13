@@ -64,3 +64,11 @@ export async function getSendableAudience(product: MarketingProduct): Promise<Au
   const [users, unsubscribed] = await Promise.all([fetchProductUsers(product), getUnsubscribedEmails(product)]);
   return users.filter((u) => !unsubscribed.has(u.email.toLowerCase().trim()));
 }
+
+// For targeted sends to a specific list of emails (not the full product
+// audience) — still respects that product's unsubscribes, but doesn't
+// require fetching the whole user list first.
+export async function filterUnsubscribed(product: MarketingProduct, emails: string[]): Promise<string[]> {
+  const unsubscribed = await getUnsubscribedEmails(product);
+  return emails.filter((e) => !unsubscribed.has(e.toLowerCase().trim()));
+}

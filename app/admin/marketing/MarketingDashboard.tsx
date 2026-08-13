@@ -35,6 +35,8 @@ export default function MarketingDashboard({ initialCampaigns }: { initialCampai
   const [sendingTest, setSendingTest] = useState(false);
   const [sending, setSending] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
+  const [targetedEmails, setTargetedEmails] = useState("");
+  const [sendingTargeted, setSendingTargeted] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -151,6 +153,36 @@ export default function MarketingDashboard({ initialCampaigns }: { initialCampai
     }
   }
 
+  async function sendTargeted() {
+    const recipients = targetedEmails
+      .split(/[,\n]/)
+      .map((e) => e.trim())
+      .filter(Boolean);
+    if (recipients.length === 0) return;
+
+    setSendingTargeted(true);
+    setError("");
+    setMessage("");
+    try {
+      const id = savedCampaignId ?? (await saveDraft());
+      if (!id) return;
+      const res = await fetch(`/api/admin/marketing/campaigns/${id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setMessage(
+        `Sent to ${body.sent} of ${body.recipientCount} targeted recipient${body.recipientCount === 1 ? "" : "s"}${body.failed ? ` (${body.failed} failed)` : ""}${body.skipped ? ` — ${body.skipped} skipped (unsubscribed or invalid)` : ""}.`
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSendingTargeted(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
@@ -261,6 +293,26 @@ export default function MarketingDashboard({ initialCampaigns }: { initialCampai
                   Cancel
                 </button>
               )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-800">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
+                Send to specific emails instead (comma or newline separated)
+              </label>
+              <textarea
+                value={targetedEmails}
+                onChange={(e) => setTargetedEmails(e.target.value)}
+                rows={2}
+                placeholder="jane@example.com, sam@example.com"
+                className="w-full bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm mb-2"
+              />
+              <button
+                onClick={sendTargeted}
+                disabled={sendingTargeted || !targetedEmails.trim() || !subject.trim() || !bodyHtml.trim()}
+                className="text-xs font-medium text-teal-400 hover:underline disabled:opacity-50"
+              >
+                {sendingTargeted ? "Sending…" : "Send to these emails"}
+              </button>
             </div>
           </section>
         )}
