@@ -716,6 +716,13 @@ export default function AdminDashboard({
           >
             Sanctum →
           </a>
+          <span className="hidden sm:inline text-white/20">|</span>
+          <a
+            href="/api/admin/sso/issue?target=revalor"
+            className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors"
+          >
+            Revalor Admin →
+          </a>
           <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
             ← Back to Dashboard
           </Link>
