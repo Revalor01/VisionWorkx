@@ -710,6 +710,12 @@ export default function AdminDashboard({
           >
             MindBit →
           </a>
+          <a
+            href="/api/admin/sso/issue?target=sanctum"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
+            Sanctum →
+          </a>
           <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
             ← Back to Dashboard
           </Link>

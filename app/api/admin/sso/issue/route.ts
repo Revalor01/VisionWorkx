@@ -8,6 +8,7 @@ const TARGETS: Record<string, string> = {
   chorebit: "https://chorebit.vercel.app",
   feelflow: "https://feelflow-eight.vercel.app",
   mindbit: "https://mindbit-one.vercel.app",
+  sanctum: "https://sanctum-web-xi.vercel.app",
 };
 
 export async function GET(req: NextRequest) {
