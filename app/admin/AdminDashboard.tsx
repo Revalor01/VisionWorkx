@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerReferral, PartnerReferralStatus, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
@@ -666,6 +667,15 @@ export default function AdminDashboard({
       {/* Header */}
       <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <Image src="/VisionWorks.png" alt="VisionWorkx" width={32} height={32} className="h-8 w-8 rounded bg-white/90 object-contain p-0.5" />
+          <Image
+            src="/visionworkx-automation-logo.png"
+            alt="VisionWorkx Automation"
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded bg-white/90 object-contain p-0.5"
+          />
+          <Image src="/sanctum-logo.png" alt="Sanctum" width={32} height={32} className="h-8 w-8 rounded bg-white/90 object-contain p-0.5" />
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
           <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
         </div>
@@ -733,7 +743,7 @@ export default function AdminDashboard({
 
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Management Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white">Vision Workx Management Dashboard</h1>
           <p className="text-zinc-400 text-sm mt-1">All customers, apps, and deployments across Vision Workx</p>
         </div>
 
