@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { SocialBrand, SocialContent, SocialVideoAsset, SocialInboxItem } from "@/lib/database.types";
 import BrandsTab from "./BrandsTab";
 import ContentTab from "./ContentTab";
@@ -43,9 +42,12 @@ export default function SocialDashboard({
           <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Social Media</span>
         </div>
         {isAdmin && (
-          <Link href="/admin" className="text-xs text-white/70 hover:text-white transition-colors">
+          <a
+            href="https://revalor-admin.vercel.app"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
             ← Back to Admin
-          </Link>
+          </a>
         )}
       </header>
 
