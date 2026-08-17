@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { SupabaseProjectRow, VercelProjectRow } from "./page";
 
 const PLAN_LIMIT_BYTES = 8 * 1024 ** 3; // Supabase Pro plan: 8 GB included per project
@@ -57,9 +56,9 @@ export default function OpsDashboard({
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Ops</span>
         </div>
-        <Link href="/admin" className="text-xs text-white/70 hover:text-white transition-colors">
+        <a href="https://revalor-admin.vercel.app" className="text-xs text-white/70 hover:text-white transition-colors">
           ← Back to Admin
-        </Link>
+        </a>
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">

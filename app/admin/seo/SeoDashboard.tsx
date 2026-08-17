@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BlogPost, BlogKeyword, BlogRunLogEntry } from "@/lib/database.types";
 import { PRODUCTS } from "@/lib/blog/products";
@@ -72,9 +71,9 @@ export default function SeoDashboard({
           <span className="text-lg font-bold tracking-tight">Vision Workx</span>
           <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">SEO</span>
         </div>
-        <Link href="/admin" className="text-xs text-white/70 hover:text-white transition-colors">
+        <a href="https://revalor-admin.vercel.app" className="text-xs text-white/70 hover:text-white transition-colors">
           ← Back to Admin
-        </Link>
+        </a>
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
