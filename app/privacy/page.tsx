@@ -6,7 +6,7 @@ export const metadata = {
   description: "How Vision Workx collects, uses, and protects your data.",
 };
 
-const LAST_UPDATED = "August 1, 2026";
+const LAST_UPDATED = "August 18, 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -147,7 +147,17 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="11. Contact">
+        <Section title="11. Facebook and Instagram Integration">
+          <p>
+            Revalor Social Manager, our internal social media management tool, connects to Facebook Pages and
+            Instagram Business Accounts that we own and administer, in order to schedule and publish content on
+            our own behalf. We access basic account information (Page/account ID, username) and use publishing
+            permissions solely to post approved content to our own connected accounts. We do not access, store,
+            or process Meta account data belonging to any other individual or business.
+          </p>
+        </Section>
+
+        <Section title="12. Contact">
           <p>
             Questions about this Privacy Policy? Reach us at{" "}
             <a href="mailto:info@revalorllc.com" className="text-navy underline">
