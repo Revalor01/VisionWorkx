@@ -8,8 +8,9 @@ export const maxDuration = 30;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
 
 // Receives the redirect back from SocialAPI.ai after a brand's account is
-// authorized (or denied) — see getInstagramConnectUrl/getTikTokConnectUrl's
-// redirectUri. `state` is "<brand_id>::<platform>" (set at connect time);
+// authorized (or denied) — see getInstagramConnectUrl/getTikTokConnectUrl/
+// getYouTubeConnectUrl's redirectUri. `state` is "<brand_id>::<platform>"
+// (set at connect time);
 // a bare brand_id with no "::" is treated as instagram for back-compat with
 // any in-flight session started before platform was encoded into state.
 export async function GET(req: NextRequest) {
@@ -37,7 +38,9 @@ export async function GET(req: NextRequest) {
   const { error } =
     platform === "tiktok"
       ? await service.from("social_brands").update({ socialapi_tiktok_account_id: accountId }).eq("id", brandId)
-      : await service.from("social_brands").update({ socialapi_account_id: accountId }).eq("id", brandId);
+      : platform === "youtube"
+        ? await service.from("social_brands").update({ socialapi_youtube_account_id: accountId }).eq("id", brandId)
+        : await service.from("social_brands").update({ socialapi_account_id: accountId }).eq("id", brandId);
 
   if (error) {
     dashboardUrl.searchParams.set("socialapi_error", error.message);

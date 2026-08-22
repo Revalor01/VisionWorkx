@@ -9,19 +9,22 @@ const IMAGE_MODEL = "bfl/flux-2-pro";
 // Facebook feed images read well square. Instagram's own guidance for
 // static feed posts (not Reels/Stories, which need video) is a 4:5
 // portrait crop — it fills more of the mobile screen than a square.
-// TikTok is video-only (no static image posts), so it has no real entry
-// here — the UI never calls this for TikTok content — but the Record
-// still needs every SocialPlatform key, so it falls back to a square crop.
+// TikTok and YouTube are video-only (no static image posts), so they have
+// no real entry here — the UI never calls this for TikTok/YouTube content
+// — but the Record still needs every SocialPlatform key, so they fall
+// back to a square crop.
 const ASPECT_RATIO_BY_PLATFORM: Record<SocialPlatform, `${number}:${number}`> = {
   facebook: "1:1",
   instagram: "4:5",
   tiktok: "1:1",
+  youtube: "1:1",
 };
 
 const SHAPE_DESCRIPTION_BY_PLATFORM: Record<SocialPlatform, string> = {
   facebook: "square",
   instagram: "portrait",
   tiktok: "square",
+  youtube: "square",
 };
 
 export interface GeneratedContentImage {

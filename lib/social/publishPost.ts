@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
-import { publishInstagramPost, publishTikTokPost } from "@/lib/social/socialApi";
+import { publishInstagramPost, publishTikTokPost, publishYouTubePost } from "@/lib/social/socialApi";
 import type { SocialContent } from "@/lib/database.types";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
@@ -51,6 +51,40 @@ export async function publishPost(
         accountId: brand.socialapi_tiktok_account_id,
         mediaUrl: signed.signedUrl,
         caption: captionWithTags,
+      });
+      platformPostId = result.postId;
+
+      await service
+        .from("social_content")
+        .update({ status: "posted", posted_at: new Date().toISOString(), platform_post_id: platformPostId })
+        .eq("id", post.id);
+      return { ok: true };
+    }
+
+    if (post.platform === "youtube") {
+      if (!brand.socialapi_youtube_account_id) throw new Error("Brand has no connected SocialAPI.ai YouTube account");
+      if (!post.video_asset_id) throw new Error("YouTube posts require a linked video asset");
+
+      const { data: asset } = await service
+        .from("social_video_assets")
+        .select("final_path")
+        .eq("id", post.video_asset_id)
+        .maybeSingle();
+      if (!asset?.final_path) throw new Error("Linked video asset has no final_path");
+      const { data: signed, error: signError } = await service.storage
+        .from(VIDEO_BUCKET)
+        .createSignedUrl(asset.final_path, SIGNED_URL_TTL_SECONDS);
+      if (signError || !signed) throw new Error("Failed to sign media URL for YouTube publish");
+
+      // YouTube is the one platform with a distinct title field — hook is
+      // already written to fit a short scroll-stopping line (<=80 chars),
+      // well under YouTube's 100-char title cap. Falls back to the start
+      // of the caption if a post has no hook.
+      const result = await publishYouTubePost({
+        accountId: brand.socialapi_youtube_account_id,
+        mediaUrl: signed.signedUrl,
+        title: post.hook || post.caption.slice(0, 100),
+        description: captionWithTags,
       });
       platformPostId = result.postId;
 

@@ -367,7 +367,7 @@ export default function ContentTab({
 
             <label className="block text-xs font-medium text-slate-500 mb-1">Platforms</label>
             <div className="flex gap-2 mb-4">
-              {(["facebook", "instagram", "tiktok"] as SocialPlatform[]).map((p) => (
+              {(["facebook", "instagram", "tiktok", "youtube"] as SocialPlatform[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => togglePlatform(p)}
@@ -519,7 +519,7 @@ function ContentCard({
         <p className="text-xs text-red-600 mb-2">Failed: {c.failure_reason}</p>
       )}
 
-      {c.platform !== "tiktok" && (c.status === "draft" || c.status === "approved" || c.status === "scheduled") && (
+      {c.platform !== "tiktok" && c.platform !== "youtube" && (c.status === "draft" || c.status === "approved" || c.status === "scheduled") && (
         <div className="mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <button
@@ -543,15 +543,17 @@ function ContentCard({
         </div>
       )}
 
-      {(c.platform === "instagram" || c.platform === "tiktok") && (c.status === "draft" || c.status === "approved") && (
+      {(c.platform === "instagram" || c.platform === "tiktok" || c.platform === "youtube") && (c.status === "draft" || c.status === "approved") && (
         <div className="mb-2">
           <label className="text-xs text-slate-500 mr-2">
             Video asset{" "}
             {c.platform === "tiktok"
               ? "(required for TikTok)"
-              : hasImage
-                ? "(optional — a generated image is already linked)"
-                : "(or generate an image above)"}
+              : c.platform === "youtube"
+                ? "(required for YouTube)"
+                : hasImage
+                  ? "(optional — a generated image is already linked)"
+                  : "(or generate an image above)"}
             :
           </label>
           <select

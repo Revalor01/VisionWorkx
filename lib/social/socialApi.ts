@@ -1,10 +1,10 @@
 // SocialAPI.ai client — replaces the Instagram half of lib/social/meta.ts
-// and the direct TikTok integration in lib/social/tiktok.ts. SocialAPI.ai
-// carries its own pre-approved Meta/TikTok apps, so connecting a brand's
-// account is a simple OAuth redirect instead of Revalor needing its own
-// Meta App Review or TikTok Content Posting API audit. Facebook stays on
-// its existing direct integration (lib/social/meta.ts) — this file covers
-// what that can't: Instagram/TikTok without a review process.
+// and the direct TikTok integration in lib/social/tiktok.ts, and adds
+// YouTube. SocialAPI.ai carries its own pre-approved Meta/TikTok/Google
+// apps, so connecting a brand's account is a simple OAuth redirect instead
+// of Revalor needing its own Meta App Review, TikTok Content Posting API
+// audit, or Google Cloud project. Facebook stays on its existing direct
+// integration (lib/social/meta.ts) — this file covers what that can't.
 
 const API_BASE = "https://api.social-api.ai/v1";
 const SOCIALAPI_KEY = process.env.SOCIALAPI_API_KEY!;
@@ -42,6 +42,14 @@ export async function getTikTokConnectUrl(redirectUri: string, state: string): P
   const body = await apiFetch("/accounts/connect", {
     method: "POST",
     body: JSON.stringify({ platform: "tiktok", redirect_uri: redirectUri, state }),
+  });
+  return body.auth_url;
+}
+
+export async function getYouTubeConnectUrl(redirectUri: string, state: string): Promise<string> {
+  const body = await apiFetch("/accounts/connect", {
+    method: "POST",
+    body: JSON.stringify({ platform: "youtube", redirect_uri: redirectUri, state }),
   });
   return body.auth_url;
 }
@@ -150,4 +158,28 @@ export async function publishTikTokPost(params: {
   // Instagram) — only the platform post id.
   const target = await pollPostUntilTerminal(created.id, created, "TikTok");
   return { postId: target.platform_post_id! };
+}
+
+export async function publishYouTubePost(params: {
+  accountId: string;
+  mediaUrl: string;
+  title: string;
+  description: string;
+}): Promise<{ postId: string; permalink: string | null }> {
+  const created = await apiFetch("/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      // YouTube is the one platform where title is a distinct top-level
+      // field from the post body — capped at 100 chars by YouTube itself.
+      title: params.title.slice(0, 100),
+      text: params.description,
+      visibility: "public",
+      media: [{ source: params.mediaUrl, source_type: "url", type: "video" }],
+      targets: [{ account_id: params.accountId }],
+      publish_now: true,
+    }),
+  });
+
+  const target = await pollPostUntilTerminal(created.id, created, "YouTube");
+  return { postId: target.platform_post_id!, permalink: target.permalink ?? null };
 }

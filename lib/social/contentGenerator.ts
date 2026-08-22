@@ -15,12 +15,12 @@ const SYSTEM_PROMPT = `You write social media content for Revalor LLC's own prod
 Rules:
 - Each post needs a distinct angle — don't just reword the same idea across posts
 - hook: a short, scroll-stopping first line (<=80 chars)
-- caption: the full post body, platform-appropriate length (Instagram can run longer/more personal; Facebook can be a bit more direct/informational; TikTok should be short and punchy — a sentence or two, trend-aware tone, not a paragraph)
+- caption: the full post body, platform-appropriate length (Instagram can run longer/more personal; Facebook can be a bit more direct/informational; TikTok should be short and punchy — a sentence or two, trend-aware tone, not a paragraph; YouTube's caption becomes the video description — write it like a real description with context, not a punchy hook, since the hook already covers that role as the video title)
 - hashtags: 3-8 relevant tags, no "#" prefix in the output, lowercase
 - No generic filler ("Check this out!", "Exciting news!") — be specific about what the product actually does
 - Respect the brand voice notes provided exactly — they describe how this specific brand should sound
 
-Output ONLY a JSON array, no prose, no markdown fences. Each element: { "platform": "facebook"|"instagram"|"tiktok", "hook": string, "caption": string, "hashtags": string[] }.`;
+Output ONLY a JSON array, no prose, no markdown fences. Each element: { "platform": "facebook"|"instagram"|"tiktok"|"youtube", "hook": string, "caption": string, "hashtags": string[] }. For "youtube", hook doubles as the video title (<=80 chars, well under YouTube's 100-char cap).`;
 
 export async function generateContentCalendar(params: {
   brandName: string;
@@ -57,7 +57,7 @@ Generate exactly ${count} posts total, distributed across the requested platform
   }
 
   return parsed.slice(0, count).map((p) => ({
-    platform: p.platform === "instagram" || p.platform === "tiktok" ? p.platform : "facebook",
+    platform: p.platform === "instagram" || p.platform === "tiktok" || p.platform === "youtube" ? p.platform : "facebook",
     hook: String(p.hook ?? "").slice(0, 80),
     caption: String(p.caption ?? ""),
     hashtags: Array.isArray(p.hashtags) ? p.hashtags.map((h) => String(h).replace(/^#/, "").toLowerCase()) : [],

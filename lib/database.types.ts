@@ -45,7 +45,7 @@ export interface PromoteTargetAudience {
   location: string;
 }
 
-export type SocialPlatform = "facebook" | "instagram" | "tiktok";
+export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "youtube";
 export type SocialVideoStatus = "raw" | "in_editing" | "ready" | "posted";
 export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" | "failed";
 export type SocialInboxSourceType = "dm" | "comment";
@@ -767,6 +767,7 @@ export type Database = {
           tiktok_username: string | null;
           socialapi_account_id: string | null;
           socialapi_tiktok_account_id: string | null;
+          socialapi_youtube_account_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -783,6 +784,7 @@ export type Database = {
           tiktok_username?: string | null;
           socialapi_account_id?: string | null;
           socialapi_tiktok_account_id?: string | null;
+          socialapi_youtube_account_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -797,6 +799,7 @@ export type Database = {
           tiktok_username?: string | null;
           socialapi_account_id?: string | null;
           socialapi_tiktok_account_id?: string | null;
+          socialapi_youtube_account_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];

@@ -60,6 +60,17 @@ function TikTokIcon({ active }: { active: boolean }) {
   );
 }
 
+function YouTubeIcon({ active }: { active: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
+      <path
+        fill="#FF0000"
+        d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.51 3.5 12 3.5 12 3.5s-7.51 0-9.38.55A3.02 3.02 0 0 0 .5 6.19 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.81 3.02 3.02 0 0 0 2.12 2.14c1.87.55 9.38.55 9.38.55s7.51 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.81ZM9.6 15.5v-7l6.27 3.5-6.27 3.5Z"
+      />
+    </svg>
+  );
+}
+
 export default function BrandsTab(props: {
   brands: SocialBrand[];
   setBrands: React.Dispatch<React.SetStateAction<SocialBrand[]>>;
@@ -237,6 +248,7 @@ function BrandsTabInner({
                   <FacebookIcon active={!!brand.fb_page_id} />
                   <InstagramIcon active={!!brand.socialapi_account_id} uid={brand.id} />
                   <TikTokIcon active={!!brand.socialapi_tiktok_account_id} />
+                  <YouTubeIcon active={!!brand.socialapi_youtube_account_id} />
                   {brand.socialapi_account_id ? (
                     <>
                       <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
@@ -314,6 +326,35 @@ function BrandsTabInner({
                       className="text-xs font-medium text-black hover:underline"
                     >
                       Connect TikTok
+                    </a>
+                  )}
+                  {brand.socialapi_youtube_account_id ? (
+                    <>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        YouTube Connected
+                      </span>
+                      {connectedAccounts[brand.socialapi_youtube_account_id] && (
+                        <span className="flex items-center gap-1" title="Real connected YouTube account — verify this matches the brand">
+                          {connectedAccounts[brand.socialapi_youtube_account_id].profilePictureUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={connectedAccounts[brand.socialapi_youtube_account_id].profilePictureUrl!}
+                              alt="Connected YouTube account"
+                              className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                            />
+                          )}
+                          <span className="text-[10px] text-slate-500">
+                            {connectedAccounts[brand.socialapi_youtube_account_id].username ?? "?"}
+                          </span>
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <a
+                      href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=youtube`}
+                      className="text-xs font-medium text-[#FF0000] hover:underline"
+                    >
+                      Connect YouTube
                     </a>
                   )}
                 </div>
