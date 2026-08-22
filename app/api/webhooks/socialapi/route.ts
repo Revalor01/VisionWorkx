@@ -69,13 +69,14 @@ export async function POST(req: NextRequest) {
 
     // account_id could be from any of the four SocialAPI connections a
     // brand can have — one brand, one match, regardless of which column.
-    const { data: brand } = await service
+    const { data: brand, error: brandError } = await service
       .from("social_brands")
       .select("*")
       .or(
         `socialapi_account_id.eq.${data.account_id},socialapi_tiktok_account_id.eq.${data.account_id},socialapi_youtube_account_id.eq.${data.account_id},socialapi_facebook_account_id.eq.${data.account_id}`
       )
       .maybeSingle();
+    if (brandError) console.error("[webhooks/socialapi] dm.received: brand lookup failed:", brandError.message);
     if (!brand) return NextResponse.json({ received: true }); // account we don't manage in this tool
 
     const result = await classifyInboundMessage({ faqDocument: brand.faq_document, messageText: text });
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await service.from("social_inbox_items").insert({
+    const { error: insertError } = await service.from("social_inbox_items").insert({
       brand_id: brand.id,
       platform,
       source_type: "dm",
@@ -102,25 +103,27 @@ export async function POST(req: NextRequest) {
       classification: result.classification,
       auto_reply_text: result.replyText,
     });
+    if (insertError) console.error("[webhooks/socialapi] dm.received: inbox insert failed:", insertError.message);
   } else if (payload.event_type === "comment.received") {
     const { payload: data } = payload as CommentReceivedPayload;
     const text = data.content?.text;
     const platform = toSocialPlatform(data.platform);
     if (!text || !platform) return NextResponse.json({ received: true });
 
-    const { data: brand } = await service
+    const { data: brand, error: brandError } = await service
       .from("social_brands")
       .select("id")
       .or(
         `socialapi_account_id.eq.${data.account_id},socialapi_tiktok_account_id.eq.${data.account_id},socialapi_youtube_account_id.eq.${data.account_id},socialapi_facebook_account_id.eq.${data.account_id}`
       )
       .maybeSingle();
+    if (brandError) console.error("[webhooks/socialapi] comment.received: brand lookup failed:", brandError.message);
     if (!brand) return NextResponse.json({ received: true });
 
     // Comments — logged for manual review only, same as the old direct
     // webhook: public comment replies use a different risk profile than
     // DMs, deliberately not auto-answered.
-    await service.from("social_inbox_items").insert({
+    const { error: insertError } = await service.from("social_inbox_items").insert({
       brand_id: brand.id,
       platform,
       source_type: "comment",
@@ -129,6 +132,7 @@ export async function POST(req: NextRequest) {
       message_text: text,
       classification: "requires_human",
     });
+    if (insertError) console.error("[webhooks/socialapi] comment.received: inbox insert failed:", insertError.message);
   }
 
   return NextResponse.json({ received: true });
