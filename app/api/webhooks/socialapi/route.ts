@@ -43,14 +43,15 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-socialapi-signature");
 
-  // SocialAPI pings this endpoint (unsigned) to verify reachability before
-  // handing out the signing secret during POST /v1/webhooks registration —
-  // nothing to process yet, so just confirm we're alive. Once a secret
-  // exists, every real event arrives signed, so a present-but-wrong
-  // signature is genuinely rejected below rather than let through.
-  if (!signature) return NextResponse.json({ received: true });
+  // SocialAPI pings this endpoint (already signed, with a secret it hasn't
+  // handed us yet) to verify reachability during POST /v1/webhooks
+  // registration — there's nothing to check that signature against until
+  // SOCIALAPI_WEBHOOK_SECRET is actually configured, so just ack. Once the
+  // secret exists (set right after registration succeeds), every request
+  // is verified for real and anything that doesn't match is rejected.
+  if (!WEBHOOK_SECRET) return NextResponse.json({ received: true });
 
-  if (!WEBHOOK_SECRET || !verifySocialApiWebhookSignature(rawBody, signature, WEBHOOK_SECRET)) {
+  if (!verifySocialApiWebhookSignature(rawBody, signature, WEBHOOK_SECRET)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
