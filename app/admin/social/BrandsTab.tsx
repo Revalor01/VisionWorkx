@@ -8,16 +8,50 @@ import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./Platform
 const BRAND_LOGOS: Record<string, string> = {
   VisionWorkx: "/VisionWorks.png",
   "Revalor Kids": "/revalor-kids-logo.png",
+  "Revalor LLC": "/revalor-logo.png",
 };
 
-// "Revalor Kids" is an umbrella brand covering three separate apps —
-// show each one so it's clear at a glance what content under this
-// brand is actually promoting.
-const REVALOR_KIDS_PRODUCTS = [
-  { name: "Chorebit", logo: "/chorebit-logo.png" },
-  { name: "FeelFlow", logo: "/feelflow-logo.png" },
-  { name: "MindBit", logo: "/mindbit-logo.png" },
-];
+// VisionWorkx is the underlying brand row (its own real, separately
+// connected social accounts) — "Revalor Business" is its public-facing
+// umbrella name on revalorllc.com, matching the parent nav structure
+// there. Display-only: brand.name/slug/connections stay untouched.
+const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  VisionWorkx: "Revalor Business",
+};
+
+// Purely informational "covers" badges — same pattern for both umbrella
+// brands: the listed items are NOT merged into this brand's own social
+// connections, they're separate brand rows/cards with their own accounts.
+// This just shows at a glance what a post under this brand is repping.
+const COVERS_BY_BRAND: Record<string, { name: string; logo?: string }[]> = {
+  "Revalor Kids": [
+    { name: "Chorebit", logo: "/chorebit-logo.png" },
+    { name: "FeelFlow", logo: "/feelflow-logo.png" },
+    { name: "MindBit", logo: "/mindbit-logo.png" },
+  ],
+  VisionWorkx: [
+    { name: "VisionWorkx", logo: "/VisionWorks.png" },
+    { name: "Revalor Kids", logo: "/revalor-kids-logo.png" },
+    { name: "Revalor Wellness" },
+  ],
+};
+
+// Explicit display order per the current brand hierarchy — Revalor LLC
+// (the corporate/parent account) first, then Revalor Business (the
+// VisionWorkx row) and what it covers, in reading order. Anything not
+// listed here (a brand added later) sorts alphabetically after these.
+const BRAND_ORDER = ["Revalor LLC", "VisionWorkx", "Revalor Kids", "Revalor Wellness"];
+
+function sortBrands(brands: SocialBrand[]): SocialBrand[] {
+  return [...brands].sort((a, b) => {
+    const ai = BRAND_ORDER.indexOf(a.name);
+    const bi = BRAND_ORDER.indexOf(b.name);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
 
 export default function BrandsTab(props: {
   brands: SocialBrand[];
@@ -180,20 +214,22 @@ function BrandsTabInner({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {brands.map((brand) => {
+        {sortBrands(brands).map((brand) => {
           const fields = fieldsFor(brand);
+          const displayName = DISPLAY_NAME_OVERRIDES[brand.name] ?? brand.name;
+          const covers = COVERS_BY_BRAND[brand.name];
           return (
             <div key={brand.id} className="bg-white border border-green-600 rounded-xl p-5">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                   {BRAND_LOGOS[brand.name] && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={BRAND_LOGOS[brand.name]} alt={`${brand.name} logo`} className="w-8 h-8 rounded-lg object-contain" />
+                    <img src={BRAND_LOGOS[brand.name]} alt={`${displayName} logo`} className="w-8 h-8 rounded-lg object-contain" />
                   )}
-                  <h3 className="font-semibold text-[#1A3A5C]">{brand.name}</h3>
+                  <h3 className="font-semibold text-[#1A3A5C]">{displayName}</h3>
                 </div>
               </div>
-              <div className="mb-4 divide-y divide-slate-100 border-y border-slate-100">
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 <PlatformRow
                   icon={<FacebookIcon active={!!brand.fb_page_id} />}
                   label="Facebook"
@@ -237,13 +273,15 @@ function BrandsTabInner({
                   connectColor="#FF0000"
                 />
               </div>
-              {brand.name === "Revalor Kids" && (
-                <div className="flex items-center gap-3 mb-4 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+              {covers && (
+                <div className="flex items-center gap-3 flex-wrap mb-4 p-2 bg-slate-50 border border-slate-200 rounded-lg">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Covers</span>
-                  {REVALOR_KIDS_PRODUCTS.map((p) => (
+                  {covers.map((p) => (
                     <div key={p.name} className="flex items-center gap-1.5" title={p.name}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.logo} alt={`${p.name} logo`} className="w-5 h-5 rounded object-contain" />
+                      {p.logo && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.logo} alt={`${p.name} logo`} className="w-5 h-5 rounded object-contain" />
+                      )}
                       <span className="text-xs text-slate-600">{p.name}</span>
                     </div>
                   ))}
@@ -308,13 +346,13 @@ function PlatformRow({
   extra?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1 py-2 px-2 bg-slate-50 border border-slate-100 rounded-lg">
+      <div className="flex items-center gap-1.5">
         {icon}
-        <span className="text-sm text-slate-600">{label}</span>
+        <span className="text-xs font-medium text-slate-600">{label}</span>
       </div>
       {connected ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {account ? (
             <span className="flex items-center gap-1.5" title={`Real connected ${label} account — verify this matches the brand`}>
               {account.profilePictureUrl && (
@@ -322,18 +360,18 @@ function PlatformRow({
                 <img
                   src={account.profilePictureUrl}
                   alt={`Connected ${label} account`}
-                  className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                  className="w-4 h-4 rounded-full object-cover border border-slate-200"
                 />
               )}
-              <span className="text-xs text-slate-500">{account.username ? `@${account.username}` : "Connected"}</span>
+              <span className="text-[11px] text-slate-500">{account.username ? `@${account.username}` : "Connected"}</span>
             </span>
           ) : (
-            <span className="text-xs font-medium text-green-700">Connected</span>
+            <span className="text-[11px] font-medium text-green-700">Connected</span>
           )}
           {extra}
         </div>
       ) : (
-        <a href={connectHref} className="text-xs font-medium hover:underline" style={{ color: connectColor }}>
+        <a href={connectHref} className="text-[11px] font-medium hover:underline" style={{ color: connectColor }}>
           Connect
         </a>
       )}
