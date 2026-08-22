@@ -37,6 +37,27 @@ export async function getInstagramConnectUrl(redirectUri: string, state: string)
   return body.auth_url;
 }
 
+// ── Account lookup (for the admin UI to show which real account is connected) ──
+
+export interface SocialApiAccount {
+  id: string;
+  platform: string;
+  username: string | null;
+  profilePictureUrl: string | null;
+}
+
+// SocialAPI has no GET /accounts/{id} (405s) — only a flat list. Fine at
+// Revalor's current scale (a handful of connected accounts).
+export async function listSocialApiAccounts(): Promise<SocialApiAccount[]> {
+  const body = await apiFetch("/accounts");
+  return (body.data ?? []).map((a: { id: string; platform: string; username?: string; profile_picture_url?: string }) => ({
+    id: a.id,
+    platform: a.platform,
+    username: a.username ?? null,
+    profilePictureUrl: a.profile_picture_url ?? null,
+  }));
+}
+
 // ── Publishing ───────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 3000;
