@@ -52,6 +52,9 @@ export async function publishInstagramPost(params: {
       media: [{ source: params.mediaUrl, source_type: "url", type: params.isVideo ? "video" : "image" }],
       targets: [{ account_id: params.accountId }],
       publish_now: true,
+      // Required by SocialAPI for Instagram — "feed" covers a plain
+      // single image/video post; reels/stories/carousel aren't used here.
+      platform_data: { instagram: { content_type: params.isVideo ? "reel" : "feed" } },
     }),
   });
 
