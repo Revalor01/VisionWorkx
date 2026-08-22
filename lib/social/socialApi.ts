@@ -39,13 +39,16 @@ export async function getInstagramConnectUrl(redirectUri: string, state: string)
 
 // ── Publishing ───────────────────────────────────────────────────────────
 
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_ATTEMPTS = 20; // ~60s — Meta processes the media asynchronously after we submit it
+
 export async function publishInstagramPost(params: {
   accountId: string;
   mediaUrl: string;
   isVideo: boolean;
   caption: string;
 }): Promise<{ postId: string; permalink: string | null }> {
-  const body = await apiFetch("/posts", {
+  const created = await apiFetch("/posts", {
     method: "POST",
     body: JSON.stringify({
       text: params.caption,
@@ -58,10 +61,21 @@ export async function publishInstagramPost(params: {
     }),
   });
 
-  const target = body.targets?.[0];
-  if (!target || target.status !== "published") {
-    throw new Error(`SocialAPI Instagram publish did not complete: ${JSON.stringify(body)}`);
+  // The creation call returns before Meta finishes processing the media —
+  // status starts as "publishing"/"pending", not "published". Poll the post
+  // until it reaches a terminal state instead of judging off this response.
+  let body = created;
+  for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+    const target = body.targets?.[0];
+    if (target?.status === "published") {
+      return { postId: target.platform_post_id, permalink: target.permalink ?? null };
+    }
+    if (target?.status === "failed" || body.status === "failed") {
+      throw new Error(`SocialAPI Instagram publish failed: ${JSON.stringify(body)}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    body = await apiFetch(`/posts/${created.id}`);
   }
 
-  return { postId: target.platform_post_id, permalink: target.permalink ?? null };
+  throw new Error(`SocialAPI Instagram publish did not reach a terminal state in time: ${JSON.stringify(body)}`);
 }
