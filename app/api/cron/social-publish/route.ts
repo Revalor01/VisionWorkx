@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { publishFacebookPost, publishFacebookPhotoPost, publishInstagramPost } from "@/lib/social/meta";
+import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
+import { publishInstagramPost } from "@/lib/social/socialApi";
 import { refreshTikTokToken, publishTikTokVideo } from "@/lib/social/tiktok";
 
 export const runtime = "nodejs";
@@ -99,14 +100,13 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      const { data: connection } = await service
-        .from("social_connections")
-        .select("fb_page_access_token")
-        .eq("brand_id", post.brand_id)
-        .maybeSingle();
-      if (!connection) throw new Error("Brand not connected to a Facebook Page");
-
       if (post.platform === "facebook") {
+        const { data: connection } = await service
+          .from("social_connections")
+          .select("fb_page_access_token")
+          .eq("brand_id", post.brand_id)
+          .maybeSingle();
+        if (!connection) throw new Error("Brand not connected to a Facebook Page");
         if (!brand.fb_page_id) throw new Error("Brand has no connected fb_page_id");
 
         if (post.image_path) {
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
           platformPostId = result.postId;
         }
       } else {
-        if (!brand.ig_business_id) throw new Error("Brand has no connected ig_business_id");
+        if (!brand.socialapi_account_id) throw new Error("Brand has no connected SocialAPI.ai Instagram account");
 
         let mediaUrl: string;
         let isVideo: boolean;
@@ -159,8 +159,7 @@ export async function GET(req: NextRequest) {
         }
 
         const result = await publishInstagramPost({
-          igBusinessId: brand.ig_business_id,
-          pageAccessToken: connection.fb_page_access_token,
+          accountId: brand.socialapi_account_id,
           mediaUrl,
           isVideo,
           caption: captionWithTags,
