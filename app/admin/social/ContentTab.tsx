@@ -87,6 +87,14 @@ export default function ContentTab({
     }
   }
 
+  async function publishNow(id: string): Promise<SocialContent> {
+    const res = await fetch(`/api/social/content/${id}/publish-now`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+    setContent((prev) => prev.map((c) => (c.id === id ? body.content : c)));
+    return body.content;
+  }
+
   async function generateVideoForPost(id: string): Promise<SocialVideoAsset> {
     const res = await fetch(`/api/social/content/${id}/generate-video`, { method: "POST" });
     const body = await res.json();
@@ -228,6 +236,7 @@ export default function ContentTab({
                   updateStatus={updateStatus}
                   linkVideoAsset={linkVideoAsset}
                   generateVideoForPost={generateVideoForPost}
+                  publishNow={publishNow}
                   deleteContent={deleteContent}
                 />
               ))}
@@ -333,6 +342,7 @@ export default function ContentTab({
                     updateStatus={updateStatus}
                     linkVideoAsset={linkVideoAsset}
                     generateVideoForPost={generateVideoForPost}
+                    publishNow={publishNow}
                     deleteContent={deleteContent}
                   />
                 ))}
@@ -408,6 +418,7 @@ function ContentCard({
   updateStatus,
   linkVideoAsset,
   generateVideoForPost,
+  publishNow,
   deleteContent,
 }: {
   c: SocialContent;
@@ -418,6 +429,7 @@ function ContentCard({
   updateStatus: (id: string, status: SocialContentStatus, scheduledAt?: string) => Promise<void>;
   linkVideoAsset: (id: string, videoAssetId: string) => Promise<void>;
   generateVideoForPost: (id: string) => Promise<SocialVideoAsset>;
+  publishNow: (id: string) => Promise<SocialContent>;
   deleteContent: (id: string) => Promise<void>;
 }) {
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -426,6 +438,20 @@ function ContentCard({
   const [hasImage, setHasImage] = useState(!!c.image_path);
   const [generatingVideo, setGeneratingVideo] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState("");
+
+  async function handlePublishNow() {
+    setPosting(true);
+    setPostError("");
+    try {
+      await publishNow(c.id);
+    } catch (err) {
+      setPostError((err as Error).message);
+    } finally {
+      setPosting(false);
+    }
+  }
 
   async function generateVideo() {
     setGeneratingVideo(true);
@@ -577,7 +603,17 @@ function ContentCard({
         {c.status === "scheduled" && c.scheduled_at && (
           <span className="text-xs text-slate-500">Scheduled for {new Date(c.scheduled_at).toLocaleString()}</span>
         )}
+        {(c.status === "draft" || c.status === "approved" || c.status === "scheduled" || c.status === "failed") && (
+          <button
+            onClick={handlePublishNow}
+            disabled={posting}
+            className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50"
+          >
+            {posting ? "Posting…" : "Post now"}
+          </button>
+        )}
       </div>
+      {postError && <p className="text-xs text-red-600 mt-1">{postError}</p>}
     </div>
   );
 }
