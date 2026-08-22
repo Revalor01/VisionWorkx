@@ -768,6 +768,7 @@ export type Database = {
           socialapi_account_id: string | null;
           socialapi_tiktok_account_id: string | null;
           socialapi_youtube_account_id: string | null;
+          socialapi_facebook_account_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -785,6 +786,7 @@ export type Database = {
           socialapi_account_id?: string | null;
           socialapi_tiktok_account_id?: string | null;
           socialapi_youtube_account_id?: string | null;
+          socialapi_facebook_account_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -800,6 +802,7 @@ export type Database = {
           socialapi_account_id?: string | null;
           socialapi_tiktok_account_id?: string | null;
           socialapi_youtube_account_id?: string | null;
+          socialapi_facebook_account_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];

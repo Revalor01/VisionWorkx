@@ -5,6 +5,10 @@
 // of Revalor needing its own Meta App Review, TikTok Content Posting API
 // audit, or Google Cloud project. Facebook stays on its existing direct
 // integration (lib/social/meta.ts) — this file covers what that can't.
+// Also covers the SocialAPI inbox (DMs/comments) — see the webhook
+// signature/reply functions near the bottom of this file.
+
+import crypto from "crypto";
 
 const API_BASE = "https://api.social-api.ai/v1";
 const SOCIALAPI_KEY = process.env.SOCIALAPI_API_KEY!;
@@ -50,6 +54,18 @@ export async function getYouTubeConnectUrl(redirectUri: string, state: string): 
   const body = await apiFetch("/accounts/connect", {
     method: "POST",
     body: JSON.stringify({ platform: "youtube", redirect_uri: redirectUri, state }),
+  });
+  return body.auth_url;
+}
+
+// Facebook here is inbox-only — Facebook posting stays on the existing
+// direct Meta integration (lib/social/meta.ts, fb_page_id), which already
+// works. This connects the same Page a second time, through SocialAPI,
+// purely so its DMs/comments reach the SocialAPI webhook.
+export async function getFacebookInboxConnectUrl(redirectUri: string, state: string): Promise<string> {
+  const body = await apiFetch("/accounts/connect", {
+    method: "POST",
+    body: JSON.stringify({ platform: "facebook", redirect_uri: redirectUri, state }),
   });
   return body.auth_url;
 }
@@ -182,4 +198,34 @@ export async function publishYouTubePost(params: {
 
   const target = await pollPostUntilTerminal(created.id, created, "YouTube");
   return { postId: target.platform_post_id!, permalink: target.permalink ?? null };
+}
+
+// ── Inbox / DM webhook (app/api/webhooks/socialapi) ─────────────────────
+
+// SocialAPI signs webhook deliveries as sha256=<hmac-hex> of the raw body,
+// using the per-endpoint secret returned once at webhook creation time.
+// Constant-time comparison — a plain string check leaks timing info.
+export function verifySocialApiWebhookSignature(rawBody: string, signatureHeader: string | null, secret: string): boolean {
+  if (!signatureHeader) return false;
+  const expected = `sha256=${crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("hex")}`;
+  const expectedBuf = Buffer.from(expected);
+  const actualBuf = Buffer.from(signatureHeader);
+  if (expectedBuf.length !== actualBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, actualBuf);
+}
+
+// The dm.received webhook payload carries a message id and the sender's
+// platform id, not a conversation id — resolving the conversation is a
+// separate lookup, needed before a reply can be sent.
+export async function findConversationId(accountId: string, participantId: string): Promise<string | null> {
+  const body = await apiFetch(`/inbox/conversations?account_id=${encodeURIComponent(accountId)}&participant_id=${encodeURIComponent(participantId)}`);
+  return body.data?.[0]?.id ?? null;
+}
+
+export async function sendInboxReply(conversationId: string, accountId: string, text: string): Promise<{ messageId: string }> {
+  const body = await apiFetch(`/inbox/conversations/${conversationId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ account_id: accountId, text }),
+  });
+  return { messageId: body.message_id };
 }

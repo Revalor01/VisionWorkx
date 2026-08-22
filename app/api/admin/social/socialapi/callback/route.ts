@@ -40,7 +40,9 @@ export async function GET(req: NextRequest) {
       ? await service.from("social_brands").update({ socialapi_tiktok_account_id: accountId }).eq("id", brandId)
       : platform === "youtube"
         ? await service.from("social_brands").update({ socialapi_youtube_account_id: accountId }).eq("id", brandId)
-        : await service.from("social_brands").update({ socialapi_account_id: accountId }).eq("id", brandId);
+        : platform === "facebook-inbox"
+          ? await service.from("social_brands").update({ socialapi_facebook_account_id: accountId }).eq("id", brandId)
+          : await service.from("social_brands").update({ socialapi_account_id: accountId }).eq("id", brandId);
 
   if (error) {
     dashboardUrl.searchParams.set("socialapi_error", error.message);

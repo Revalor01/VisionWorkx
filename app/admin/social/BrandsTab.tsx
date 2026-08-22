@@ -230,13 +230,28 @@ function BrandsTabInner({
                   connectColor="#1877F2"
                   extra={
                     brand.fb_page_id && (
-                      <a
-                        href={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
-                        className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline"
-                        title="Re-run Facebook connect — use this after linking an Instagram account to this Page, to pull it in"
-                      >
-                        Reconnect
-                      </a>
+                      <>
+                        <a
+                          href={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
+                          className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline"
+                          title="Re-run Facebook connect — use this after linking an Instagram account to this Page, to pull it in"
+                        >
+                          Reconnect
+                        </a>
+                        {brand.socialapi_facebook_account_id ? (
+                          <span className="text-[10px] text-green-700" title="DMs/comments for this Page are connected via SocialAPI">
+                            · DMs on
+                          </span>
+                        ) : (
+                          <a
+                            href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=facebook-inbox`}
+                            className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline"
+                            title="Connect this Page's DMs/comments — separate from posting, powered by SocialAPI"
+                          >
+                            · Connect DMs
+                          </a>
+                        )}
+                      </>
                     )
                   }
                 />
