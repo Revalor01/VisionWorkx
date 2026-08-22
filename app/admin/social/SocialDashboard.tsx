@@ -77,7 +77,15 @@ export default function SocialDashboard({
         </div>
 
         {tab === "brands" && <BrandsTab brands={brands} setBrands={setBrands} />}
-        {tab === "content" && <ContentTab brands={brands} content={content} setContent={setContent} videoAssets={videoAssets} />}
+        {tab === "content" && (
+          <ContentTab
+            brands={brands}
+            content={content}
+            setContent={setContent}
+            videoAssets={videoAssets}
+            setVideoAssets={setVideoAssets}
+          />
+        )}
         {tab === "video" && <VideoTab brands={brands} videoAssets={videoAssets} setVideoAssets={setVideoAssets} />}
         {tab === "inbox" && <InboxTab brands={brands} inboxItems={inboxItems} setInboxItems={setInboxItems} />}
         {tab === "recap" && <RecapTab />}

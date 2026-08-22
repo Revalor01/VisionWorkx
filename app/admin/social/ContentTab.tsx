@@ -36,11 +36,13 @@ export default function ContentTab({
   content,
   setContent,
   videoAssets,
+  setVideoAssets,
 }: {
   brands: SocialBrand[];
   content: SocialContent[];
   setContent: React.Dispatch<React.SetStateAction<SocialContent[]>>;
   videoAssets: SocialVideoAsset[];
+  setVideoAssets: React.Dispatch<React.SetStateAction<SocialVideoAsset[]>>;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [brandId, setBrandId] = useState(brands[0]?.id ?? "");
@@ -83,6 +85,15 @@ export default function ContentTab({
     } finally {
       setGenerating(false);
     }
+  }
+
+  async function generateVideoForPost(id: string): Promise<SocialVideoAsset> {
+    const res = await fetch(`/api/social/content/${id}/generate-video`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+    setVideoAssets((prev) => [body.asset, ...prev]);
+    setContent((prev) => prev.map((c) => (c.id === id ? { ...c, video_asset_id: body.asset.id } : c)));
+    return body.asset;
   }
 
   async function linkVideoAsset(id: string, videoAssetId: string) {
@@ -216,6 +227,7 @@ export default function ContentTab({
                   setScheduleDrafts={setScheduleDrafts}
                   updateStatus={updateStatus}
                   linkVideoAsset={linkVideoAsset}
+                  generateVideoForPost={generateVideoForPost}
                   deleteContent={deleteContent}
                 />
               ))}
@@ -320,6 +332,7 @@ export default function ContentTab({
                     setScheduleDrafts={setScheduleDrafts}
                     updateStatus={updateStatus}
                     linkVideoAsset={linkVideoAsset}
+                    generateVideoForPost={generateVideoForPost}
                     deleteContent={deleteContent}
                   />
                 ))}
@@ -394,6 +407,7 @@ function ContentCard({
   setScheduleDrafts,
   updateStatus,
   linkVideoAsset,
+  generateVideoForPost,
   deleteContent,
 }: {
   c: SocialContent;
@@ -403,12 +417,27 @@ function ContentCard({
   setScheduleDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   updateStatus: (id: string, status: SocialContentStatus, scheduledAt?: string) => Promise<void>;
   linkVideoAsset: (id: string, videoAssetId: string) => Promise<void>;
+  generateVideoForPost: (id: string) => Promise<SocialVideoAsset>;
   deleteContent: (id: string) => Promise<void>;
 }) {
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState("");
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [hasImage, setHasImage] = useState(!!c.image_path);
+  const [generatingVideo, setGeneratingVideo] = useState(false);
+  const [videoError, setVideoError] = useState("");
+
+  async function generateVideo() {
+    setGeneratingVideo(true);
+    setVideoError("");
+    try {
+      await generateVideoForPost(c.id);
+    } catch (err) {
+      setVideoError((err as Error).message);
+    } finally {
+      setGeneratingVideo(false);
+    }
+  }
 
   async function generateImage() {
     setGeneratingImage(true);
@@ -511,6 +540,14 @@ function ContentCard({
                 <option key={v.id} value={v.id}>{v.id.slice(0, 8)} ({v.status})</option>
               ))}
           </select>
+          <button
+            onClick={generateVideo}
+            disabled={generatingVideo}
+            className="ml-2 text-xs font-medium text-purple-600 hover:underline disabled:opacity-50"
+          >
+            {generatingVideo ? "Generating… (~1-2 min)" : "Generate video"}
+          </button>
+          {videoError && <p className="text-xs text-red-600 mt-1">{videoError}</p>}
         </div>
       )}
 
