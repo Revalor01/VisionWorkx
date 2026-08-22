@@ -21,16 +21,21 @@ export async function GET(req: NextRequest) {
   const state = params.get("state");
   const dashboardUrl = new URL("/admin/social", APP_URL);
 
+  // Parse state (if present) before branching on status, so a failure
+  // redirect can still report which platform actually failed instead of
+  // always defaulting to a generic/wrong label.
+  const [brandId, platform = "instagram"] = (state ?? "").split("::");
+
   if (status !== "success" || !state) {
     dashboardUrl.searchParams.set("socialapi_error", params.get("error_description") ?? "Connection failed");
+    if (state) dashboardUrl.searchParams.set("socialapi_error_platform", platform);
     return NextResponse.redirect(dashboardUrl);
   }
-
-  const [brandId, platform = "instagram"] = state.split("::");
 
   const accountId = params.get("account_id");
   if (!accountId) {
     dashboardUrl.searchParams.set("socialapi_error", "No account_id returned");
+    dashboardUrl.searchParams.set("socialapi_error_platform", platform);
     return NextResponse.redirect(dashboardUrl);
   }
 
@@ -46,6 +51,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     dashboardUrl.searchParams.set("socialapi_error", error.message);
+    dashboardUrl.searchParams.set("socialapi_error_platform", platform);
     return NextResponse.redirect(dashboardUrl);
   }
 

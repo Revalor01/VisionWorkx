@@ -71,6 +71,14 @@ function BrandsTabInner({
   const connected = searchParams.get("connected");
   const socialapiConnected = searchParams.get("socialapi_connected");
   const socialapiError = searchParams.get("socialapi_error");
+  const socialapiErrorPlatformRaw = searchParams.get("socialapi_error_platform");
+  const PLATFORM_LABELS: Record<string, string> = {
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    youtube: "YouTube",
+    "facebook-inbox": "Facebook DM",
+  };
+  const socialapiErrorPlatform = socialapiErrorPlatformRaw ? (PLATFORM_LABELS[socialapiErrorPlatformRaw] ?? socialapiErrorPlatformRaw) : "Instagram";
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
@@ -178,7 +186,7 @@ function BrandsTabInner({
       )}
       {socialapiError && (
         <div className="mb-4 p-3 rounded-xl bg-red-100 border border-red-300 text-red-700 text-sm">
-          Instagram connection failed ({socialapiError}). Try again from the brand card below.
+          {socialapiErrorPlatform} connection failed ({socialapiError}). Try again from the brand card below.
         </div>
       )}
       {connectSession && <ConnectPicker sessionId={connectSession} setBrands={setBrands} />}
