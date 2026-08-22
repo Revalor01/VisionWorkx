@@ -9,20 +9,14 @@ const BRAND_LOGOS: Record<string, string> = {
   VisionWorkx: "/VisionWorks.png",
   "Revalor Kids": "/revalor-kids-logo.png",
   "Revalor LLC": "/revalor-logo.png",
+  "Revalor Wellness": "/revalor-wellness-logo.png",
 };
 
-// VisionWorkx is the underlying brand row (its own real, separately
-// connected social accounts) — "Revalor Business" is its public-facing
-// umbrella name on revalorllc.com, matching the parent nav structure
-// there. Display-only: brand.name/slug/connections stay untouched.
-const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
-  VisionWorkx: "Revalor Business",
-};
-
-// Purely informational "covers" badges — same pattern for both umbrella
-// brands: the listed items are NOT merged into this brand's own social
-// connections, they're separate brand rows/cards with their own accounts.
-// This just shows at a glance what a post under this brand is repping.
+// Purely informational "covers" badge on VisionWorkx's card — the listed
+// items are NOT merged into VisionWorkx's own social connections, they're
+// separate brand rows/cards with their own accounts. Just shows at a
+// glance what a post under this brand is repping, same pattern as Revalor
+// Kids covering Chorebit/FeelFlow/MindBit below.
 const COVERS_BY_BRAND: Record<string, { name: string; logo?: string }[]> = {
   "Revalor Kids": [
     { name: "Chorebit", logo: "/chorebit-logo.png" },
@@ -32,14 +26,14 @@ const COVERS_BY_BRAND: Record<string, { name: string; logo?: string }[]> = {
   VisionWorkx: [
     { name: "VisionWorkx", logo: "/VisionWorks.png" },
     { name: "Revalor Kids", logo: "/revalor-kids-logo.png" },
-    { name: "Revalor Wellness" },
+    { name: "Revalor Wellness", logo: "/revalor-wellness-logo.png" },
   ],
 };
 
 // Explicit display order per the current brand hierarchy — Revalor LLC
-// (the corporate/parent account) first, then Revalor Business (the
-// VisionWorkx row) and what it covers, in reading order. Anything not
-// listed here (a brand added later) sorts alphabetically after these.
+// (the corporate/parent account) first, then VisionWorkx and what it
+// covers, in reading order. Anything not listed here (a brand added
+// later) sorts alphabetically after these.
 const BRAND_ORDER = ["Revalor LLC", "VisionWorkx", "Revalor Kids", "Revalor Wellness"];
 
 function sortBrands(brands: SocialBrand[]): SocialBrand[] {
@@ -216,19 +210,17 @@ function BrandsTabInner({
       <div className="grid gap-4 sm:grid-cols-2">
         {sortBrands(brands).map((brand) => {
           const fields = fieldsFor(brand);
-          const displayName = DISPLAY_NAME_OVERRIDES[brand.name] ?? brand.name;
           const covers = COVERS_BY_BRAND[brand.name];
           return (
-            <div key={brand.id} className="bg-white border border-green-600 rounded-xl p-5">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-2">
-                  {BRAND_LOGOS[brand.name] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={BRAND_LOGOS[brand.name]} alt={`${displayName} logo`} className="w-8 h-8 rounded-lg object-contain" />
-                  )}
-                  <h3 className="font-semibold text-[#1A3A5C]">{displayName}</h3>
-                </div>
+            <div key={brand.id}>
+              <div className="flex items-center gap-2 mb-2 px-1">
+                {BRAND_LOGOS[brand.name] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={BRAND_LOGOS[brand.name]} alt={`${brand.name} logo`} className="w-8 h-8 rounded-lg object-contain" />
+                )}
+                <h3 className="font-semibold text-[#1A3A5C]">{brand.name}</h3>
               </div>
+              <div className="bg-white border border-green-600 rounded-xl p-5">
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <PlatformRow
                   icon={<FacebookIcon active={!!brand.fb_page_id} />}
@@ -317,6 +309,7 @@ function BrandsTabInner({
               >
                 {saving === brand.id ? "Saving…" : "Save"}
               </button>
+              </div>
             </div>
           );
         })}
