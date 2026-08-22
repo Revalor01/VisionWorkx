@@ -45,6 +45,7 @@ function toSocialPlatform(platform: string): SocialPlatform | null {
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-socialapi-signature");
+  console.log("[webhooks/socialapi] DEBUG raw body:", rawBody.slice(0, 800));
 
   // SocialAPI pings this endpoint (already signed, with a secret it hasn't
   // handed us yet) to verify reachability during POST /v1/webhooks
