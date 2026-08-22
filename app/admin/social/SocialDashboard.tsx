@@ -8,6 +8,7 @@ import VideoTab from "./VideoTab";
 import InboxTab from "./InboxTab";
 import RecapTab from "./RecapTab";
 import HelpTab from "./HelpTab";
+import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
 type Tab = "brands" | "content" | "video" | "inbox" | "recap" | "help";
 
@@ -53,8 +54,16 @@ export default function SocialDashboard({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#1A3A5C]">Social Media Manager</h1>
-          <p className="text-slate-500 text-sm mt-1">Facebook &amp; Instagram — internal Revalor use only</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-[#1A3A5C]">Revalor Social Media Manager</h1>
+            <div className="flex items-center gap-1.5">
+              <FacebookIcon />
+              <InstagramIcon uid="header" />
+              <TikTokIcon />
+              <YouTubeIcon />
+            </div>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">Internal Revalor use only</p>
         </div>
 
         <div className="flex gap-1 mb-6 bg-white border border-green-600 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">

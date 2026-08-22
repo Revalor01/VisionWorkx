@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { SocialBrand } from "@/lib/database.types";
+import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
 const BRAND_LOGOS: Record<string, string> = {
   VisionWorkx: "/VisionWorks.png",
@@ -17,59 +18,6 @@ const REVALOR_KIDS_PRODUCTS = [
   { name: "FeelFlow", logo: "/feelflow-logo.png" },
   { name: "MindBit", logo: "/mindbit-logo.png" },
 ];
-
-function FacebookIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
-      <path
-        fill="#1877F2"
-        d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.23.2 2.23.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94Z"
-      />
-    </svg>
-  );
-}
-
-function InstagramIcon({ active, uid }: { active: boolean; uid: string }) {
-  const gradId = `ig-gradient-${uid}`;
-  return (
-    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
-      <defs>
-        <linearGradient id={gradId} x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#FED576" />
-          <stop offset="26%" stopColor="#F47133" />
-          <stop offset="61%" stopColor="#BC3081" />
-          <stop offset="100%" stopColor="#4F5BD5" />
-        </linearGradient>
-      </defs>
-      <path
-        fill={`url(#${gradId})`}
-        d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"
-      />
-    </svg>
-  );
-}
-
-function TikTokIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
-      <path
-        fill="#000000"
-        d="M16.6 5.82c-.9-.98-1.39-2.26-1.39-3.6h-3.09v13.79c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3c.31 0 .61.05.9.13V9.9a6.14 6.14 0 0 0-.9-.07c-3.36 0-6.09 2.73-6.09 6.09s2.73 6.08 6.09 6.08 6.08-2.72 6.08-6.08V8.86a9.15 9.15 0 0 0 5.33 1.71V7.48a5.6 5.6 0 0 1-3.93-1.66z"
-      />
-    </svg>
-  );
-}
-
-function YouTubeIcon({ active }: { active: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${active ? "" : "opacity-30 grayscale"}`}>
-      <path
-        fill="#FF0000"
-        d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.51 3.5 12 3.5 12 3.5s-7.51 0-9.38.55A3.02 3.02 0 0 0 .5 6.19 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.81 3.02 3.02 0 0 0 2.12 2.14c1.87.55 9.38.55 9.38.55s7.51 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.81ZM9.6 15.5v-7l6.27 3.5-6.27 3.5Z"
-      />
-    </svg>
-  );
-}
 
 export default function BrandsTab(props: {
   brands: SocialBrand[];
@@ -244,120 +192,50 @@ function BrandsTabInner({
                   )}
                   <h3 className="font-semibold text-[#1A3A5C]">{brand.name}</h3>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <FacebookIcon active={!!brand.fb_page_id} />
-                  <InstagramIcon active={!!brand.socialapi_account_id} uid={brand.id} />
-                  <TikTokIcon active={!!brand.socialapi_tiktok_account_id} />
-                  <YouTubeIcon active={!!brand.socialapi_youtube_account_id} />
-                  {brand.socialapi_account_id ? (
-                    <>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                        IG Connected
-                      </span>
-                      {connectedAccounts[brand.socialapi_account_id] && (
-                        <span className="flex items-center gap-1" title="Real connected Instagram account — verify this matches the brand">
-                          {connectedAccounts[brand.socialapi_account_id].profilePictureUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={connectedAccounts[brand.socialapi_account_id].profilePictureUrl!}
-                              alt="Connected Instagram account"
-                              className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                            />
-                          )}
-                          <span className="text-[10px] text-slate-500">
-                            @{connectedAccounts[brand.socialapi_account_id].username ?? "?"}
-                          </span>
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <a
-                      href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}`}
-                      className="text-xs font-medium text-[#BC3081] hover:underline"
-                    >
-                      Connect Instagram
-                    </a>
-                  )}
-                  {brand.fb_page_id ? (
-                    <>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                        FB Connected
-                      </span>
+              </div>
+              <div className="mb-4 divide-y divide-slate-100 border-y border-slate-100">
+                <PlatformRow
+                  icon={<FacebookIcon active={!!brand.fb_page_id} />}
+                  label="Facebook"
+                  connected={!!brand.fb_page_id}
+                  connectHref={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
+                  connectColor="#1877F2"
+                  extra={
+                    brand.fb_page_id && (
                       <a
                         href={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
-                        className="text-[10px] font-medium text-[#1877F2] hover:underline"
+                        className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline"
                         title="Re-run Facebook connect — use this after linking an Instagram account to this Page, to pull it in"
                       >
                         Reconnect
                       </a>
-                    </>
-                  ) : (
-                    <a
-                      href={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
-                      className="text-xs font-medium text-[#1877F2] hover:underline"
-                    >
-                      Connect Facebook
-                    </a>
-                  )}
-                  {brand.socialapi_tiktok_account_id ? (
-                    <>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                        TikTok Connected
-                      </span>
-                      {connectedAccounts[brand.socialapi_tiktok_account_id] && (
-                        <span className="flex items-center gap-1" title="Real connected TikTok account — verify this matches the brand">
-                          {connectedAccounts[brand.socialapi_tiktok_account_id].profilePictureUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={connectedAccounts[brand.socialapi_tiktok_account_id].profilePictureUrl!}
-                              alt="Connected TikTok account"
-                              className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                            />
-                          )}
-                          <span className="text-[10px] text-slate-500">
-                            @{connectedAccounts[brand.socialapi_tiktok_account_id].username ?? "?"}
-                          </span>
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <a
-                      href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=tiktok`}
-                      className="text-xs font-medium text-black hover:underline"
-                    >
-                      Connect TikTok
-                    </a>
-                  )}
-                  {brand.socialapi_youtube_account_id ? (
-                    <>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                        YouTube Connected
-                      </span>
-                      {connectedAccounts[brand.socialapi_youtube_account_id] && (
-                        <span className="flex items-center gap-1" title="Real connected YouTube account — verify this matches the brand">
-                          {connectedAccounts[brand.socialapi_youtube_account_id].profilePictureUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={connectedAccounts[brand.socialapi_youtube_account_id].profilePictureUrl!}
-                              alt="Connected YouTube account"
-                              className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                            />
-                          )}
-                          <span className="text-[10px] text-slate-500">
-                            {connectedAccounts[brand.socialapi_youtube_account_id].username ?? "?"}
-                          </span>
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <a
-                      href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=youtube`}
-                      className="text-xs font-medium text-[#FF0000] hover:underline"
-                    >
-                      Connect YouTube
-                    </a>
-                  )}
-                </div>
+                    )
+                  }
+                />
+                <PlatformRow
+                  icon={<InstagramIcon active={!!brand.socialapi_account_id} uid={brand.id} />}
+                  label="Instagram"
+                  connected={!!brand.socialapi_account_id}
+                  account={brand.socialapi_account_id ? connectedAccounts[brand.socialapi_account_id] : undefined}
+                  connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}`}
+                  connectColor="#BC3081"
+                />
+                <PlatformRow
+                  icon={<TikTokIcon active={!!brand.socialapi_tiktok_account_id} />}
+                  label="TikTok"
+                  connected={!!brand.socialapi_tiktok_account_id}
+                  account={brand.socialapi_tiktok_account_id ? connectedAccounts[brand.socialapi_tiktok_account_id] : undefined}
+                  connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=tiktok`}
+                  connectColor="#000000"
+                />
+                <PlatformRow
+                  icon={<YouTubeIcon active={!!brand.socialapi_youtube_account_id} />}
+                  label="YouTube"
+                  connected={!!brand.socialapi_youtube_account_id}
+                  account={brand.socialapi_youtube_account_id ? connectedAccounts[brand.socialapi_youtube_account_id] : undefined}
+                  connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=youtube`}
+                  connectColor="#FF0000"
+                />
               </div>
               {brand.name === "Revalor Kids" && (
                 <div className="flex items-center gap-3 mb-4 p-2 bg-slate-50 border border-slate-200 rounded-lg">
@@ -405,6 +283,60 @@ function BrandsTabInner({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// One row per platform inside a brand card — replaces the old wrapped
+// row of icon+badge+avatar+link per platform, which got unreadable once
+// a 4th and 5th platform (YouTube, and previously TikTok) were added.
+function PlatformRow({
+  icon,
+  label,
+  connected,
+  account,
+  connectHref,
+  connectColor,
+  extra,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  connected: boolean;
+  account?: { username: string | null; profilePictureUrl: string | null };
+  connectHref: string;
+  connectColor: string;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-sm text-slate-600">{label}</span>
+      </div>
+      {connected ? (
+        <div className="flex items-center gap-2">
+          {account ? (
+            <span className="flex items-center gap-1.5" title={`Real connected ${label} account — verify this matches the brand`}>
+              {account.profilePictureUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={account.profilePictureUrl}
+                  alt={`Connected ${label} account`}
+                  className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                />
+              )}
+              <span className="text-xs text-slate-500">{account.username ? `@${account.username}` : "Connected"}</span>
+            </span>
+          ) : (
+            <span className="text-xs font-medium text-green-700">Connected</span>
+          )}
+          {extra}
+        </div>
+      ) : (
+        <a href={connectHref} className="text-xs font-medium hover:underline" style={{ color: connectColor }}>
+          Connect
+        </a>
+      )}
     </div>
   );
 }
