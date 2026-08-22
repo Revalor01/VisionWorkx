@@ -10,8 +10,8 @@ export const maxDuration = 60;
 const WEBHOOK_SECRET = process.env.SOCIALAPI_WEBHOOK_SECRET;
 
 interface DmReceivedPayload {
-  event: "dm.received";
-  data: {
+  event_type: "dm.received";
+  payload: {
     id: string;
     platform: string;
     account_id: string;
@@ -21,8 +21,8 @@ interface DmReceivedPayload {
 }
 
 interface CommentReceivedPayload {
-  event: "comment.received";
-  data: {
+  event_type: "comment.received";
+  payload: {
     platform: string;
     account_id: string;
     author: { id: string; username?: string };
@@ -30,7 +30,10 @@ interface CommentReceivedPayload {
   };
 }
 
-type WebhookPayload = DmReceivedPayload | CommentReceivedPayload | { event: string; data: unknown };
+// Actual delivered shape is { event_type, payload } — the "Webhooks" guide
+// doc describes it as { event, data }, which does NOT match what's really
+// sent (confirmed via a live test delivery + GET .../deliveries/{id}).
+type WebhookPayload = DmReceivedPayload | CommentReceivedPayload | { event_type: string; payload: unknown };
 
 function toSocialPlatform(platform: string): SocialPlatform | null {
   if (platform === "facebook" || platform === "instagram" || platform === "tiktok" || platform === "youtube") {
@@ -58,8 +61,8 @@ export async function POST(req: NextRequest) {
   const payload = JSON.parse(rawBody) as WebhookPayload;
   const service = createServiceClient();
 
-  if (payload.event === "dm.received") {
-    const { data } = payload as DmReceivedPayload;
+  if (payload.event_type === "dm.received") {
+    const { payload: data } = payload as DmReceivedPayload;
     const text = data.content?.text;
     const platform = toSocialPlatform(data.platform);
     if (!text || !platform) return NextResponse.json({ received: true });
@@ -99,8 +102,8 @@ export async function POST(req: NextRequest) {
       classification: result.classification,
       auto_reply_text: result.replyText,
     });
-  } else if (payload.event === "comment.received") {
-    const { data } = payload as CommentReceivedPayload;
+  } else if (payload.event_type === "comment.received") {
+    const { payload: data } = payload as CommentReceivedPayload;
     const text = data.content?.text;
     const platform = toSocialPlatform(data.platform);
     if (!text || !platform) return NextResponse.json({ received: true });
