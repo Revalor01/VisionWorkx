@@ -91,10 +91,11 @@ function BrandsTabInner({
   const [saving, setSaving] = useState<string | null>(null);
 
   // Real connected-account identity (avatar + @username), keyed by
-  // socialapi_account_id — lets a mismatch (a brand pointing at another
-  // brand's real Instagram account) be caught at a glance instead of only
-  // discovered after a post goes out to the wrong account.
-  const [igAccounts, setIgAccounts] = useState<Record<string, { username: string | null; profilePictureUrl: string | null }>>({});
+  // socialapi_account_id / socialapi_tiktok_account_id — lets a mismatch
+  // (a brand pointing at another brand's real account) be caught at a
+  // glance instead of only discovered after a post goes out to the wrong
+  // account. Covers every SocialAPI-connected platform, not just Instagram.
+  const [connectedAccounts, setConnectedAccounts] = useState<Record<string, { username: string | null; profilePictureUrl: string | null }>>({});
 
   useEffect(() => {
     fetch("/api/admin/social/socialapi/accounts")
@@ -105,7 +106,7 @@ function BrandsTabInner({
         for (const a of body.accounts) {
           map[a.id] = { username: a.username, profilePictureUrl: a.profilePictureUrl };
         }
-        setIgAccounts(map);
+        setConnectedAccounts(map);
       })
       .catch(() => {});
   }, []);
@@ -235,24 +236,24 @@ function BrandsTabInner({
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   <FacebookIcon active={!!brand.fb_page_id} />
                   <InstagramIcon active={!!brand.socialapi_account_id} uid={brand.id} />
-                  <TikTokIcon active={!!brand.tiktok_open_id} />
+                  <TikTokIcon active={!!brand.socialapi_tiktok_account_id} />
                   {brand.socialapi_account_id ? (
                     <>
                       <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
                         IG Connected
                       </span>
-                      {igAccounts[brand.socialapi_account_id] && (
+                      {connectedAccounts[brand.socialapi_account_id] && (
                         <span className="flex items-center gap-1" title="Real connected Instagram account — verify this matches the brand">
-                          {igAccounts[brand.socialapi_account_id].profilePictureUrl && (
+                          {connectedAccounts[brand.socialapi_account_id].profilePictureUrl && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={igAccounts[brand.socialapi_account_id].profilePictureUrl!}
+                              src={connectedAccounts[brand.socialapi_account_id].profilePictureUrl!}
                               alt="Connected Instagram account"
                               className="w-5 h-5 rounded-full object-cover border border-slate-200"
                             />
                           )}
                           <span className="text-[10px] text-slate-500">
-                            @{igAccounts[brand.socialapi_account_id].username ?? "?"}
+                            @{connectedAccounts[brand.socialapi_account_id].username ?? "?"}
                           </span>
                         </span>
                       )}
@@ -286,16 +287,30 @@ function BrandsTabInner({
                       Connect Facebook
                     </a>
                   )}
-                  {brand.tiktok_open_id ? (
-                    <span
-                      className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700"
-                      title={brand.tiktok_username ?? undefined}
-                    >
-                      TikTok Connected
-                    </span>
+                  {brand.socialapi_tiktok_account_id ? (
+                    <>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        TikTok Connected
+                      </span>
+                      {connectedAccounts[brand.socialapi_tiktok_account_id] && (
+                        <span className="flex items-center gap-1" title="Real connected TikTok account — verify this matches the brand">
+                          {connectedAccounts[brand.socialapi_tiktok_account_id].profilePictureUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={connectedAccounts[brand.socialapi_tiktok_account_id].profilePictureUrl!}
+                              alt="Connected TikTok account"
+                              className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                            />
+                          )}
+                          <span className="text-[10px] text-slate-500">
+                            @{connectedAccounts[brand.socialapi_tiktok_account_id].username ?? "?"}
+                          </span>
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <a
-                      href={`/api/social/connect/tiktok/connect?brandId=${brand.id}`}
+                      href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=tiktok`}
                       className="text-xs font-medium text-black hover:underline"
                     >
                       Connect TikTok

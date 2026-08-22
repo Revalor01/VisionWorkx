@@ -766,6 +766,7 @@ export type Database = {
           tiktok_open_id: string | null;
           tiktok_username: string | null;
           socialapi_account_id: string | null;
+          socialapi_tiktok_account_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -781,6 +782,7 @@ export type Database = {
           tiktok_open_id?: string | null;
           tiktok_username?: string | null;
           socialapi_account_id?: string | null;
+          socialapi_tiktok_account_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -794,6 +796,7 @@ export type Database = {
           tiktok_open_id?: string | null;
           tiktok_username?: string | null;
           socialapi_account_id?: string | null;
+          socialapi_tiktok_account_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];

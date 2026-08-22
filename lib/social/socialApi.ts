@@ -1,9 +1,10 @@
-// SocialAPI.ai client — replaces the Instagram half of lib/social/meta.ts.
-// SocialAPI.ai carries its own pre-approved Meta app, so connecting a brand's
-// Instagram account is a simple OAuth redirect instead of Revalor needing
-// its own Meta App Review. Facebook/TikTok stay on their existing direct
-// integrations (lib/social/meta.ts, lib/social/tiktok.ts) — this file only
-// covers what those can't: Instagram without App Review.
+// SocialAPI.ai client — replaces the Instagram half of lib/social/meta.ts
+// and the direct TikTok integration in lib/social/tiktok.ts. SocialAPI.ai
+// carries its own pre-approved Meta/TikTok apps, so connecting a brand's
+// account is a simple OAuth redirect instead of Revalor needing its own
+// Meta App Review or TikTok Content Posting API audit. Facebook stays on
+// its existing direct integration (lib/social/meta.ts) — this file covers
+// what that can't: Instagram/TikTok without a review process.
 
 const API_BASE = "https://api.social-api.ai/v1";
 const SOCIALAPI_KEY = process.env.SOCIALAPI_API_KEY!;
@@ -37,6 +38,14 @@ export async function getInstagramConnectUrl(redirectUri: string, state: string)
   return body.auth_url;
 }
 
+export async function getTikTokConnectUrl(redirectUri: string, state: string): Promise<string> {
+  const body = await apiFetch("/accounts/connect", {
+    method: "POST",
+    body: JSON.stringify({ platform: "tiktok", redirect_uri: redirectUri, state }),
+  });
+  return body.auth_url;
+}
+
 // ── Account lookup (for the admin UI to show which real account is connected) ──
 
 export interface SocialApiAccount {
@@ -61,7 +70,29 @@ export async function listSocialApiAccounts(): Promise<SocialApiAccount[]> {
 // ── Publishing ───────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 20; // ~60s — Meta processes the media asynchronously after we submit it
+const POLL_MAX_ATTEMPTS = 20; // ~60s — Meta/TikTok process media asynchronously after we submit it
+
+// Shared by Instagram and TikTok publishing — both platforms return
+// "publishing"/"pending" from the creation call and finish processing the
+// media afterward, so success has to be judged from a later poll, not the
+// immediate response.
+async function pollPostUntilTerminal(
+  postId: string,
+  initial: { targets?: { status: string; platform_post_id?: string; permalink?: string }[]; status?: string },
+  platformLabel: string
+): Promise<{ status: string; platform_post_id?: string; permalink?: string }> {
+  let body = initial;
+  for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+    const target = body.targets?.[0];
+    if (target?.status === "published") return target;
+    if (target?.status === "failed" || body.status === "failed") {
+      throw new Error(`SocialAPI ${platformLabel} publish failed: ${JSON.stringify(body)}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    body = await apiFetch(`/posts/${postId}`);
+  }
+  throw new Error(`SocialAPI ${platformLabel} publish did not reach a terminal state in time: ${JSON.stringify(body)}`);
+}
 
 export async function publishInstagramPost(params: {
   accountId: string;
@@ -82,21 +113,41 @@ export async function publishInstagramPost(params: {
     }),
   });
 
-  // The creation call returns before Meta finishes processing the media —
-  // status starts as "publishing"/"pending", not "published". Poll the post
-  // until it reaches a terminal state instead of judging off this response.
-  let body = created;
-  for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-    const target = body.targets?.[0];
-    if (target?.status === "published") {
-      return { postId: target.platform_post_id, permalink: target.permalink ?? null };
-    }
-    if (target?.status === "failed" || body.status === "failed") {
-      throw new Error(`SocialAPI Instagram publish failed: ${JSON.stringify(body)}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    body = await apiFetch(`/posts/${created.id}`);
-  }
+  const target = await pollPostUntilTerminal(created.id, created, "Instagram");
+  return { postId: target.platform_post_id!, permalink: target.permalink ?? null };
+}
 
-  throw new Error(`SocialAPI Instagram publish did not reach a terminal state in time: ${JSON.stringify(body)}`);
+export async function publishTikTokPost(params: {
+  accountId: string;
+  mediaUrl: string;
+  caption: string;
+}): Promise<{ postId: string }> {
+  const created = await apiFetch("/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      text: params.caption,
+      media: [{ source: params.mediaUrl, source_type: "url", type: "video" }],
+      targets: [{ account_id: params.accountId }],
+      publish_now: true,
+      platform_data: {
+        tiktok: {
+          // TikTok's Direct Post guidelines prohibit a client-applied
+          // default privacy level, but SocialAPI requires the field
+          // regardless — PUBLIC_TO_EVERYONE is the intended real-world
+          // behavior for scheduled brand content. Worth confirming this
+          // value is actually accepted once a real account is connected
+          // (accepted values are account-specific per SocialAPI's docs).
+          privacy_level: "PUBLIC_TO_EVERYONE",
+          disable_comment: false,
+          disable_duet: false,
+          disable_stitch: false,
+        },
+      },
+    }),
+  });
+
+  // TikTok's SocialAPI response never includes a permalink (unlike
+  // Instagram) — only the platform post id.
+  const target = await pollPostUntilTerminal(created.id, created, "TikTok");
+  return { postId: target.platform_post_id! };
 }

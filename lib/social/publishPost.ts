@@ -1,7 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
-import { publishInstagramPost } from "@/lib/social/socialApi";
-import { refreshTikTokToken, publishTikTokVideo } from "@/lib/social/tiktok";
+import { publishInstagramPost, publishTikTokPost } from "@/lib/social/socialApi";
 import type { SocialContent } from "@/lib/database.types";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
@@ -34,33 +33,8 @@ export async function publishPost(
     let platformPostId: string;
 
     if (post.platform === "tiktok") {
-      if (!brand.tiktok_open_id) throw new Error("Brand has no connected TikTok account");
+      if (!brand.socialapi_tiktok_account_id) throw new Error("Brand has no connected SocialAPI.ai TikTok account");
       if (!post.video_asset_id) throw new Error("TikTok posts require a linked video asset");
-
-      const { data: tiktokConnection } = await service
-        .from("social_tiktok_connections")
-        .select("*")
-        .eq("brand_id", post.brand_id)
-        .maybeSingle();
-      if (!tiktokConnection) throw new Error("Brand has no stored TikTok connection");
-
-      // Access tokens are short-lived (~24h) — refresh proactively
-      // whenever it's within 5 minutes of expiring rather than running
-      // a separate refresh cron.
-      let accessToken = tiktokConnection.access_token;
-      const expiresAt = new Date(tiktokConnection.access_token_expires_at).getTime();
-      if (expiresAt - Date.now() < 5 * 60 * 1000) {
-        const refreshed = await refreshTikTokToken(tiktokConnection.refresh_token);
-        accessToken = refreshed.access_token;
-        await service
-          .from("social_tiktok_connections")
-          .update({
-            access_token: refreshed.access_token,
-            refresh_token: refreshed.refresh_token,
-            access_token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-          })
-          .eq("brand_id", post.brand_id);
-      }
 
       const { data: asset } = await service
         .from("social_video_assets")
@@ -73,12 +47,12 @@ export async function publishPost(
         .createSignedUrl(asset.final_path, SIGNED_URL_TTL_SECONDS);
       if (signError || !signed) throw new Error("Failed to sign media URL for TikTok publish");
 
-      const result = await publishTikTokVideo({
-        accessToken,
-        videoUrl: signed.signedUrl,
+      const result = await publishTikTokPost({
+        accountId: brand.socialapi_tiktok_account_id,
+        mediaUrl: signed.signedUrl,
         caption: captionWithTags,
       });
-      platformPostId = result.publishId;
+      platformPostId = result.postId;
 
       await service
         .from("social_content")
