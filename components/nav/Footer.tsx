@@ -59,7 +59,7 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="https://revalor-automation.vercel.app/revalorllc_redesign"
+                href="https://revalor-automation.vercel.app/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Revalor LLC"
@@ -84,6 +84,7 @@ export default function Footer() {
               <li><Link href="/#how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
               <li><Link href="/#categories" className="hover:text-white transition-colors">Features</Link></li>
               <li><Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
+              <li><Link href="/web-app-vs-web-page" className="hover:text-white transition-colors">Web App vs. Web Page</Link></li>
             </ul>
           </div>
 

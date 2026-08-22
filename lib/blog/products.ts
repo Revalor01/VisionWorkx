@@ -75,7 +75,7 @@ export const PRODUCTS: Record<BlogProduct, ProductConfig> = {
       "mental clarity practices",
       "guided calm app",
     ],
-    url: "https://revalor-automation.vercel.app/revalorllc_redesign#revalor-wellness",
+    url: "https://revalor-automation.vercel.app/#revalor-wellness",
   },
 };
 
