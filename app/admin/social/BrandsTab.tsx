@@ -82,6 +82,8 @@ function BrandsTabInner({
   const connectSession = searchParams.get("connectSession");
   const connectError = searchParams.get("connectError");
   const connected = searchParams.get("connected");
+  const socialapiConnected = searchParams.get("socialapi_connected");
+  const socialapiError = searchParams.get("socialapi_error");
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
@@ -161,6 +163,16 @@ function BrandsTabInner({
           Facebook connection failed ({connectError}). Try again from the brand card below.
         </div>
       )}
+      {socialapiConnected && (
+        <div className="mb-4 p-3 rounded-xl bg-green-100 border border-green-300 text-green-700 text-sm">
+          Instagram account connected successfully.
+        </div>
+      )}
+      {socialapiError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-100 border border-red-300 text-red-700 text-sm">
+          Instagram connection failed ({socialapiError}). Try again from the brand card below.
+        </div>
+      )}
       {connectSession && <ConnectPicker sessionId={connectSession} setBrands={setBrands} />}
 
       <div className="flex justify-between items-center mb-4">
@@ -202,8 +214,20 @@ function BrandsTabInner({
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   <FacebookIcon active={!!brand.fb_page_id} />
-                  <InstagramIcon active={!!brand.ig_business_id} uid={brand.id} />
+                  <InstagramIcon active={!!brand.socialapi_account_id} uid={brand.id} />
                   <TikTokIcon active={!!brand.tiktok_open_id} />
+                  {brand.socialapi_account_id ? (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                      IG Connected
+                    </span>
+                  ) : (
+                    <a
+                      href={`/api/admin/social/socialapi/connect?brand_id=${brand.id}`}
+                      className="text-xs font-medium text-[#BC3081] hover:underline"
+                    >
+                      Connect Instagram
+                    </a>
+                  )}
                   {brand.fb_page_id ? (
                     <>
                       <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
