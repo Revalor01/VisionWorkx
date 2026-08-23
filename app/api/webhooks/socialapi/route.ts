@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { verifySocialApiWebhookSignature, findConversationId, sendInboxReply } from "@/lib/social/socialApi";
 import { classifyInboundMessage } from "@/lib/social/classifyInbound";
+import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import type { SocialPlatform } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -99,6 +100,16 @@ export async function POST(req: NextRequest) {
       auto_reply_text: result.replyText,
     });
     if (insertError) console.error("[webhooks/socialapi] dm.received: inbox insert failed:", insertError.message);
+
+    if (result.classification === "requires_human" && brand.autonomy_enabled) {
+      await raiseAutonomyFlag(service, {
+        brandId: brand.id,
+        brandName: brand.name,
+        kind: "inbox_escalation",
+        detail: `New ${platform} DM needs a human reply: "${text.slice(0, 200)}"`,
+        pauseBrand: false,
+      });
+    }
   } else if (eventType === "comment.received") {
     const data = JSON.parse(rawBody) as CommentReceivedBody;
     const text = data.content?.text;
@@ -107,7 +118,7 @@ export async function POST(req: NextRequest) {
 
     const { data: brand, error: brandError } = await service
       .from("social_brands")
-      .select("id")
+      .select("id, name, autonomy_enabled")
       .or(
         `socialapi_account_id.eq.${data.account_id},socialapi_tiktok_account_id.eq.${data.account_id},socialapi_youtube_account_id.eq.${data.account_id},socialapi_facebook_account_id.eq.${data.account_id}`
       )
@@ -128,6 +139,16 @@ export async function POST(req: NextRequest) {
       classification: "requires_human",
     });
     if (insertError) console.error("[webhooks/socialapi] comment.received: inbox insert failed:", insertError.message);
+
+    if (brand.autonomy_enabled) {
+      await raiseAutonomyFlag(service, {
+        brandId: brand.id,
+        brandName: brand.name,
+        kind: "inbox_escalation",
+        detail: `New ${platform} comment needs a human reply: "${text.slice(0, 200)}"`,
+        pauseBrand: false,
+      });
+    }
   }
 
   return NextResponse.json({ received: true });

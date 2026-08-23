@@ -12,7 +12,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } = await supabase.auth.getUser();
   if (!isAdmin(user)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { name?: string; voiceNotes?: string; faqDocument?: string; websiteUrl?: string };
+  let body: {
+    name?: string;
+    voiceNotes?: string;
+    faqDocument?: string;
+    websiteUrl?: string;
+    autonomyEnabled?: boolean;
+    autonomyMode?: "manual" | "semi_autonomous" | "fully_autonomous";
+    bannedWords?: string[];
+    contentTopics?: string[];
+    postingFrequencyPerDay?: number;
+    resumeAutonomy?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -24,6 +35,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.voiceNotes !== undefined) update.voice_notes = body.voiceNotes;
   if (body.faqDocument !== undefined) update.faq_document = body.faqDocument;
   if (body.websiteUrl !== undefined) update.website_url = body.websiteUrl || null;
+  if (body.autonomyEnabled !== undefined) update.autonomy_enabled = body.autonomyEnabled;
+  if (body.autonomyMode !== undefined) update.autonomy_mode = body.autonomyMode;
+  if (body.bannedWords !== undefined) update.banned_words = body.bannedWords;
+  if (body.contentTopics !== undefined) update.content_topics = body.contentTopics;
+  if (body.postingFrequencyPerDay !== undefined) update.posting_frequency_per_day = body.postingFrequencyPerDay;
+  if (body.resumeAutonomy) {
+    update.autonomy_paused_at = null;
+    update.autonomy_paused_reason = null;
+  }
 
   const service = createServiceClient();
   const { error } = await service.from("social_brands").update(update).eq("id", params.id);

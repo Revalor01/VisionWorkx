@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { publishPost } from "@/lib/social/publishPost";
+import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -24,6 +25,17 @@ export async function GET(req: NextRequest) {
   for (const post of due ?? []) {
     const result = await publishPost(service, post);
     results.push({ id: post.id, ...result });
+
+    if (!result.ok) {
+      const { data: brand } = await service.from("social_brands").select("name").eq("id", post.brand_id).maybeSingle();
+      await raiseAutonomyFlag(service, {
+        brandId: post.brand_id,
+        brandName: brand?.name ?? "Unknown brand",
+        contentId: post.id,
+        kind: "publish_failure",
+        detail: `Failed to publish ${post.platform} post: ${result.error ?? "unknown error"}`,
+      });
+    }
   }
 
   return NextResponse.json({ processed: results.length, results });

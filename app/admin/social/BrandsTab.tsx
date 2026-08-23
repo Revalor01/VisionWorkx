@@ -82,8 +82,11 @@ function BrandsTabInner({
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
-  const [editing, setEditing] = useState<Record<string, { voiceNotes: string; faqDocument: string; websiteUrl: string }>>({});
+  const [editing, setEditing] = useState<
+    Record<string, { voiceNotes: string; faqDocument: string; websiteUrl: string; bannedWords: string; contentTopics: string; postingFrequencyPerDay: string; autonomyMode: string }>
+  >({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [togglingAutonomy, setTogglingAutonomy] = useState<string | null>(null);
 
   // Real connected-account identity (avatar + @username), keyed by
   // socialapi_account_id / socialapi_tiktok_account_id — lets a mismatch
@@ -121,28 +124,31 @@ function BrandsTabInner({
     }
   }
 
-  function fieldsFor(brand: SocialBrand) {
-    return (
-      editing[brand.id] ?? {
-        voiceNotes: brand.voice_notes ?? "",
-        faqDocument: brand.faq_document ?? "",
-        websiteUrl: brand.website_url ?? "",
-      }
-    );
+  function defaultFields(brand: SocialBrand) {
+    return {
+      voiceNotes: brand.voice_notes ?? "",
+      faqDocument: brand.faq_document ?? "",
+      websiteUrl: brand.website_url ?? "",
+      bannedWords: brand.banned_words.join(", "),
+      contentTopics: brand.content_topics.join(", "),
+      postingFrequencyPerDay: String(brand.posting_frequency_per_day),
+      autonomyMode: brand.autonomy_mode,
+    };
   }
 
-  function updateField(brandId: string, field: "voiceNotes" | "faqDocument" | "websiteUrl", value: string) {
+  function fieldsFor(brand: SocialBrand) {
+    return editing[brand.id] ?? defaultFields(brand);
+  }
+
+  function updateField(
+    brandId: string,
+    field: "voiceNotes" | "faqDocument" | "websiteUrl" | "bannedWords" | "contentTopics" | "postingFrequencyPerDay" | "autonomyMode",
+    value: string
+  ) {
     const brand = brands.find((b) => b.id === brandId)!;
     setEditing((prev) => ({
       ...prev,
-      [brandId]: {
-        ...(prev[brandId] ?? {
-          voiceNotes: brand.voice_notes ?? "",
-          faqDocument: brand.faq_document ?? "",
-          websiteUrl: brand.website_url ?? "",
-        }),
-        [field]: value,
-      },
+      [brandId]: { ...(prev[brandId] ?? defaultFields(brand)), [field]: value },
     }));
   }
 
@@ -150,20 +156,89 @@ function BrandsTabInner({
     const fields = fieldsFor(brand);
     setSaving(brand.id);
     try {
+      const bannedWords = fields.bannedWords.split(",").map((w) => w.trim()).filter(Boolean);
+      const contentTopics = fields.contentTopics.split(",").map((t) => t.trim()).filter(Boolean);
+      const postingFrequencyPerDay = Math.max(1, parseInt(fields.postingFrequencyPerDay, 10) || 1);
       await fetch(`/api/social/brands/${brand.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voiceNotes: fields.voiceNotes, faqDocument: fields.faqDocument, websiteUrl: fields.websiteUrl }),
+        body: JSON.stringify({
+          voiceNotes: fields.voiceNotes,
+          faqDocument: fields.faqDocument,
+          websiteUrl: fields.websiteUrl,
+          bannedWords,
+          contentTopics,
+          postingFrequencyPerDay,
+          autonomyMode: fields.autonomyMode,
+        }),
       });
       setBrands((prev) =>
         prev.map((b) =>
           b.id === brand.id
-            ? { ...b, voice_notes: fields.voiceNotes, faq_document: fields.faqDocument, website_url: fields.websiteUrl || null }
+            ? {
+                ...b,
+                voice_notes: fields.voiceNotes,
+                faq_document: fields.faqDocument,
+                website_url: fields.websiteUrl || null,
+                banned_words: bannedWords,
+                content_topics: contentTopics,
+                posting_frequency_per_day: postingFrequencyPerDay,
+                autonomy_mode: fields.autonomyMode as SocialBrand["autonomy_mode"],
+              }
             : b
         )
       );
     } finally {
       setSaving(null);
+    }
+  }
+
+  async function toggleAutonomy(brand: SocialBrand) {
+    setTogglingAutonomy(brand.id);
+    try {
+      const nextEnabled = !brand.autonomy_enabled;
+      await fetch(`/api/social/brands/${brand.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autonomyEnabled: nextEnabled }),
+      });
+      setBrands((prev) => prev.map((b) => (b.id === brand.id ? { ...b, autonomy_enabled: nextEnabled } : b)));
+    } finally {
+      setTogglingAutonomy(null);
+    }
+  }
+
+  async function resumeAutonomy(brand: SocialBrand) {
+    setTogglingAutonomy(brand.id);
+    try {
+      await fetch(`/api/social/brands/${brand.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeAutonomy: true }),
+      });
+      setBrands((prev) => prev.map((b) => (b.id === brand.id ? { ...b, autonomy_paused_at: null, autonomy_paused_reason: null } : b)));
+    } finally {
+      setTogglingAutonomy(null);
+    }
+  }
+
+  async function pauseAllAutonomy() {
+    setTogglingAutonomy("all");
+    try {
+      await Promise.all(
+        brands
+          .filter((b) => b.autonomy_enabled)
+          .map((b) =>
+            fetch(`/api/social/brands/${b.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ autonomyEnabled: false }),
+            })
+          )
+      );
+      setBrands((prev) => prev.map((b) => ({ ...b, autonomy_enabled: false })));
+    } finally {
+      setTogglingAutonomy(null);
     }
   }
 
@@ -193,12 +268,24 @@ function BrandsTabInner({
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-[#1A3A5C]">Brands</h2>
-        <button
-          onClick={() => setShowAddForm((v) => !v)}
-          className="px-4 py-2 rounded-lg bg-[#1A3A5C] text-white text-sm font-medium hover:bg-[#15304a] transition-colors"
-        >
-          + Add Brand
-        </button>
+        <div className="flex gap-2">
+          {brands.some((b) => b.autonomy_enabled) && (
+            <button
+              onClick={pauseAllAutonomy}
+              disabled={togglingAutonomy === "all"}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              title="Immediately turn off autonomous posting for every brand"
+            >
+              {togglingAutonomy === "all" ? "Pausing…" : "Pause all autonomy"}
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddForm((v) => !v)}
+            className="px-4 py-2 rounded-lg bg-[#1A3A5C] text-white text-sm font-medium hover:bg-[#15304a] transition-colors"
+          >
+            + Add Brand
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -325,6 +412,75 @@ function BrandsTabInner({
                 className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3 resize-none"
                 placeholder="Q: How much does it cost? A: ..."
               />
+
+              <div className="border-t border-slate-200 pt-3 mt-1 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Autonomous posting</span>
+                  <button
+                    onClick={() => toggleAutonomy(brand)}
+                    disabled={togglingAutonomy === brand.id}
+                    className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-50 ${brand.autonomy_enabled ? "bg-green-600" : "bg-slate-300"}`}
+                    title={brand.autonomy_enabled ? "On — click to turn off" : "Off — click to turn on"}
+                  >
+                    <span
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${brand.autonomy_enabled ? "translate-x-5" : "translate-x-0.5"}`}
+                    />
+                  </button>
+                </div>
+
+                {brand.autonomy_paused_at && (
+                  <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-xs font-medium text-red-700 mb-1">Paused — needs your input</p>
+                    <p className="text-xs text-red-600 mb-2">{brand.autonomy_paused_reason}</p>
+                    <button
+                      onClick={() => resumeAutonomy(brand)}
+                      disabled={togglingAutonomy === brand.id}
+                      className="text-xs font-medium text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      Resume
+                    </button>
+                  </div>
+                )}
+
+                <label className="block text-xs font-medium text-slate-500 mb-1">Autonomy mode</label>
+                <select
+                  value={fields.autonomyMode}
+                  onChange={(e) => updateField(brand.id, "autonomyMode", e.target.value)}
+                  className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3"
+                >
+                  <option value="manual">Manual — every autonomous post needs review</option>
+                  <option value="semi_autonomous">Semi-autonomous — only low-risk posts auto-publish</option>
+                  <option value="fully_autonomous">Fully autonomous — auto-publish unless high-risk</option>
+                </select>
+
+                <label className="block text-xs font-medium text-slate-500 mb-1">Posts per day</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={fields.postingFrequencyPerDay}
+                  onChange={(e) => updateField(brand.id, "postingFrequencyPerDay", e.target.value)}
+                  className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3"
+                />
+
+                <label className="block text-xs font-medium text-slate-500 mb-1">Content topics (comma-separated, evergreen)</label>
+                <textarea
+                  value={fields.contentTopics}
+                  onChange={(e) => updateField(brand.id, "contentTopics", e.target.value)}
+                  rows={2}
+                  className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3 resize-none"
+                  placeholder="product updates, customer wins, behind the scenes"
+                />
+
+                <label className="block text-xs font-medium text-slate-500 mb-1">Banned words (comma-separated — always blocks a post)</label>
+                <textarea
+                  value={fields.bannedWords}
+                  onChange={(e) => updateField(brand.id, "bannedWords", e.target.value)}
+                  rows={2}
+                  className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3 resize-none"
+                  placeholder="guarantee, cure, free trial"
+                />
+              </div>
+
               <button
                 onClick={() => saveBrand(brand)}
                 disabled={saving === brand.id}

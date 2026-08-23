@@ -51,6 +51,10 @@ export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" 
 export type SocialInboxSourceType = "dm" | "comment";
 export type SocialInboxClassification = "auto_answered" | "requires_human";
 export type SocialInboxStatus = "open" | "resolved";
+export type SocialAutonomyMode = "manual" | "semi_autonomous" | "fully_autonomous";
+export type SocialRiskLevel = "low" | "medium" | "high";
+export type SocialContentGeneratedBy = "manual" | "autonomous";
+export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation";
 
 export interface LeadSignal {
   tier: 1 | 2 | 3 | 4;
@@ -769,6 +773,13 @@ export type Database = {
           socialapi_tiktok_account_id: string | null;
           socialapi_youtube_account_id: string | null;
           socialapi_facebook_account_id: string | null;
+          autonomy_enabled: boolean;
+          autonomy_mode: SocialAutonomyMode;
+          banned_words: string[];
+          content_topics: string[];
+          posting_frequency_per_day: number;
+          autonomy_paused_at: string | null;
+          autonomy_paused_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -787,6 +798,13 @@ export type Database = {
           socialapi_tiktok_account_id?: string | null;
           socialapi_youtube_account_id?: string | null;
           socialapi_facebook_account_id?: string | null;
+          autonomy_enabled?: boolean;
+          autonomy_mode?: SocialAutonomyMode;
+          banned_words?: string[];
+          content_topics?: string[];
+          posting_frequency_per_day?: number;
+          autonomy_paused_at?: string | null;
+          autonomy_paused_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -803,6 +821,13 @@ export type Database = {
           socialapi_tiktok_account_id?: string | null;
           socialapi_youtube_account_id?: string | null;
           socialapi_facebook_account_id?: string | null;
+          autonomy_enabled?: boolean;
+          autonomy_mode?: SocialAutonomyMode;
+          banned_words?: string[];
+          content_topics?: string[];
+          posting_frequency_per_day?: number;
+          autonomy_paused_at?: string | null;
+          autonomy_paused_reason?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -915,6 +940,8 @@ export type Database = {
           posted_at: string | null;
           platform_post_id: string | null;
           failure_reason: string | null;
+          risk_level: SocialRiskLevel | null;
+          generated_by: SocialContentGeneratedBy;
           created_at: string;
           updated_at: string;
         };
@@ -929,6 +956,8 @@ export type Database = {
           hashtags?: string[];
           status?: SocialContentStatus;
           scheduled_at?: string | null;
+          risk_level?: SocialRiskLevel | null;
+          generated_by?: SocialContentGeneratedBy;
           created_at?: string;
           updated_at?: string;
         };
@@ -943,7 +972,34 @@ export type Database = {
           posted_at?: string | null;
           platform_post_id?: string | null;
           failure_reason?: string | null;
+          risk_level?: SocialRiskLevel | null;
+          generated_by?: SocialContentGeneratedBy;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      social_autonomy_flags: {
+        Row: {
+          id: string;
+          brand_id: string;
+          content_id: string | null;
+          kind: SocialAutonomyFlagKind;
+          detail: string;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          brand_id: string;
+          content_id?: string | null;
+          kind: SocialAutonomyFlagKind;
+          detail: string;
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Update: {
+          content_id?: string | null;
+          resolved_at?: string | null;
         };
         Relationships: [];
       };
@@ -1155,6 +1211,7 @@ export type SocialConnection = Database["public"]["Tables"]["social_connections"
 export type SocialVideoAsset = Database["public"]["Tables"]["social_video_assets"]["Row"];
 export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"];
 export type SocialInboxItem = Database["public"]["Tables"]["social_inbox_items"]["Row"];
+export type SocialAutonomyFlag = Database["public"]["Tables"]["social_autonomy_flags"]["Row"];
 export type PartnerApplication = Database["public"]["Tables"]["partner_applications"]["Row"];
 export type PartnerReferral = Database["public"]["Tables"]["partner_referrals"]["Row"];
 export type BlogPost = Database["public"]["Tables"]["blog_posts"]["Row"];

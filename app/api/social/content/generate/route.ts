@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       hook: p.hook,
       caption: p.caption,
       hashtags: p.hashtags,
+      risk_level: p.riskLevel,
       status: "draft" as const,
     }));
 

@@ -32,6 +32,7 @@ export default function SocialDashboard({
   const [inboxItems, setInboxItems] = useState(initialInboxItems);
 
   const openInboxCount = inboxItems.filter((i) => i.status === "open" && i.classification === "requires_human").length;
+  const pausedBrandCount = brands.filter((b) => b.autonomy_paused_at).length;
 
   const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "recap", "help"] : ["video"];
 
@@ -79,6 +80,14 @@ export default function SocialDashboard({
               {t === "inbox" && openInboxCount > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-red-500 text-white rounded-full">
                   {openInboxCount}
+                </span>
+              )}
+              {t === "brands" && pausedBrandCount > 0 && (
+                <span
+                  className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-red-500 text-white rounded-full"
+                  title="Brands paused, waiting on your input"
+                >
+                  {pausedBrandCount}
                 </span>
               )}
             </button>
