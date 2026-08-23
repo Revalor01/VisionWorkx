@@ -87,12 +87,17 @@ function BrandsTabInner({
   >({});
   const [saving, setSaving] = useState<string | null>(null);
   const [togglingAutonomy, setTogglingAutonomy] = useState<string | null>(null);
-  const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
+  const [expandedSettings, setExpandedSettings] = useState<Record<string, boolean>>({});
+  const [expandedAutonomy, setExpandedAutonomy] = useState<Record<string, boolean>>({});
+
+  function isSettingsExpanded(brand: SocialBrand) {
+    return expandedSettings[brand.id] ?? false;
+  }
 
   // Collapsed by default to save space — except a paused brand auto-expands
   // so the "needs your input" banner isn't hidden behind a click.
-  function isExpanded(brand: SocialBrand) {
-    return expandedBrands[brand.id] ?? !!brand.autonomy_paused_at;
+  function isAutonomyExpanded(brand: SocialBrand) {
+    return expandedAutonomy[brand.id] ?? !!brand.autonomy_paused_at;
   }
 
   // Real connected-account identity (avatar + @username), keyed by
@@ -382,22 +387,15 @@ function BrandsTabInner({
                   connectColor="#FF0000"
                 />
               </div>
-              {brand.autonomy_paused_at && !isExpanded(brand) && (
-                <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-200">
-                  <p className="text-xs font-medium text-red-700 mb-1">Paused — needs your input</p>
-                  <p className="text-xs text-red-600">{brand.autonomy_paused_reason}</p>
-                </div>
-              )}
-
               <button
-                onClick={() => setExpandedBrands((prev) => ({ ...prev, [brand.id]: !isExpanded(brand) }))}
+                onClick={() => setExpandedSettings((prev) => ({ ...prev, [brand.id]: !isSettingsExpanded(brand) }))}
                 className="w-full flex items-center justify-between text-xs font-medium text-slate-500 hover:text-[#1A3A5C] mb-1"
               >
                 <span>Settings &amp; voice</span>
-                <span>{isExpanded(brand) ? "▾" : "▸"}</span>
+                <span>{isSettingsExpanded(brand) ? "▾" : "▸"}</span>
               </button>
 
-              {isExpanded(brand) && (
+              {isSettingsExpanded(brand) && (
                 <>
               {covers && (
                 <div className="flex items-center gap-3 flex-wrap mb-4 mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
@@ -436,10 +434,18 @@ function BrandsTabInner({
                 className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3 resize-none"
                 placeholder="Q: How much does it cost? A: ..."
               />
+                </>
+              )}
 
               <div className="border-t border-slate-200 pt-3 mt-1 mb-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Autonomous posting</span>
+                  <button
+                    onClick={() => setExpandedAutonomy((prev) => ({ ...prev, [brand.id]: !isAutonomyExpanded(brand) }))}
+                    className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-400 hover:text-[#1A3A5C]"
+                  >
+                    <span>{isAutonomyExpanded(brand) ? "▾" : "▸"}</span>
+                    <span>Autonomous posting</span>
+                  </button>
                   <button
                     onClick={() => toggleAutonomy(brand)}
                     disabled={togglingAutonomy === brand.id}
@@ -466,6 +472,8 @@ function BrandsTabInner({
                   </div>
                 )}
 
+                {isAutonomyExpanded(brand) && (
+                  <>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Autonomy mode</label>
                 <select
                   value={fields.autonomyMode}
@@ -503,6 +511,8 @@ function BrandsTabInner({
                   className="w-full border border-green-600 rounded-lg px-3 py-2 text-sm mb-3 resize-none"
                   placeholder="guarantee, cure, free trial"
                 />
+                  </>
+                )}
               </div>
 
               <button
@@ -512,8 +522,6 @@ function BrandsTabInner({
               >
                 {saving === brand.id ? "Saving…" : "Save"}
               </button>
-              </>
-              )}
               </div>
             </div>
           );
