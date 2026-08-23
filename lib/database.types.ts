@@ -317,6 +317,7 @@ export type Database = {
           tags: string[];
           seo_score: number | null;
           status: BlogPostStatus;
+          auto_published: boolean;
           created_at: string;
           published_at: string | null;
         };
@@ -333,6 +334,7 @@ export type Database = {
           tags?: string[];
           seo_score?: number | null;
           status?: BlogPostStatus;
+          auto_published?: boolean;
           created_at?: string;
           published_at?: string | null;
         };
@@ -363,6 +365,56 @@ export type Database = {
           summary?: string | null;
         };
         Update: Record<string, never>;
+        Relationships: [];
+      };
+      blog_product_config: {
+        Row: {
+          product: BlogProductSlug;
+          autonomy_mode: "manual" | "semi_autonomous" | "fully_autonomous";
+          banned_words: string[];
+          autonomy_paused_at: string | null;
+          autonomy_paused_reason: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          product: BlogProductSlug;
+          autonomy_mode?: "manual" | "semi_autonomous" | "fully_autonomous";
+          banned_words?: string[];
+          autonomy_paused_at?: string | null;
+          autonomy_paused_reason?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          autonomy_mode?: "manual" | "semi_autonomous" | "fully_autonomous";
+          banned_words?: string[];
+          autonomy_paused_at?: string | null;
+          autonomy_paused_reason?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      blog_autonomy_flags: {
+        Row: {
+          id: string;
+          product: BlogProductSlug;
+          post_id: string | null;
+          kind: "banned_word";
+          detail: string;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          product: BlogProductSlug;
+          post_id?: string | null;
+          kind: "banned_word";
+          detail: string;
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Update: {
+          resolved_at?: string | null;
+        };
         Relationships: [];
       };
       weekly_recaps: {

@@ -692,9 +692,14 @@ export default function AdminDashboard({
           <Link href="/admin/social" className="text-xs text-white/70 hover:text-white transition-colors">
             Social Media →
           </Link>
-          <Link href="/admin/seo" className="text-xs text-white/70 hover:text-white transition-colors">
+          <a
+            href="https://revalor-admin.vercel.app/seo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
             SEO →
-          </Link>
+          </a>
           <Link href="/admin/marketing" className="text-xs text-white/70 hover:text-white transition-colors">
             Marketing →
           </Link>

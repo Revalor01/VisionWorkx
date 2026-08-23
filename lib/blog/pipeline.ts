@@ -3,6 +3,11 @@ import { PRODUCTS, nextProductInRotation, type BlogProduct } from "./products";
 import { researchKeywords } from "./keywords";
 import { generateBlogPost } from "./content";
 import { scorePost } from "./optimizer";
+import { containsBannedWords, BASE_BANNED_WORDS, AUTO_PUBLISH_SCORE_THRESHOLD, SEMI_AUTONOMOUS_SCORE_THRESHOLD } from "./safety";
+import { raiseBlogAutonomyFlag } from "./autonomyFlags";
+import type { Database } from "@/lib/database.types";
+
+type AutonomyMode = Database["public"]["Tables"]["blog_product_config"]["Row"]["autonomy_mode"];
 
 export interface PipelineResult {
   ok: boolean;
@@ -10,11 +15,14 @@ export interface PipelineResult {
   keyword?: string;
   postId?: string;
   seoScore?: number;
+  autoPublished?: boolean;
   error?: string;
 }
 
-// Shared by the weekly cron (app/api/cron/blog-generate) and the admin
-// "Generate Now" button (app/admin/seo) — one code path, two triggers.
+// Used by the weekly cron (app/api/cron/blog-generate) here in vision-workx.
+// revalor-admin's "Generate Now" button runs its own copy of this pipeline
+// (kept in sync manually) against the same Supabase project — see that
+// repo's lib/blog/pipeline.ts.
 export async function runBlogGeneration(forceProduct?: BlogProduct): Promise<PipelineResult> {
   const service = createServiceClient();
 
@@ -57,8 +65,29 @@ export async function runBlogGeneration(forceProduct?: BlogProduct): Promise<Pip
 
     const targetKeyword = unused?.keyword ?? productConfig.seedKeywords[0];
 
+    const { data: autonomyConfig } = await service
+      .from("blog_product_config")
+      .select("autonomy_mode, banned_words, autonomy_paused_at")
+      .eq("product", product)
+      .maybeSingle();
+
+    // No config row (shouldn't happen post-migration 36) fails safe to manual.
+    const autonomyMode: AutonomyMode = autonomyConfig?.autonomy_mode ?? "manual";
+    const paused = !!autonomyConfig?.autonomy_paused_at;
+
     const piece = await generateBlogPost(targetKeyword, productConfig);
     const report = scorePost(piece, targetKeyword);
+
+    const bannedHits = containsBannedWords(
+      `${piece.title} ${piece.meta_description} ${piece.excerpt} ${piece.content}`,
+      [...BASE_BANNED_WORDS, ...(autonomyConfig?.banned_words ?? [])]
+    );
+
+    let autoPublish = false;
+    if (!paused && bannedHits.length === 0) {
+      if (autonomyMode === "fully_autonomous" && report.score >= AUTO_PUBLISH_SCORE_THRESHOLD) autoPublish = true;
+      else if (autonomyMode === "semi_autonomous" && report.score >= SEMI_AUTONOMOUS_SCORE_THRESHOLD) autoPublish = true;
+    }
 
     // Slugs must be globally unique — Claude can plausibly repeat one.
     let slug = piece.slug;
@@ -83,7 +112,9 @@ export async function runBlogGeneration(forceProduct?: BlogProduct): Promise<Pip
         faqs: piece.faqs,
         tags: piece.tags,
         seo_score: report.score,
-        status: "draft",
+        status: autoPublish ? "published" : "draft",
+        published_at: autoPublish ? new Date().toISOString() : null,
+        auto_published: autoPublish,
       })
       .select("id")
       .single();
@@ -92,12 +123,41 @@ export async function runBlogGeneration(forceProduct?: BlogProduct): Promise<Pip
 
     await service.from("blog_keywords").update({ used: true }).eq("product", product).eq("keyword", targetKeyword);
 
+    // Manual mode was never going to auto-publish, so a banned word there is
+    // just informational — nothing to pause. Only autonomous modes escalate.
+    if (bannedHits.length > 0 && autonomyMode !== "manual") {
+      await raiseBlogAutonomyFlag(service, {
+        product,
+        productName: productConfig.name,
+        postId: inserted.id,
+        detail: `Contains banned words: ${bannedHits.join(", ")} (post: "${piece.title}")`,
+      });
+    }
+
+    const scoreBar = autonomyMode === "semi_autonomous" ? SEMI_AUTONOMOUS_SCORE_THRESHOLD : AUTO_PUBLISH_SCORE_THRESHOLD;
+    const outcome = autoPublish
+      ? `auto-published (${autonomyMode})`
+      : paused
+        ? "held for review (autonomy paused)"
+        : bannedHits.length > 0
+          ? `held for review (banned words: ${bannedHits.join(", ")})`
+          : autonomyMode === "manual"
+            ? "held for review (manual mode)"
+            : `held for review (score ${report.score} < ${scoreBar})`;
+
     await service.from("blog_run_log").insert({
       status: "success",
-      summary: `product=${product} keyword="${targetKeyword}" score=${report.score}`,
+      summary: `product=${product} keyword="${targetKeyword}" score=${report.score} — ${outcome}`,
     });
 
-    return { ok: true, product, keyword: targetKeyword, postId: inserted.id, seoScore: report.score };
+    return {
+      ok: true,
+      product,
+      keyword: targetKeyword,
+      postId: inserted.id,
+      seoScore: report.score,
+      autoPublished: autoPublish,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await service.from("blog_run_log").insert({ status: "error", summary: message });

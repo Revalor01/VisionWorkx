@@ -2,9 +2,9 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@/lib/supabase";
 import { ADMIN_EMAIL, ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
 
-// Same dual real-session/SSO-cookie check used by /admin/ops and
-// /admin/seo — lets the cross-app SSO ticket mechanism authenticate
-// API routes, not just page loads.
+// Same dual real-session/SSO-cookie check used by /admin/ops — lets
+// the cross-app SSO ticket mechanism authenticate API routes, not
+// just page loads.
 export async function isAdminRequest(): Promise<boolean> {
   const supabase = createServerClient();
   const {
