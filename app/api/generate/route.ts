@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
+import { logAiUsage } from "@/lib/aiUsage";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -304,6 +305,14 @@ export async function POST(req: NextRequest) {
           fullText += text;
         }
       }
+
+      const finalMessage = await stream.finalMessage();
+      await logAiUsage({
+        source: "app_generate",
+        model: "claude-sonnet-4-6",
+        inputTokens: finalMessage.usage.input_tokens,
+        outputTokens: finalMessage.usage.output_tokens,
+      });
 
       // Save generated code — happens while HTTP response is still technically open
       await serviceClient

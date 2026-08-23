@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
+import { logAiUsage } from "@/lib/aiUsage";
 import type { IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -285,6 +286,14 @@ Generate a reasonable, functional implementation for each missing file (a form c
       text += chunk.delta.text;
     }
   }
+
+  const finalMessage = await stream.finalMessage();
+  await logAiUsage({
+    source: "app_deploy_repair",
+    model: "claude-sonnet-4-6",
+    inputTokens: finalMessage.usage.input_tokens,
+    outputTokens: finalMessage.usage.output_tokens,
+  });
   const repairedFiles = parseGeneratedCode(text).map((f) => {
     const needsClientDirective =
       /\.(tsx|jsx)$/.test(f.path) &&

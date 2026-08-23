@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/aiUsage";
 import type { WeeklyStats } from "./weeklyStats";
 
 export interface RecapScript {
@@ -28,6 +29,13 @@ export async function generateRecapScript(stats: WeeklyStats): Promise<RecapScri
     max_tokens: 800,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
+  });
+
+  await logAiUsage({
+    source: "social_recap_script",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
   });
 
   const block = message.content[0];

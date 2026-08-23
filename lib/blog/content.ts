@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/aiUsage";
 import type { ProductConfig } from "./products";
 
 export interface GeneratedPost {
@@ -81,6 +82,13 @@ Word count: ${MIN_WORDS}-${MAX_WORDS} words`;
     max_tokens: 4096,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
+  });
+
+  await logAiUsage({
+    source: "blog_content",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
   });
 
   const block = message.content[0];

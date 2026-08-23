@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/aiUsage";
 
 export interface ClassificationResult {
   classification: "auto_answered" | "requires_human";
@@ -30,6 +31,13 @@ ${params.messageText}`;
     max_tokens: 500,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
+  });
+
+  await logAiUsage({
+    source: "social_classify_inbound",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
   });
 
   const block = message.content[0];

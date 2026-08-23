@@ -367,6 +367,28 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      ai_usage_log: {
+        Row: {
+          id: string;
+          source: string;
+          model: string;
+          input_tokens: number;
+          output_tokens: number;
+          cost_usd: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source: string;
+          model: string;
+          input_tokens: number;
+          output_tokens: number;
+          cost_usd?: number | null;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       blog_product_config: {
         Row: {
           product: BlogProductSlug;

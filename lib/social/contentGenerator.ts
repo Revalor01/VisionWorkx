@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/aiUsage";
 import type { SocialPlatform } from "@/lib/database.types";
 
 export interface GeneratedPost {
@@ -46,6 +47,13 @@ ${topics && topics.length > 0 ? `Topics to cover (distribute posts across these)
     max_tokens: 400 * count,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
+  });
+
+  await logAiUsage({
+    source: "social_content_generate",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
   });
 
   const block = message.content[0];

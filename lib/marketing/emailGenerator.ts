@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/aiUsage";
 
 export interface GeneratedEmail {
   subject: string;
@@ -38,6 +39,13 @@ Generate one email as a JSON object.`;
     max_tokens: 1200,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
+  });
+
+  await logAiUsage({
+    source: "marketing_email",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
   });
 
   const block = message.content[0];

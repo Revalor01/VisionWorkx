@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logAiUsage } from "@/lib/aiUsage";
 
 export type AdObjective = "awareness" | "leads" | "bookings" | "promotion";
 export type AdTone = "professional" | "friendly" | "urgent" | "premium";
@@ -52,6 +53,13 @@ Generate exactly ${count} unique ad copy variants as a JSON array.`;
     max_tokens: 400 * count,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
+  });
+
+  await logAiUsage({
+    source: "promote_copy",
+    model: "claude-sonnet-4-6",
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
   });
 
   const block = message.content[0];
