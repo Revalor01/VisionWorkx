@@ -87,6 +87,13 @@ function BrandsTabInner({
   >({});
   const [saving, setSaving] = useState<string | null>(null);
   const [togglingAutonomy, setTogglingAutonomy] = useState<string | null>(null);
+  const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
+
+  // Collapsed by default to save space — except a paused brand auto-expands
+  // so the "needs your input" banner isn't hidden behind a click.
+  function isExpanded(brand: SocialBrand) {
+    return expandedBrands[brand.id] ?? !!brand.autonomy_paused_at;
+  }
 
   // Real connected-account identity (avatar + @username), keyed by
   // socialapi_account_id / socialapi_tiktok_account_id — lets a mismatch
@@ -375,8 +382,25 @@ function BrandsTabInner({
                   connectColor="#FF0000"
                 />
               </div>
+              {brand.autonomy_paused_at && !isExpanded(brand) && (
+                <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-xs font-medium text-red-700 mb-1">Paused — needs your input</p>
+                  <p className="text-xs text-red-600">{brand.autonomy_paused_reason}</p>
+                </div>
+              )}
+
+              <button
+                onClick={() => setExpandedBrands((prev) => ({ ...prev, [brand.id]: !isExpanded(brand) }))}
+                className="w-full flex items-center justify-between text-xs font-medium text-slate-500 hover:text-[#1A3A5C] mb-1"
+              >
+                <span>Settings &amp; voice</span>
+                <span>{isExpanded(brand) ? "▾" : "▸"}</span>
+              </button>
+
+              {isExpanded(brand) && (
+                <>
               {covers && (
-                <div className="flex items-center gap-3 flex-wrap mb-4 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex items-center gap-3 flex-wrap mb-4 mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Covers</span>
                   {covers.map((p) => (
                     <div key={p.name} className="flex items-center gap-1.5" title={p.name}>
@@ -389,7 +413,7 @@ function BrandsTabInner({
                   ))}
                 </div>
               )}
-              <label className="block text-xs font-medium text-slate-500 mb-1">Website link (added to Facebook posts)</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1 mt-2">Website link (added to Facebook posts)</label>
               <input
                 value={fields.websiteUrl}
                 onChange={(e) => updateField(brand.id, "websiteUrl", e.target.value)}
@@ -488,6 +512,8 @@ function BrandsTabInner({
               >
                 {saving === brand.id ? "Saving…" : "Save"}
               </button>
+              </>
+              )}
               </div>
             </div>
           );
