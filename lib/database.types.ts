@@ -527,6 +527,28 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      dev_activity_log: {
+        Row: {
+          id: string;
+          created_at: string;
+          machine: string;
+          summary: string;
+          branch: string | null;
+          commit_sha: string | null;
+          version: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          machine: string;
+          summary: string;
+          branch?: string | null;
+          commit_sha?: string | null;
+          version?: string | null;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       leads: {
         Row: {
           id: string;
@@ -1294,3 +1316,4 @@ export type BlogRunLogEntry = Database["public"]["Tables"]["blog_run_log"]["Row"
 export type WeeklyRecap = Database["public"]["Tables"]["weekly_recaps"]["Row"];
 export type MarketingCampaign = Database["public"]["Tables"]["marketing_campaigns"]["Row"];
 export type MarketingUnsubscribe = Database["public"]["Tables"]["marketing_unsubscribes"]["Row"];
+export type DevActivityLogEntry = Database["public"]["Tables"]["dev_activity_log"]["Row"];

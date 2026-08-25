@@ -302,6 +302,31 @@ that triggers when the apps table status column changes to 'ready'.
 
 ---
 
+## Cross-Machine Dev Activity Log
+
+This project is developed from two machines (a Windows desktop and a Mac) sharing
+the same GitHub repo, Supabase database, and Vercel project. `dev_activity_log`
+(Supabase table, migration `20240101000038_dev_activity_log.sql`) records who
+pushed what, from where — read via `app/admin/dev-activity` (dashboard) or the
+`/api/dev-log` route (bearer-secret protected, for machine-to-machine use).
+
+**At the start of every session**, run this to see what the other machine last did:
+```bash
+node scripts/log-dev-activity.mjs --latest
+```
+
+**After every push**, log a one-line summary of what changed:
+```bash
+node scripts/log-dev-activity.mjs "Fixed billing webhook retry bug"
+```
+
+This requires `DEV_LOG_SECRET` and `MACHINE_NAME` in `.env.local` (gitignored, set
+per machine — see `.env.local.example`). `DEV_LOG_SECRET` must match the value set
+in Vercel's project env vars, since the API route uses it to authorize inserts
+without a browser session.
+
+---
+
 ## Company Context
 
 **Product:** Vision Workx
