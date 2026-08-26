@@ -8,7 +8,7 @@ import type { PartnerTier } from "@/lib/database.types";
 const REFERRAL_CODE_ATTEMPTS = 3;
 
 export async function POST() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

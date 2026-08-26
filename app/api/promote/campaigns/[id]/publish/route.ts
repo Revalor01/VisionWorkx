@@ -8,8 +8,9 @@ import { sendCampaignPendingEmail } from "@/lib/promote/email";
 // no-op or fake a "live" status, this marks the campaign as pending and
 // tells the owner exactly why. Swap in real Meta/Google publish calls here
 // once API access is granted (Phase 2) — see lib/promote/platforms/ (TODO).
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

@@ -5,7 +5,8 @@ import type { Database } from "@/lib/database.types";
 
 type RecapUpdate = Database["public"]["Tables"]["weekly_recaps"]["Update"];
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { script?: string; videoPrompt?: string };

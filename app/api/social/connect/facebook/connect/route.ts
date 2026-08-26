@@ -12,7 +12,7 @@ import { isAdmin } from "@/lib/social/authGuard";
 const CONFIG_ID = process.env.META_LOGIN_CONFIG_ID!;
 
 export async function GET(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

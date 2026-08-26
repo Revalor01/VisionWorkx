@@ -17,7 +17,7 @@ function GenerateSkeleton() {
 }
 
 export default async function GeneratePage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const {
     data: { user },

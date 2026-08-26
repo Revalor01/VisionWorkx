@@ -7,8 +7,9 @@ type AssetUpdate = Database["public"]["Tables"]["social_video_assets"]["Update"]
 
 const VALID_STATUSES: SocialVideoStatus[] = ["raw", "in_editing", "ready", "posted"];
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

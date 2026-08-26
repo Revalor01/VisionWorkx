@@ -21,7 +21,7 @@ export interface PaymentRow {
 }
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

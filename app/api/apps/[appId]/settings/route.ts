@@ -51,8 +51,9 @@ async function loadOwnedDeployedApp(appId: string, userId: string) {
   return { app, serviceClient };
 }
 
-export async function GET(req: NextRequest, { params }: { params: { appId: string } }) {
-  const supabase = createServerClient();
+export async function GET(req: NextRequest, props: { params: Promise<{ appId: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,
@@ -87,8 +88,9 @@ export async function GET(req: NextRequest, { params }: { params: { appId: strin
   });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { appId: string } }) {
-  const supabase = createServerClient();
+export async function PATCH(req: NextRequest, props: { params: Promise<{ appId: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

@@ -1048,7 +1048,7 @@ export async function POST(req: NextRequest) {
 
   if (!isInternal) {
     // Browser-initiated deploy: verify session
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const {
       data: { user },
       error: authError,

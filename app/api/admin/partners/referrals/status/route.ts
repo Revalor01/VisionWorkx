@@ -7,7 +7,7 @@ const ADMIN_EMAIL = "sawilliams721@gmail.com";
 const VALID_STATUSES: PartnerReferralStatus[] = ["submitted", "contacted", "converted", "declined"];
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

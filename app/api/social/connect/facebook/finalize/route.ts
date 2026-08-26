@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/social/authGuard";
 const SESSION_MAX_AGE_MS = 15 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

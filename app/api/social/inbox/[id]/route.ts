@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 
-export async function PATCH(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function PATCH(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

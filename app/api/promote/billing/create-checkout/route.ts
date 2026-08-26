@@ -10,7 +10,7 @@ const PRICE_ID_BY_PLAN: Record<PromotePlan, string | undefined> = {
 };
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

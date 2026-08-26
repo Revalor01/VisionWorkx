@@ -83,7 +83,7 @@ function formatAddress(tags: Record<string, string>): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

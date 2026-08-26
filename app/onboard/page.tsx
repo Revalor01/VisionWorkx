@@ -10,12 +10,13 @@ const PLAN_APP_LIMITS: Record<string, number> = {
   pro: Infinity,
 };
 
-export default async function OnboardPage({
-  searchParams,
-}: {
-  searchParams: { edit?: string };
-}) {
-  const supabase = createServerClient();
+export default async function OnboardPage(
+  props: {
+    searchParams: Promise<{ edit?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const supabase = await createServerClient();
 
   const {
     data: { user },

@@ -9,8 +9,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Server client with cookie-based session — use in Server Components and Route Handlers.
-export function createServerClient() {
-  const cookieStore = cookies();
+export async function createServerClient() {
+  const cookieStore = await cookies();
 
   return createSSRServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {

@@ -11,8 +11,9 @@ function extFor(mediaType: string): string {
   return "jpg";
 }
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -5,8 +5,9 @@ import { isAdmin } from "@/lib/social/authGuard";
 const BUCKET = "social-content-images";
 const SIGNED_URL_TTL_SECONDS = 300;
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import type { PromoteCreativeStatus } from "@/lib/database.types";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

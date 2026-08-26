@@ -5,12 +5,13 @@ import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automatio
 import type { Plan } from "@/lib/database.types";
 import SettingsClient from "./SettingsClient";
 
-export default async function AppSettingsPage({
-  params,
-}: {
-  params: { appId: string };
-}) {
-  const supabase = createServerClient();
+export default async function AppSettingsPage(
+  props: {
+    params: Promise<{ appId: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

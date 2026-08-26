@@ -5,7 +5,7 @@ import { isAdminOrEditor } from "@/lib/social/authGuard";
 const BUCKET = "social-video-assets";
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -25,7 +25,7 @@ export async function GET() {
 // raw footage can run up to 500MB, far past what a Vercel function body
 // can proxy, so the browser uploads directly to Supabase Storage.
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

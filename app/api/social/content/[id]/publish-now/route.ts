@@ -9,8 +9,9 @@ export const maxDuration = 120;
 // Manual "Post now" button — publishes immediately instead of waiting on
 // the 10-minute cron (app/api/cron/social-publish). Shares the same
 // publish logic via lib/social/publishPost.
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

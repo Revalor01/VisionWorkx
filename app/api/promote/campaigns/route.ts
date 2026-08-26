@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/social/authGuard";
 import type { PromoteCampaignObjective, PromoteCampaignPlatform, PromoteTargetAudience } from "@/lib/database.types";
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,
@@ -51,7 +51,7 @@ interface CreateCampaignPayload {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

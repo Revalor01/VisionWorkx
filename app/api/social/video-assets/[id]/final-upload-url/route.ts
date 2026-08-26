@@ -4,8 +4,9 @@ import { isAdminOrEditor } from "@/lib/social/authGuard";
 
 const BUCKET = "social-video-assets";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

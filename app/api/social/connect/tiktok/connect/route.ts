@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/social/authGuard";
 import { generatePkcePair, buildAuthorizeUrl } from "@/lib/social/tiktok";
 
 export async function GET(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

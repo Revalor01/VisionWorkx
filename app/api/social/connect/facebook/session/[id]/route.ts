@@ -6,8 +6,9 @@ const SESSION_MAX_AGE_MS = 15 * 60 * 1000;
 
 // Returns only the page list (id/name), never the stored user_token —
 // that stays server-side and is only read by the finalize route.
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

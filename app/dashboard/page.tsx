@@ -5,7 +5,7 @@ import DashboardClient from "./DashboardClient";
 import type { App, AutomationWorkflow, Plan } from "@/lib/database.types";
 
 export default async function DashboardPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const {
     data: { user },

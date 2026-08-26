@@ -2,7 +2,7 @@ import { createServerClient } from "@/lib/supabase";
 import CreativesClient from "./CreativesClient";
 
 export default async function CreativesPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

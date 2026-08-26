@@ -6,14 +6,14 @@ import { ADMIN_EMAIL, ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminS
 // the cross-app SSO ticket mechanism authenticate API routes, not
 // just page loads.
 export async function isAdminRequest(): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
   const isRealAdmin = !error && !!user && user.email === ADMIN_EMAIL;
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
 
   return isRealAdmin || isSsoAdmin;

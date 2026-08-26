@@ -101,13 +101,13 @@ async function fetchVercelProjects(token: string): Promise<VercelProjectRow[]> {
 }
 
 export default async function AdminOpsPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
   const isRealAdmin = !authError && !!user && user.email === ADMIN_EMAIL;
   if (!isRealAdmin && !isSsoAdmin) redirect("/dashboard");

@@ -7,7 +7,7 @@ import AcceptAgreementButton from "@/components/partners/AcceptAgreementButton";
 import PartnerDashboardClient from "@/components/partners/PartnerDashboardClient";
 
 export default async function PartnerPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

@@ -231,7 +231,7 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
 // ---------------------------------------------------------------
 export async function POST(req: NextRequest) {
   // Auth check via session cookie
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

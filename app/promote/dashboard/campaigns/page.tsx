@@ -2,7 +2,7 @@ import { createServerClient } from "@/lib/supabase";
 import CampaignsClient from "./CampaignsClient";
 
 export default async function CampaignsPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

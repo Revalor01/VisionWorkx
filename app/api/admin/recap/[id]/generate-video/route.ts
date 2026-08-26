@@ -8,7 +8,8 @@ export const maxDuration = 300;
 
 const BUCKET = "weekly-recap-videos";
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const service = createServiceClient();

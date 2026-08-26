@@ -5,13 +5,13 @@ import { ADMIN_EMAIL, ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminS
 import MarketingDashboard from "./MarketingDashboard";
 
 export default async function AdminMarketingPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
 
   if (!isSsoAdmin && (authError || !user || user.email !== ADMIN_EMAIL)) redirect("/dashboard");

@@ -24,7 +24,7 @@ function BillingSkeleton() {
 }
 
 export default async function BillingPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const {
     data: { user },

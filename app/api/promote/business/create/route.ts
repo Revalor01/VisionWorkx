@@ -22,7 +22,7 @@ interface BusinessPayload {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

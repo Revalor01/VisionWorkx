@@ -3,7 +3,7 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 
 export async function GET() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

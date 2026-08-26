@@ -12,7 +12,7 @@ const NAV_ITEMS = [
 ];
 
 export default async function PromoteDashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
     error: authError,

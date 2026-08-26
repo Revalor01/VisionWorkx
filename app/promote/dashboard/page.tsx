@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createServerClient } from "@/lib/supabase";
 
 export default async function PromoteDashboardHome() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
