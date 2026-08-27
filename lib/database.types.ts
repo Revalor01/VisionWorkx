@@ -21,7 +21,17 @@ export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "conv
 export type LeadLanguage = "en" | "es";
 
 export type MarketingProduct = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
-export type MarketingCampaignStatus = "draft" | "sending" | "sent" | "failed";
+export type MarketingCampaignStatus =
+  | "draft"
+  | "scheduled"
+  | "generated"
+  | "pending_review"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "canceled";
+export type MarketingAutonomy = "manual" | "auto";
+export type MarketingRecurrence = "weekly" | "monthly";
 
 export type PromotePlan = "starter" | "growth" | "pro";
 export type PromoteCreativeFormat = "1080x1080" | "1080x1920" | "1200x628";
@@ -485,6 +495,12 @@ export type Database = {
           created_at: string;
           updated_at: string;
           sent_at: string | null;
+          goal: string | null;
+          voice_notes: string | null;
+          autonomy: MarketingAutonomy;
+          run_at: string | null;
+          canceled_at: string | null;
+          recurring_schedule_id: string | null;
         };
         Insert: {
           id?: string;
@@ -498,6 +514,12 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           sent_at?: string | null;
+          goal?: string | null;
+          voice_notes?: string | null;
+          autonomy?: MarketingAutonomy;
+          run_at?: string | null;
+          canceled_at?: string | null;
+          recurring_schedule_id?: string | null;
         };
         Update: {
           subject?: string;
@@ -508,6 +530,57 @@ export type Database = {
           failed_count?: number;
           updated_at?: string;
           sent_at?: string | null;
+          goal?: string | null;
+          voice_notes?: string | null;
+          autonomy?: MarketingAutonomy;
+          run_at?: string | null;
+          canceled_at?: string | null;
+          recurring_schedule_id?: string | null;
+        };
+        Relationships: [];
+      };
+      marketing_recurring_schedules: {
+        Row: {
+          id: string;
+          product: MarketingProduct;
+          goal: string;
+          voice_notes: string | null;
+          recurrence: MarketingRecurrence;
+          day_of_week: number | null;
+          day_of_month: number | null;
+          hour_utc: number;
+          autonomy: MarketingAutonomy;
+          active: boolean;
+          next_run_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product: MarketingProduct;
+          goal: string;
+          voice_notes?: string | null;
+          recurrence: MarketingRecurrence;
+          day_of_week?: number | null;
+          day_of_month?: number | null;
+          hour_utc: number;
+          autonomy?: MarketingAutonomy;
+          active?: boolean;
+          next_run_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          goal?: string;
+          voice_notes?: string | null;
+          recurrence?: MarketingRecurrence;
+          day_of_week?: number | null;
+          day_of_month?: number | null;
+          hour_utc?: number;
+          autonomy?: MarketingAutonomy;
+          active?: boolean;
+          next_run_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

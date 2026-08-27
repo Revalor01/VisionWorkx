@@ -11,9 +11,13 @@ const PRODUCTS: { value: MarketingProduct; label: string }[] = MARKETING_PRODUCT
 
 const STATUS_STYLE: Record<MarketingCampaign["status"], string> = {
   draft: "bg-slate-700 text-slate-200",
+  scheduled: "bg-sky-900/60 text-sky-300",
+  generated: "bg-slate-700 text-slate-200",
+  pending_review: "bg-amber-900/60 text-amber-300",
   sending: "bg-amber-900/60 text-amber-300",
   sent: "bg-green-900/60 text-green-300",
   failed: "bg-red-900/60 text-red-300",
+  canceled: "bg-slate-800 text-slate-500",
 };
 
 export default function MarketingDashboard({ initialCampaigns }: { initialCampaigns: MarketingCampaign[] }) {
