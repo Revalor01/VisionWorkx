@@ -20,6 +20,7 @@ export type AiUsageSource =
   | "marketing_email"
   | "mobile_push"
   | "mobile_sms"
+  | "content_engine_source"
   | "outreach_group_post";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a
