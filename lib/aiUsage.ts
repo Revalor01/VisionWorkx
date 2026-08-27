@@ -18,6 +18,8 @@ export type AiUsageSource =
   | "social_content_generate"
   | "social_recap_script"
   | "marketing_email"
+  | "mobile_push"
+  | "mobile_sms"
   | "outreach_group_post";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a

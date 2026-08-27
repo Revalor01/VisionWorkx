@@ -703,6 +703,9 @@ export default function AdminDashboard({
           <Link href="/admin/marketing" className="text-xs text-white/70 hover:text-white transition-colors">
             Marketing →
           </Link>
+          <Link href="/admin/mobile" className="text-xs text-white/70 hover:text-white transition-colors">
+            Mobile →
+          </Link>
           <Link href="/admin/ops" className="text-xs text-white/70 hover:text-white transition-colors">
             Ops →
           </Link>
