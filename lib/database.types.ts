@@ -1388,5 +1388,6 @@ export type BlogKeyword = Database["public"]["Tables"]["blog_keywords"]["Row"];
 export type BlogRunLogEntry = Database["public"]["Tables"]["blog_run_log"]["Row"];
 export type WeeklyRecap = Database["public"]["Tables"]["weekly_recaps"]["Row"];
 export type MarketingCampaign = Database["public"]["Tables"]["marketing_campaigns"]["Row"];
+export type MarketingRecurringSchedule = Database["public"]["Tables"]["marketing_recurring_schedules"]["Row"];
 export type MarketingUnsubscribe = Database["public"]["Tables"]["marketing_unsubscribes"]["Row"];
 export type DevActivityLogEntry = Database["public"]["Tables"]["dev_activity_log"]["Row"];

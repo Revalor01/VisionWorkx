@@ -17,11 +17,10 @@ export default async function AdminMarketingPage() {
   if (!isSsoAdmin && (authError || !user || user.email !== ADMIN_EMAIL)) redirect("/dashboard");
 
   const service = createServiceClient();
-  const { data: campaigns } = await service
-    .from("marketing_campaigns")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const [{ data: campaigns }, { data: schedules }] = await Promise.all([
+    service.from("marketing_campaigns").select("*").order("created_at", { ascending: false }).limit(50),
+    service.from("marketing_recurring_schedules").select("*").order("next_run_at", { ascending: true }),
+  ]);
 
-  return <MarketingDashboard initialCampaigns={campaigns ?? []} />;
+  return <MarketingDashboard initialCampaigns={campaigns ?? []} initialSchedules={schedules ?? []} />;
 }
