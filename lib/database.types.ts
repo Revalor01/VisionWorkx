@@ -155,6 +155,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      sms_opt_ins: {
+        Row: {
+          id: string;
+          user_id: string;
+          phone: string;
+          consented_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          phone: string;
+          consented_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          phone?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       apps: {
         Row: {
           id: string;
@@ -1593,4 +1614,5 @@ export type MobileSmsOptOut = Database["public"]["Tables"]["mobile_sms_opt_outs"
 export type ContentItem = Database["public"]["Tables"]["content_items"]["Row"];
 export type ContentTopic = Database["public"]["Tables"]["content_topics"]["Row"];
 export type ContentDerivative = Database["public"]["Tables"]["content_derivatives"]["Row"];
+export type SmsOptIn = Database["public"]["Tables"]["sms_opt_ins"]["Row"];
 export type DevActivityLogEntry = Database["public"]["Tables"]["dev_activity_log"]["Row"];

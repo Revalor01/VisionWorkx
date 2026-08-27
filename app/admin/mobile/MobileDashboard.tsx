@@ -330,9 +330,9 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <h1 className="text-2xl font-bold text-white mb-1">Mobile Marketing</h1>
         <p className="text-slate-400 text-sm mb-8">
-          Push and SMS to real users of Revalor&apos;s own products — opted-in only. No product currently captures push
-          tokens or SMS consent (see the audience count below), so real sends have nobody to reach yet; this is the
-          plumbing ready for when one does.
+          Push and SMS to real users of Revalor&apos;s own products — opted-in only. VisionWorkx users can opt in to SMS
+          at /notifications; no product captures push tokens yet, and the other four don&apos;t capture SMS consent
+          either (see the audience count below for each product/channel).
         </p>
 
         {pendingReview.length > 0 && (

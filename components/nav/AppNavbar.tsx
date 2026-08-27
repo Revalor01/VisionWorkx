@@ -42,6 +42,7 @@ export default function AppNavbar({
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/billing", label: "Billing" },
+    { href: "/notifications", label: "Notifications" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 

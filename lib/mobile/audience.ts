@@ -1,24 +1,20 @@
 import { createServiceClient } from "@/lib/supabase";
 import type { MarketingProduct } from "@/lib/database.types";
 
-// Project 04 orientation finding: no product persists a push token or a
-// phone number for its own end users anywhere this admin can reach.
-// Checked directly: VisionWorkx's own schema has `phone` only on `leads`
-// (scraped B2B prospects) and `partner_applications` — unrelated to
-// product users. sanctum-web (the current live app, not the dead legacy
-// Expo sanctum-app) only has preferences.notification_enabled, an in-app
-// boolean toggle, not a stored device token; its emergency_contacts.phone
-// is someone else's number for crisis situations, never the user's own.
-// Chorebit/FeelFlow/MindBit aren't verifiable from here (no local repo,
-// no live Management API access), but nothing in this admin's existing
-// code suggests they capture either.
-//
-// So these return an empty audience with the TODO below rather than
-// querying a table that doesn't exist. The moment a product starts
-// capturing tokens/phone consent (its own app, not this one — out of
-// reach from here), wire that source in here the same way
-// lib/marketing/audience.ts resolves email: local products via this
-// service client, remote products via the Management API.
+// Project 04 orientation finding: no product persisted a push token or a
+// phone number for its own end users anywhere this admin could reach.
+// VisionWorkx now does for SMS — migration 48's sms_opt_ins, backing a
+// real opt-in flow at /notifications (RLS-gated, written by the end user
+// themselves; read here via the service client the same way every other
+// local-product query in this admin does). Push, and SMS for the other
+// four products, are still genuinely unreached: no push token store
+// exists anywhere, and Chorebit/FeelFlow/MindBit/Sanctum aren't
+// verifiable from here (no local repo, no live Management API access)
+// but nothing suggests they capture SMS consent either. Those keep
+// returning an empty audience with a TODO rather than querying a table
+// that doesn't exist — same reach pattern as lib/marketing/audience.ts
+// once they do: local products via this service client, remote via the
+// Management API.
 
 export interface PushAudienceMember {
   id: string;
@@ -36,12 +32,18 @@ export async function getPushAudience(_product: MarketingProduct): Promise<PushA
   return [];
 }
 
-// TODO(mobile-sms-audience): wire once a product captures SMS consent +
-// phone number somewhere this admin can reach. When it does, this should
-// still call filterSmsOptOuts() below before returning — opt-out
-// enforcement is real today even though the audience source isn't yet.
-export async function getSmsAudience(_product: MarketingProduct): Promise<SmsAudienceMember[]> {
-  return [];
+// TODO(mobile-sms-audience): wire the other 4 products once each captures
+// SMS consent somewhere this admin can reach — VisionWorkx is done
+// (migration 48, /notifications). Callers still run filterSmsOptOuts() on
+// the result, so a STOP reply is honored regardless of source.
+export async function getSmsAudience(product: MarketingProduct): Promise<SmsAudienceMember[]> {
+  if (product !== "visionworkx") return [];
+
+  const service = createServiceClient();
+  const { data, error } = await service.from("sms_opt_ins").select("user_id, phone");
+  if (error) throw error;
+
+  return (data ?? []).map((r) => ({ id: r.user_id, phone: r.phone }));
 }
 
 async function getOptedOutPhones(): Promise<Set<string>> {
