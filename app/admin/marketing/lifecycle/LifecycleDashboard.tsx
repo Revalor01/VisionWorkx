@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MarketingAutonomy, MarketingProduct } from "@/lib/database.types";
+import type { MarketingAutonomy, MarketingChannel, MarketingProduct } from "@/lib/database.types";
 
 interface TriggerRow {
   id: string;
   name: string;
   description: string;
   products: MarketingProduct[];
+  channels: MarketingChannel[];
   active: boolean;
   autonomy: MarketingAutonomy;
   recentFireCount: number;
@@ -92,7 +93,7 @@ export default function LifecycleDashboard() {
                   <p className="text-sm font-medium text-white">{t.name}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
                   <p className="text-xs text-slate-600 mt-1">
-                    {t.products.join(", ")} · {t.recentFireCount} fired in the last 30 days
+                    {t.products.join(", ")} · {t.channels.join("/")} · {t.recentFireCount} fired in the last 30 days
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">

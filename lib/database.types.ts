@@ -634,7 +634,8 @@ export type Database = {
           id: string;
           trigger_id: string;
           product: MarketingProduct;
-          recipient_email: string;
+          channel: MarketingChannel;
+          recipient: string;
           campaign_id: string | null;
           created_at: string;
         };
@@ -642,7 +643,8 @@ export type Database = {
           id?: string;
           trigger_id: string;
           product: MarketingProduct;
-          recipient_email: string;
+          channel?: MarketingChannel;
+          recipient: string;
           campaign_id?: string | null;
           created_at?: string;
         };

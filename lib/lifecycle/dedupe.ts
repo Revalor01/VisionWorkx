@@ -1,33 +1,37 @@
 import { createServiceClient } from "@/lib/supabase";
 import type { LifecycleTriggerId } from "./triggers";
-import type { MarketingProduct } from "@/lib/database.types";
+import type { MarketingChannel, MarketingProduct } from "@/lib/database.types";
 
-// Claims a slot for each (trigger, product, email) by inserting into
-// lifecycle_fires with ignoreDuplicates — the unique constraint means a
-// row that already exists (this run or a previous one already claimed it)
-// is silently skipped rather than erroring, and PostgREST only returns the
-// rows it actually inserted. That's what makes the returned list the
-// "actually newly claimed, safe to send to" set even if this route runs
-// concurrently with itself.
+// Claims a slot for each (trigger, product, channel, recipient) by
+// inserting into lifecycle_fires with ignoreDuplicates — the unique
+// constraint means a row that already exists (this run or a previous one
+// already claimed it) is silently skipped rather than erroring, and
+// PostgREST only returns the rows it actually inserted. That's what makes
+// the returned list the "actually newly claimed, safe to send to" set
+// even if this route runs concurrently with itself. `recipient` is an
+// email for channel="email", a push token for "push", a phone number for
+// "sms" — same trigger+product dedupes independently per channel, so a
+// win-back email and a win-back push to the same user don't collide.
 export async function claimLifecycleFires(params: {
   triggerId: LifecycleTriggerId;
   product: MarketingProduct;
-  emails: string[];
+  channel: MarketingChannel;
+  recipients: string[];
 }): Promise<string[]> {
-  const { triggerId, product, emails } = params;
-  if (emails.length === 0) return [];
+  const { triggerId, product, channel, recipients } = params;
+  if (recipients.length === 0) return [];
 
   const service = createServiceClient();
   const { data, error } = await service
     .from("lifecycle_fires")
     .upsert(
-      emails.map((email) => ({ trigger_id: triggerId, product, recipient_email: email })),
-      { onConflict: "trigger_id,product,recipient_email", ignoreDuplicates: true }
+      recipients.map((recipient) => ({ trigger_id: triggerId, product, channel, recipient })),
+      { onConflict: "trigger_id,product,channel,recipient", ignoreDuplicates: true }
     )
-    .select("recipient_email");
+    .select("recipient");
   if (error) throw error;
 
-  return (data ?? []).map((r) => r.recipient_email);
+  return (data ?? []).map((r) => r.recipient);
 }
 
 // Backfills campaign_id once the campaign row those claimed fires belong
@@ -36,7 +40,8 @@ export async function claimLifecycleFires(params: {
 export async function linkLifecycleFires(params: {
   triggerId: LifecycleTriggerId;
   product: MarketingProduct;
-  emails: string[];
+  channel: MarketingChannel;
+  recipients: string[];
   campaignId: string;
 }): Promise<void> {
   const service = createServiceClient();
@@ -45,5 +50,6 @@ export async function linkLifecycleFires(params: {
     .update({ campaign_id: params.campaignId })
     .eq("trigger_id", params.triggerId)
     .eq("product", params.product)
-    .in("recipient_email", params.emails);
+    .eq("channel", params.channel)
+    .in("recipient", params.recipients);
 }

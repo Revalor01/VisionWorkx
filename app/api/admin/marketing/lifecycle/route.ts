@@ -30,6 +30,7 @@ export async function GET() {
       name: t.name,
       description: t.description,
       products: t.products,
+      channels: t.channels,
       active: settings?.active ?? true,
       autonomy: settings?.autonomy ?? t.defaultAutonomy,
       recentFireCount: fireCounts.get(t.id) ?? 0,
