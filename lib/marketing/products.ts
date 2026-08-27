@@ -52,6 +52,17 @@ export const MARKETING_PRODUCTS: MarketingProductConfig[] = [
     channels: { email: true, push: false, sms: false },
     audienceSource: { kind: "remote", projectRef: "uftlgnmvjjmuedotrewz" },
   },
+  {
+    slug: "sanctum",
+    name: "Sanctum",
+    channels: { email: true, push: false, sms: false },
+    // Project ref from revalor-admin/lib/lines.ts (supabaseRef for sanctum).
+    // Reached the same way as the other remote products — auth.users via
+    // the Management API — since sanctum-web is a standard Supabase Auth
+    // project; its custom users_profile table (subscription_tier) is layered
+    // on top of auth.users, not a replacement for it.
+    audienceSource: { kind: "remote", projectRef: "qpbwnfvdjklmdrftbkcu" },
+  },
 ];
 
 export const MARKETING_PRODUCT_SLUGS: MarketingProduct[] = MARKETING_PRODUCTS.map((p) => p.slug);

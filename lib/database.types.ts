@@ -20,7 +20,7 @@ export type BlogPostStatus = "draft" | "published";
 export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
 export type LeadLanguage = "en" | "es";
 
-export type MarketingProduct = "visionworkx" | "chorebit" | "feelflow" | "mindbit";
+export type MarketingProduct = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
 export type MarketingCampaignStatus = "draft" | "sending" | "sent" | "failed";
 
 export type PromotePlan = "starter" | "growth" | "pro";
