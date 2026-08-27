@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { generateEmailCampaign } from "@/lib/marketing/emailGenerator";
-import { getSendableAudience } from "@/lib/marketing/audience";
-import { sendCampaign } from "@/lib/marketing/sendCampaign";
+import { generatePushCampaign, generateSmsCampaign } from "@/lib/mobile/generator";
+import { getPushAudience, getSmsAudience, filterSmsOptOuts } from "@/lib/mobile/audience";
+import { sendMobileCampaign } from "@/lib/mobile/sendCampaign";
 import { PRODUCT_LABEL } from "@/lib/marketing/products";
 import { buildDigestContext } from "@/lib/marketing/digestContext";
 import { computeNextRun } from "@/lib/marketing/recurrence";
 import { sendReviewAlert } from "@/lib/marketing/alerts";
-import type { MarketingProduct, MarketingAutonomy } from "@/lib/database.types";
+import type { MarketingAutonomy, MarketingChannel, MarketingProduct } from "@/lib/database.types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -17,47 +17,69 @@ type Service = ReturnType<typeof createServiceClient>;
 interface DueCampaign {
   id: string;
   product: MarketingProduct;
+  channel: MarketingChannel;
   goal: string | null;
   voice_notes: string | null;
   autonomy: MarketingAutonomy;
 }
 
-// Generates the due campaign's draft (folding in a recurring digest's
-// recent-activity context when there's no operator-written goal) and
-// either sends it (autonomy: "auto") or parks it in pending_review and
-// alerts the admin (autonomy: "manual", the default for anything net-new).
-async function processDueCampaign(service: Service, campaign: DueCampaign): Promise<"sent" | "pending_review" | "failed"> {
+// Mirrors app/api/cron/email's processDueCampaign — same digest-context
+// fallback, same autonomy/review split — dispatching generation and
+// audience resolution by channel (push vs sms) instead of always email.
+async function processDueCampaign(service: Service, campaign: DueCampaign): Promise<"sent" | "pending_review" | "failed" | "skipped"> {
+  if (campaign.channel === "email") throw new Error("cron/mobile received an email campaign");
   const now = new Date().toISOString();
+
   try {
     const digestContext = await buildDigestContext(campaign.product);
     const goal = campaign.goal?.trim()
       ? digestContext
         ? `${campaign.goal.trim()}\n\n${digestContext}`
         : campaign.goal.trim()
-      : digestContext || "Write a product update digest for our existing users.";
+      : digestContext || "Write a product update.";
 
-    const email = await generateEmailCampaign({
-      productLabel: PRODUCT_LABEL[campaign.product],
-      voiceNotes: campaign.voice_notes,
-      goal,
-    });
+    const productLabel = PRODUCT_LABEL[campaign.product];
+    let subject = "";
+    let bodyText = "";
+    if (campaign.channel === "push") {
+      const generated = await generatePushCampaign({ productLabel, voiceNotes: campaign.voice_notes, goal });
+      subject = generated.title;
+      bodyText = generated.body;
+    } else {
+      const generated = await generateSmsCampaign({ productLabel, voiceNotes: campaign.voice_notes, goal });
+      bodyText = generated.body;
+    }
+
+    // No opted-in audience exists for any product yet (Project 04
+    // orientation) — recipients is always [] today, so this always ends
+    // in "skipped" in practice. Kept as a real resolution step (not a
+    // hardcoded skip) so it starts working the moment a product captures
+    // push tokens/SMS consent, with no code change needed here.
+    const recipients =
+      campaign.channel === "push"
+        ? (await getPushAudience(campaign.product)).map((r) => r.token)
+        : await filterSmsOptOuts((await getSmsAudience(campaign.product)).map((r) => r.phone));
 
     await service
       .from("marketing_campaigns")
-      .update({ subject: email.subject, body_html: email.bodyHtml, status: "generated", updated_at: now })
+      .update({ subject, body_html: bodyText, status: "generated", recipient_count: recipients.length, updated_at: now })
       .eq("id", campaign.id);
 
+    if (recipients.length === 0) {
+      await service.from("marketing_campaigns").update({ status: "canceled", canceled_at: now, updated_at: now }).eq("id", campaign.id);
+      return "skipped";
+    }
+
     if (campaign.autonomy === "auto") {
-      const recipients = await getSendableAudience(campaign.product);
-      await sendCampaign(campaign.id, recipients.map((r) => r.email));
+      await sendMobileCampaign(campaign.id, recipients);
       return "sent";
     }
 
     await service.from("marketing_campaigns").update({ status: "pending_review", updated_at: now }).eq("id", campaign.id);
-    await sendReviewAlert({ productName: PRODUCT_LABEL[campaign.product], subject: email.subject, campaignId: campaign.id });
+    await sendReviewAlert({ productName: productLabel, subject: subject || bodyText, campaignId: campaign.id });
     return "pending_review";
   } catch (err) {
-    console.error(`[cron/email] failed for campaign ${campaign.id}:`, err);
+    console.error(`[cron/mobile] failed for campaign ${campaign.id}:`, err);
     await service.from("marketing_campaigns").update({ status: "failed", updated_at: now }).eq("id", campaign.id);
     return "failed";
   }
@@ -72,15 +94,15 @@ export async function GET(req: NextRequest) {
   const service = createServiceClient();
   const now = new Date();
 
-  const outcomes = { sent: 0, pending_review: 0, failed: 0 };
+  const outcomes = { sent: 0, pending_review: 0, failed: 0, skipped: 0 };
   let oneOffProcessed = 0;
   let recurringFired = 0;
 
   const { data: dueCampaigns, error: dueCampaignsError } = await service
     .from("marketing_campaigns")
-    .select("id, product, goal, voice_notes, autonomy")
+    .select("id, product, channel, goal, voice_notes, autonomy")
     .eq("status", "scheduled")
-    .eq("channel", "email")
+    .in("channel", ["push", "sms"])
     .lte("run_at", now.toISOString());
   if (dueCampaignsError) {
     return NextResponse.json({ error: dueCampaignsError.message }, { status: 500 });
@@ -96,7 +118,7 @@ export async function GET(req: NextRequest) {
     .from("marketing_recurring_schedules")
     .select("*")
     .eq("active", true)
-    .eq("channel", "email")
+    .in("channel", ["push", "sms"])
     .lte("next_run_at", now.toISOString());
   if (dueSchedulesError) {
     return NextResponse.json({ error: dueSchedulesError.message }, { status: 500 });
@@ -107,7 +129,7 @@ export async function GET(req: NextRequest) {
       .from("marketing_campaigns")
       .insert({
         product: schedule.product,
-        channel: "email",
+        channel: schedule.channel,
         subject: "",
         body_html: "",
         status: "scheduled",
@@ -117,7 +139,7 @@ export async function GET(req: NextRequest) {
         run_at: now.toISOString(),
         recurring_schedule_id: schedule.id,
       })
-      .select("id, product, goal, voice_notes, autonomy")
+      .select("id, product, channel, goal, voice_notes, autonomy")
       .single();
 
     if (!insertError && inserted) {
@@ -125,7 +147,7 @@ export async function GET(req: NextRequest) {
       outcomes[outcome]++;
       recurringFired++;
     } else if (insertError) {
-      console.error(`[cron/email] failed to create occurrence for recurring schedule ${schedule.id}:`, insertError.message);
+      console.error(`[cron/mobile] failed to create occurrence for recurring schedule ${schedule.id}:`, insertError.message);
     }
 
     const nextRunAt = computeNextRun(

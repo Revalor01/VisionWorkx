@@ -18,7 +18,7 @@ export default async function AdminMarketingPage() {
 
   const service = createServiceClient();
   const [{ data: campaigns }, { data: schedules }] = await Promise.all([
-    service.from("marketing_campaigns").select("*").order("created_at", { ascending: false }).limit(50),
+    service.from("marketing_campaigns").select("*").eq("channel", "email").order("created_at", { ascending: false }).limit(50),
     service.from("marketing_recurring_schedules").select("*").order("next_run_at", { ascending: true }),
   ]);
 

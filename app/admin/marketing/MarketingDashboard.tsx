@@ -328,7 +328,7 @@ export default function MarketingDashboard({
 
   const pendingReview = campaigns.filter((c) => c.status === "pending_review");
   const upcomingOneOff = campaigns.filter((c) => c.status === "scheduled");
-  const activeSchedules = schedules.filter((s) => s.active);
+  const activeSchedules = schedules.filter((s) => s.active && s.channel === "email");
 
   return (
     <div className="min-h-screen bg-black text-white">

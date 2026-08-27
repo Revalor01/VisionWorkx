@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/lifecycle",
       "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/cron/mobile",
+      "schedule": "15 * * * *"
     }
   ]
 }

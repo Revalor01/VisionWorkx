@@ -14,6 +14,7 @@ export async function GET() {
   const { data, error } = await service
     .from("marketing_campaigns")
     .select("*")
+    .eq("channel", "email")
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

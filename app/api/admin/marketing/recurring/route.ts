@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { isAdminRequest } from "@/lib/social/adminAuth";
 import { MARKETING_PRODUCT_SLUGS } from "@/lib/marketing/products";
 import { computeNextRun } from "@/lib/marketing/recurrence";
-import type { MarketingAutonomy, MarketingProduct, MarketingRecurrence } from "@/lib/database.types";
+import type { MarketingAutonomy, MarketingChannel, MarketingProduct, MarketingRecurrence } from "@/lib/database.types";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -23,6 +23,7 @@ export async function GET() {
 
 interface CreateBody {
   product?: MarketingProduct;
+  channel?: MarketingChannel;
   goal?: string;
   voiceNotes?: string;
   recurrence?: MarketingRecurrence;
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "dayOfMonth must be 1-31 for monthly recurrence" }, { status: 400 });
   }
   const autonomy: MarketingAutonomy = body.autonomy === "auto" ? "auto" : "manual";
+  const channel: MarketingChannel = body.channel === "push" || body.channel === "sms" ? body.channel : "email";
 
   const nextRunAt = computeNextRun({ recurrence: body.recurrence, dayOfWeek, dayOfMonth, hourUtc: body.hourUtc }, new Date());
 
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
     .from("marketing_recurring_schedules")
     .insert({
       product: body.product,
+      channel,
       goal: body.goal.trim(),
       voice_notes: body.voiceNotes?.trim() || null,
       recurrence: body.recurrence,

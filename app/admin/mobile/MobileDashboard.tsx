@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MarketingCampaign, MarketingProduct } from "@/lib/database.types";
+import type { MarketingCampaign, MarketingProduct, MarketingRecurrence, MarketingRecurringSchedule } from "@/lib/database.types";
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
 import { PUSH_TITLE_MAX, PUSH_BODY_MAX, SMS_BODY_MAX } from "@/lib/mobile/limits";
 
@@ -11,6 +11,12 @@ const PRODUCTS: { value: MarketingProduct; label: string }[] = MARKETING_PRODUCT
   value: p.slug,
   label: p.name,
 }));
+
+const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function productLabel(p: MarketingProduct): string {
+  return PRODUCTS.find((x) => x.value === p)?.label ?? p;
+}
 
 const STATUS_STYLE: Record<MarketingCampaign["status"], string> = {
   draft: "bg-slate-700 text-slate-200",
@@ -30,6 +36,7 @@ function CharCount({ value, max }: { value: string; max: number }) {
 
 export default function MobileDashboard({ initialCampaigns }: { initialCampaigns: MarketingCampaign[] }) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [schedules, setSchedules] = useState<MarketingRecurringSchedule[]>([]);
   const [product, setProduct] = useState<MarketingProduct>("visionworkx");
   const [channel, setChannel] = useState<MobileChannel>("push");
   const [audienceCount, setAudienceCount] = useState<number | null>(null);
@@ -50,10 +57,32 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // "Schedule or automate" — a lightweight parallel form, same pattern as
+  // MarketingDashboard's. Doesn't generate content up front; the mobile
+  // cron (app/api/cron/mobile) generates the draft when it's due.
+  const [schedMode, setSchedMode] = useState<"once" | "recurring">("once");
+  const [schedGoal, setSchedGoal] = useState("");
+  const [schedVoiceNotes, setSchedVoiceNotes] = useState("");
+  const [schedAutonomy, setSchedAutonomy] = useState<"manual" | "auto">("manual");
+  const [schedRunAt, setSchedRunAt] = useState("");
+  const [schedRecurrence, setSchedRecurrence] = useState<MarketingRecurrence>("weekly");
+  const [schedDayOfWeek, setSchedDayOfWeek] = useState(1);
+  const [schedDayOfMonth, setSchedDayOfMonth] = useState(1);
+  const [schedHourUtc, setSchedHourUtc] = useState(14);
+  const [scheduling, setScheduling] = useState(false);
+  const [schedError, setSchedError] = useState("");
+  const [schedMessage, setSchedMessage] = useState("");
+
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadAudience(product, channel);
     setConfirmSend(false);
   }, [product, channel]);
+
+  useEffect(() => {
+    refreshSchedules();
+  }, []);
 
   async function loadAudience(p: MarketingProduct, c: MobileChannel) {
     setLoadingAudience(true);
@@ -71,6 +100,12 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
     const res = await fetch("/api/admin/mobile/campaigns");
     const body = await res.json();
     if (res.ok) setCampaigns(body.campaigns);
+  }
+
+  async function refreshSchedules() {
+    const res = await fetch("/api/admin/marketing/recurring");
+    const body = await res.json();
+    if (res.ok) setSchedules((body.schedules as MarketingRecurringSchedule[]).filter((s) => s.channel !== "email"));
   }
 
   async function generate() {
@@ -173,8 +208,112 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
     }
   }
 
+  async function createSchedule() {
+    setScheduling(true);
+    setSchedError("");
+    setSchedMessage("");
+    try {
+      if (schedMode === "once") {
+        if (!schedRunAt) throw new Error("Pick a date/time");
+        const res = await fetch("/api/admin/marketing/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product,
+            channel,
+            goal: schedGoal,
+            voiceNotes: schedVoiceNotes || undefined,
+            runAt: new Date(schedRunAt).toISOString(),
+            autonomy: schedAutonomy,
+          }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        setSchedMessage(`Scheduled for ${new Date(body.campaign.run_at).toLocaleString()}.`);
+        setCampaigns((prev) => [body.campaign, ...prev]);
+      } else {
+        const res = await fetch("/api/admin/marketing/recurring", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product,
+            channel,
+            goal: schedGoal,
+            voiceNotes: schedVoiceNotes || undefined,
+            recurrence: schedRecurrence,
+            dayOfWeek: schedRecurrence === "weekly" ? schedDayOfWeek : undefined,
+            dayOfMonth: schedRecurrence === "monthly" ? schedDayOfMonth : undefined,
+            hourUtc: schedHourUtc,
+            autonomy: schedAutonomy,
+          }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        setSchedMessage(`Recurring ${channel} created — next run ${new Date(body.schedule.next_run_at).toLocaleString()}.`);
+        setSchedules((prev) => [...prev, body.schedule].sort((a, b) => a.next_run_at.localeCompare(b.next_run_at)));
+      }
+      setSchedGoal("");
+      setSchedVoiceNotes("");
+      setSchedRunAt("");
+    } catch (err) {
+      setSchedError((err as Error).message);
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  function withBusy(id: string, fn: () => Promise<void>) {
+    return async () => {
+      setBusyIds((prev) => new Set(prev).add(id));
+      try {
+        await fn();
+      } finally {
+        setBusyIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    };
+  }
+
+  async function cancelCampaign(id: string) {
+    const res = await fetch(`/api/admin/marketing/campaigns/${id}/cancel`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? `HTTP ${res.status}`);
+      return;
+    }
+    await refreshCampaigns();
+  }
+
+  async function approveCampaign(id: string) {
+    const res = await fetch(`/api/admin/marketing/campaigns/${id}/approve`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? `HTTP ${res.status}`);
+      return;
+    }
+    setMessage(`Approved and sent to ${body.sent} of ${body.recipientCount} recipients${body.failed ? ` (${body.failed} failed)` : ""}.`);
+    await refreshCampaigns();
+  }
+
+  async function cancelSchedule(id: string) {
+    const res = await fetch(`/api/admin/marketing/recurring/${id}/cancel`, { method: "POST" });
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? `HTTP ${res.status}`);
+      return;
+    }
+    await refreshSchedules();
+  }
+
   const bodyMax = channel === "push" ? PUSH_BODY_MAX : SMS_BODY_MAX;
   const hasDraft = channel === "push" ? title || bodyText : !!bodyText;
+
+  const pendingReview = campaigns.filter((c) => c.status === "pending_review");
+  const upcomingOneOff = campaigns.filter((c) => c.status === "scheduled");
+  const activeSchedules = schedules.filter((s) => s.active);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -195,6 +334,41 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
           tokens or SMS consent (see the audience count below), so real sends have nobody to reach yet; this is the
           plumbing ready for when one does.
         </p>
+
+        {pendingReview.length > 0 && (
+          <section className="bg-[#0d0d0d] rounded-2xl border border-amber-600 overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-slate-800">
+              <h2 className="font-semibold text-white">Pending review ({pendingReview.length})</h2>
+              <p className="text-xs text-slate-500 mt-1">Autonomy is manual — these generated but need your approval before they send.</p>
+            </div>
+            <div className="divide-y divide-slate-800">
+              {pendingReview.map((c) => (
+                <div key={c.id} className="px-6 py-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-white">{c.subject || c.body_html || "(no content)"}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 capitalize">{c.product} · {c.channel}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={withBusy(c.id, () => approveCampaign(c.id))}
+                      disabled={busyIds.has(c.id)}
+                      className="text-xs font-medium text-green-400 hover:underline disabled:opacity-50"
+                    >
+                      {busyIds.has(c.id) ? "Working…" : "Approve & send"}
+                    </button>
+                    <button
+                      onClick={withBusy(c.id, () => cancelCampaign(c.id))}
+                      disabled={busyIds.has(c.id)}
+                      className="text-xs font-medium text-red-400 hover:underline disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="bg-[#0d0d0d] rounded-2xl border border-green-600 p-6 mb-8">
           <div className="flex gap-2 mb-4">
@@ -331,6 +505,166 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
               >
                 {sendingTargeted ? "Sending…" : "Send to these targets"}
               </button>
+            </div>
+          </section>
+        )}
+
+        <section className="bg-[#0d0d0d] rounded-2xl border border-sky-700 p-6 mb-8">
+          <h2 className="font-semibold text-white mb-1">Schedule or automate</h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Uses the {channel} channel and product selected above. Content is generated when it&apos;s due to send, not now.
+          </p>
+
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setSchedMode("once")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${schedMode === "once" ? "bg-sky-700 text-white" : "bg-black border border-slate-700 text-slate-400"}`}
+            >
+              One-off
+            </button>
+            <button
+              onClick={() => setSchedMode("recurring")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${schedMode === "recurring" ? "bg-sky-700 text-white" : "bg-black border border-slate-700 text-slate-400"}`}
+            >
+              Recurring
+            </button>
+          </div>
+
+          <label className="block text-xs font-medium text-slate-400 mb-1">What&apos;s this message about?</label>
+          <input
+            value={schedGoal}
+            onChange={(e) => setSchedGoal(e.target.value)}
+            placeholder={schedMode === "recurring" ? "e.g. weekly product digest (leave brief — recent activity fills the rest)" : "e.g. announcing the new weekly recap feature"}
+            className="w-full bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3"
+          />
+
+          <label className="block text-xs font-medium text-slate-400 mb-1">Brand voice notes (optional)</label>
+          <input
+            value={schedVoiceNotes}
+            onChange={(e) => setSchedVoiceNotes(e.target.value)}
+            className="w-full bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3"
+          />
+
+          {schedMode === "once" ? (
+            <>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Send at</label>
+              <input
+                type="datetime-local"
+                value={schedRunAt}
+                onChange={(e) => setSchedRunAt(e.target.value)}
+                className="w-full bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm mb-3"
+              />
+            </>
+          ) : (
+            <div className="flex gap-3 mb-3 flex-wrap">
+              <select
+                value={schedRecurrence}
+                onChange={(e) => setSchedRecurrence(e.target.value as MarketingRecurrence)}
+                className="bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              {schedRecurrence === "weekly" ? (
+                <select
+                  value={schedDayOfWeek}
+                  onChange={(e) => setSchedDayOfWeek(Number(e.target.value))}
+                  className="bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                >
+                  {WEEKDAY_LABELS.map((label, i) => (
+                    <option key={i} value={i}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={schedDayOfMonth}
+                  onChange={(e) => setSchedDayOfMonth(Number(e.target.value))}
+                  className="bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm w-24"
+                  placeholder="Day (1-31)"
+                />
+              )}
+              <select
+                value={schedHourUtc}
+                onChange={(e) => setSchedHourUtc(Number(e.target.value))}
+                className="bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00 UTC
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <label className="block text-xs font-medium text-slate-400 mb-1">Autonomy</label>
+          <select
+            value={schedAutonomy}
+            onChange={(e) => setSchedAutonomy(e.target.value as "manual" | "auto")}
+            className="w-full bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm mb-4"
+          >
+            <option value="manual">Manual — hold the generated draft for review</option>
+            <option value="auto">Auto — send without review</option>
+          </select>
+
+          {schedError && <div className="mb-3 p-2 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-sm">{schedError}</div>}
+          {schedMessage && <div className="mb-3 p-2 rounded-lg bg-green-900/40 border border-green-700 text-green-300 text-sm">{schedMessage}</div>}
+
+          <button
+            onClick={createSchedule}
+            disabled={scheduling || !schedGoal.trim() || (schedMode === "once" && !schedRunAt)}
+            className="px-4 py-2 rounded-lg bg-sky-700 text-white text-sm font-medium hover:bg-sky-800 transition-colors disabled:opacity-50"
+          >
+            {scheduling ? "Saving…" : schedMode === "once" ? "Schedule send" : "Create recurring digest"}
+          </button>
+        </section>
+
+        {(upcomingOneOff.length > 0 || activeSchedules.length > 0) && (
+          <section className="bg-[#0d0d0d] rounded-2xl border border-sky-800 overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-slate-800">
+              <h2 className="font-semibold text-white">Scheduled &amp; recurring</h2>
+            </div>
+            <div className="divide-y divide-slate-800">
+              {upcomingOneOff.map((c) => (
+                <div key={c.id} className="px-6 py-3 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-white">{productLabel(c.product)} ({c.channel}) — {c.goal || "(no goal set)"}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      One-off · {c.run_at ? new Date(c.run_at).toLocaleString() : "—"} · autonomy: {c.autonomy}
+                    </p>
+                  </div>
+                  <button
+                    onClick={withBusy(c.id, () => cancelCampaign(c.id))}
+                    disabled={busyIds.has(c.id)}
+                    className="text-xs font-medium text-red-400 hover:underline disabled:opacity-50 shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ))}
+              {activeSchedules.map((s) => (
+                <div key={s.id} className="px-6 py-3 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-white">{productLabel(s.product)} ({s.channel}) — {s.goal}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {s.recurrence === "weekly" ? WEEKDAY_LABELS[s.day_of_week ?? 0] : `Day ${s.day_of_month} of month`} at{" "}
+                      {String(s.hour_utc).padStart(2, "0")}:00 UTC · next {new Date(s.next_run_at).toLocaleString()} · autonomy: {s.autonomy}
+                    </p>
+                  </div>
+                  <button
+                    onClick={withBusy(s.id, () => cancelSchedule(s.id))}
+                    disabled={busyIds.has(s.id)}
+                    className="text-xs font-medium text-red-400 hover:underline disabled:opacity-50 shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ))}
             </div>
           </section>
         )}
