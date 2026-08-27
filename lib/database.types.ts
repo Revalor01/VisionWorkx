@@ -501,6 +501,7 @@ export type Database = {
           run_at: string | null;
           canceled_at: string | null;
           recurring_schedule_id: string | null;
+          target_emails: string[] | null;
         };
         Insert: {
           id?: string;
@@ -520,6 +521,7 @@ export type Database = {
           run_at?: string | null;
           canceled_at?: string | null;
           recurring_schedule_id?: string | null;
+          target_emails?: string[] | null;
         };
         Update: {
           subject?: string;
@@ -536,6 +538,7 @@ export type Database = {
           run_at?: string | null;
           canceled_at?: string | null;
           recurring_schedule_id?: string | null;
+          target_emails?: string[] | null;
         };
         Relationships: [];
       };
@@ -596,6 +599,46 @@ export type Database = {
           product: MarketingProduct;
           email: string;
           unsubscribed_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      lifecycle_trigger_settings: {
+        Row: {
+          trigger_id: string;
+          active: boolean;
+          autonomy: MarketingAutonomy;
+          updated_at: string;
+        };
+        Insert: {
+          trigger_id: string;
+          active?: boolean;
+          autonomy?: MarketingAutonomy;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          autonomy?: MarketingAutonomy;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      lifecycle_fires: {
+        Row: {
+          id: string;
+          trigger_id: string;
+          product: MarketingProduct;
+          recipient_email: string;
+          campaign_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trigger_id: string;
+          product: MarketingProduct;
+          recipient_email: string;
+          campaign_id?: string | null;
+          created_at?: string;
         };
         Update: Record<string, never>;
         Relationships: [];
@@ -1390,4 +1433,6 @@ export type WeeklyRecap = Database["public"]["Tables"]["weekly_recaps"]["Row"];
 export type MarketingCampaign = Database["public"]["Tables"]["marketing_campaigns"]["Row"];
 export type MarketingRecurringSchedule = Database["public"]["Tables"]["marketing_recurring_schedules"]["Row"];
 export type MarketingUnsubscribe = Database["public"]["Tables"]["marketing_unsubscribes"]["Row"];
+export type LifecycleTriggerSettingsRow = Database["public"]["Tables"]["lifecycle_trigger_settings"]["Row"];
+export type LifecycleFireRow = Database["public"]["Tables"]["lifecycle_fires"]["Row"];
 export type DevActivityLogEntry = Database["public"]["Tables"]["dev_activity_log"]["Row"];
