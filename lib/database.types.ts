@@ -34,6 +34,12 @@ export type MarketingAutonomy = "manual" | "auto";
 export type MarketingRecurrence = "weekly" | "monthly";
 export type MarketingChannel = "email" | "push" | "sms";
 
+export type ContentSourceType = "blog" | "announcement" | "update";
+export type ContentItemStatus = "draft" | "ready" | "archived";
+export type ContentTopicCadence = "weekly" | "monthly" | "on_demand";
+export type ContentDerivativeChannel = "blog" | "social" | "email" | "push" | "sms";
+export type ContentDerivativeStatus = "pending" | "generated" | "pending_review" | "approved" | "published" | "failed";
+
 export type PromotePlan = "starter" | "growth" | "pro";
 export type PromoteCreativeFormat = "1080x1080" | "1080x1920" | "1200x628";
 export type PromoteCreativeStatus = "draft" | "approved" | "archived";
@@ -64,7 +70,7 @@ export type SocialInboxClassification = "auto_answered" | "requires_human";
 export type SocialInboxStatus = "open" | "resolved";
 export type SocialAutonomyMode = "manual" | "semi_autonomous" | "fully_autonomous";
 export type SocialRiskLevel = "low" | "medium" | "high";
-export type SocialContentGeneratedBy = "manual" | "autonomous";
+export type SocialContentGeneratedBy = "manual" | "autonomous" | "content_engine";
 export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation";
 
 export interface LeadSignal {
@@ -667,6 +673,128 @@ export type Database = {
           source?: "reply_stop" | "manual";
         };
         Update: Record<string, never>;
+        Relationships: [];
+      };
+      content_items: {
+        Row: {
+          id: string;
+          product: MarketingProduct;
+          source_type: ContentSourceType;
+          title: string;
+          body: string;
+          keyword_cluster: string[];
+          status: ContentItemStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product: MarketingProduct;
+          source_type?: ContentSourceType;
+          title: string;
+          body: string;
+          keyword_cluster?: string[];
+          status?: ContentItemStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          body?: string;
+          keyword_cluster?: string[];
+          status?: ContentItemStatus;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_topics: {
+        Row: {
+          id: string;
+          product: MarketingProduct;
+          topic: string;
+          keyword_cluster: string[];
+          cadence: ContentTopicCadence;
+          day_of_week: number | null;
+          day_of_month: number | null;
+          hour_utc: number;
+          social_brand_id: string | null;
+          active: boolean;
+          next_run_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product: MarketingProduct;
+          topic: string;
+          keyword_cluster?: string[];
+          cadence?: ContentTopicCadence;
+          day_of_week?: number | null;
+          day_of_month?: number | null;
+          hour_utc?: number;
+          social_brand_id?: string | null;
+          active?: boolean;
+          next_run_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          topic?: string;
+          keyword_cluster?: string[];
+          cadence?: ContentTopicCadence;
+          day_of_week?: number | null;
+          day_of_month?: number | null;
+          hour_utc?: number;
+          social_brand_id?: string | null;
+          active?: boolean;
+          next_run_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_derivatives: {
+        Row: {
+          id: string;
+          content_item_id: string;
+          channel: ContentDerivativeChannel;
+          platform: SocialPlatform | null;
+          autonomy: MarketingAutonomy;
+          status: ContentDerivativeStatus;
+          subject: string | null;
+          body: string | null;
+          blog_post_id: string | null;
+          social_content_id: string | null;
+          marketing_campaign_id: string | null;
+          error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          content_item_id: string;
+          channel: ContentDerivativeChannel;
+          platform?: SocialPlatform | null;
+          autonomy?: MarketingAutonomy;
+          status?: ContentDerivativeStatus;
+          subject?: string | null;
+          body?: string | null;
+          blog_post_id?: string | null;
+          social_content_id?: string | null;
+          marketing_campaign_id?: string | null;
+          error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: ContentDerivativeStatus;
+          subject?: string | null;
+          body?: string | null;
+          blog_post_id?: string | null;
+          social_content_id?: string | null;
+          marketing_campaign_id?: string | null;
+          error?: string | null;
+          updated_at?: string;
+        };
         Relationships: [];
       };
       dev_activity_log: {
@@ -1462,4 +1590,7 @@ export type MarketingUnsubscribe = Database["public"]["Tables"]["marketing_unsub
 export type LifecycleTriggerSettingsRow = Database["public"]["Tables"]["lifecycle_trigger_settings"]["Row"];
 export type LifecycleFireRow = Database["public"]["Tables"]["lifecycle_fires"]["Row"];
 export type MobileSmsOptOut = Database["public"]["Tables"]["mobile_sms_opt_outs"]["Row"];
+export type ContentItem = Database["public"]["Tables"]["content_items"]["Row"];
+export type ContentTopic = Database["public"]["Tables"]["content_topics"]["Row"];
+export type ContentDerivative = Database["public"]["Tables"]["content_derivatives"]["Row"];
 export type DevActivityLogEntry = Database["public"]["Tables"]["dev_activity_log"]["Row"];
