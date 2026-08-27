@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { isAdminRequest } from "@/lib/social/adminAuth";
-import { getSendableAudience } from "@/lib/marketing/audience";
+import { getSendableAudience, filterUnsubscribed } from "@/lib/marketing/audience";
 import { sendCampaign } from "@/lib/marketing/sendCampaign";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
   const service = createServiceClient();
   const { data: campaign, error: fetchError } = await service
     .from("marketing_campaigns")
-    .select("id, product, status")
+    .select("id, product, status, target_emails")
     .eq("id", params.id)
     .maybeSingle();
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
@@ -26,8 +26,14 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
   }
 
   try {
-    const recipients = await getSendableAudience(campaign.product);
-    const result = await sendCampaign(campaign.id, recipients.map((r) => r.email));
+    // A lifecycle firing (or any other targeted send) carries its own
+    // recipient list — approving it must send to exactly those people, not
+    // the product's whole current audience. Re-filter unsubscribes here
+    // too, in case someone opted out between generation and approval.
+    const recipients = campaign.target_emails?.length
+      ? await filterUnsubscribed(campaign.product, campaign.target_emails)
+      : (await getSendableAudience(campaign.product)).map((r) => r.email);
+    const result = await sendCampaign(campaign.id, recipients);
     return NextResponse.json({ ok: true, recipientCount: recipients.length, ...result });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

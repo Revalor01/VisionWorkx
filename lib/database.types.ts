@@ -640,7 +640,9 @@ export type Database = {
           campaign_id?: string | null;
           created_at?: string;
         };
-        Update: Record<string, never>;
+        Update: {
+          campaign_id?: string | null;
+        };
         Relationships: [];
       };
       dev_activity_log: {
