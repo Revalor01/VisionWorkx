@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import type { MarketingCampaign, MarketingProduct } from "@/lib/database.types";
+import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
 
-const PRODUCTS: { value: MarketingProduct; label: string }[] = [
-  { value: "visionworkx", label: "VisionWorkx" },
-  { value: "chorebit", label: "Chorebit" },
-  { value: "feelflow", label: "FeelFlow" },
-  { value: "mindbit", label: "MindBit" },
-];
+const PRODUCTS: { value: MarketingProduct; label: string }[] = MARKETING_PRODUCTS.map((p) => ({
+  value: p.slug,
+  label: p.name,
+}));
 
 const STATUS_STYLE: Record<MarketingCampaign["status"], string> = {
   draft: "bg-slate-700 text-slate-200",

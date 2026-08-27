@@ -1,19 +1,9 @@
 import { createServiceClient } from "@/lib/supabase";
-import { runManagementQuery, CHOREBIT_REF, FEELFLOW_REF, MINDBIT_REF } from "@/lib/social/weeklyStats";
+import { runManagementQuery } from "@/lib/social/weeklyStats";
+import { getMarketingProduct, PRODUCT_LABEL } from "@/lib/marketing/products";
 import type { MarketingProduct } from "@/lib/database.types";
 
-const REMOTE_PROJECT_REF: Record<Exclude<MarketingProduct, "visionworkx">, string> = {
-  chorebit: CHOREBIT_REF,
-  feelflow: FEELFLOW_REF,
-  mindbit: MINDBIT_REF,
-};
-
-export const PRODUCT_LABEL: Record<MarketingProduct, string> = {
-  visionworkx: "VisionWorkx",
-  chorebit: "Chorebit",
-  feelflow: "FeelFlow",
-  mindbit: "MindBit",
-};
+export { PRODUCT_LABEL };
 
 interface AudienceMember {
   id: string;
@@ -28,7 +18,9 @@ interface AudienceMember {
 // and the same query app/admin/page.tsx already runs against auth.users
 // for vision-workx's own project).
 async function fetchProductUsers(product: MarketingProduct): Promise<AudienceMember[]> {
-  if (product === "visionworkx") {
+  const { audienceSource } = getMarketingProduct(product);
+
+  if (audienceSource.kind === "local") {
     const service = createServiceClient();
     let all: AudienceMember[] = [];
     let page = 1;
@@ -42,7 +34,7 @@ async function fetchProductUsers(product: MarketingProduct): Promise<AudienceMem
     return all;
   }
 
-  const rows = await runManagementQuery(REMOTE_PROJECT_REF[product], "SELECT id, email FROM auth.users");
+  const rows = await runManagementQuery(audienceSource.projectRef, "SELECT id, email FROM auth.users");
   return rows
     .filter((r): r is { id: string; email: string } => typeof r.email === "string" && !!r.email)
     .map((r) => ({ id: r.id as string, email: r.email as string }));
