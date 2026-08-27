@@ -5,19 +5,11 @@ import { getTodaysTopics } from "@/lib/social/topicSeeds";
 import { evaluateApproval } from "@/lib/social/riskEvaluator";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
+import { connectedPlatforms } from "@/lib/social/connectedPlatforms";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
-
-function connectedPlatforms(brand: SocialBrand): SocialPlatform[] {
-  const platforms: SocialPlatform[] = [];
-  if (brand.fb_page_id) platforms.push("facebook");
-  if (brand.socialapi_account_id) platforms.push("instagram");
-  if (brand.socialapi_tiktok_account_id) platforms.push("tiktok");
-  if (brand.socialapi_youtube_account_id) platforms.push("youtube");
-  return platforms;
-}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization") ?? "";
