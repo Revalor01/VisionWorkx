@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { isAdminRequest } from "@/lib/social/adminAuth";
+import { MARKETING_PRODUCT_SLUGS } from "@/lib/marketing/products";
 import type { MarketingProduct } from "@/lib/database.types";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const VALID_PRODUCTS: MarketingProduct[] = ["visionworkx", "chorebit", "feelflow", "mindbit"];
 
 export async function GET() {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.product || !VALID_PRODUCTS.includes(body.product)) {
+  if (!body.product || !MARKETING_PRODUCT_SLUGS.includes(body.product)) {
     return NextResponse.json({ error: "Invalid or missing product" }, { status: 400 });
   }
   if (!body.subject?.trim() || !body.bodyHtml?.trim()) {
