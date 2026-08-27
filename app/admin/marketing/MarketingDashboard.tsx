@@ -337,9 +337,14 @@ export default function MarketingDashboard({
           <span className="text-lg font-bold tracking-tight">Revalor</span>
           <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Email Marketing</span>
         </div>
-        <a href="https://revalor-admin.vercel.app" className="text-xs text-white/70 hover:text-white transition-colors">
-          ← Back to Admin
-        </a>
+        <div className="flex items-center gap-4">
+          <a href="/admin/marketing/lifecycle" className="text-xs text-white/70 hover:text-white transition-colors">
+            Lifecycle triggers →
+          </a>
+          <a href="https://revalor-admin.vercel.app" className="text-xs text-white/70 hover:text-white transition-colors">
+            ← Back to Admin
+          </a>
+        </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">

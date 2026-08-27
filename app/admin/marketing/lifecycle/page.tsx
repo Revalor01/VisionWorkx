@@ -1,0 +1,20 @@
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { createServerClient } from "@/lib/supabase";
+import { ADMIN_EMAIL, ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
+import LifecycleDashboard from "./LifecycleDashboard";
+
+export default async function AdminLifecyclePage() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  const cookieStore = await cookies();
+  const isSsoAdmin = verifySessionCookie(cookieStore.get(ADMIN_SSO_COOKIE)?.value, ADMIN_EMAIL);
+
+  if (!isSsoAdmin && (authError || !user || user.email !== ADMIN_EMAIL)) redirect("/dashboard");
+
+  return <LifecycleDashboard />;
+}
