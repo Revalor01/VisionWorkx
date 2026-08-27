@@ -5,6 +5,13 @@ import { signUnsubscribeToken } from "./unsubscribeToken";
 const RESEND_KEY = process.env.RESEND_API_KEY;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
 
+// Vercel sets this automatically (production / preview / development) — no
+// manual config to forget. Every send path (manual test send, manual real
+// send, and the scheduled/recurring cron in Project 02) funnels through
+// sendEmail() below, so gating here is the one place a bug in a
+// preview/dev deploy is stopped from reaching a real product user's inbox.
+const IS_PRODUCTION = process.env.VERCEL_ENV === "production";
+
 const BATCH_SIZE = 5;
 
 function unsubscribeFooter(product: MarketingProduct, email: string): string {
@@ -15,12 +22,33 @@ function unsubscribeFooter(product: MarketingProduct, email: string): string {
   </p>`;
 }
 
-async function sendOne(params: {
+export interface SendEmailParams {
   to: string;
   subject: string;
   bodyHtml: string;
   product: MarketingProduct;
-}): Promise<{ ok: boolean; error?: string }> {
+}
+
+export interface SendEmailResult {
+  ok: boolean;
+  error?: string;
+}
+
+// The one function that actually talks to Resend. Outside a production
+// deploy this no-ops (logs instead) rather than sending — see IS_PRODUCTION
+// above.
+export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
+  if (!IS_PRODUCTION) {
+    console.log(
+      `[marketing] non-production (VERCEL_ENV=${process.env.VERCEL_ENV ?? "unset"}), not sending "${params.subject}" to ${params.to}`
+    );
+    return { ok: true };
+  }
+
+  if (!RESEND_KEY) {
+    return { ok: false, error: "RESEND_API_KEY is not configured" };
+  }
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
@@ -51,8 +79,6 @@ export async function sendToRecipients(params: {
   bodyHtml: string;
   recipients: string[];
 }): Promise<SendResult> {
-  if (!RESEND_KEY) throw new Error("Email sending is not configured (RESEND_API_KEY missing)");
-
   let sent = 0;
   let failed = 0;
   const errors: string[] = [];
@@ -60,7 +86,7 @@ export async function sendToRecipients(params: {
   for (let i = 0; i < params.recipients.length; i += BATCH_SIZE) {
     const batch = params.recipients.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
-      batch.map((to) => sendOne({ to, subject: params.subject, bodyHtml: params.bodyHtml, product: params.product }))
+      batch.map((to) => sendEmail({ to, subject: params.subject, bodyHtml: params.bodyHtml, product: params.product }))
     );
     for (const result of results) {
       if (result.ok) sent++;
