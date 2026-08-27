@@ -32,6 +32,7 @@ export type MarketingCampaignStatus =
   | "canceled";
 export type MarketingAutonomy = "manual" | "auto";
 export type MarketingRecurrence = "weekly" | "monthly";
+export type MarketingChannel = "email" | "push" | "sms";
 
 export type PromotePlan = "starter" | "growth" | "pro";
 export type PromoteCreativeFormat = "1080x1080" | "1080x1920" | "1200x628";
@@ -502,6 +503,7 @@ export type Database = {
           canceled_at: string | null;
           recurring_schedule_id: string | null;
           target_emails: string[] | null;
+          channel: MarketingChannel;
         };
         Insert: {
           id?: string;
@@ -522,6 +524,7 @@ export type Database = {
           canceled_at?: string | null;
           recurring_schedule_id?: string | null;
           target_emails?: string[] | null;
+          channel?: MarketingChannel;
         };
         Update: {
           subject?: string;
@@ -539,6 +542,7 @@ export type Database = {
           canceled_at?: string | null;
           recurring_schedule_id?: string | null;
           target_emails?: string[] | null;
+          channel?: MarketingChannel;
         };
         Relationships: [];
       };
@@ -557,6 +561,7 @@ export type Database = {
           next_run_at: string;
           created_at: string;
           updated_at: string;
+          channel: MarketingChannel;
         };
         Insert: {
           id?: string;
@@ -572,6 +577,7 @@ export type Database = {
           next_run_at: string;
           created_at?: string;
           updated_at?: string;
+          channel?: MarketingChannel;
         };
         Update: {
           goal?: string;
@@ -643,6 +649,22 @@ export type Database = {
         Update: {
           campaign_id?: string | null;
         };
+        Relationships: [];
+      };
+      mobile_sms_opt_outs: {
+        Row: {
+          id: string;
+          phone: string;
+          opted_out_at: string;
+          source: "reply_stop" | "manual";
+        };
+        Insert: {
+          id?: string;
+          phone: string;
+          opted_out_at?: string;
+          source?: "reply_stop" | "manual";
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       dev_activity_log: {
@@ -1437,4 +1459,5 @@ export type MarketingRecurringSchedule = Database["public"]["Tables"]["marketing
 export type MarketingUnsubscribe = Database["public"]["Tables"]["marketing_unsubscribes"]["Row"];
 export type LifecycleTriggerSettingsRow = Database["public"]["Tables"]["lifecycle_trigger_settings"]["Row"];
 export type LifecycleFireRow = Database["public"]["Tables"]["lifecycle_fires"]["Row"];
+export type MobileSmsOptOut = Database["public"]["Tables"]["mobile_sms_opt_outs"]["Row"];
 export type DevActivityLogEntry = Database["public"]["Tables"]["dev_activity_log"]["Row"];

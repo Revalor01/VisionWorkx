@@ -27,35 +27,42 @@ export interface MarketingProductConfig {
   audienceSource: MarketingAudienceSource;
 }
 
+// push/sms are true for every product: the sending infrastructure
+// (Project 04, lib/mobile/*) is real and product-agnostic, same as email.
+// Whether a product currently HAS any opted-in push tokens/phone numbers
+// is a separate, audience-level concern — today none do (see
+// lib/mobile/audience.ts) — the same distinction Sanctum's email already
+// makes: wired, but currently empty. Not hiding the channel keeps that
+// visible instead of silently excluding it.
 export const MARKETING_PRODUCTS: MarketingProductConfig[] = [
   {
     slug: "visionworkx",
     name: "VisionWorkx",
-    channels: { email: true, push: false, sms: false },
+    channels: { email: true, push: true, sms: true },
     audienceSource: { kind: "local" },
   },
   {
     slug: "chorebit",
     name: "Chorebit",
-    channels: { email: true, push: false, sms: false },
+    channels: { email: true, push: true, sms: true },
     audienceSource: { kind: "remote", projectRef: "kkpwgnmhtcidnrnlwcll" },
   },
   {
     slug: "feelflow",
     name: "FeelFlow",
-    channels: { email: true, push: false, sms: false },
+    channels: { email: true, push: true, sms: true },
     audienceSource: { kind: "remote", projectRef: "duiyxiransdeqokwldqy" },
   },
   {
     slug: "mindbit",
     name: "MindBit",
-    channels: { email: true, push: false, sms: false },
+    channels: { email: true, push: true, sms: true },
     audienceSource: { kind: "remote", projectRef: "uftlgnmvjjmuedotrewz" },
   },
   {
     slug: "sanctum",
     name: "Sanctum",
-    channels: { email: true, push: false, sms: false },
+    channels: { email: true, push: true, sms: true },
     // Project ref from revalor-admin/lib/lines.ts (supabaseRef for sanctum).
     // Reached the same way as the other remote products — auth.users via
     // the Management API — since sanctum-web is a standard Supabase Auth
