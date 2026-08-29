@@ -1160,6 +1160,7 @@ export type Database = {
           socialapi_tiktok_account_id: string | null;
           socialapi_youtube_account_id: string | null;
           socialapi_facebook_account_id: string | null;
+          socialapi_brand_id: string | null;
           autonomy_enabled: boolean;
           autonomy_mode: SocialAutonomyMode;
           banned_words: string[];
@@ -1185,6 +1186,7 @@ export type Database = {
           socialapi_tiktok_account_id?: string | null;
           socialapi_youtube_account_id?: string | null;
           socialapi_facebook_account_id?: string | null;
+          socialapi_brand_id?: string | null;
           autonomy_enabled?: boolean;
           autonomy_mode?: SocialAutonomyMode;
           banned_words?: string[];
@@ -1208,6 +1210,7 @@ export type Database = {
           socialapi_tiktok_account_id?: string | null;
           socialapi_youtube_account_id?: string | null;
           socialapi_facebook_account_id?: string | null;
+          socialapi_brand_id?: string | null;
           autonomy_enabled?: boolean;
           autonomy_mode?: SocialAutonomyMode;
           banned_words?: string[];

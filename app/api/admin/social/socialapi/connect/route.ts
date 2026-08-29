@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/social/adminAuth";
+import { createServiceClient } from "@/lib/supabase";
 import {
   getInstagramConnectUrl,
   getTikTokConnectUrl,
   getYouTubeConnectUrl,
   getFacebookInboxConnectUrl,
+  ensureSocialApiBrandId,
 } from "@/lib/social/socialApi";
 
 export const runtime = "nodejs";
@@ -14,7 +16,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.
 
 type ConnectPlatform = "instagram" | "tiktok" | "youtube" | "facebook-inbox";
 
-const CONNECT_URL_BY_PLATFORM: Record<ConnectPlatform, (redirectUri: string, state: string) => Promise<string>> = {
+const CONNECT_URL_BY_PLATFORM: Record<ConnectPlatform, (redirectUri: string, state: string, brandId: string) => Promise<string>> = {
   instagram: getInstagramConnectUrl,
   tiktok: getTikTokConnectUrl,
   youtube: getYouTubeConnectUrl,
@@ -41,11 +43,27 @@ export async function GET(req: NextRequest) {
       : "instagram";
 
   try {
+    const service = createServiceClient();
+    const { data: brand, error } = await service
+      .from("social_brands")
+      .select("name, socialapi_brand_id")
+      .eq("id", brandId)
+      .single();
+    if (error || !brand) return NextResponse.json({ error: "Unknown brand_id" }, { status: 404 });
+
+    // Resolves (and caches on first use) the SocialAPI-side brand id so
+    // this connect attaches to the right brand instead of SocialAPI
+    // auto-creating a new one, which is what happens if brand_id is omitted.
+    const socialApiBrandId = await ensureSocialApiBrandId(brand.name, brand.socialapi_brand_id);
+    if (socialApiBrandId !== brand.socialapi_brand_id) {
+      await service.from("social_brands").update({ socialapi_brand_id: socialApiBrandId }).eq("id", brandId);
+    }
+
     const redirectUri = `${APP_URL}/api/admin/social/socialapi/callback`;
     // The platform rides along in `state` so the callback knows which
     // social_brands column to save the returned account_id to.
     const state = `${brandId}::${platform}`;
-    const authUrl = await CONNECT_URL_BY_PLATFORM[platform](redirectUri, state);
+    const authUrl = await CONNECT_URL_BY_PLATFORM[platform](redirectUri, state, socialApiBrandId);
     return NextResponse.redirect(authUrl);
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

@@ -34,26 +34,30 @@ async function apiFetch(path: string, init: RequestInit = {}) {
 
 // `state` carries the brand id through the redirect round-trip so the
 // callback route knows which social_brands row to save the account_id to.
-export async function getInstagramConnectUrl(redirectUri: string, state: string): Promise<string> {
+// `brandId` is SocialAPI's *own* brand id (social_brands.socialapi_brand_id),
+// not ours — omitting it makes SocialAPI silently auto-create a brand-new
+// brand on every connect, which is what was burning through the plan's
+// brand cap. Always resolve one via ensureSocialApiBrandId() first.
+export async function getInstagramConnectUrl(redirectUri: string, state: string, brandId: string): Promise<string> {
   const body = await apiFetch("/accounts/connect", {
     method: "POST",
-    body: JSON.stringify({ platform: "instagram", redirect_uri: redirectUri, state }),
+    body: JSON.stringify({ platform: "instagram", redirect_uri: redirectUri, state, brand_id: brandId }),
   });
   return body.auth_url;
 }
 
-export async function getTikTokConnectUrl(redirectUri: string, state: string): Promise<string> {
+export async function getTikTokConnectUrl(redirectUri: string, state: string, brandId: string): Promise<string> {
   const body = await apiFetch("/accounts/connect", {
     method: "POST",
-    body: JSON.stringify({ platform: "tiktok", redirect_uri: redirectUri, state }),
+    body: JSON.stringify({ platform: "tiktok", redirect_uri: redirectUri, state, brand_id: brandId }),
   });
   return body.auth_url;
 }
 
-export async function getYouTubeConnectUrl(redirectUri: string, state: string): Promise<string> {
+export async function getYouTubeConnectUrl(redirectUri: string, state: string, brandId: string): Promise<string> {
   const body = await apiFetch("/accounts/connect", {
     method: "POST",
-    body: JSON.stringify({ platform: "youtube", redirect_uri: redirectUri, state }),
+    body: JSON.stringify({ platform: "youtube", redirect_uri: redirectUri, state, brand_id: brandId }),
   });
   return body.auth_url;
 }
@@ -62,12 +66,51 @@ export async function getYouTubeConnectUrl(redirectUri: string, state: string): 
 // direct Meta integration (lib/social/meta.ts, fb_page_id), which already
 // works. This connects the same Page a second time, through SocialAPI,
 // purely so its DMs/comments reach the SocialAPI webhook.
-export async function getFacebookInboxConnectUrl(redirectUri: string, state: string): Promise<string> {
+export async function getFacebookInboxConnectUrl(redirectUri: string, state: string, brandId: string): Promise<string> {
   const body = await apiFetch("/accounts/connect", {
     method: "POST",
-    body: JSON.stringify({ platform: "facebook", redirect_uri: redirectUri, state }),
+    body: JSON.stringify({ platform: "facebook", redirect_uri: redirectUri, state, brand_id: brandId }),
   });
   return body.auth_url;
+}
+
+// ── Brand management ─────────────────────────────────────────────────────
+// A SocialAPI "brand" is their own concept, separate from our social_brands
+// table — social_brands.socialapi_brand_id caches the mapping so a given
+// Revalor brand always reuses the same SocialAPI brand across connects.
+
+export interface SocialApiBrand {
+  id: string;
+  name: string;
+  accountsCount: number;
+}
+
+export async function listSocialApiBrands(): Promise<SocialApiBrand[]> {
+  const body = await apiFetch("/brands");
+  return (body.data ?? []).map((b: { id: string; name: string; accounts_count?: number }) => ({
+    id: b.id,
+    name: b.name,
+    accountsCount: b.accounts_count ?? 0,
+  }));
+}
+
+export async function createSocialApiBrand(name: string): Promise<string> {
+  const body = await apiFetch("/brands", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  return body.id;
+}
+
+// Resolves the SocialAPI brand id for a given local brand, creating one
+// (or reusing a same-named existing one, e.g. from before this mapping
+// existed) if it hasn't been cached yet.
+export async function ensureSocialApiBrandId(brandName: string, cachedBrandId: string | null): Promise<string> {
+  if (cachedBrandId) return cachedBrandId;
+  const existing = await listSocialApiBrands();
+  const match = existing.find((b) => b.name.toLowerCase() === brandName.toLowerCase());
+  if (match) return match.id;
+  return createSocialApiBrand(brandName);
 }
 
 // ── Account lookup (for the admin UI to show which real account is connected) ──
