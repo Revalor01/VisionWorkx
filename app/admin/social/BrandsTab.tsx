@@ -220,6 +220,24 @@ function BrandsTabInner({
     }
   }
 
+  async function disconnectPlatform(brand: SocialBrand, platform: "facebook" | "instagram" | "tiktok" | "youtube", label: string) {
+    if (!confirm(`Disconnect ${label} from ${brand.name}? Posting to ${label} (including autonomous posts) will stop until it's reconnected.`)) return;
+    await fetch(`/api/social/brands/${brand.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ disconnectPlatform: platform }),
+    });
+    setBrands((prev) =>
+      prev.map((b) => {
+        if (b.id !== brand.id) return b;
+        if (platform === "facebook") return { ...b, fb_page_id: null };
+        if (platform === "instagram") return { ...b, socialapi_account_id: null };
+        if (platform === "tiktok") return { ...b, socialapi_tiktok_account_id: null };
+        return { ...b, socialapi_youtube_account_id: null };
+      })
+    );
+  }
+
   async function resumeAutonomy(brand: SocialBrand) {
     setTogglingAutonomy(brand.id);
     try {
@@ -335,6 +353,7 @@ function BrandsTabInner({
                   connected={!!brand.fb_page_id}
                   connectHref={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
                   connectColor="#1877F2"
+                  onDisconnect={() => disconnectPlatform(brand, "facebook", "Facebook")}
                   extra={
                     brand.fb_page_id && (
                       <>
@@ -369,6 +388,7 @@ function BrandsTabInner({
                   account={brand.socialapi_account_id ? connectedAccounts[brand.socialapi_account_id] : undefined}
                   connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}`}
                   connectColor="#BC3081"
+                  onDisconnect={() => disconnectPlatform(brand, "instagram", "Instagram")}
                 />
                 <PlatformRow
                   icon={<TikTokIcon active={!!brand.socialapi_tiktok_account_id} />}
@@ -377,6 +397,7 @@ function BrandsTabInner({
                   account={brand.socialapi_tiktok_account_id ? connectedAccounts[brand.socialapi_tiktok_account_id] : undefined}
                   connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=tiktok`}
                   connectColor="#000000"
+                  onDisconnect={() => disconnectPlatform(brand, "tiktok", "TikTok")}
                 />
                 <PlatformRow
                   icon={<YouTubeIcon active={!!brand.socialapi_youtube_account_id} />}
@@ -385,6 +406,7 @@ function BrandsTabInner({
                   account={brand.socialapi_youtube_account_id ? connectedAccounts[brand.socialapi_youtube_account_id] : undefined}
                   connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=youtube`}
                   connectColor="#FF0000"
+                  onDisconnect={() => disconnectPlatform(brand, "youtube", "YouTube")}
                 />
               </div>
               <button
@@ -541,6 +563,7 @@ function PlatformRow({
   account,
   connectHref,
   connectColor,
+  onDisconnect,
   extra,
 }: {
   icon: React.ReactNode;
@@ -549,6 +572,7 @@ function PlatformRow({
   account?: { username: string | null; profilePictureUrl: string | null };
   connectHref: string;
   connectColor: string;
+  onDisconnect?: () => void;
   extra?: React.ReactNode;
 }) {
   return (
@@ -573,6 +597,11 @@ function PlatformRow({
             </span>
           ) : (
             <span className="text-[11px] font-medium text-green-700">Connected</span>
+          )}
+          {onDisconnect && (
+            <button onClick={onDisconnect} className="text-[10px] text-slate-400 hover:text-red-600 hover:underline">
+              Disconnect
+            </button>
           )}
           {extra}
         </div>

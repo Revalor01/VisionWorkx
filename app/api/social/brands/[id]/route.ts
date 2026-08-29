@@ -24,6 +24,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     contentTopics?: string[];
     postingFrequencyPerDay?: number;
     resumeAutonomy?: boolean;
+    disconnectPlatform?: "facebook" | "instagram" | "tiktok" | "youtube";
   };
   try {
     body = await req.json();
@@ -44,6 +45,24 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (body.resumeAutonomy) {
     update.autonomy_paused_at = null;
     update.autonomy_paused_reason = null;
+  }
+  if (body.disconnectPlatform) {
+    switch (body.disconnectPlatform) {
+      case "facebook":
+        update.fb_page_id = null;
+        break;
+      case "instagram":
+        update.socialapi_account_id = null;
+        break;
+      case "tiktok":
+        update.socialapi_tiktok_account_id = null;
+        break;
+      case "youtube":
+        update.socialapi_youtube_account_id = null;
+        break;
+      default:
+        return NextResponse.json({ error: "Unknown platform" }, { status: 400 });
+    }
   }
 
   const service = createServiceClient();
