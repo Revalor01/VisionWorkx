@@ -63,7 +63,7 @@ export interface PromoteTargetAudience {
 }
 
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "youtube";
-export type SocialVideoStatus = "raw" | "in_editing" | "ready" | "posted";
+export type SocialVideoStatus = "raw" | "in_editing" | "ready" | "posted" | "generating" | "failed";
 export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" | "failed";
 export type SocialInboxSourceType = "dm" | "comment";
 export type SocialInboxClassification = "auto_answered" | "requires_human";

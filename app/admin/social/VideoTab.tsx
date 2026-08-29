@@ -9,6 +9,8 @@ const STATUS_LABEL: Record<SocialVideoStatus, string> = {
   in_editing: "In Editing",
   ready: "Ready",
   posted: "Posted",
+  generating: "Generating…",
+  failed: "Failed",
 };
 
 const STATUS_STYLE: Record<SocialVideoStatus, string> = {
@@ -16,7 +18,13 @@ const STATUS_STYLE: Record<SocialVideoStatus, string> = {
   in_editing: "bg-amber-100 text-amber-700",
   ready: "bg-green-100 text-green-700",
   posted: "bg-sky-100 text-sky-700",
+  generating: "bg-purple-100 text-purple-700",
+  failed: "bg-red-100 text-red-700",
 };
+
+// generating/failed are set only by the background AI video-generation
+// job (app/api/social/content/[id]/generate-video), never manually.
+const MANUAL_STATUSES: SocialVideoStatus[] = ["raw", "in_editing", "ready", "posted"];
 
 export default function VideoTab({
   brands,
@@ -162,11 +170,14 @@ export default function VideoTab({
               </span>
             </div>
             <p className="text-xs text-slate-400 mb-3 font-mono">{asset.raw_path.split("/").pop()}</p>
+            {asset.status === "failed" && asset.notes && (
+              <p className="text-xs text-red-600 mb-2">{asset.notes}</p>
+            )}
 
             <div className="flex gap-2 mb-2">
               <button
                 onClick={() => togglePreview(asset, "raw")}
-                disabled={previewLoading === `${asset.id}:raw`}
+                disabled={previewLoading === `${asset.id}:raw` || asset.status === "generating"}
                 className="text-xs font-medium text-sky-600 hover:underline disabled:opacity-50"
               >
                 {previewLoading === `${asset.id}:raw`
@@ -202,7 +213,7 @@ export default function VideoTab({
               <video controls src={previewUrls[`${asset.id}:final`]} className="w-full rounded-lg mb-3 bg-black" />
             )}
 
-            {asset.status !== "ready" && asset.status !== "posted" && (
+            {asset.status !== "ready" && asset.status !== "posted" && asset.status !== "generating" && (
               <div className="mb-2">
                 <input
                   ref={(el) => { finalFileInputRef.current[asset.id] = el; }}
@@ -215,15 +226,19 @@ export default function VideoTab({
               </div>
             )}
 
-            <select
-              value={asset.status}
-              onChange={(e) => updateAsset(asset.id, { status: e.target.value as SocialVideoStatus })}
-              className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5"
-            >
-              {(Object.keys(STATUS_LABEL) as SocialVideoStatus[]).map((s) => (
-                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-              ))}
-            </select>
+            {asset.status === "generating" ? (
+              <p className="text-xs text-purple-600">Generating… (usually 2-4 min)</p>
+            ) : (
+              <select
+                value={MANUAL_STATUSES.includes(asset.status) ? asset.status : "raw"}
+                onChange={(e) => updateAsset(asset.id, { status: e.target.value as SocialVideoStatus })}
+                className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5"
+              >
+                {MANUAL_STATUSES.map((s) => (
+                  <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                ))}
+              </select>
+            )}
           </div>
         ))}
       </div>

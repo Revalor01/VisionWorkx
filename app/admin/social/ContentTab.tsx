@@ -95,13 +95,30 @@ export default function ContentTab({
     return body.content;
   }
 
+  const VIDEO_POLL_INTERVAL_MS = 4000;
+  const VIDEO_POLL_MAX_ATTEMPTS = 90; // ~6 min ceiling, above the route's own 5 min budget
+
+  async function pollVideoAsset(assetId: string): Promise<SocialVideoAsset> {
+    for (let attempt = 0; attempt < VIDEO_POLL_MAX_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, VIDEO_POLL_INTERVAL_MS));
+      const res = await fetch(`/api/social/video-assets/${assetId}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      const asset: SocialVideoAsset = body.asset;
+      setVideoAssets((prev) => prev.map((v) => (v.id === asset.id ? asset : v)));
+      if (asset.status === "ready") return asset;
+      if (asset.status === "failed") throw new Error(asset.notes || "Video generation failed");
+    }
+    throw new Error("Still generating after several minutes — check back shortly, it should finish on its own");
+  }
+
   async function generateVideoForPost(id: string): Promise<SocialVideoAsset> {
     const res = await fetch(`/api/social/content/${id}/generate-video`, { method: "POST" });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
     setVideoAssets((prev) => [body.asset, ...prev]);
     setContent((prev) => prev.map((c) => (c.id === id ? { ...c, video_asset_id: body.asset.id } : c)));
-    return body.asset;
+    return pollVideoAsset(body.asset.id);
   }
 
   async function linkVideoAsset(id: string, videoAssetId: string) {
@@ -573,7 +590,7 @@ function ContentCard({
             disabled={generatingVideo}
             className="ml-2 text-xs font-medium text-purple-600 hover:underline disabled:opacity-50"
           >
-            {generatingVideo ? "Generating… (~1-2 min)" : "Generate video"}
+            {generatingVideo ? "Generating… (usually 2-4 min)" : "Generate video"}
           </button>
           {videoError && <p className="text-xs text-red-600 mt-1">{videoError}</p>}
         </div>

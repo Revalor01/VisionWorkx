@@ -7,6 +7,28 @@ type AssetUpdate = Database["public"]["Tables"]["social_video_assets"]["Update"]
 
 const VALID_STATUSES: SocialVideoStatus[] = ["raw", "in_editing", "ready", "posted"];
 
+// Polled by ContentTab while a background video-generation job
+// (app/api/social/content/[id]/generate-video) is running.
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!(await isAdminOrEditor(user))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const service = createServiceClient();
+  const { data: asset, error } = await service
+    .from("social_video_assets")
+    .select("*")
+    .eq("id", params.id)
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!asset) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+  return NextResponse.json({ asset });
+}
+
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const supabase = await createServerClient();
