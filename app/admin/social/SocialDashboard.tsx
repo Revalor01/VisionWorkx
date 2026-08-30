@@ -8,9 +8,10 @@ import VideoTab from "./VideoTab";
 import InboxTab from "./InboxTab";
 import RecapTab from "./RecapTab";
 import HelpTab from "./HelpTab";
+import CalendarTab, { type BlogPostCalendarRow, type CampaignCalendarRow, type VideoJobCalendarRow } from "./CalendarTab";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
-type Tab = "brands" | "content" | "video" | "inbox" | "recap" | "help";
+type Tab = "brands" | "content" | "video" | "inbox" | "calendar" | "recap" | "help";
 
 export default function SocialDashboard({
   isAdmin,
@@ -18,12 +19,18 @@ export default function SocialDashboard({
   initialContent,
   initialVideoAssets,
   initialInboxItems,
+  initialBlogPosts,
+  initialCampaigns,
+  initialVideoJobs,
 }: {
   isAdmin: boolean;
   initialBrands: SocialBrand[];
   initialContent: SocialContent[];
   initialVideoAssets: SocialVideoAsset[];
   initialInboxItems: SocialInboxItem[];
+  initialBlogPosts: BlogPostCalendarRow[];
+  initialCampaigns: CampaignCalendarRow[];
+  initialVideoJobs: VideoJobCalendarRow[];
 }) {
   const [tab, setTab] = useState<Tab>(isAdmin ? "brands" : "video");
   const [brands, setBrands] = useState(initialBrands);
@@ -34,7 +41,7 @@ export default function SocialDashboard({
   const openInboxCount = inboxItems.filter((i) => i.status === "open" && i.classification === "requires_human").length;
   const pausedBrandCount = brands.filter((b) => b.autonomy_paused_at).length;
 
-  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "recap", "help"] : ["video"];
+  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "calendar", "recap", "help"] : ["video"];
 
   return (
     <div className="min-h-screen bg-blue-50">
@@ -106,6 +113,15 @@ export default function SocialDashboard({
         )}
         {tab === "video" && <VideoTab brands={brands} videoAssets={videoAssets} setVideoAssets={setVideoAssets} />}
         {tab === "inbox" && <InboxTab brands={brands} inboxItems={inboxItems} setInboxItems={setInboxItems} />}
+        {tab === "calendar" && (
+          <CalendarTab
+            brands={brands}
+            content={content}
+            blogPosts={initialBlogPosts}
+            campaigns={initialCampaigns}
+            videoJobs={initialVideoJobs}
+          />
+        )}
         {tab === "recap" && <RecapTab />}
         {tab === "help" && <HelpTab />}
       </div>
