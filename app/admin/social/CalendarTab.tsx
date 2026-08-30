@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { SocialBrand, SocialContent } from "@/lib/database.types";
+import type { SocialBrand, SocialContent, SocialPlatform } from "@/lib/database.types";
+import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
 // video_jobs belongs to the separate revalor-video repo and isn't in this
 // repo's generated Database types (see page.tsx) - defined by hand here to
@@ -48,6 +49,8 @@ interface ActivityEvent {
   subtitle: string;
   status: string;
   href: string | null;
+  /** Only set for kind === "social" - which channel the post went/goes out on. */
+  platform?: SocialPlatform;
 }
 
 const KIND_LABEL: Record<ActivityKind, string> = {
@@ -70,6 +73,26 @@ const KIND_BADGE: Record<ActivityKind, string> = {
   blog: "bg-green-100 text-green-700",
   campaign: "bg-amber-100 text-amber-700",
 };
+
+const PLATFORM_LABEL: Record<SocialPlatform, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+};
+
+function PlatformIcon({ platform, uid }: { platform: SocialPlatform; uid: string }) {
+  switch (platform) {
+    case "facebook":
+      return <FacebookIcon />;
+    case "instagram":
+      return <InstagramIcon uid={uid} />;
+    case "tiktok":
+      return <TikTokIcon />;
+    case "youtube":
+      return <YouTubeIcon />;
+  }
+}
 
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -132,9 +155,10 @@ export default function CalendarTab({
         kind: "social",
         date: new Date(dateStr),
         title: truncate(c.hook || c.caption, 60),
-        subtitle: `${brandName(c.brand_id)} · ${c.platform}`,
+        subtitle: brandName(c.brand_id),
         status: c.status,
         href: null,
+        platform: c.platform,
       });
     }
 
@@ -316,6 +340,14 @@ export default function CalendarTab({
                     <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${KIND_BADGE[e.kind]}`}>
                       {KIND_LABEL[e.kind]}
                     </span>
+                    {e.platform && (
+                      <span className="flex items-center gap-1 text-xs font-medium text-slate-600">
+                        <span className="w-4 h-4 shrink-0 [&_svg]:w-4 [&_svg]:h-4">
+                          <PlatformIcon platform={e.platform} uid={e.id} />
+                        </span>
+                        {PLATFORM_LABEL[e.platform]}
+                      </span>
+                    )}
                     <span className="text-xs text-slate-400">{e.subtitle}</span>
                   </div>
                   <p className="text-sm text-slate-700 truncate" title={e.title}>
