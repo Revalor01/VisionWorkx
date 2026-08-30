@@ -69,7 +69,8 @@ export async function generateDerivativesForItem(params: {
     if (!params.socialBrandId) continue;
     const { data: brand } = await service.from("social_brands").select("*").eq("id", params.socialBrandId).maybeSingle();
     if (!brand) continue;
-    const platforms = (req.platforms?.length ? req.platforms : connectedPlatforms(brand)).filter((p) => connectedPlatforms(brand).includes(p));
+    const available = await connectedPlatforms(service, brand);
+    const platforms = req.platforms?.length ? req.platforms.filter((p) => available.includes(p)) : available;
     if (platforms.length === 0) continue;
 
     await generateSocialDerivatives(service, item, brand.id, platforms, req.autonomy);

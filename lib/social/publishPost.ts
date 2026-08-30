@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase";
 import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
 import { publishInstagramPost, publishTikTokPost, publishYouTubePost } from "@/lib/social/socialApi";
+import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
 import type { SocialContent } from "@/lib/database.types";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
@@ -33,7 +34,8 @@ export async function publishPost(
     let platformPostId: string;
 
     if (post.platform === "tiktok") {
-      if (!brand.socialapi_tiktok_account_id) throw new Error("Brand has no connected SocialAPI.ai TikTok account");
+      const tiktokAccountId = await resolveTikTokAccountId(service, brand);
+      if (!tiktokAccountId) throw new Error("Brand has no connected SocialAPI.ai TikTok account");
       if (!post.video_asset_id) throw new Error("TikTok posts require a linked video asset");
 
       const { data: asset } = await service
@@ -48,7 +50,7 @@ export async function publishPost(
       if (signError || !signed) throw new Error("Failed to sign media URL for TikTok publish");
 
       const result = await publishTikTokPost({
-        accountId: brand.socialapi_tiktok_account_id,
+        accountId: tiktokAccountId,
         mediaUrl: signed.signedUrl,
         caption: captionWithTags,
       });

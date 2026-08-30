@@ -36,6 +36,12 @@ const COVERS_BY_BRAND: Record<string, { name: string; logo?: string }[]> = {
 // later) sorts alphabetically after these.
 const BRAND_ORDER = ["Revalor LLC", "VisionWorkx", "Revalor Kids", "Revalor Wellness"];
 
+// Mirrors lib/social/connectedPlatforms.ts's SHARED_TIKTOK_BRAND_NAME — brands
+// without their own TikTok connection post through this one's account instead.
+// Duplicated here (rather than imported) because that helper takes a Supabase
+// service client, which isn't available client-side; this only needs the name.
+const SHARED_TIKTOK_BRAND_NAME = "Revalor LLC";
+
 function sortBrands(brands: SocialBrand[]): SocialBrand[] {
   return [...brands].sort((a, b) => {
     const ai = BRAND_ORDER.indexOf(a.name);
@@ -336,6 +342,10 @@ function BrandsTabInner({
         {sortBrands(brands).map((brand) => {
           const fields = fieldsFor(brand);
           const covers = COVERS_BY_BRAND[brand.name];
+          const sharedTiktokAccountId = brands.find((b) => b.name === SHARED_TIKTOK_BRAND_NAME)?.socialapi_tiktok_account_id ?? null;
+          const ownTiktok = !!brand.socialapi_tiktok_account_id;
+          const viaSharedTiktok = !ownTiktok && brand.name !== SHARED_TIKTOK_BRAND_NAME && !!sharedTiktokAccountId;
+          const tiktokConnected = ownTiktok || viaSharedTiktok;
           return (
             <div key={brand.id}>
               <div className="flex items-center gap-2 mb-2 px-1">
@@ -391,13 +401,23 @@ function BrandsTabInner({
                   onDisconnect={() => disconnectPlatform(brand, "instagram", "Instagram")}
                 />
                 <PlatformRow
-                  icon={<TikTokIcon active={!!brand.socialapi_tiktok_account_id} />}
+                  icon={<TikTokIcon active={tiktokConnected} />}
                   label="TikTok"
-                  connected={!!brand.socialapi_tiktok_account_id}
+                  connected={tiktokConnected}
                   account={brand.socialapi_tiktok_account_id ? connectedAccounts[brand.socialapi_tiktok_account_id] : undefined}
                   connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=tiktok`}
                   connectColor="#000000"
-                  onDisconnect={() => disconnectPlatform(brand, "tiktok", "TikTok")}
+                  onDisconnect={ownTiktok ? () => disconnectPlatform(brand, "tiktok", "TikTok") : undefined}
+                  extra={
+                    viaSharedTiktok && (
+                      <span
+                        className="text-[10px] text-slate-400"
+                        title={`Posts through ${SHARED_TIKTOK_BRAND_NAME}'s shared TikTok connection`}
+                      >
+                        · via {SHARED_TIKTOK_BRAND_NAME}
+                      </span>
+                    )
+                  }
                 />
                 <PlatformRow
                   icon={<YouTubeIcon active={!!brand.socialapi_youtube_account_id} />}

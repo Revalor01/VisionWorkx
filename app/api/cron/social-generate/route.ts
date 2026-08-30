@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const results: { brandId: string; brandName: string; generated: number; auto: number; review: number; rejected: number }[] = [];
 
   for (const brand of brands ?? []) {
-    const platforms = connectedPlatforms(brand);
+    const platforms = await connectedPlatforms(service, brand);
     if (platforms.length === 0) continue;
 
     let posts;
