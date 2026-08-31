@@ -7,11 +7,12 @@ import ContentTab from "./ContentTab";
 import VideoTab from "./VideoTab";
 import InboxTab from "./InboxTab";
 import RecapTab from "./RecapTab";
+import PerformanceTab from "./PerformanceTab";
 import HelpTab from "./HelpTab";
 import CalendarTab, { type BlogPostCalendarRow, type CampaignCalendarRow, type VideoJobCalendarRow } from "./CalendarTab";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
-type Tab = "brands" | "content" | "video" | "inbox" | "calendar" | "recap" | "help";
+type Tab = "brands" | "content" | "video" | "inbox" | "calendar" | "performance" | "recap" | "help";
 
 export default function SocialDashboard({
   isAdmin,
@@ -41,7 +42,7 @@ export default function SocialDashboard({
   const openInboxCount = inboxItems.filter((i) => i.status === "open" && i.classification === "requires_human").length;
   const pausedBrandCount = brands.filter((b) => b.autonomy_paused_at).length;
 
-  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "calendar", "recap", "help"] : ["video"];
+  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "calendar", "performance", "recap", "help"] : ["video"];
 
   return (
     <div className="min-h-screen bg-blue-50">
@@ -122,6 +123,7 @@ export default function SocialDashboard({
             videoJobs={initialVideoJobs}
           />
         )}
+        {tab === "performance" && <PerformanceTab brands={brands} />}
         {tab === "recap" && <RecapTab />}
         {tab === "help" && <HelpTab />}
       </div>
