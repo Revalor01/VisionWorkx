@@ -1368,6 +1368,119 @@ export type Database = {
         };
         Relationships: [];
       };
+      social_content_metrics: {
+        Row: {
+          id: string;
+          social_content_id: string;
+          captured_on: string;
+          source: string;
+          impressions: number | null;
+          reach: number | null;
+          likes: number | null;
+          comments: number | null;
+          shares: number | null;
+          saves: number | null;
+          video_views: number | null;
+          link_clicks: number | null;
+          tracked_clicks: number | null;
+          engagement_rate: number | null;
+          raw: Record<string, unknown>;
+          captured_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          social_content_id: string;
+          captured_on?: string;
+          source: string;
+          impressions?: number | null;
+          reach?: number | null;
+          likes?: number | null;
+          comments?: number | null;
+          shares?: number | null;
+          saves?: number | null;
+          video_views?: number | null;
+          link_clicks?: number | null;
+          tracked_clicks?: number | null;
+          engagement_rate?: number | null;
+          raw?: Record<string, unknown>;
+          captured_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          source?: string;
+          impressions?: number | null;
+          reach?: number | null;
+          likes?: number | null;
+          comments?: number | null;
+          shares?: number | null;
+          saves?: number | null;
+          video_views?: number | null;
+          link_clicks?: number | null;
+          tracked_clicks?: number | null;
+          engagement_rate?: number | null;
+          raw?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      short_links: {
+        Row: {
+          id: string;
+          code: string;
+          destination_url: string;
+          social_content_id: string | null;
+          brand_id: string | null;
+          platform: string | null;
+          campaign: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          destination_url: string;
+          social_content_id?: string | null;
+          brand_id?: string | null;
+          platform?: string | null;
+          campaign?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          destination_url?: string;
+          social_content_id?: string | null;
+          brand_id?: string | null;
+          platform?: string | null;
+          campaign?: string | null;
+        };
+        Relationships: [];
+      };
+      link_clicks: {
+        Row: {
+          id: string;
+          short_link_id: string;
+          clicked_at: string;
+          referrer: string | null;
+          user_agent: string | null;
+          ip_hash: string | null;
+          is_bot: boolean;
+        };
+        Insert: {
+          id?: string;
+          short_link_id: string;
+          clicked_at?: string;
+          referrer?: string | null;
+          user_agent?: string | null;
+          ip_hash?: string | null;
+          is_bot?: boolean;
+        };
+        Update: {
+          referrer?: string | null;
+          user_agent?: string | null;
+          ip_hash?: string | null;
+          is_bot?: boolean;
+        };
+        Relationships: [];
+      };
       social_autonomy_flags: {
         Row: {
           id: string;
@@ -1600,6 +1713,9 @@ export type SocialBrand = Database["public"]["Tables"]["social_brands"]["Row"];
 export type SocialConnection = Database["public"]["Tables"]["social_connections"]["Row"];
 export type SocialVideoAsset = Database["public"]["Tables"]["social_video_assets"]["Row"];
 export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"];
+export type SocialContentMetrics = Database["public"]["Tables"]["social_content_metrics"]["Row"];
+export type ShortLink = Database["public"]["Tables"]["short_links"]["Row"];
+export type LinkClick = Database["public"]["Tables"]["link_clicks"]["Row"];
 export type SocialInboxItem = Database["public"]["Tables"]["social_inbox_items"]["Row"];
 export type SocialAutonomyFlag = Database["public"]["Tables"]["social_autonomy_flags"]["Row"];
 export type PartnerApplication = Database["public"]["Tables"]["partner_applications"]["Row"];

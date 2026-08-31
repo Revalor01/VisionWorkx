@@ -13,6 +13,10 @@
       "schedule": "0 13 * * *"
     },
     {
+      "path": "/api/cron/social-metrics",
+      "schedule": "0 */6 * * *"
+    },
+    {
       "path": "/api/cron/email",
       "schedule": "0 * * * *"
     },
