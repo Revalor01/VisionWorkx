@@ -13,10 +13,16 @@ interface PostRow {
   caption: string;
   reach: number | null;
   impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
   engagementRate: number | null;
   trackedClicks: number | null;
   linkClicks: number | null;
 }
+
+const engOf = (p: { likes: number | null; comments: number | null; shares: number | null }) =>
+  (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0);
 
 interface PerfData {
   days: number;
@@ -25,6 +31,7 @@ interface PerfData {
     postsWithMetrics: number;
     totalReach: number;
     totalImpressions: number;
+    totalEngagements: number;
     totalTrackedClicks: number;
     totalNativeLinkClicks: number;
     avgEngagementRate: number | null;
@@ -33,6 +40,7 @@ interface PerfData {
     platform: string;
     postCount: number;
     totalReach: number;
+    totalEngagements: number;
     totalTrackedClicks: number;
     avgEngagementRate: number | null;
   }[];
@@ -129,7 +137,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
       {data && (
         <>
           {/* summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               { label: "Posts", value: String(data.summary.postCount) },
               {
@@ -137,7 +145,8 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                 value: `${data.summary.postsWithMetrics}/${data.summary.postCount}`,
               },
               { label: "Total reach", value: fmt(data.summary.totalReach) },
-              { label: "Avg engagement", value: pct(data.summary.avgEngagementRate) },
+              { label: "Engagements", value: fmt(data.summary.totalEngagements) },
+              { label: "Avg eng. rate", value: pct(data.summary.avgEngagementRate) },
               {
                 label: "Link clicks (tracked)",
                 value: fmt(data.summary.totalTrackedClicks),
@@ -193,6 +202,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                     <th className="font-medium pb-1 text-right">Posts</th>
                     <th className="font-medium pb-1 text-right">Reach</th>
                     <th className="font-medium pb-1 text-right">Eng.</th>
+                    <th className="font-medium pb-1 text-right">Rate</th>
                     <th className="font-medium pb-1 text-right">Clicks</th>
                   </tr>
                 </thead>
@@ -205,13 +215,14 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                       </td>
                       <td className="py-1.5 text-right">{p.postCount}</td>
                       <td className="py-1.5 text-right">{fmt(p.totalReach)}</td>
+                      <td className="py-1.5 text-right">{fmt(p.totalEngagements)}</td>
                       <td className="py-1.5 text-right">{pct(p.avgEngagementRate)}</td>
                       <td className="py-1.5 text-right">{fmt(p.totalTrackedClicks)}</td>
                     </tr>
                   ))}
                   {data.byPlatform.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-3 text-center text-slate-400">
+                      <td colSpan={6} className="py-3 text-center text-slate-400">
                         No posts.
                       </td>
                     </tr>
@@ -273,6 +284,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                   <th className="font-medium pb-2">Hook / caption</th>
                   <th className="font-medium pb-2 text-right">Reach</th>
                   <th className="font-medium pb-2 text-right">Eng.</th>
+                  <th className="font-medium pb-2 text-right">Rate</th>
                   <th className="font-medium pb-2 text-right">Clicks</th>
                 </tr>
               </thead>
@@ -303,6 +315,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                       </span>
                     </td>
                     <td className="py-2 text-right tabular-nums">{fmt(p.reach)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmt(engOf(p))}</td>
                     <td className="py-2 text-right tabular-nums">{pct(p.engagementRate)}</td>
                     <td className="py-2 text-right tabular-nums">
                       {fmt(p.trackedClicks)}
@@ -314,7 +327,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                 ))}
                 {data.posts.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-slate-400">
+                    <td colSpan={9} className="py-6 text-center text-slate-400">
                       No posts in this window.
                     </td>
                   </tr>

@@ -10,16 +10,27 @@ export interface PostPerformance {
   caption: string;
   reach: number | null;
   impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
   engagementRate: number | null;
   trackedClicks: number | null;
   linkClicks: number | null;
 }
 
-/** A composite "how did this do" score. Engagement rate dominates;
- *  tracked link clicks act as a boost/tiebreaker so posts that actually
- *  drove traffic rank up even if raw engagement was modest. */
+export const rawEngagements = (p: PostPerformance): number =>
+  (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0);
+
+/** A composite "how did this do" score. Engagement rate leads when we have
+ *  reach to compute it (Instagram); Facebook has no post-level reach, so
+ *  raw engagement counts carry it there. Tracked link clicks are a boost
+ *  so posts that actually drove traffic rank up. */
 export function performanceScore(p: PostPerformance): number {
-  return (p.engagementRate ?? 0) * 100 + (p.trackedClicks ?? 0) * 0.2;
+  return (
+    (p.engagementRate ?? 0) * 100 +
+    rawEngagements(p) * 0.05 +
+    (p.trackedClicks ?? 0) * 0.2
+  );
 }
 
 /** Latest metric snapshot per post for a brand over the last `days`. */
@@ -41,7 +52,7 @@ export async function getBrandPostPerformance(
   const { data: metrics } = await service
     .from("social_content_metrics")
     .select(
-      "social_content_id, reach, impressions, engagement_rate, tracked_clicks, link_clicks, captured_on"
+      "social_content_id, reach, impressions, likes, comments, shares, engagement_rate, tracked_clicks, link_clicks, captured_on"
     )
     .in(
       "social_content_id",
@@ -65,6 +76,9 @@ export async function getBrandPostPerformance(
       caption: p.caption,
       reach: m?.reach ?? null,
       impressions: m?.impressions ?? null,
+      likes: m?.likes ?? null,
+      comments: m?.comments ?? null,
+      shares: m?.shares ?? null,
       engagementRate: m?.engagement_rate ?? null,
       trackedClicks: m?.tracked_clicks ?? null,
       linkClicks: m?.link_clicks ?? null,

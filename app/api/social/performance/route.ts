@@ -6,6 +6,7 @@ import { ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
 import {
   getBrandPostPerformance,
   performanceScore,
+  rawEngagements,
   type PostPerformance,
 } from "@/lib/social/performance";
 
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
     ).length,
     totalReach: num(posts.map((p) => p.reach)),
     totalImpressions: num(posts.map((p) => p.impressions)),
+    totalEngagements: num(posts.map(rawEngagements)),
     totalTrackedClicks: num(posts.map((p) => p.trackedClicks)),
     totalNativeLinkClicks: num(posts.map((p) => p.linkClicks)),
     avgEngagementRate: avg(engRates),
@@ -69,6 +71,7 @@ export async function GET(req: NextRequest) {
       platform,
       postCount: ps.length,
       totalReach: num(ps.map((p) => p.reach)),
+      totalEngagements: num(ps.map(rawEngagements)),
       totalTrackedClicks: num(ps.map((p) => p.trackedClicks)),
       avgEngagementRate: avg(
         ps.map((p) => p.engagementRate).filter((x): x is number => x != null)
