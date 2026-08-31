@@ -151,6 +151,114 @@ export async function publishInstagramPost(params: {
   return { postId: publish.id };
 }
 
+// ── Post-level insights ─────────────────────────────────────────────────
+
+export interface PostMetrics {
+  impressions: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  videoViews: number | null;
+  linkClicks: number | null;
+  raw: Record<string, unknown>;
+}
+
+const EMPTY_METRICS: PostMetrics = {
+  impressions: null,
+  reach: null,
+  likes: null,
+  comments: null,
+  shares: null,
+  saves: null,
+  videoViews: null,
+  linkClicks: null,
+  raw: {},
+};
+
+function insightMap(body: { data?: { name: string; values?: { value: unknown }[] }[] }): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const item of body.data ?? []) {
+    const v = item.values?.[0]?.value;
+    if (typeof v === "number") out[item.name] = v;
+  }
+  return out;
+}
+
+/** Facebook Page post: impressions/reach/clicks from insights, engagement
+ *  counts from the post object. Never throws — returns nulls on failure. */
+export async function getFacebookPostMetrics(
+  postId: string,
+  pageAccessToken: string
+): Promise<PostMetrics> {
+  const result: PostMetrics = { ...EMPTY_METRICS };
+  try {
+    const insights = await graphFetch(`/${postId}/insights`, {
+      metric: "post_impressions,post_impressions_unique,post_clicks,post_video_views",
+      access_token: pageAccessToken,
+    });
+    const m = insightMap(insights);
+    result.impressions = m.post_impressions ?? null;
+    result.reach = m.post_impressions_unique ?? null;
+    result.linkClicks = m.post_clicks ?? null;
+    result.videoViews = m.post_video_views ?? null;
+    result.raw = { ...result.raw, insights: m };
+  } catch (err) {
+    console.error(`[getFacebookPostMetrics] insights ${postId}:`, (err as Error).message);
+  }
+  try {
+    const obj = await graphFetch(`/${postId}`, {
+      fields: "shares,reactions.summary(true),comments.summary(true)",
+      access_token: pageAccessToken,
+    });
+    result.likes = obj?.reactions?.summary?.total_count ?? null;
+    result.comments = obj?.comments?.summary?.total_count ?? null;
+    result.shares = obj?.shares?.count ?? null;
+    result.raw = {
+      ...result.raw,
+      object: { shares: obj?.shares, reactions: obj?.reactions?.summary, comments: obj?.comments?.summary },
+    };
+  } catch (err) {
+    console.error(`[getFacebookPostMetrics] object ${postId}:`, (err as Error).message);
+  }
+  return result;
+}
+
+/** Instagram media insights. Tries feed metrics, falls back to reels
+ *  metrics (Meta splits them and keeps changing which apply). Requires a
+ *  numeric IG media id and a page token with instagram_basic +
+ *  instagram_manage_insights. Never throws. */
+export async function getInstagramMediaMetrics(
+  mediaId: string,
+  pageAccessToken: string
+): Promise<PostMetrics> {
+  const result: PostMetrics = { ...EMPTY_METRICS };
+  const metricSets = [
+    "impressions,reach,likes,comments,shares,saved",
+    "reach,likes,comments,shares,saved,plays", // reels
+  ];
+  for (const metric of metricSets) {
+    try {
+      const body = await graphFetch(`/${mediaId}/insights`, { metric, access_token: pageAccessToken });
+      const m = insightMap(body);
+      if (Object.keys(m).length === 0) continue;
+      result.impressions = m.impressions ?? result.impressions;
+      result.reach = m.reach ?? result.reach;
+      result.likes = m.likes ?? result.likes;
+      result.comments = m.comments ?? result.comments;
+      result.shares = m.shares ?? result.shares;
+      result.saves = m.saved ?? result.saves;
+      result.videoViews = m.plays ?? result.videoViews;
+      result.raw = { ...result.raw, [metric]: m };
+      return result;
+    } catch (err) {
+      console.error(`[getInstagramMediaMetrics] ${mediaId} (${metric}):`, (err as Error).message);
+    }
+  }
+  return result;
+}
+
 export async function sendMessage(params: {
   pageId: string;
   pageAccessToken: string;

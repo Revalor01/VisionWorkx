@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
 import { publishInstagramPost, publishTikTokPost, publishYouTubePost } from "@/lib/social/socialApi";
 import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
+import { getOrCreateShortLink, withUtm } from "@/lib/social/shortLinks";
 import type { SocialContent } from "@/lib/database.types";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
@@ -24,11 +25,25 @@ export async function publishPost(
       ? `${post.caption}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`
       : post.caption;
 
-    // Facebook unfurls the link into an image/title preview card using
-    // the target page's Open Graph tags — Instagram/TikTok captions
-    // aren't clickable, so the link is only useful on Facebook.
-    if (post.platform === "facebook" && brand.website_url) {
-      captionWithTags = `${captionWithTags}\n\n${brand.website_url}`;
+    // Clickable-link platforms get a tracked /go/<code> short link
+    // instead of the raw URL, so clicks are counted per post and per
+    // platform (see lib/social/shortLinks + app/go/[code]). Facebook
+    // unfurls it into a preview card; YouTube descriptions are clickable.
+    // Instagram/TikTok captions aren't clickable — no link there.
+    if (brand.website_url && (post.platform === "facebook" || post.platform === "youtube")) {
+      const tracked = await getOrCreateShortLink(service, {
+        socialContentId: post.id,
+        brandId: post.brand_id,
+        platform: post.platform,
+        campaign: brand.slug,
+        destinationUrl: withUtm(brand.website_url, {
+          source: post.platform,
+          medium: "social",
+          campaign: brand.slug ?? undefined,
+          content: post.id,
+        }),
+      });
+      captionWithTags = `${captionWithTags}\n\n${tracked}`;
     }
 
     let platformPostId: string;
