@@ -31,19 +31,27 @@ export async function publishPost(
     // unfurls it into a preview card; YouTube descriptions are clickable.
     // Instagram/TikTok captions aren't clickable — no link there.
     if (brand.website_url && (post.platform === "facebook" || post.platform === "youtube")) {
-      const tracked = await getOrCreateShortLink(service, {
-        socialContentId: post.id,
-        brandId: post.brand_id,
-        platform: post.platform,
-        campaign: brand.slug,
-        destinationUrl: withUtm(brand.website_url, {
-          source: post.platform,
-          medium: "social",
-          campaign: brand.slug ?? undefined,
-          content: post.id,
-        }),
+      const destination = withUtm(brand.website_url, {
+        source: post.platform,
+        medium: "social",
+        campaign: brand.slug ?? undefined,
+        content: post.id,
       });
-      captionWithTags = `${captionWithTags}\n\n${tracked}`;
+      let link = destination;
+      try {
+        link = await getOrCreateShortLink(service, {
+          socialContentId: post.id,
+          brandId: post.brand_id,
+          platform: post.platform,
+          campaign: brand.slug,
+          destinationUrl: destination,
+        });
+      } catch (err) {
+        // Never let click-tracking break a publish — fall back to the
+        // UTM-tagged raw URL (e.g. if the migration hasn't run yet).
+        console.error(`[publishPost] short link failed for ${post.id}, using raw URL:`, (err as Error).message);
+      }
+      captionWithTags = `${captionWithTags}\n\n${link}`;
     }
 
     let platformPostId: string;
