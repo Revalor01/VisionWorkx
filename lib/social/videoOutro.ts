@@ -50,18 +50,67 @@ function run(bin: string, args: string[]): Promise<string> {
   });
 }
 
-async function probeVideo(filePath: string): Promise<{ width: number; height: number; fps: string; hasAudio: boolean }> {
+async function probeVideo(filePath: string): Promise<{ width: number; height: number; fps: string; hasAudio: boolean; duration: number }> {
   const out = await run(ffprobeStatic.path, [
     "-v", "error",
     "-print_format", "json",
+    "-show_format",
     "-show_streams",
     filePath,
   ]);
-  const streams: Array<{ codec_type: string; width?: number; height?: number; r_frame_rate?: string }> = JSON.parse(out).streams ?? [];
+  const parsed = JSON.parse(out);
+  const streams: Array<{ codec_type: string; width?: number; height?: number; r_frame_rate?: string }> = parsed.streams ?? [];
   const video = streams.find((s) => s.codec_type === "video");
   const hasAudio = streams.some((s) => s.codec_type === "audio");
   if (!video?.width || !video?.height) throw new Error("Could not determine source video resolution");
-  return { width: video.width, height: video.height, fps: video.r_frame_rate || "30/1", hasAudio };
+  const duration = Number(parsed.format?.duration);
+  return { width: video.width, height: video.height, fps: video.r_frame_rate || "30/1", hasAudio, duration: Number.isFinite(duration) && duration > 0 ? duration : 12 };
+}
+
+// Browser automation can only attach a file to LinkedIn's post composer if
+// it's under 10MB (see mcp__claude-in-chrome__file_upload) - a 10s Kling
+// clip plus outro routinely lands ~13MB, over that cap. Re-encodes at a
+// bitrate computed from the actual duration so it lands comfortably under
+// the limit, whatever the source bitrate was. Best-effort like the rest of
+// this file: any failure returns the input unchanged.
+const TARGET_MAX_BYTES = 8.5 * 1024 * 1024; // leave headroom under the 10MB cap
+const AUDIO_BITRATE = 128_000;
+const MIN_VIDEO_BITRATE = 800_000; // floor so compression doesn't turn the clip to mush
+
+async function compressToTargetSize(videoBytes: Buffer): Promise<Buffer> {
+  if (videoBytes.length <= TARGET_MAX_BYTES || !ffmpegPath) return videoBytes;
+
+  const dir = await mkdtemp(path.join(tmpdir(), "revalor-compress-"));
+  try {
+    const inputPath = path.join(dir, "input.mp4");
+    const outputPath = path.join(dir, "output.mp4");
+    await writeFile(inputPath, videoBytes);
+
+    const { hasAudio, duration } = await probeVideo(inputPath);
+    const targetBits = TARGET_MAX_BYTES * 8 * 0.92; // extra margin for container/mux overhead
+    const audioBits = hasAudio ? AUDIO_BITRATE * duration : 0;
+    const videoBitrate = Math.max(MIN_VIDEO_BITRATE, Math.floor((targetBits - audioBits) / duration));
+
+    await run(ffmpegPath, [
+      "-y",
+      "-i", inputPath,
+      "-c:v", "libx264",
+      "-b:v", String(videoBitrate),
+      "-maxrate", String(videoBitrate),
+      "-bufsize", String(videoBitrate * 2),
+      "-pix_fmt", "yuv420p",
+      ...(hasAudio ? ["-c:a", "aac", "-b:a", String(AUDIO_BITRATE)] : ["-an"]),
+      "-movflags", "+faststart",
+      outputPath,
+    ]);
+
+    return await readFile(outputPath);
+  } catch (err) {
+    console.error("[videoOutro] compressToTargetSize failed, keeping original:", (err as Error).message);
+    return videoBytes;
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 // Appends a short end-card to a generated video: the given brand's logo
@@ -73,10 +122,10 @@ async function probeVideo(filePath: string): Promise<{ width: number; height: nu
 // returns the original bytes unchanged rather than blocking publishing
 // over a cosmetic step.
 export async function appendBrandOutro(videoBytes: Buffer, brandName: string): Promise<Buffer> {
-  if (!ffmpegPath) return videoBytes;
+  if (!ffmpegPath) return compressToTargetSize(videoBytes);
 
   const brandLogoBytes = await fetchLogoBytes(brandName);
-  if (!brandLogoBytes) return videoBytes;
+  if (!brandLogoBytes) return compressToTargetSize(videoBytes);
   const includeRevalorLogo = brandName !== REVALOR_LLC_BRAND_NAME;
   const revalorLogoBytes = includeRevalorLogo ? await fetchLogoBytes(REVALOR_LLC_BRAND_NAME) : null;
 
@@ -160,10 +209,10 @@ export async function appendBrandOutro(videoBytes: Buffer, brandName: string): P
         ];
     await run(ffmpegPath, concatArgs);
 
-    return await readFile(outputPath);
+    return await compressToTargetSize(await readFile(outputPath));
   } catch (err) {
     console.error("[videoOutro] appendBrandOutro failed, publishing without outro:", (err as Error).message);
-    return videoBytes;
+    return compressToTargetSize(videoBytes);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }

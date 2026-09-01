@@ -6,6 +6,7 @@ const nextConfig = {
   // with "spawn ENOENT" because the binary never made it into the bundle.
   outputFileTracingIncludes: {
     "/api/social/content/[id]/generate-video": ["./node_modules/ffmpeg-static/**", "./node_modules/ffprobe-static/**"],
+    "/api/social/linkedin/[id]/generate-video": ["./node_modules/ffmpeg-static/**", "./node_modules/ffprobe-static/**"],
   },
 };
 
