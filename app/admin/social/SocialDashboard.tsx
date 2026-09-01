@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SocialBrand, SocialContent, SocialVideoAsset, SocialInboxItem } from "@/lib/database.types";
+import type { SocialBrand, SocialContent, SocialVideoAsset, SocialInboxItem, LinkedInPost } from "@/lib/database.types";
 import BrandsTab from "./BrandsTab";
 import ContentTab from "./ContentTab";
 import VideoTab from "./VideoTab";
@@ -9,10 +9,11 @@ import InboxTab from "./InboxTab";
 import RecapTab from "./RecapTab";
 import PerformanceTab from "./PerformanceTab";
 import HelpTab from "./HelpTab";
+import LinkedInTab from "./LinkedInTab";
 import CalendarTab, { type BlogPostCalendarRow, type CampaignCalendarRow, type VideoJobCalendarRow } from "./CalendarTab";
-import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
+import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon, LinkedInIcon } from "./PlatformIcons";
 
-type Tab = "brands" | "content" | "video" | "inbox" | "calendar" | "performance" | "recap" | "help";
+type Tab = "brands" | "content" | "video" | "linkedin" | "inbox" | "calendar" | "performance" | "recap" | "help";
 
 export default function SocialDashboard({
   isAdmin,
@@ -23,6 +24,7 @@ export default function SocialDashboard({
   initialBlogPosts,
   initialCampaigns,
   initialVideoJobs,
+  initialLinkedInPosts,
 }: {
   isAdmin: boolean;
   initialBrands: SocialBrand[];
@@ -32,17 +34,21 @@ export default function SocialDashboard({
   initialBlogPosts: BlogPostCalendarRow[];
   initialCampaigns: CampaignCalendarRow[];
   initialVideoJobs: VideoJobCalendarRow[];
+  initialLinkedInPosts: LinkedInPost[];
 }) {
   const [tab, setTab] = useState<Tab>(isAdmin ? "brands" : "video");
   const [brands, setBrands] = useState(initialBrands);
   const [content, setContent] = useState(initialContent);
   const [videoAssets, setVideoAssets] = useState(initialVideoAssets);
   const [inboxItems, setInboxItems] = useState(initialInboxItems);
+  const [linkedInPosts, setLinkedInPosts] = useState(initialLinkedInPosts);
 
   const openInboxCount = inboxItems.filter((i) => i.status === "open" && i.classification === "requires_human").length;
   const pausedBrandCount = brands.filter((b) => b.autonomy_paused_at).length;
 
-  const TABS: Tab[] = isAdmin ? ["brands", "content", "video", "inbox", "calendar", "performance", "recap", "help"] : ["video"];
+  const TABS: Tab[] = isAdmin
+    ? ["brands", "content", "video", "linkedin", "inbox", "calendar", "performance", "recap", "help"]
+    : ["video"];
 
   return (
     <div className="min-h-screen bg-blue-50">
@@ -70,6 +76,7 @@ export default function SocialDashboard({
               <InstagramIcon uid="header" />
               <TikTokIcon />
               <YouTubeIcon />
+              <LinkedInIcon />
             </div>
           </div>
           <p className="text-slate-500 text-sm mt-1">Internal Revalor use only</p>
@@ -113,6 +120,15 @@ export default function SocialDashboard({
           />
         )}
         {tab === "video" && <VideoTab brands={brands} videoAssets={videoAssets} setVideoAssets={setVideoAssets} />}
+        {tab === "linkedin" && (
+          <LinkedInTab
+            brands={brands}
+            posts={linkedInPosts}
+            setPosts={setLinkedInPosts}
+            videoAssets={videoAssets}
+            setVideoAssets={setVideoAssets}
+          />
+        )}
         {tab === "inbox" && <InboxTab brands={brands} inboxItems={inboxItems} setInboxItems={setInboxItems} />}
         {tab === "calendar" && (
           <CalendarTab

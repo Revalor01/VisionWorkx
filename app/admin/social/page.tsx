@@ -32,6 +32,7 @@ export default async function AdminSocialPage() {
     { data: blogPosts },
     { data: campaigns },
     { data: videoJobs },
+    { data: linkedInPosts },
   ] = await Promise.all([
     service.from("social_brands").select("*").order("name"),
     service.from("social_content").select("*").order("created_at", { ascending: false }),
@@ -46,6 +47,7 @@ export default async function AdminSocialPage() {
       .from("video_jobs" as never)
       .select("id, topic, product, status, created_at, completed_at, published_at, youtube_url")
       .order("created_at", { ascending: false }) as unknown as Promise<{ data: VideoJobCalendarRow[] | null }>,
+    service.from("linkedin_posts").select("*").order("created_at", { ascending: false }),
   ]);
 
   return (
@@ -58,6 +60,7 @@ export default async function AdminSocialPage() {
       initialBlogPosts={blogPosts ?? []}
       initialCampaigns={campaigns ?? []}
       initialVideoJobs={videoJobs ?? []}
+      initialLinkedInPosts={linkedInPosts ?? []}
     />
   );
 }

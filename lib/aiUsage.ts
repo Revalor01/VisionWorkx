@@ -17,6 +17,7 @@ export type AiUsageSource =
   | "social_classify_inbound"
   | "social_content_generate"
   | "social_recap_script"
+  | "linkedin_post_generate"
   | "marketing_email"
   | "mobile_push"
   | "mobile_sms"

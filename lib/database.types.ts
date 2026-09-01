@@ -72,6 +72,7 @@ export type SocialAutonomyMode = "manual" | "semi_autonomous" | "fully_autonomou
 export type SocialRiskLevel = "low" | "medium" | "high";
 export type SocialContentGeneratedBy = "manual" | "autonomous" | "content_engine";
 export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation";
+export type LinkedInPostStatus = "draft" | "approved" | "posted";
 
 export interface LeadSignal {
   tier: 1 | 2 | 3 | 4;
@@ -1368,6 +1369,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      linkedin_posts: {
+        Row: {
+          id: string;
+          video_asset_id: string | null;
+          hook: string | null;
+          caption: string;
+          hashtags: string[];
+          status: LinkedInPostStatus;
+          posted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          video_asset_id?: string | null;
+          hook?: string | null;
+          caption: string;
+          hashtags?: string[];
+          status?: LinkedInPostStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          video_asset_id?: string | null;
+          hook?: string | null;
+          caption?: string;
+          hashtags?: string[];
+          status?: LinkedInPostStatus;
+          posted_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       social_content_metrics: {
         Row: {
           id: string;
@@ -1713,6 +1747,7 @@ export type SocialBrand = Database["public"]["Tables"]["social_brands"]["Row"];
 export type SocialConnection = Database["public"]["Tables"]["social_connections"]["Row"];
 export type SocialVideoAsset = Database["public"]["Tables"]["social_video_assets"]["Row"];
 export type SocialContent = Database["public"]["Tables"]["social_content"]["Row"];
+export type LinkedInPost = Database["public"]["Tables"]["linkedin_posts"]["Row"];
 export type SocialContentMetrics = Database["public"]["Tables"]["social_content_metrics"]["Row"];
 export type ShortLink = Database["public"]["Tables"]["short_links"]["Row"];
 export type LinkClick = Database["public"]["Tables"]["link_clicks"]["Row"];
