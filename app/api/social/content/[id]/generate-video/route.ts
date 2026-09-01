@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 import { generateContentVideo } from "@/lib/social/videoGenerator";
+import { appendBrandOutro } from "@/lib/social/videoOutro";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -76,7 +77,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
         caption: post.caption,
       });
 
-      const bytes = Buffer.from(video.bytes);
+      // Appends a brand + Revalor logo end-card so the finished clip makes
+      // clear it's promoting a Revalor software product, not just abstract
+      // b-roll. Best-effort — falls back to the raw clip on any failure.
+      const bytes = await appendBrandOutro(Buffer.from(video.bytes), brand.name);
       const { error: uploadError } = await service.storage
         .from(BUCKET)
         .upload(path, bytes, { contentType: video.mediaType || "video/mp4", upsert: true });

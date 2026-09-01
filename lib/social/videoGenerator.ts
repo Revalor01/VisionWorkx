@@ -18,9 +18,9 @@ export async function generateContentVideo(params: {
 }): Promise<GeneratedContentVideo> {
   const subject = params.hook || params.caption.slice(0, 200);
 
-  const prompt = `A short, cinematic social media video promoting "${params.brandName}", a software product. ${
+  const prompt = `A short, cinematic social media video promoting "${params.brandName}", a software app (not a physical product) - people watching need to come away understanding this is software (a mobile/web app or digital tool), not something they'd buy off a shelf. Never depict physical goods, packaging, pills, powders, bottles, or any supplement/nutrition/fitness product, regardless of what the brand name might otherwise suggest. ${
     params.brandVoiceNotes ? `Brand tone: ${params.brandVoiceNotes}. ` : ""
-  }Visual theme: ${subject}. Style: professional, energetic, high-contrast b-roll style footage suited for an Instagram Reel or TikTok. Do not render any text, words, or letters in the video.`;
+  }Visual theme: ${subject}. Style: professional, energetic, high-contrast b-roll style footage suited for an Instagram Reel or TikTok, e.g. people using a phone/laptop, UI-adjacent lifestyle shots, relevant real-world settings. Do not render any text, words, or letters in the video.`;
 
   const result = await generateVideo({
     model: VIDEO_MODEL,
