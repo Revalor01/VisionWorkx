@@ -37,3 +37,26 @@ export async function connectedPlatforms(service: Service, brand: SocialBrand): 
   if (brand.socialapi_youtube_account_id) platforms.push("youtube");
   return platforms;
 }
+
+// TikTok is a company-wide account (see SHARED_TIKTOK_BRAND_NAME above) even
+// when the actual SocialAPI connection happens to live on another brand's
+// row (e.g. it was connected while "VisionWorkx" was selected, but the
+// account is @revalorllc) - so content generation should always voice
+// TikTok posts as Revalor LLC, regardless of which row owns the connection.
+// Returns a contentGenerator platformOverrides map, or undefined if this
+// brand IS Revalor LLC (nothing to override) or platforms doesn't include
+// tiktok at all.
+export async function tiktokContentOverride(
+  service: Service,
+  brand: SocialBrand,
+  platforms: SocialPlatform[]
+): Promise<Partial<Record<SocialPlatform, { brandName: string; voiceNotes: string | null }>> | undefined> {
+  if (!platforms.includes("tiktok") || brand.name === SHARED_TIKTOK_BRAND_NAME) return undefined;
+  const { data: shared } = await service
+    .from("social_brands")
+    .select("name, voice_notes")
+    .eq("name", SHARED_TIKTOK_BRAND_NAME)
+    .maybeSingle();
+  if (!shared) return undefined;
+  return { tiktok: { brandName: shared.name, voiceNotes: shared.voice_notes } };
+}

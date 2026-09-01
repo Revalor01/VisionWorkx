@@ -31,16 +31,29 @@ export async function generateContentCalendar(params: {
   platforms: SocialPlatform[];
   postCount: number;
   topics?: string[];
+  // Per-platform identity to use instead of brandName/voiceNotes above -
+  // e.g. TikTok posts need to be voiced as a different brand than the one
+  // that owns the rest of this batch. See connectedPlatforms.tiktokContentOverride.
+  platformOverrides?: Partial<Record<SocialPlatform, { brandName: string; voiceNotes: string | null }>>;
 }): Promise<GeneratedPost[]> {
-  const { brandName, voiceNotes, platforms, postCount, topics } = params;
+  const { brandName, voiceNotes, platforms, postCount, topics, platformOverrides } = params;
   const count = Math.min(postCount, MAX_POSTS_PER_CALL);
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+  const overrideNotes = platformOverrides
+    ? Object.entries(platformOverrides)
+        .map(
+          ([platform, identity]) =>
+            `IMPORTANT: "${platform}" posts are NOT for ${brandName} — write them as ${identity!.brandName} instead. ${identity!.brandName}'s voice notes: ${identity!.voiceNotes || "(none provided — use a confident, clear, founder-built tone)"}`
+        )
+        .join("\n")
+    : "";
+
   const userPrompt = `Brand: ${brandName}
 Voice notes: ${voiceNotes || "(none provided — use a confident, clear, founder-built tone)"}
 Platforms to generate for: ${platforms.join(", ")}
-${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
+${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",

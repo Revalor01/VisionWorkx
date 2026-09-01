@@ -5,7 +5,7 @@ import { scorePost } from "@/lib/blog/optimizer";
 import { containsBannedWords as blogBannedWords, BASE_BANNED_WORDS, AUTO_PUBLISH_SCORE_THRESHOLD } from "@/lib/blog/safety";
 import { generateContentCalendar } from "@/lib/social/contentGenerator";
 import { evaluateApproval } from "@/lib/social/riskEvaluator";
-import { connectedPlatforms } from "@/lib/social/connectedPlatforms";
+import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { generateEmailCampaign } from "@/lib/marketing/emailGenerator";
@@ -238,12 +238,14 @@ async function generateSocialDerivatives(
   );
 
   try {
+    const platformOverrides = await tiktokContentOverride(service, brand, platforms);
     const posts = await generateContentCalendar({
       brandName: brand.name,
       voiceNotes: brand.voice_notes,
       platforms,
       postCount: platforms.length,
       topics: [`${item.title} — ${item.body}`.slice(0, 500)],
+      platformOverrides,
     });
 
     const slots = pickPostingSlots(posts.length);

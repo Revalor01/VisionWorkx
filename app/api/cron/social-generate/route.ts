@@ -5,7 +5,7 @@ import { getTodaysTopics } from "@/lib/social/topicSeeds";
 import { evaluateApproval } from "@/lib/social/riskEvaluator";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
-import { connectedPlatforms } from "@/lib/social/connectedPlatforms";
+import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -34,12 +34,14 @@ export async function GET(req: NextRequest) {
     let posts;
     try {
       const topics = await getTodaysTopics(service, brand);
+      const platformOverrides = await tiktokContentOverride(service, brand, platforms);
       posts = await generateContentCalendar({
         brandName: brand.name,
         voiceNotes: brand.voice_notes,
         platforms,
         postCount: brand.posting_frequency_per_day,
         topics,
+        platformOverrides,
       });
     } catch (err) {
       console.error(`[cron/social-generate] generation failed for ${brand.name}:`, err);

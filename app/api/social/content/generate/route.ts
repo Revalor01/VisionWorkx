@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 import { generateContentCalendar } from "@/lib/social/contentGenerator";
+import { tiktokContentOverride } from "@/lib/social/connectedPlatforms";
 import type { SocialPlatform } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -51,11 +52,13 @@ export async function POST(req: NextRequest) {
   if (!brand) return NextResponse.json({ error: "Brand not found" }, { status: 404 });
 
   try {
+    const platformOverrides = await tiktokContentOverride(service, brand, platforms);
     const posts = await generateContentCalendar({
       brandName: brand.name,
       voiceNotes: brand.voice_notes,
       platforms,
       postCount,
+      platformOverrides,
     });
 
     const rows = posts.map((p) => ({
