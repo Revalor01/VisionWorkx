@@ -112,8 +112,12 @@ export default function ContentTab({
     throw new Error("Still generating after several minutes — check back shortly, it should finish on its own");
   }
 
-  async function generateVideoForPost(id: string): Promise<SocialVideoAsset> {
-    const res = await fetch(`/api/social/content/${id}/generate-video`, { method: "POST" });
+  async function generateVideoForPost(id: string, brandId?: string): Promise<SocialVideoAsset> {
+    const res = await fetch(`/api/social/content/${id}/generate-video`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandId }),
+    });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
     setVideoAssets((prev) => [body.asset, ...prev]);
@@ -246,6 +250,7 @@ export default function ContentTab({
                 <ContentCard
                   key={c.id}
                   c={c}
+                  brands={brands}
                   brandName={brandName}
                   videoAssets={videoAssets}
                   scheduleDrafts={scheduleDrafts}
@@ -352,6 +357,7 @@ export default function ContentTab({
                   <ContentCard
                     key={c.id}
                     c={c}
+                    brands={brands}
                     brandName={brandName}
                     videoAssets={videoAssets}
                     scheduleDrafts={scheduleDrafts}
@@ -428,6 +434,7 @@ export default function ContentTab({
 
 function ContentCard({
   c,
+  brands,
   brandName,
   videoAssets,
   scheduleDrafts,
@@ -439,13 +446,14 @@ function ContentCard({
   deleteContent,
 }: {
   c: SocialContent;
+  brands: SocialBrand[];
   brandName: (id: string) => string;
   videoAssets: SocialVideoAsset[];
   scheduleDrafts: Record<string, string>;
   setScheduleDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   updateStatus: (id: string, status: SocialContentStatus, scheduledAt?: string) => Promise<void>;
   linkVideoAsset: (id: string, videoAssetId: string) => Promise<void>;
-  generateVideoForPost: (id: string) => Promise<SocialVideoAsset>;
+  generateVideoForPost: (id: string, brandId?: string) => Promise<SocialVideoAsset>;
   publishNow: (id: string) => Promise<SocialContent>;
   deleteContent: (id: string) => Promise<void>;
 }) {
@@ -455,6 +463,7 @@ function ContentCard({
   const [hasImage, setHasImage] = useState(!!c.image_path);
   const [generatingVideo, setGeneratingVideo] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [videoBrandId, setVideoBrandId] = useState(c.brand_id);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
 
@@ -474,7 +483,7 @@ function ContentCard({
     setGeneratingVideo(true);
     setVideoError("");
     try {
-      await generateVideoForPost(c.id);
+      await generateVideoForPost(c.id, videoBrandId);
     } catch (err) {
       setVideoError((err as Error).message);
     } finally {
@@ -580,10 +589,20 @@ function ContentCard({
           >
             <option value="">— none —</option>
             {videoAssets
-              .filter((v) => v.brand_id === c.brand_id && v.status === "ready")
+              .filter((v) => v.status === "ready")
               .map((v) => (
-                <option key={v.id} value={v.id}>{v.id.slice(0, 8)} ({v.status})</option>
+                <option key={v.id} value={v.id}>{brandName(v.brand_id)} — {v.id.slice(0, 8)}</option>
               ))}
+          </select>
+          <label className="text-xs text-slate-500 ml-2 mr-1">Generate as:</label>
+          <select
+            value={videoBrandId}
+            onChange={(e) => setVideoBrandId(e.target.value)}
+            className="text-xs border border-slate-300 rounded-lg px-2 py-1"
+          >
+            {brands.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
           </select>
           <button
             onClick={generateVideo}

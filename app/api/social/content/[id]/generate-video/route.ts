@@ -16,7 +16,7 @@ const BUCKET = "social-video-assets";
 // respond immediately, then keep generating in the background via
 // after() (still bounded by maxDuration) and update the row's status when
 // it finishes. The frontend polls GET .../video-assets/[id] for status.
-export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const supabase = await createServerClient();
   const {
@@ -24,21 +24,35 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
   } = await supabase.auth.getUser();
   if (!isAdmin(user)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Optional override for which brand's identity the video is generated
+  // under - e.g. a TikTok post's own brand_id is whichever row owns the
+  // connected account (see connectedPlatforms.tiktokContentOverride), but
+  // that's not necessarily the identity the video itself should look/sound
+  // like, so the admin UI lets this be picked separately.
+  let videoBrandId: string | undefined;
+  try {
+    const body = await req.json();
+    videoBrandId = body?.brandId || undefined;
+  } catch {
+    // no body sent - fall back to the post's own brand below
+  }
+
   const service = createServiceClient();
   const { data: post } = await service.from("social_content").select("*").eq("id", params.id).maybeSingle();
   if (!post) return NextResponse.json({ error: "Content not found" }, { status: 404 });
 
-  const { data: brand } = await service.from("social_brands").select("name, voice_notes").eq("id", post.brand_id).maybeSingle();
+  const brandId = videoBrandId || post.brand_id;
+  const { data: brand } = await service.from("social_brands").select("name, voice_notes").eq("id", brandId).maybeSingle();
   if (!brand) return NextResponse.json({ error: "Brand not found" }, { status: 404 });
 
   const assetId = crypto.randomUUID();
-  const path = `${post.brand_id}/generated/${assetId}.mp4`;
+  const path = `${brandId}/generated/${assetId}.mp4`;
 
   const { data: asset, error: insertError } = await service
     .from("social_video_assets")
     .insert({
       id: assetId,
-      brand_id: post.brand_id,
+      brand_id: brandId,
       raw_path: path,
       status: "generating",
       notes: "AI-generated (Kling v2.6) from this post's caption",
