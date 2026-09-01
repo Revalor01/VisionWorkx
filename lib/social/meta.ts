@@ -177,17 +177,32 @@ const EMPTY_METRICS: PostMetrics = {
   raw: {},
 };
 
-function insightMap(body: { data?: { name: string; values?: { value: unknown }[] }[] }): Record<string, number> {
-  const out: Record<string, number> = {};
+// Reads insight rows, keeping numeric scalars and summing the {key:count}
+// maps that some metrics (reactions-by-type, activity-by-action-type)
+// return as their single value.
+function insightMap(body: {
+  data?: { name: string; values?: { value: unknown }[] }[];
+}): Record<string, number | Record<string, number>> {
+  const out: Record<string, number | Record<string, number>> = {};
   for (const item of body.data ?? []) {
     const v = item.values?.[0]?.value;
     if (typeof v === "number") out[item.name] = v;
+    else if (v && typeof v === "object") out[item.name] = v as Record<string, number>;
   }
   return out;
 }
 
-/** Facebook Page post: impressions/reach/clicks from insights, engagement
- *  counts from the post object. Never throws — returns nulls on failure. */
+const sumMap = (v: number | Record<string, number> | undefined): number | null => {
+  if (typeof v === "number") return v;
+  if (v && typeof v === "object") return Object.values(v).reduce((a, b) => a + (b || 0), 0);
+  return null;
+};
+
+/** Facebook Page post metrics, entirely from /insights — the post-object
+ *  fields (reactions.summary etc.) need pages_read_user_content, which the
+ *  connect Login Config doesn't grant, and post_impressions/_unique were
+ *  removed by Meta. Reach isn't available at post level anymore; ranking
+ *  falls back to raw engagement + tracked clicks. Never throws. */
 export async function getFacebookPostMetrics(
   postId: string,
   pageAccessToken: string
@@ -195,32 +210,20 @@ export async function getFacebookPostMetrics(
   const result: PostMetrics = { ...EMPTY_METRICS };
   try {
     const insights = await graphFetch(`/${postId}/insights`, {
-      metric: "post_impressions,post_impressions_unique,post_clicks,post_video_views",
+      metric:
+        "post_clicks,post_video_views,post_reactions_by_type_total,post_activity_by_action_type",
       access_token: pageAccessToken,
     });
     const m = insightMap(insights);
-    result.impressions = m.post_impressions ?? null;
-    result.reach = m.post_impressions_unique ?? null;
-    result.linkClicks = m.post_clicks ?? null;
-    result.videoViews = m.post_video_views ?? null;
+    const activity = (m.post_activity_by_action_type ?? {}) as Record<string, number>;
+    result.linkClicks = sumMap(m.post_clicks);
+    result.videoViews = sumMap(m.post_video_views);
+    result.likes = sumMap(m.post_reactions_by_type_total);
+    result.comments = activity.comment ?? null;
+    result.shares = activity.share ?? null;
     result.raw = { ...result.raw, insights: m };
   } catch (err) {
     console.error(`[getFacebookPostMetrics] insights ${postId}:`, (err as Error).message);
-  }
-  try {
-    const obj = await graphFetch(`/${postId}`, {
-      fields: "shares,reactions.summary(true),comments.summary(true)",
-      access_token: pageAccessToken,
-    });
-    result.likes = obj?.reactions?.summary?.total_count ?? null;
-    result.comments = obj?.comments?.summary?.total_count ?? null;
-    result.shares = obj?.shares?.count ?? null;
-    result.raw = {
-      ...result.raw,
-      object: { shares: obj?.shares, reactions: obj?.reactions?.summary, comments: obj?.comments?.summary },
-    };
-  } catch (err) {
-    console.error(`[getFacebookPostMetrics] object ${postId}:`, (err as Error).message);
   }
   return result;
 }
@@ -234,22 +237,25 @@ export async function getInstagramMediaMetrics(
   pageAccessToken: string
 ): Promise<PostMetrics> {
   const result: PostMetrics = { ...EMPTY_METRICS };
+  // `impressions` was removed for IG media (v22, 2025) in favour of
+  // `views`; `plays` is the older reels metric. Try newest first.
   const metricSets = [
-    "impressions,reach,likes,comments,shares,saved",
-    "reach,likes,comments,shares,saved,plays", // reels
+    "reach,likes,comments,shares,saved,views",
+    "reach,likes,comments,shares,saved,plays",
   ];
   for (const metric of metricSets) {
     try {
       const body = await graphFetch(`/${mediaId}/insights`, { metric, access_token: pageAccessToken });
       const m = insightMap(body);
       if (Object.keys(m).length === 0) continue;
-      result.impressions = m.impressions ?? result.impressions;
-      result.reach = m.reach ?? result.reach;
-      result.likes = m.likes ?? result.likes;
-      result.comments = m.comments ?? result.comments;
-      result.shares = m.shares ?? result.shares;
-      result.saves = m.saved ?? result.saves;
-      result.videoViews = m.plays ?? result.videoViews;
+      const n = (k: string) => sumMap(m[k]);
+      result.reach = n("reach") ?? result.reach;
+      result.likes = n("likes") ?? result.likes;
+      result.comments = n("comments") ?? result.comments;
+      result.shares = n("shares") ?? result.shares;
+      result.saves = n("saved") ?? result.saves;
+      result.videoViews = n("views") ?? n("plays") ?? result.videoViews;
+      result.impressions = n("views") ?? result.impressions; // closest analog to old impressions
       result.raw = { ...result.raw, [metric]: m };
       return result;
     } catch (err) {
