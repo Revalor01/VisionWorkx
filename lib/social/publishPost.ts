@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
-import { publishInstagramPost, publishTikTokPost, publishYouTubePost } from "@/lib/social/socialApi";
+import { publishInstagramPost, publishTikTokPost, publishYouTubePost, uploadMediaForTikTok } from "@/lib/social/socialApi";
 import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
 import { getOrCreateShortLink, withUtm } from "@/lib/social/shortLinks";
 import type { SocialContent } from "@/lib/database.types";
@@ -67,14 +67,21 @@ export async function publishPost(
         .eq("id", post.video_asset_id)
         .maybeSingle();
       if (!asset?.final_path) throw new Error("Linked video asset has no final_path");
-      const { data: signed, error: signError } = await service.storage
-        .from(VIDEO_BUCKET)
-        .createSignedUrl(asset.final_path, SIGNED_URL_TTL_SECONDS);
-      if (signError || !signed) throw new Error("Failed to sign media URL for TikTok publish");
+      const { data: file, error: downloadError } = await service.storage.from(VIDEO_BUCKET).download(asset.final_path);
+      if (downloadError || !file) throw new Error("Failed to download video for TikTok publish");
+
+      // TikTok needs the video uploaded through SocialAPI's own media
+      // library (source_type "media_id"), not a signed Supabase URL - see
+      // uploadMediaForTikTok's comment in socialApi.ts for why.
+      const mediaId = await uploadMediaForTikTok({
+        bytes: file,
+        filename: asset.final_path.split("/").pop() ?? "video.mp4",
+        mediaType: "video/mp4",
+      });
 
       const result = await publishTikTokPost({
         accountId: tiktokAccountId,
-        mediaUrl: signed.signedUrl,
+        mediaId,
         caption: captionWithTags,
       });
       platformPostId = result.postId;

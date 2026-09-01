@@ -184,16 +184,38 @@ export async function publishInstagramPost(params: {
   return { postId: target.platform_post_id!, permalink: target.permalink ?? null };
 }
 
+// TikTok's Content Posting API requires PULL_FROM_URL sources to come from
+// a domain verified with whichever TikTok app is making the call - our own
+// Supabase Storage URLs aren't verified with SocialAPI's TikTok app, so
+// they fail with "platform.tiktok.url_ownership_unverified". SocialAPI's
+// docs (docs.social-api.ai/posts/tiktok) require going through their own
+// media library instead: upload the file, then reference it by media_id.
+export async function uploadMediaForTikTok(params: { bytes: Blob; filename: string; mediaType: string }): Promise<string> {
+  const { media_id, upload_url } = await apiFetch(
+    `/media/upload-url?media_type=${encodeURIComponent(params.mediaType)}&filename=${encodeURIComponent(params.filename)}`
+  );
+
+  const putRes = await fetch(upload_url, {
+    method: "PUT",
+    headers: { "Content-Type": params.mediaType },
+    body: params.bytes,
+  });
+  if (!putRes.ok) throw new Error(`SocialAPI media upload PUT failed: HTTP ${putRes.status}`);
+
+  await apiFetch(`/media/${media_id}/verify`, { method: "POST" });
+  return media_id;
+}
+
 export async function publishTikTokPost(params: {
   accountId: string;
-  mediaUrl: string;
+  mediaId: string;
   caption: string;
 }): Promise<{ postId: string }> {
   const created = await apiFetch("/posts", {
     method: "POST",
     body: JSON.stringify({
       text: params.caption,
-      media: [{ source: params.mediaUrl, source_type: "url", type: "video" }],
+      media: [{ source: params.mediaId, source_type: "media_id", type: "video" }],
       targets: [{ account_id: params.accountId }],
       publish_now: true,
       platform_data: {
