@@ -68,6 +68,9 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
   const [data, setData] = useState<PerfData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+
+  const PAGE_SIZE = 10;
 
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "—";
 
@@ -80,6 +83,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
       const res = await fetch(`/api/social/performance?${qs}`);
       if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`);
       setData(await res.json());
+      setPage(0);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -289,9 +293,13 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                 </tr>
               </thead>
               <tbody>
-                {data.posts.map((p, i) => (
+                {data.posts
+                  .slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+                  .map((p, i) => (
                   <tr key={p.contentId} className="border-t border-slate-100 align-top">
-                    <td className="py-2 text-slate-300 tabular-nums">{i + 1}</td>
+                    <td className="py-2 text-slate-300 tabular-nums">
+                      {page * PAGE_SIZE + i + 1}
+                    </td>
                     {!brandId && (
                       <td className="py-2 text-slate-600">{brandName(p.brandId)}</td>
                     )}
@@ -334,6 +342,37 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                 )}
               </tbody>
             </table>
+
+            {data.posts.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-xs text-slate-400 tabular-nums">
+                  {page * PAGE_SIZE + 1}&ndash;
+                  {Math.min((page + 1) * PAGE_SIZE, data.posts.length)} of{" "}
+                  {data.posts.length}
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPage((p) =>
+                        (p + 1) * PAGE_SIZE < data.posts.length ? p + 1 : p
+                      )
+                    }
+                    disabled={(page + 1) * PAGE_SIZE >= data.posts.length}
+                    className="px-3 py-1.5 rounded-md text-sm font-medium border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+
             {data.posts.some((p) => p.linkClicks != null) && (
               <p className="text-xs text-slate-400 mt-2">
                 Clicks = our tracked <code>/go</code> clicks / native platform link
