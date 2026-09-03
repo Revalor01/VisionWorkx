@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AppCategory } from "@/lib/database.types";
+import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 
 const CATEGORIES: { id: AppCategory; title: string; desc: string }[] = [
   { id: "booking", title: "Booking & Scheduling", desc: "Online appointments, staff scheduling, a public booking page" },
@@ -25,6 +26,7 @@ export default function TryForm() {
   });
   const [category, setCategory] = useState<AppCategory | null>(null);
   const [secondary, setSecondary] = useState<AppCategory[]>([]);
+  const [teamLogins, setTeamLogins] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,7 +58,7 @@ export default function TryForm() {
             description: form.description,
             category,
             secondaryCategories: secondary.filter((c) => c !== category),
-            features: [],
+            features: teamLogins ? [TEAM_ACCESS_FEATURE] : [],
           },
         }),
       });
@@ -171,6 +173,26 @@ export default function TryForm() {
               })}
             </div>
           </div>
+        )}
+
+        {category && (
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-gray-200 p-3 text-sm hover:border-navy">
+            <input
+              type="checkbox"
+              checked={teamLogins}
+              onChange={(e) => setTeamLogins(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-navy focus:ring-navy"
+            />
+            <span>
+              <span className="font-medium text-navy-dark">
+                My staff will need their own logins
+              </span>
+              <span className="mt-0.5 block text-xs text-gray-500">
+                Adds a Team page where you invite staff by link and control who can
+                see the admin area.
+              </span>
+            </span>
+          </label>
         )}
       </div>
 

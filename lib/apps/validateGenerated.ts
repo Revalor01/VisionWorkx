@@ -5,6 +5,7 @@
 
 import type { AppCategory } from "@/lib/database.types";
 import type { FileMap } from "@/lib/apps/fileMap";
+import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 
 // Categories that CANNOT function without collecting money (unlike booking,
 // where a deposit is optional) — so a generated one that never references
@@ -75,6 +76,7 @@ export function validateGenerated(
   map: FileMap,
   category: AppCategory | readonly AppCategory[],
   plannedFiles: string[] = [],
+  features: readonly string[] = [],
 ): string[] {
   const categories = Array.isArray(category)
     ? (category as AppCategory[])
@@ -143,6 +145,25 @@ export function validateGenerated(
     if (!usesCheckout) {
       problems.push(
         "This app collects payments but nothing references process.env.STRIPE_CHECKOUT_URL — wire up the platform Checkout bridge.",
+      );
+    }
+  }
+
+  // Staff logins & team invites (Phase 6c) — only when the owner picked it
+  if (features.includes(TEAM_ACCESS_FEATURE)) {
+    if (hasMigration && !/\bteam_members\b/.test(sql)) {
+      problems.push(
+        "Staff logins were requested but the migration has no `team_members` table — add it (id, email, role owner/staff, invite_token, invited_at, joined_at, user_id).",
+      );
+    }
+    if (!has("app/join/page.tsx")) {
+      problems.push(
+        "Staff logins were requested but app/join/page.tsx (the invite-accept page reading ?token) was not generated — create it.",
+      );
+    }
+    if (!has("app/team/page.tsx")) {
+      problems.push(
+        "Staff logins were requested but app/team/page.tsx (the owner-only Team management page) was not generated — create it.",
       );
     }
   }

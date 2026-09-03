@@ -12,6 +12,7 @@ import {
   BILINGUAL_FEATURE,
   QR_CODE_FEATURE,
   CALENDAR_EXPORT_FEATURE,
+  TEAM_ACCESS_FEATURE,
 } from "@/lib/features";
 
 const HIGHLIGHTED_FEATURES = new Set([
@@ -19,6 +20,7 @@ const HIGHLIGHTED_FEATURES = new Set([
   BILINGUAL_FEATURE,
   QR_CODE_FEATURE,
   CALENDAR_EXPORT_FEATURE,
+  TEAM_ACCESS_FEATURE,
 ]);
 
 const CATEGORIES: {
@@ -74,6 +76,7 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "SMS reminders",
     "Admin dashboard",
     "Calendar integration",
+    TEAM_ACCESS_FEATURE,
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
     QR_CODE_FEATURE,
@@ -100,6 +103,7 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Barcode scanning",
     "Purchase orders",
     "Sales reports",
+    TEAM_ACCESS_FEATURE,
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
     QR_CODE_FEATURE,
@@ -112,6 +116,7 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "File uploads",
     "Invoice viewing",
     "Notifications",
+    TEAM_ACCESS_FEATURE,
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
     QR_CODE_FEATURE,
@@ -134,6 +139,7 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     "Auto-renewal & cancellations",
     "Attendance reporting",
     "Admin dashboard",
+    TEAM_ACCESS_FEATURE,
     LOCATION_FEATURE,
     BILINGUAL_FEATURE,
     QR_CODE_FEATURE,

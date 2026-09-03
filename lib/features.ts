@@ -4,3 +4,4 @@ export const LOCATION_FEATURE = "📍 Location & Directions";
 export const BILINGUAL_FEATURE = "🌐 Bilingual (English/Spanish)";
 export const QR_CODE_FEATURE = "🔲 QR Code for Your Page";
 export const CALENDAR_EXPORT_FEATURE = "🗓️ Add to Calendar";
+export const TEAM_ACCESS_FEATURE = "👥 Staff logins & invites";

@@ -44,7 +44,13 @@ export interface RepairResult {
 function buildUserPrompt(
   map: FileMap,
   problems: string[],
-  ctx: { appName: string; category: AppCategory; categories?: readonly AppCategory[]; plannedFiles?: string[] },
+  ctx: {
+    appName: string;
+    category: AppCategory;
+    categories?: readonly AppCategory[];
+    plannedFiles?: string[];
+    features?: readonly string[];
+  },
 ): string {
   return [
     `APP: ${ctx.appName} (category: ${ctx.category})`,
@@ -68,7 +74,13 @@ function buildUserPrompt(
 export async function repairGenerated(
   initial: FileMap,
   initialProblems: string[],
-  ctx: { appName: string; category: AppCategory; categories?: readonly AppCategory[]; plannedFiles?: string[] },
+  ctx: {
+    appName: string;
+    category: AppCategory;
+    categories?: readonly AppCategory[];
+    plannedFiles?: string[];
+    features?: readonly string[];
+  },
 ): Promise<RepairResult> {
   let map = initial;
   let problems = initialProblems;
@@ -112,7 +124,13 @@ export async function repairGenerated(
 
     map = mergeFileMap(map, patch);
     // Subsequent rounds re-derive from the (now well-formed) serialised map.
-    problems = validateGenerated(serializeFileMap(map), map, ctx.categories ?? [ctx.category], ctx.plannedFiles ?? []);
+    problems = validateGenerated(
+      serializeFileMap(map),
+      map,
+      ctx.categories ?? [ctx.category],
+      ctx.plannedFiles ?? [],
+      ctx.features ?? [],
+    );
   }
 
   return { map, rounds, remaining: problems };
