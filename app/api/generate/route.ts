@@ -14,6 +14,7 @@ import {
   BILINGUAL_FEATURE,
   QR_CODE_FEATURE,
   CALENDAR_EXPORT_FEATURE,
+  TEAM_ACCESS_FEATURE,
 } from "@/lib/features";
 
 export const runtime = "nodejs";
@@ -360,7 +361,13 @@ export async function POST(req: NextRequest) {
       // live app with 404ing detail pages.
       let codeToSave = fullText;
       const parsed = parseFileMap(fullText);
-      const problems = validateGenerated(fullText, parsed, appCategories, planFiles);
+      const problems = validateGenerated(
+        fullText,
+        parsed,
+        appCategories,
+        planFiles,
+        intake.features ?? [],
+      );
       if (problems.length > 0) {
         if (!isPreview) {
           await writer.write(
@@ -370,7 +377,13 @@ export async function POST(req: NextRequest) {
         const { map: repaired, rounds, remaining } = await repairGenerated(
           parsed,
           problems,
-          { appName, category: appCategory, categories: appCategories, plannedFiles: planFiles },
+          {
+            appName,
+            category: appCategory,
+            categories: appCategories,
+            plannedFiles: planFiles,
+            features: intake.features ?? [],
+          },
         );
         codeToSave = serializeFileMap(repaired);
         console.log(
@@ -530,6 +543,20 @@ Share auth, layout, navigation, and the customer/contact records across all capa
 - Works for both the customer-facing confirmation and the admin view`
     : "";
 
+  const wantsTeam = intake.features.includes(TEAM_ACCESS_FEATURE);
+  const teamSection = wantsTeam
+    ? `
+
+## Staff logins & team invites (required — selected as a feature)
+The business owner needs to give staff their own logins to the admin area.
+- Migration: a \`team_members\` table — \`id uuid primary key default gen_random_uuid()\`, \`email text not null unique\`, \`role text not null default 'staff' check (role in ('owner','staff'))\`, \`invite_token text unique\`, \`invited_at timestamptz not null default now()\`, \`joined_at timestamptz\`, \`user_id uuid references auth.users(id)\`. RLS on; a team member may select the table, only \`role='owner'\` rows may insert/update/delete.
+- Signup: right after \`supabase.auth.signUp()\` succeeds, if \`team_members\` is empty, insert this user as \`role='owner'\` with \`joined_at = now()\` and their \`user_id\`. (Foreign keys to \`auth.users\` are fine; no trigger on \`auth.users\`.)
+- Admin **Team** page (\`app/team/page.tsx\`, owner-only): lists members with role + status (Invited / Active); an "Invite teammate" form that inserts a \`team_members\` row (\`role='staff'\`, a random \`invite_token\`) and shows a **copyable invite link** \`<app origin>/join?token=<invite_token>\` — do NOT send an email, the owner shares the link; a "Remove" button per member (owner-only, can't remove the last owner).
+- \`app/join/page.tsx\`: reads \`?token\`, looks up the un-joined \`team_members\` row, shows an email (read-only, from the row) + set-password form → \`supabase.auth.signUp()\` → on success set that row's \`user_id\` and \`joined_at = now()\`, clear \`invite_token\`, redirect to the admin area. Invalid/used token → a friendly "This invite link is no longer valid" message.
+- Access gating: EVERY admin page must, server-side, confirm the signed-in user's id is in \`team_members\` with \`joined_at is not null\` — otherwise \`redirect('/login')\`. Owner-only actions (this Team page, billing/plan changes, deleting records) additionally require \`role='owner'\`.
+- The customer-facing pages are unchanged — this is admin-side only.`
+    : "";
+
   const paymentsSection = [intake.category, ...secondary].some(categoryTakesPayments)
     ? `
 
@@ -630,7 +657,7 @@ create view vw_automation_due as
 ${intake.category}${secondary.length ? ` (+ ${secondary.join(", ")})` : ""}
 
 ## Required Features
-${featureLines}${secondarySection}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${paymentsSection}${reportingSection}
+${featureLines}${secondarySection}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${teamSection}${paymentsSection}${reportingSection}
 
 ## Branding
 - Primary/background colors are runtime-configurable — do NOT hardcode any hex color. Use ONLY the \`primary\`/\`background\` Tailwind theme tokens per rule 13 (bg-primary, text-primary, bg-background, hover:bg-primary/90, etc.)

@@ -1130,7 +1130,7 @@ export async function POST(req: NextRequest) {
 
   const { data: appCheck } = await serviceClient
     .from("apps")
-    .select("id, status, name, category, secondary_categories")
+    .select("id, status, name, category, secondary_categories, intake_data")
     .eq("id", appId)
     .single();
 
@@ -1192,6 +1192,8 @@ export async function POST(req: NextRequest) {
                 appCheck.category,
                 ...((appCheck.secondary_categories ?? []) as AppCategory[]),
               ],
+              features:
+                ((appCheck.intake_data as IntakeData | null)?.features ?? []),
             },
           );
           const fixedCode = serializeFileMap(fixed);

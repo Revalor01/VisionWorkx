@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { serializeFileMap, type FileMap } from "./fileMap";
 import { validateGenerated, validateRawOutput } from "./validateGenerated";
+import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 
 // A minimally-complete generated app that should pass every check.
 const OK_MAP: FileMap = {
@@ -105,6 +106,29 @@ describe("validateGenerated", () => {
     expect(
       validateGenerated(raw, OK_MAP, "crm").some((p) => p.includes("STRIPE_CHECKOUT_URL")),
     ).toBe(false);
+  });
+
+  it("ignores team checks when the feature wasn't selected", () => {
+    expect(validateGenerated(raw, OK_MAP, "booking", [], [])).toEqual([]);
+  });
+
+  it("reports a missing team_members table / join page when staff logins were requested", () => {
+    const out = validateGenerated(raw, OK_MAP, "booking", [], [TEAM_ACCESS_FEATURE]);
+    expect(out.some((p) => p.includes("team_members"))).toBe(true);
+    expect(out.some((p) => p.includes("app/join/page.tsx"))).toBe(true);
+    expect(out.some((p) => p.includes("app/team/page.tsx"))).toBe(true);
+  });
+
+  it("passes when the staff-login files and table are present", () => {
+    const m: FileMap = {
+      ...OK_MAP,
+      "app/team/page.tsx": "export default function Team() { return null; }",
+      "app/join/page.tsx": "export default function Join() { return null; }",
+      "supabase/migrations/001_init.sql":
+        OK_MAP["supabase/migrations/001_init.sql"] +
+        "\ncreate table team_members (id uuid primary key default gen_random_uuid(), email text not null unique, role text not null default 'staff', invite_token text unique, joined_at timestamptz, user_id uuid);",
+    };
+    expect(validateGenerated(serializeFileMap(m), m, "booking", [], [TEAM_ACCESS_FEATURE])).toEqual([]);
   });
 
   it("reports literal hex colour classes", () => {
