@@ -137,12 +137,13 @@ export async function deployFileMap(
     throw new Error(`deployFileMap: could not record revision: ${revErr?.message}`);
   }
 
+  // Keep the existing deploy_url: the live app stays up on the previous
+  // Vercel deployment until the new build promotes to the same alias.
   await service
     .from("apps")
     .update({
       generated_code: serializeFileMap(files),
       status: "ready",
-      deploy_url: null,
     })
     .eq("id", appId);
 
@@ -177,12 +178,13 @@ export async function shipRevisionEdit(params: {
     })
     .eq("id", params.revisionId);
 
+  // deploy_url is left intact — the live app stays up on the old
+  // deployment until this build promotes to the same alias.
   await service
     .from("apps")
     .update({
       generated_code: serializeFileMap(params.next),
       status: "ready",
-      deploy_url: null,
     })
     .eq("id", params.appId);
 
