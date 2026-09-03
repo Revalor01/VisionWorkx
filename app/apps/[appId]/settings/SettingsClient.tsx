@@ -13,7 +13,8 @@ import {
   galleryPhotoUrlToPath,
   uploadGalleryPhoto,
 } from "@/lib/uploadGalleryPhoto";
-import type { AppCategory, AutomationWorkflow, Plan } from "@/lib/database.types";
+import type { AppCategory, AppStatus, AutomationWorkflow, Plan } from "@/lib/database.types";
+import RequestChangePanel, { type RevisionRow } from "./RequestChangePanel";
 
 const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = [
   { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourbusiness" },
@@ -55,6 +56,9 @@ export default function SettingsClient({
   initialSettings,
   initialWorkflows,
   automationUsage,
+  appStatus,
+  initialRevisions,
+  changeQuota,
   unavailable,
   colorsUnavailable,
   galleryUnavailable,
@@ -75,6 +79,9 @@ export default function SettingsClient({
   } | null;
   initialWorkflows: AutomationWorkflow[];
   automationUsage: { sent: number; limit: number };
+  appStatus: AppStatus;
+  initialRevisions: RevisionRow[];
+  changeQuota: { used: number; limit: number };
   unavailable: boolean;
   colorsUnavailable: boolean;
   galleryUnavailable: boolean;
@@ -282,6 +289,15 @@ export default function SettingsClient({
 
         <h1 className="text-2xl font-bold text-navy-dark mb-1">App Settings</h1>
         <p className="text-gray-500 text-sm mb-8">{appName}</p>
+
+        <div className="mb-8">
+          <RequestChangePanel
+            appId={appId}
+            appStatus={appStatus}
+            initialRevisions={initialRevisions}
+            initialQuota={changeQuota}
+          />
+        </div>
 
         {unavailable ? (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-sm text-amber-800">
