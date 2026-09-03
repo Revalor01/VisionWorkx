@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { logAiUsage } from "@/lib/aiUsage";
@@ -401,13 +401,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Preview (Phase 5b): no client is holding this request open, so a
-  // fire-and-forget stream gets ResponseAborted the moment the caller's
-  // function freezes. Run it to completion and return plain JSON — the
-  // caller invokes us inside `after()` so this function stays alive.
+  // Preview (Phase 5b): no client holds this request open. Respond 202
+  // immediately (so the caller's awaited fetch doesn't hit undici's
+  // headers timeout) and do the whole generate → validate → repair →
+  // deploy in this function's own `after()`, which keeps the lambda alive
+  // up to maxDuration.
   if (isPreview) {
-    await streamAndSave();
-    return NextResponse.json({ ok: true });
+    after(() => streamAndSave());
+    return NextResponse.json({ ok: true, accepted: true }, { status: 202 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
