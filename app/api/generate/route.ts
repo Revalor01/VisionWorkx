@@ -4,6 +4,9 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { logAiUsage } from "@/lib/aiUsage";
 import { recordInitialRevision } from "@/lib/apps/redeploy";
 import { categoryTakesPayments } from "@/lib/apps/payments";
+import { parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
+import { validateGenerated } from "@/lib/apps/validateGenerated";
+import { repairGenerated } from "@/lib/apps/repairGenerated";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -284,6 +287,8 @@ export async function POST(req: NextRequest) {
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const userPrompt = buildUserPrompt(app.intake_data as IntakeData);
+  const appCategory = app.category as AppCategory;
+  const appName = app.name;
 
   // Tee pattern: stream to client while accumulating for Supabase
   const encoder = new TextEncoder();
@@ -328,10 +333,34 @@ export async function POST(req: NextRequest) {
         outputTokens: finalMessage.usage.output_tokens,
       });
 
+      // Phase 6a: static-check the output (truncation, missing files,
+      // unresolved imports, migration-contract gaps) and run a targeted
+      // repair pass before saving — much cheaper than a failed deploy or a
+      // live app with 404ing detail pages.
+      let codeToSave = fullText;
+      const parsed = parseFileMap(fullText);
+      const problems = validateGenerated(fullText, parsed, appCategory);
+      if (problems.length > 0) {
+        if (!isPreview) {
+          await writer.write(
+            encoder.encode(`\n\n[Checking the generated app… ${problems.length} thing(s) to fix]\n`),
+          );
+        }
+        const { map: repaired, rounds, remaining } = await repairGenerated(
+          parsed,
+          problems,
+          { appName, category: appCategory },
+        );
+        codeToSave = serializeFileMap(repaired);
+        console.log(
+          `[/api/generate] repair: ${problems.length} problem(s), ${rounds} round(s), ${remaining.length} remaining`,
+        );
+      }
+
       // Save generated code — happens while HTTP response is still technically open
       await serviceClient
         .from("apps")
-        .update({ generated_code: fullText, status: "ready" })
+        .update({ generated_code: codeToSave, status: "ready" })
         .eq("id", appId);
 
       // Open the app's revision history with this first build (snapshot is
@@ -341,7 +370,7 @@ export async function POST(req: NextRequest) {
       // Kick off deploy pipeline (fire-and-forget via internal API route).
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-      if (fullText) {
+      if (codeToSave) {
         fetch(`${appUrl}/api/deploy`, {
           method: "POST",
           headers: {
