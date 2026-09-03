@@ -73,9 +73,12 @@ export function validateRawOutput(raw: string): string[] {
 export function validateGenerated(
   raw: string,
   map: FileMap,
-  category: AppCategory,
+  category: AppCategory | readonly AppCategory[],
   plannedFiles: string[] = [],
 ): string[] {
+  const categories = Array.isArray(category)
+    ? (category as AppCategory[])
+    : [category as AppCategory];
   const problems: string[] = [...validateRawOutput(raw)];
   const paths = new Set(Object.keys(map));
   const has = (p: string) => paths.has(p);
@@ -135,7 +138,7 @@ export function validateGenerated(
   }
 
   // Payments wiring for the categories that can't work without it
-  if (PAYMENTS_REQUIRED.includes(category)) {
+  if (categories.some((c) => PAYMENTS_REQUIRED.includes(c))) {
     const usesCheckout = Object.values(map).some((c) => c.includes("STRIPE_CHECKOUT_URL"));
     if (!usesCheckout) {
       problems.push(

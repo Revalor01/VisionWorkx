@@ -1130,7 +1130,7 @@ export async function POST(req: NextRequest) {
 
   const { data: appCheck } = await serviceClient
     .from("apps")
-    .select("id, status, name, category")
+    .select("id, status, name, category, secondary_categories")
     .eq("id", appId)
     .single();
 
@@ -1185,7 +1185,14 @@ export async function POST(req: NextRequest) {
               "The Vercel build of this app FAILED to compile. Fix exactly these errors — re-emit each affected file in full:\n\n" +
                 err.logs,
             ],
-            { appName: appCheck.name, category: appCheck.category as AppCategory },
+            {
+              appName: appCheck.name,
+              category: appCheck.category as AppCategory,
+              categories: [
+                appCheck.category,
+                ...((appCheck.secondary_categories ?? []) as AppCategory[]),
+              ],
+            },
           );
           const fixedCode = serializeFileMap(fixed);
           if (fixedCode !== serializeFileMap(current)) {

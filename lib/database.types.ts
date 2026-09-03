@@ -137,6 +137,7 @@ export interface IntakeData {
   location: string;
   description?: string;
   category: AppCategory;
+  secondaryCategories?: AppCategory[];
   features: string[];
   primaryColor: string;
   backgroundColor?: string;
