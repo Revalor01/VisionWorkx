@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 import { createServerClient, createTenantServiceClient } from "@/lib/supabase";
 import { loadSiteSettingsCascade } from "@/lib/siteSettings";
-import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automationLimits";
+import {
+  AUTOMATION_SEND_LIMITS,
+  AUTOMATION_SMS_LIMITS,
+  currentAutomationPeriod,
+} from "@/lib/automationLimits";
 import { CHANGE_REQUEST_LIMITS, monthStartISO } from "@/lib/apps/changeRequestLimits";
 import { categoryTakesPayments } from "@/lib/apps/payments";
 import type { Plan } from "@/lib/database.types";
@@ -44,7 +48,7 @@ export default async function AppSettingsPage(
       .eq("app_id", params.appId),
     supabase
       .from("automation_usage")
-      .select("sent_count")
+      .select("sent_count, sms_sent_count")
       .eq("user_id", user.id)
       .eq("period", period)
       .maybeSingle(),
@@ -69,8 +73,8 @@ export default async function AppSettingsPage(
 
   const plan = (profile?.plan ?? "free") as Plan;
   const automationUsage = {
-    sent: usage?.sent_count ?? 0,
-    limit: AUTOMATION_SEND_LIMITS[plan],
+    email: { sent: usage?.sent_count ?? 0, limit: AUTOMATION_SEND_LIMITS[plan] },
+    sms: { sent: usage?.sms_sent_count ?? 0, limit: AUTOMATION_SMS_LIMITS[plan] },
   };
   const changeQuota = {
     used: changeRequestsUsed ?? 0,
