@@ -40,7 +40,7 @@ export default async function AppSettingsPage(
       .single(),
     supabase
       .from("automation_workflows")
-      .select("id, app_id, trigger_type, action_type, enabled, created_at, updated_at")
+      .select("id, app_id, trigger_type, action_type, enabled, channel, created_at, updated_at")
       .eq("app_id", params.appId),
     supabase
       .from("automation_usage")
