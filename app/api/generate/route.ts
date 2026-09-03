@@ -298,7 +298,11 @@ export async function POST(req: NextRequest) {
     try {
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
-        max_tokens: 32000,
+        // A real multi-page app (booking / invoicing / portal with detail
+        // pages) runs past 32k output tokens and gets truncated mid-file.
+        // 64k is the Sonnet ceiling — a stopgap until generation is
+        // multi-pass. maxDuration below already allows the longer stream.
+        max_tokens: 64000,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
       });

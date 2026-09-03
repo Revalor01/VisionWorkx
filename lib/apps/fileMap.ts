@@ -17,11 +17,17 @@ export interface ParsedFile {
   content: string;
 }
 
-// Matches `[FILENAME: some/path.tsx]\n<content>[/FILENAME]`, non-greedy so
-// the first `[/FILENAME]` closes the block. Kept character-for-character in
-// sync with app/api/deploy/route.ts — do not "improve" one without the other.
+// Matches `[FILENAME: some/path.tsx]\n<content>[/FILENAME]`.
+//
+// The path group is `[^\r\n]+` (greedy, anything but a newline) — NOT
+// `[^\]\r\n]+` — so a path may contain `]`, which every Next.js dynamic
+// route does (`app/x/[id]/page.tsx`). The greedy match backtracks to the
+// last `]` before the newline, so `[FILENAME: app/x/[id]/page.tsx]` yields
+// `app/x/[id]/page.tsx` instead of dropping the block entirely.
+// Content is non-greedy so the first `[/FILENAME]` closes the block.
+// Kept in sync with parseGeneratedCode in app/api/deploy/route.ts.
 const FILE_BLOCK_SOURCE =
-  String.raw`\[FILENAME:\s*([^\]\r\n]+)\]\r?\n([\s\S]*?)\[\/FILENAME\]`;
+  String.raw`\[FILENAME:\s*([^\r\n]+)\]\r?\n([\s\S]*?)\[\/FILENAME\]`;
 
 function fileBlockRegex(): RegExp {
   return new RegExp(FILE_BLOCK_SOURCE, "g");
