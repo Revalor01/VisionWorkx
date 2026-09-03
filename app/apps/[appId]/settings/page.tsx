@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import { createServerClient, createTenantServiceClient } from "@/lib/supabase";
 import { loadSiteSettingsCascade } from "@/lib/siteSettings";
 import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automationLimits";
+import { CHANGE_REQUEST_LIMITS, monthStartISO } from "@/lib/apps/changeRequestLimits";
 import type { Plan } from "@/lib/database.types";
 import SettingsClient from "./SettingsClient";
+import type { RevisionRow } from "./RequestChangePanel";
 
 export default async function AppSettingsPage(
   props: {
@@ -20,35 +22,60 @@ export default async function AppSettingsPage(
   if (authError || !user) redirect("/login");
 
   const period = currentAutomationPeriod();
-  const [{ data: profile }, { data: app }, { data: workflows }, { data: usage }] =
-    await Promise.all([
-      supabase.from("profiles").select("plan, full_name").eq("id", user.id).single(),
-      supabase
-        .from("apps")
-        .select("id, user_id, name, status, deploy_url, category")
-        .eq("id", params.appId)
-        .eq("user_id", user.id)
-        .single(),
-      supabase
-        .from("automation_workflows")
-        .select("id, app_id, trigger_type, action_type, enabled, created_at, updated_at")
-        .eq("app_id", params.appId),
-      supabase
-        .from("automation_usage")
-        .select("sent_count")
-        .eq("user_id", user.id)
-        .eq("period", period)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: profile },
+    { data: app },
+    { data: workflows },
+    { data: usage },
+    { data: revisionRows },
+    { count: changeRequestsUsed },
+  ] = await Promise.all([
+    supabase.from("profiles").select("plan, full_name").eq("id", user.id).single(),
+    supabase
+      .from("apps")
+      .select("id, user_id, name, status, deploy_url, category")
+      .eq("id", params.appId)
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("automation_workflows")
+      .select("id, app_id, trigger_type, action_type, enabled, created_at, updated_at")
+      .eq("app_id", params.appId),
+    supabase
+      .from("automation_usage")
+      .select("sent_count")
+      .eq("user_id", user.id)
+      .eq("period", period)
+      .maybeSingle(),
+    supabase
+      .from("app_revisions")
+      .select("id, kind, status, request_text, changelog, changed_files, error, created_at, deployed_at")
+      .eq("app_id", params.appId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabase
+      .from("app_revisions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("kind", "change")
+      .gte("created_at", monthStartISO()),
+  ]);
 
   if (!app) redirect("/dashboard");
-  if (app.status !== "deployed" || !app.deploy_url) redirect("/dashboard");
+  // Reachable while a change request is mid-rebuild (status flips to
+  // "ready"/"deploying"); only bounce if the app was never deployed.
+  if (!app.deploy_url) redirect("/dashboard");
 
   const plan = (profile?.plan ?? "free") as Plan;
   const automationUsage = {
     sent: usage?.sent_count ?? 0,
     limit: AUTOMATION_SEND_LIMITS[plan],
   };
+  const changeQuota = {
+    used: changeRequestsUsed ?? 0,
+    limit: CHANGE_REQUEST_LIMITS[plan],
+  };
+  const initialRevisions = (revisionRows ?? []) as RevisionRow[];
 
   const SCHEMA = `app_${params.appId.slice(0, 8)}`;
   const tenantClient = createTenantServiceClient(SCHEMA);
@@ -89,6 +116,9 @@ export default async function AppSettingsPage(
       initialSettings={settings}
       initialWorkflows={workflows ?? []}
       automationUsage={automationUsage}
+      appStatus={app.status}
+      initialRevisions={initialRevisions}
+      changeQuota={changeQuota}
       unavailable={unavailable}
       colorsUnavailable={colorsUnavailable}
       galleryUnavailable={galleryUnavailable}
