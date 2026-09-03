@@ -74,16 +74,27 @@ export async function createPreviewApp(
   return { id: app.id, token, resumed: false };
 }
 
-/** Fire the normal generation pipeline for a preview (service-bearer). */
-export function triggerPreviewGenerate(appId: string): void {
-  void fetch(`${appOrigin()}/api/generate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
-    },
-    body: JSON.stringify({ appId, _preview: true }),
-  }).catch((err) => console.error("[preview] generate trigger failed:", err));
+/**
+ * Run the normal generation pipeline for a preview (service-bearer). This
+ * awaits /api/generate's non-streaming preview path — call it inside the
+ * caller's `after()` so the function stays alive until it finishes.
+ */
+export async function runPreviewGenerate(appId: string): Promise<void> {
+  try {
+    const res = await fetch(`${appOrigin()}/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+      },
+      body: JSON.stringify({ appId, _preview: true }),
+    });
+    if (!res.ok) {
+      console.error(`[preview] generate returned ${res.status} for ${appId}`);
+    }
+  } catch (err) {
+    console.error("[preview] generate failed:", err);
+  }
 }
 
 export interface PreviewView {

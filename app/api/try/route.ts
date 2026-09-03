@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createPreviewApp, triggerPreviewGenerate } from "@/lib/apps/preview";
+import { after, NextRequest, NextResponse } from "next/server";
+import { createPreviewApp, runPreviewGenerate } from "@/lib/apps/preview";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 export const runtime = "nodejs";
+// The response returns a token in ~1s, but `after()` keeps this function
+// alive to drive the (non-streaming) preview generation to completion.
+export const maxDuration = 800;
 
 const CATEGORIES: AppCategory[] = [
   "booking",
@@ -53,7 +56,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const { id, token, resumed } = await createPreviewApp(email, intake);
-    if (!resumed) triggerPreviewGenerate(id);
+    if (!resumed) {
+      // Runs after the response is sent; `after()` prevents the function
+      // from freezing mid-generation.
+      after(() => runPreviewGenerate(id));
+    }
     return NextResponse.json({ token, resumed }, { status: resumed ? 200 : 201 });
   } catch (err) {
     console.error("[api/try] create failed:", err);

@@ -309,7 +309,9 @@ export async function POST(req: NextRequest) {
           chunk.delta.type === "text_delta"
         ) {
           const text = chunk.delta.text;
-          await writer.write(encoder.encode(text));
+          // A preview generation has no client reading the stream — writing
+          // to it would just fill a buffer nobody drains. Only accumulate.
+          if (!isPreview) await writer.write(encoder.encode(text));
           fullText += text;
         }
       }
@@ -364,6 +366,15 @@ export async function POST(req: NextRequest) {
         // Writer may already be closed if client disconnected
       }
     }
+  }
+
+  // Preview (Phase 5b): no client is holding this request open, so a
+  // fire-and-forget stream gets ResponseAborted the moment the caller's
+  // function freezes. Run it to completion and return plain JSON — the
+  // caller invokes us inside `after()` so this function stays alive.
+  if (isPreview) {
+    await streamAndSave();
+    return NextResponse.json({ ok: true });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
