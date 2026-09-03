@@ -97,12 +97,15 @@ export async function editApp(
 ): Promise<EditResult> {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const message = await anthropic.messages.create({
+  // Stream: the SDK rejects a non-streaming request whose max_tokens
+  // implies it could run past 10 minutes.
+  const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildUserPrompt(current, requestText, ctx) }],
   });
+  const message = await stream.finalMessage();
 
   await logAiUsage({
     source: "app_edit",

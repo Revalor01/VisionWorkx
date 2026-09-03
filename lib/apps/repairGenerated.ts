@@ -80,14 +80,22 @@ export async function repairGenerated(
 
   while (problems.length > 0 && rounds < MAX_ROUNDS) {
     rounds++;
+    let text: string;
     let message: Anthropic.Message;
     try {
-      message = await anthropic.messages.create({
+      // Must stream: the SDK rejects a non-streaming request whose
+      // max_tokens implies it could run past 10 minutes.
+      const stream = anthropic.messages.stream({
         model: MODEL,
         max_tokens: MAX_TOKENS,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildUserPrompt(map, problems, ctx) }],
       });
+      message = await stream.finalMessage();
+      text = message.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("");
     } catch (err) {
       console.error("[repairGenerated] Anthropic call failed:", err);
       break;
@@ -99,11 +107,6 @@ export async function repairGenerated(
       inputTokens: message.usage.input_tokens,
       outputTokens: message.usage.output_tokens,
     });
-
-    const text = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
     const patch = parseFileMap(text);
     if (Object.keys(patch).length === 0) break; // nothing usable came back
 
