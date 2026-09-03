@@ -115,6 +115,8 @@ export interface CheckoutRequest {
   productName?: string;
   /** For mode "subscription": an existing Price id on the connected account. */
   priceId?: string;
+  /** For mode "subscription" without a priceId: billing interval (default month). */
+  interval?: "day" | "week" | "month" | "year";
   /** Echoed back on the session so the app can reconcile its own record. */
   metadata?: Record<string, string>;
 }
@@ -152,9 +154,23 @@ export async function createConnectedCheckout(
         },
       },
     ];
-  } else {
-    if (!req.priceId) throw new Error("priceId is required for a subscription");
+  } else if (req.priceId) {
     params.line_items = [{ price: req.priceId, quantity: 1 }];
+  } else {
+    // No pre-made Price — build a recurring one inline (Checkout supports
+    // price_data.recurring in subscription mode).
+    if (!req.amount || req.amount < 50) throw new Error("amount must be at least 50");
+    params.line_items = [
+      {
+        quantity: 1,
+        price_data: {
+          currency,
+          unit_amount: Math.round(req.amount),
+          recurring: { interval: req.interval ?? "month" },
+          product_data: { name: req.productName?.slice(0, 250) || "Membership" },
+        },
+      },
+    ];
   }
 
   const session = await platformStripe().checkout.sessions.create(params, {

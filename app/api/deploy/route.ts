@@ -687,7 +687,14 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
   return out;
 }
 
-async function setVercelEnvVars(projectId: string, schema: string) {
+async function setVercelEnvVars(
+  projectId: string,
+  schema: string,
+  appId: string,
+  checkoutSecret: string | null,
+) {
+  const appOrigin =
+    process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
   const vars = [
     {
       key: "NEXT_PUBLIC_SUPABASE_URL",
@@ -707,6 +714,25 @@ async function setVercelEnvVars(projectId: string, schema: string) {
       type: "plain",
       target: ["production", "preview"],
     },
+    // Phase 2 payments: only present once the owner has started Connect
+    // onboarding. The generated app calls STRIPE_CHECKOUT_URL server-side
+    // with APP_CHECKOUT_SECRET to mint Checkout sessions on their account.
+    ...(checkoutSecret
+      ? [
+          {
+            key: "STRIPE_CHECKOUT_URL",
+            value: `${appOrigin}/api/apps/${appId}/checkout`,
+            type: "plain",
+            target: ["production", "preview"],
+          },
+          {
+            key: "APP_CHECKOUT_SECRET",
+            value: checkoutSecret,
+            type: "encrypted",
+            target: ["production", "preview"],
+          },
+        ]
+      : []),
   ];
 
   for (const v of vars) {
@@ -769,7 +795,7 @@ async function runDeploy(appId: string, userEmail: string | null) {
 
   // 1. Fetch app record
   const appRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status,intake_data`,
+    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status,intake_data,checkout_secret,category`,
     { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
   );
   const [app] = await appRes.json();
@@ -967,7 +993,7 @@ CREATE TRIGGER emit_automation_event
   // must be present at build time, so doing this first means a single
   // deployment's build already has them (no second rebuild needed).
   const vercelProjectId = await getOrCreateVercelProject(projectName);
-  await setVercelEnvVars(vercelProjectId, SCHEMA);
+  await setVercelEnvVars(vercelProjectId, SCHEMA, appId, app.checkout_secret ?? null);
   await fetch(vercelUrl(`/v9/projects/${vercelProjectId}`), {
     method: "PATCH",
     headers: vercelHeaders,
