@@ -24,7 +24,7 @@ export default async function InsightsPage(props: {
   const [{ data: app }, { data: profile }] = await Promise.all([
     supabase
       .from("apps")
-      .select("id, user_id, name, category, deploy_url")
+      .select("id, user_id, name, category, secondary_categories, deploy_url")
       .eq("id", appId)
       .eq("user_id", user.id)
       .single(),
@@ -36,11 +36,12 @@ export default async function InsightsPage(props: {
     ? (Number(daysParam) as Window)
     : 30;
 
-  let insights = await getInsights(appId, app.category, days);
+  const cats = [app.category, ...(app.secondary_categories ?? [])];
+  let insights = await getInsights(appId, cats, days);
   // First visit before the nightly cron has run — pull the app's view live.
   if (!insights.hasData) {
     await rollupApp(appId, app.user_id!);
-    insights = await getInsights(appId, app.category, days);
+    insights = await getInsights(appId, cats, days);
   }
 
   return (

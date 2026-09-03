@@ -197,6 +197,7 @@ export type Database = {
           user_id: string | null;
           name: string;
           category: AppCategory;
+          secondary_categories: AppCategory[];
           status: AppStatus;
           intake_data: IntakeData | null;
           generated_code: string | null;
@@ -217,6 +218,7 @@ export type Database = {
           user_id?: string | null;
           name: string;
           category: AppCategory;
+          secondary_categories?: AppCategory[];
           status?: AppStatus;
           intake_data?: IntakeData | null;
           generated_code?: string | null;
@@ -235,6 +237,7 @@ export type Database = {
         Update: {
           name?: string;
           category?: AppCategory;
+          secondary_categories?: AppCategory[];
           status?: AppStatus;
           intake_data?: IntakeData | null;
           generated_code?: string | null;

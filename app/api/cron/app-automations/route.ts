@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   const { data: apps } = await service
     .from("apps")
-    .select("id, user_id, name, category")
+    .select("id, user_id, name, category, secondary_categories")
     .eq("status", "deployed")
     .not("user_id", "is", null)
     .order("created_at", { ascending: false })
@@ -86,7 +86,10 @@ export async function GET(req: NextRequest) {
   let apps_scanned = 0;
 
   for (const app of apps ?? []) {
-    const defs = timeBasedAutomations(app.category as AppCategory);
+    const defs = timeBasedAutomations([
+      app.category,
+      ...(app.secondary_categories ?? []),
+    ] as AppCategory[]);
     if (defs.length === 0) continue;
 
     const { data: workflows } = await service
