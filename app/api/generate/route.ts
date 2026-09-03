@@ -484,6 +484,28 @@ Category specifics:
 - **booking** — an optional deposit at booking time (\`mode: "payment"\`, \`amount\` = deposit). The booking stays "pending" until the deposit is confirmed.`
     : "";
 
+  const reportingSection = `
+
+## Reporting view (required — powers the owner's Insights dashboard)
+In the migration, after your tables, create a VIEW named exactly \`vw_metrics_daily\` with columns \`day\` (date), \`metric_key\` (text), \`value\` (numeric) — one row per day per metric, for activity in the last 180 days. Base \`day\` on the relevant timestamp column cast to \`::date\`.
+Only emit \`metric_key\` values whose underlying table you actually created. Do NOT invent metric names — use exactly these:
+- booking:    \`bookings_created\`, \`bookings_completed\`, \`bookings_cancelled\`, \`bookings_no_show\`, \`revenue_cents\`
+- crm:        \`leads_created\`, \`leads_converted\`, \`notes_added\`
+- inventory:  \`orders_created\`, \`orders_fulfilled\`, \`items_low_stock\`, \`revenue_cents\`
+- portal:     \`documents_shared\`, \`messages_sent\`, \`active_clients\`
+- invoicing:  \`invoices_sent\`, \`invoices_paid\`, \`quotes_created\`, \`revenue_cents\`
+- membership: \`members_new\`, \`members_churned\`, \`members_active\`, \`revenue_cents\`
+\`revenue_cents\` = SUM of amounts actually paid that day, in integer cents (from the payments flow if this app has one; otherwise omit the key entirely).
+The view MUST NOT reference any table you didn't create and MUST NOT error on an empty database. Example:
+\`\`\`sql
+create view vw_metrics_daily as
+  select created_at::date as day, 'bookings_created'::text as metric_key, count(*)::numeric as value
+    from bookings where created_at >= now() - interval '180 days' group by 1
+  union all
+  select updated_at::date, 'bookings_no_show', count(*)::numeric
+    from bookings where status = 'no_show' and updated_at >= now() - interval '180 days' group by 1;
+\`\`\``;
+
   return `Build a complete ${categoryDesc} for the following business.
 
 ## Business Details
@@ -496,7 +518,7 @@ Category specifics:
 ${intake.category}
 
 ## Required Features
-${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${paymentsSection}
+${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${paymentsSection}${reportingSection}
 
 ## Branding
 - Primary/background colors are runtime-configurable — do NOT hardcode any hex color. Use ONLY the \`primary\`/\`background\` Tailwind theme tokens per rule 13 (bg-primary, text-primary, bg-background, hover:bg-primary/90, etc.)

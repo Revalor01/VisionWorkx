@@ -232,6 +232,31 @@ export type Database = {
         };
         Relationships: [];
       };
+      app_metrics: {
+        Row: {
+          id: string;
+          app_id: string;
+          user_id: string;
+          day: string;
+          metric_key: string;
+          value: number;
+          captured_at: string;
+        };
+        Insert: {
+          id?: string;
+          app_id: string;
+          user_id: string;
+          day: string;
+          metric_key: string;
+          value?: number;
+          captured_at?: string;
+        };
+        Update: {
+          value?: number;
+          captured_at?: string;
+        };
+        Relationships: [];
+      };
       app_revisions: {
         Row: {
           id: string;
@@ -1801,6 +1826,7 @@ export type Database = {
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type App = Database["public"]["Tables"]["apps"]["Row"];
 export type AppRevision = Database["public"]["Tables"]["app_revisions"]["Row"];
+export type AppMetric = Database["public"]["Tables"]["app_metrics"]["Row"];
 export type Subscription = Database["public"]["Tables"]["subscriptions"]["Row"];
 export type AutomationEvent = Database["public"]["Tables"]["automation_events"]["Row"];
 export type AutomationWorkflow = Database["public"]["Tables"]["automation_workflows"]["Row"];

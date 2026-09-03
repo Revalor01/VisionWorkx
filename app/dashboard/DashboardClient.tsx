@@ -475,6 +475,15 @@ function AppCard({
 
         {app.status === "deployed" && app.deploy_url && (
           <Link
+            href={`/apps/${app.id}/insights`}
+            className="flex-1 min-w-[90px] text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            Insights
+          </Link>
+        )}
+
+        {app.status === "deployed" && app.deploy_url && (
+          <Link
             href={`/apps/${app.id}/settings`}
             className="flex-1 min-w-[90px] text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
           >
