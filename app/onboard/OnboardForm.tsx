@@ -246,6 +246,9 @@ export default function OnboardForm({
         location: data.location,
         description: data.description,
         category: data.category,
+        secondaryCategories: (data.secondaryCategories ?? []).filter(
+          (c) => c !== data.category,
+        ),
         features: data.features,
         primaryColor: data.primaryColor,
         backgroundColor: data.backgroundColor,
@@ -374,6 +377,10 @@ export default function OnboardForm({
                     onClick={() => {
                       update("category", cat.id);
                       update("features", []);
+                      update(
+                        "secondaryCategories",
+                        (data.secondaryCategories ?? []).filter((c) => c !== cat.id),
+                      );
                       setCategorySelected(true);
                     }}
                     className={`text-left p-5 rounded-2xl border-2 transition-all ${
@@ -390,6 +397,45 @@ export default function OnboardForm({
                   </button>
                 ))}
               </div>
+
+              {categorySelected && (
+                <div className="mt-5">
+                  <p className="text-sm font-medium text-navy-dark mb-1">
+                    Add more to the same app{" "}
+                    <span className="text-gray-400 font-normal">(optional)</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mb-2">
+                    A gym might be Booking + Membership + CRM. Pick up to 3.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.filter((c) => c.id !== data.category).map((c) => {
+                      const on = (data.secondaryCategories ?? []).includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() =>
+                            update(
+                              "secondaryCategories",
+                              on
+                                ? (data.secondaryCategories ?? []).filter((x) => x !== c.id)
+                                : [...(data.secondaryCategories ?? []), c.id].slice(0, 3),
+                            )
+                          }
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            on
+                              ? "border-navy-dark bg-navy-dark text-white"
+                              : "border-gray-300 text-gray-600 hover:border-navy"
+                          }`}
+                        >
+                          {on ? "✓ " : "+ "}
+                          {c.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -583,9 +629,12 @@ export default function OnboardForm({
                 )}
                 <ReviewRow
                   label="App type"
-                  value={
-                    CATEGORIES.find((c) => c.id === data.category)?.title ?? ""
-                  }
+                  value={[
+                    CATEGORIES.find((c) => c.id === data.category)?.title ?? "",
+                    ...(data.secondaryCategories ?? []).map(
+                      (c) => CATEGORIES.find((x) => x.id === c)?.title ?? c,
+                    ),
+                  ].join(" + ")}
                 />
                 <ReviewRow
                   label="Features"

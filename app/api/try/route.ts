@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
     location: (i.location ?? "").trim().slice(0, 160),
     description: (i.description ?? "").trim().slice(0, 600) || undefined,
     category: i.category,
+    secondaryCategories: Array.isArray(i.secondaryCategories)
+      ? (i.secondaryCategories.filter(
+          (c): c is AppCategory => CATEGORIES.includes(c as AppCategory) && c !== i.category,
+        ).slice(0, 3))
+      : [],
     features: Array.isArray(i.features) ? i.features.slice(0, 20).map(String) : [],
     primaryColor: /^#[0-9a-f]{6}$/i.test(i.primaryColor ?? "") ? i.primaryColor! : "#1A3A5C",
     backgroundColor: /^#[0-9a-f]{6}$/i.test(i.backgroundColor ?? "")

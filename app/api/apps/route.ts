@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       name: appName,
       category: intake.category,
+      secondary_categories: intake.secondaryCategories ?? [],
       status: "generating",
       intake_data: intake,
     })
@@ -94,6 +95,7 @@ export async function PATCH(req: NextRequest) {
     .update({
       name: appName,
       category: intake.category,
+      secondary_categories: intake.secondaryCategories ?? [],
       intake_data: intake,
       status: "generating",
       generated_code: null,

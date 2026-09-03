@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { automationsForCategory } from "@/lib/apps/automations";
+import { automationsForCategories } from "@/lib/apps/automations";
 import type {
   AppCategory,
   AutomationChannel,
@@ -18,18 +18,20 @@ interface Usage {
 export default function AutomationsPanel({
   appId,
   appCategory,
+  secondaryCategories = [],
   initialWorkflows,
   smsAvailable,
   usage,
 }: {
   appId: string;
   appCategory: AppCategory;
+  secondaryCategories?: AppCategory[];
   initialWorkflows: AutomationWorkflow[];
   smsAvailable: boolean;
   usage: Usage;
 }) {
   const supabase = useMemo(() => createBrowserClient(), []);
-  const defs = automationsForCategory(appCategory);
+  const defs = automationsForCategories([appCategory, ...secondaryCategories]);
   const [workflows, setWorkflows] = useState<AutomationWorkflow[]>(initialWorkflows);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [error, setError] = useState("");

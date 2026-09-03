@@ -38,6 +38,7 @@ export default function SettingsClient({
   appId,
   appName,
   appCategory,
+  secondaryCategories,
   userId,
   userName,
   userEmail,
@@ -58,6 +59,7 @@ export default function SettingsClient({
   appId: string;
   appName: string;
   appCategory: AppCategory;
+  secondaryCategories: AppCategory[];
   userId: string;
   userName: string | null;
   userEmail: string | null;
