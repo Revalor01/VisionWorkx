@@ -13,6 +13,15 @@ export type AppStatus =
   | "deployed"      // live at deploy_url
   | "failed"        // generation failed
   | "deploy_failed"; // Vercel deployment failed
+export type AppRevisionKind =
+  | "create"    // the initial generation
+  | "change"    // a plain-English edit request
+  | "rollback"; // redeploy of an earlier revision's snapshot
+export type AppRevisionStatus =
+  | "queued"    // request accepted, not yet picked up
+  | "building"  // edit + deploy in progress
+  | "deployed"  // live
+  | "failed";
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
 export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
 export type BlogProductSlug = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
@@ -206,6 +215,50 @@ export type Database = {
           intake_data?: IntakeData | null;
           generated_code?: string | null;
           deploy_url?: string | null;
+        };
+        Relationships: [];
+      };
+      app_revisions: {
+        Row: {
+          id: string;
+          app_id: string;
+          user_id: string;
+          kind: AppRevisionKind;
+          status: AppRevisionStatus;
+          request_text: string | null;
+          changelog: string | null;
+          file_snapshot: Record<string, string>;
+          changed_files: string[];
+          error: string | null;
+          preview_url: string | null;
+          created_at: string;
+          deployed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          app_id: string;
+          user_id: string;
+          kind?: AppRevisionKind;
+          status?: AppRevisionStatus;
+          request_text?: string | null;
+          changelog?: string | null;
+          file_snapshot?: Record<string, string>;
+          changed_files?: string[];
+          error?: string | null;
+          preview_url?: string | null;
+          created_at?: string;
+          deployed_at?: string | null;
+        };
+        Update: {
+          kind?: AppRevisionKind;
+          status?: AppRevisionStatus;
+          request_text?: string | null;
+          changelog?: string | null;
+          file_snapshot?: Record<string, string>;
+          changed_files?: string[];
+          error?: string | null;
+          preview_url?: string | null;
+          deployed_at?: string | null;
         };
         Relationships: [];
       };
@@ -1700,6 +1753,7 @@ export type Database = {
 // Convenience row types
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type App = Database["public"]["Tables"]["apps"]["Row"];
+export type AppRevision = Database["public"]["Tables"]["app_revisions"]["Row"];
 export type Subscription = Database["public"]["Tables"]["subscriptions"]["Row"];
 export type AutomationEvent = Database["public"]["Tables"]["automation_events"]["Row"];
 export type AutomationWorkflow = Database["public"]["Tables"]["automation_workflows"]["Row"];
