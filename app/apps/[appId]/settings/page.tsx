@@ -38,7 +38,7 @@ export default async function AppSettingsPage(
     supabase.from("profiles").select("plan, full_name").eq("id", user.id).single(),
     supabase
       .from("apps")
-      .select("id, user_id, name, status, deploy_url, category, payments_status")
+      .select("id, user_id, name, status, deploy_url, category, payments_status, custom_domain")
       .eq("id", params.appId)
       .eq("user_id", user.id)
       .single(),
@@ -126,6 +126,7 @@ export default async function AppSettingsPage(
       changeQuota={changeQuota}
       paymentsApplicable={categoryTakesPayments(app.category)}
       initialPaymentsStatus={app.payments_status}
+      initialCustomDomain={app.custom_domain}
       unavailable={unavailable}
       colorsUnavailable={colorsUnavailable}
       galleryUnavailable={galleryUnavailable}
