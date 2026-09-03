@@ -504,6 +504,24 @@ create view vw_metrics_daily as
   union all
   select updated_at::date, 'bookings_no_show', count(*)::numeric
     from bookings where status = 'no_show' and updated_at >= now() - interval '180 days' group by 1;
+\`\`\`
+
+## Automations view (required)
+Also create a VIEW named exactly \`vw_automation_due\` with columns \`trigger_type\` (text), \`ref_id\` (text), \`recipient_email\` (text, nullable), \`recipient_phone\` (text, nullable), \`context\` (jsonb). It returns rows that are **due for a time-based message right now** — an hourly job reads it and only ever sends once per (trigger_type, ref_id). Include only the trigger types that apply to this category and whose tables you built:
+- \`booking.reminder_24h\` — an appointment 23–25 hours from now that isn't cancelled. context: \`{ starts_at, service }\`.
+- \`booking.completed\` — a completed appointment that finished 23–25 hours ago. context: \`{}\`.
+- \`lead.stale_3d\` — a lead created 3–4 days ago still in a "new"/open state. context: \`{}\`.
+- \`invoice.overdue\` — an unpaid invoice whose due date passed 1–2 days ago. context: \`{ amount_cents }\`.
+- \`quote.stale_5d\` — a quote created 5–7 days ago still pending. context: \`{ amount_cents }\`.
+Pull \`recipient_email\` / \`recipient_phone\` from whatever contact columns your tables have (so store the customer's email, and phone where relevant, on bookings / leads / invoices / quotes). The view must be safe on an empty database and reference only tables you created. Example:
+\`\`\`sql
+create view vw_automation_due as
+  select 'booking.reminder_24h'::text as trigger_type, b.id::text as ref_id,
+         b.customer_email as recipient_email, b.customer_phone as recipient_phone,
+         jsonb_build_object('starts_at', b.starts_at, 'service', b.service_name) as context
+    from bookings b
+   where b.status <> 'cancelled'
+     and b.starts_at between now() + interval '23 hours' and now() + interval '25 hours';
 \`\`\``;
 
   return `Build a complete ${categoryDesc} for the following business.

@@ -28,6 +28,7 @@ export type PaymentsStatus =
   | "active";   // charges_enabled — the app can take payments
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
 export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
+export type AutomationChannel = "email" | "sms";
 export type BlogProductSlug = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
 export type BlogPostStatus = "draft" | "published";
 export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
@@ -366,6 +367,7 @@ export type Database = {
           trigger_type: string;
           action_type: string;
           enabled: boolean;
+          channel: AutomationChannel;
           created_at: string;
           updated_at: string;
         };
@@ -375,12 +377,34 @@ export type Database = {
           trigger_type: string;
           action_type: string;
           enabled?: boolean;
+          channel?: AutomationChannel;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           enabled?: boolean;
+          channel?: AutomationChannel;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      automation_time_log: {
+        Row: {
+          id: string;
+          app_id: string;
+          trigger_type: string;
+          ref_id: string;
+          sent_at: string;
+        };
+        Insert: {
+          id?: string;
+          app_id: string;
+          trigger_type: string;
+          ref_id: string;
+          sent_at?: string;
+        };
+        Update: {
+          sent_at?: string;
         };
         Relationships: [];
       };
@@ -390,6 +414,7 @@ export type Database = {
           user_id: string;
           period: string;
           sent_count: number;
+          sms_sent_count: number;
           updated_at: string;
         };
         Insert: {
@@ -397,10 +422,12 @@ export type Database = {
           user_id: string;
           period: string;
           sent_count?: number;
+          sms_sent_count?: number;
           updated_at?: string;
         };
         Update: {
           sent_count?: number;
+          sms_sent_count?: number;
           updated_at?: string;
         };
         Relationships: [];
