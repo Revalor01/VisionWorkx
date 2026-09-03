@@ -151,6 +151,57 @@ export async function deployFileMap(
 }
 
 /**
+ * A queued change-request revision has been turned into a concrete edit by
+ * lib/apps/editApp — record what it touched and ship the new code. The row
+ * already exists (POST /api/apps/[appId]/revisions created it as "queued"),
+ * so this updates it in place rather than inserting. finalizeRevision (from
+ * the deploy pipeline) later flips it to "deployed" / "failed".
+ */
+export async function shipRevisionEdit(params: {
+  revisionId: string;
+  appId: string;
+  previous: FileMap;
+  next: FileMap;
+  changelog: string;
+}): Promise<void> {
+  const service = createServiceClient();
+  const { changed } = diffFileMaps(params.previous, params.next);
+
+  await service
+    .from("app_revisions")
+    .update({
+      status: "building",
+      changelog: params.changelog.slice(0, 500),
+      file_snapshot: params.previous,
+      changed_files: changed,
+    })
+    .eq("id", params.revisionId);
+
+  await service
+    .from("apps")
+    .update({
+      generated_code: serializeFileMap(params.next),
+      status: "ready",
+      deploy_url: null,
+    })
+    .eq("id", params.appId);
+
+  triggerDeploy(params.appId);
+}
+
+/** Mark a revision failed with a reason (the edit engine declined, etc.). */
+export async function failRevision(revisionId: string, error: string): Promise<void> {
+  try {
+    await createServiceClient()
+      .from("app_revisions")
+      .update({ status: "failed", error: error.slice(0, 2000) })
+      .eq("id", revisionId);
+  } catch (err) {
+    console.error("[apps/redeploy] failRevision failed:", err);
+  }
+}
+
+/**
  * Close out the most recent in-flight revision for an app. Called by
  * app/api/deploy at the end of a run: `"deployed"` on success (with the
  * live URL), `"failed"` on any thrown error. A no-op when the app has no
