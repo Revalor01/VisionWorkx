@@ -28,9 +28,20 @@ describe("validateRawOutput", () => {
 
   it("flags truncation — blob doesn't end with [/FILENAME]", () => {
     const cut = "[FILENAME: a.ts]\nexport const a = 1;\n[/FILENAME]\n\n[FILENAME: b.tsx]\nexport function B() { return <div className=\"bor";
-    const problems = validateRawOutput(cut);
-    expect(problems.some((p) => p.includes("cut off"))).toBe(true);
-    expect(problems.some((p) => p.includes("never closed"))).toBe(true);
+    expect(validateRawOutput(cut).some((p) => p.includes("cut off"))).toBe(true);
+  });
+
+  it("does NOT flag a complete blob whose content mentions the literal [FILENAME:", () => {
+    const withReadme = [
+      "[FILENAME: README.md]",
+      "Files are emitted as `[FILENAME: path]` … `[/FILENAME]` blocks.",
+      "[/FILENAME]",
+      "",
+      "[FILENAME: app/page.tsx]",
+      "export default function P() { return null; }",
+      "[/FILENAME]",
+    ].join("\n");
+    expect(validateRawOutput(withReadme)).toEqual([]);
   });
 
   it("flags a long prose preamble before the first block", () => {

@@ -39,24 +39,23 @@ function migrationSql(map: FileMap): string {
 /* so these need the raw generation output, not the parsed map. */
 export function validateRawOutput(raw: string): string[] {
   const problems: string[] = [];
-  const opens = (raw.match(/\[FILENAME:/g) ?? []).length;
-  const closes = (raw.match(/\[\/FILENAME\]/g) ?? []).length;
+  const firstBlock = raw.indexOf("[FILENAME:");
 
-  if (opens === 0) {
+  if (firstBlock === -1) {
     problems.push("The output contains no [FILENAME: …] blocks at all.");
     return problems;
   }
+  // A well-formed generation ends with [/FILENAME]. If it doesn't, the last
+  // file is incomplete. We rely on this end-anchor rather than counting
+  // markers: a file's own content (a README explaining the format, a
+  // template string) can legitimately contain the literal "[FILENAME:",
+  // which would make raw counts report phantom truncation.
   if (!raw.trimEnd().endsWith("[/FILENAME]")) {
     problems.push(
       "The output was cut off mid-file — it doesn't end with [/FILENAME]. Re-emit the final file(s) in full.",
     );
   }
-  if (opens > closes) {
-    problems.push(
-      `${opens - closes} file block(s) were opened but never closed with [/FILENAME] — likely truncated.`,
-    );
-  }
-  const preamble = raw.slice(0, raw.indexOf("[FILENAME:")).trim();
+  const preamble = raw.slice(0, firstBlock).trim();
   if (preamble.length > 40) {
     problems.push(
       "There is prose before the first [FILENAME: block — output ONLY file blocks, no preamble.",
