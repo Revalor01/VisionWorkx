@@ -22,6 +22,10 @@ export type AppRevisionStatus =
   | "building"  // edit + deploy in progress
   | "deployed"  // live
   | "failed";
+export type PaymentsStatus =
+  | "none"      // Connect onboarding not started
+  | "pending"   // account created, Stripe still needs details
+  | "active";   // charges_enabled — the app can take payments
 export type SubscriptionStatus = "active" | "cancelled" | "past_due" | "trialing";
 export type AutomationOperation = "INSERT" | "UPDATE" | "DELETE";
 export type BlogProductSlug = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
@@ -196,6 +200,9 @@ export type Database = {
           intake_data: IntakeData | null;
           generated_code: string | null;
           deploy_url: string | null;
+          stripe_connect_account_id: string | null;
+          payments_status: PaymentsStatus;
+          checkout_secret: string | null;
           created_at: string;
         };
         Insert: {
@@ -207,6 +214,9 @@ export type Database = {
           intake_data?: IntakeData | null;
           generated_code?: string | null;
           deploy_url?: string | null;
+          stripe_connect_account_id?: string | null;
+          payments_status?: PaymentsStatus;
+          checkout_secret?: string | null;
           created_at?: string;
         };
         Update: {
@@ -216,6 +226,9 @@ export type Database = {
           intake_data?: IntakeData | null;
           generated_code?: string | null;
           deploy_url?: string | null;
+          stripe_connect_account_id?: string | null;
+          payments_status?: PaymentsStatus;
+          checkout_secret?: string | null;
         };
         Relationships: [];
       };
