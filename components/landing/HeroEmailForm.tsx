@@ -9,7 +9,7 @@ export default function HeroEmailForm() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    router.push(`/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`);
+    router.push(`/try${email ? `?email=${encodeURIComponent(email)}` : ""}`);
   }
 
   return (

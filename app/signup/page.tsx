@@ -55,6 +55,14 @@ function SignupForm() {
 
     if (data.session) {
       // Email confirmation disabled in Supabase dashboard — session is live immediately
+      const claim = searchParams.get("claim");
+      if (claim) {
+        await fetch("/api/try/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: claim }),
+        }).catch(() => {});
+      }
       router.push(next);
       router.refresh();
     } else {

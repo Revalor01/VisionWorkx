@@ -499,7 +499,7 @@ export default function AdminDashboard({
   const filteredApps = useMemo(() => {
     const q = appSearch.toLowerCase();
     return apps.filter((a) => {
-      const email = userEmails[a.user_id] ?? "";
+      const email = (a.user_id && userEmails[a.user_id]) ?? "";
       const matchesSearch =
         !q ||
         a.name.toLowerCase().includes(q) ||
@@ -2090,7 +2090,7 @@ function AppTable({
           ) : (
             apps.map((app) => {
               const statusCfg = STATUS_STYLE[app.status] ?? { label: app.status, cls: "bg-zinc-100 text-zinc-600" };
-              const email = userEmails[app.user_id] ?? app.user_id.slice(0, 8) + "…";
+              const email = (app.user_id && userEmails[app.user_id]) || (app.user_id ? app.user_id.slice(0, 8) + "…" : "preview");
               const msg = redeployMessages[app.id];
               return (
                 <tr key={app.id} className="hover:bg-slate-50">

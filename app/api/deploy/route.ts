@@ -795,7 +795,7 @@ async function runDeploy(appId: string, userEmail: string | null) {
 
   // 1. Fetch app record
   const appRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status,intake_data,checkout_secret,category`,
+    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status,intake_data,checkout_secret,category,preview_email`,
     { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
   );
   const [app] = await appRes.json();
@@ -1121,7 +1121,7 @@ export async function POST(req: NextRequest) {
   if (!userEmail) {
     const { data: appData } = await serviceClient
       .from("apps")
-      .select("user_id")
+      .select("user_id, preview_email")
       .eq("id", appId)
       .single();
     if (appData?.user_id) {
@@ -1129,6 +1129,9 @@ export async function POST(req: NextRequest) {
         appData.user_id
       );
       userEmail = userData?.user?.email ?? null;
+    } else if (appData?.preview_email) {
+      // No account yet (Phase 5b preview) — notify the visitor who started it.
+      userEmail = appData.preview_email;
     }
   }
 
