@@ -1,16 +1,17 @@
 // Phase 6a: catch the common ways a one-shot generation is broken BEFORE
-// it's saved and deployed, so a targeted repair pass can fix them in a
-// cheap Claude call instead of a failed Vercel build 15 seconds later.
+// it's saved and deployed, so a targeted repair pass (lib/apps/repairGenerated)
+// can fix them in a cheap Claude call instead of a failed Vercel build — or
+// a live app with 404ing pages — 15 seconds later.
 
 import type { AppCategory } from "@/lib/database.types";
-import { categoryTakesPayments } from "@/lib/apps/payments";
 import type { FileMap } from "@/lib/apps/fileMap";
 
-const REQUIRED_FILES = [
-  "app/layout.tsx",
-  "app/page.tsx",
-  ".env.local.example",
-];
+// Categories that CANNOT function without collecting money (unlike booking,
+// where a deposit is optional) — so a generated one that never references
+// the Checkout bridge is broken.
+const PAYMENTS_REQUIRED: readonly AppCategory[] = ["invoicing", "membership"];
+
+const REQUIRED_FILES = ["app/layout.tsx", "app/page.tsx", ".env.local.example"];
 
 // One of each pair must exist (the generator has used both names historically).
 const REQUIRED_EITHER: [string, string][] = [
@@ -34,17 +35,52 @@ function migrationSql(map: FileMap): string {
     .join("\n");
 }
 
-/**
- * Return a list of concrete problems with a generated file map. Empty means
- * it passed. Each string is phrased so it can go straight into a repair
- * prompt.
- */
-export function validateGenerated(map: FileMap, category: AppCategory): string[] {
+/** Blob-level problems — a truncated last block never becomes a map entry, */
+/* so these need the raw generation output, not the parsed map. */
+export function validateRawOutput(raw: string): string[] {
   const problems: string[] = [];
+  const opens = (raw.match(/\[FILENAME:/g) ?? []).length;
+  const closes = (raw.match(/\[\/FILENAME\]/g) ?? []).length;
+
+  if (opens === 0) {
+    problems.push("The output contains no [FILENAME: …] blocks at all.");
+    return problems;
+  }
+  if (!raw.trimEnd().endsWith("[/FILENAME]")) {
+    problems.push(
+      "The output was cut off mid-file — it doesn't end with [/FILENAME]. Re-emit the final file(s) in full.",
+    );
+  }
+  if (opens > closes) {
+    problems.push(
+      `${opens - closes} file block(s) were opened but never closed with [/FILENAME] — likely truncated.`,
+    );
+  }
+  const preamble = raw.slice(0, raw.indexOf("[FILENAME:")).trim();
+  if (preamble.length > 40) {
+    problems.push(
+      "There is prose before the first [FILENAME: block — output ONLY file blocks, no preamble.",
+    );
+  }
+  return problems;
+}
+
+/**
+ * Full check: blob-level (truncation, preamble) + map-level (required
+ * files, unresolved imports, migration safety, the reporting/automation
+ * contracts, payments wiring, literal colours). Empty means it passed.
+ * Each string is phrased to go straight into a repair prompt.
+ */
+export function validateGenerated(
+  raw: string,
+  map: FileMap,
+  category: AppCategory,
+): string[] {
+  const problems: string[] = [...validateRawOutput(raw)];
   const paths = new Set(Object.keys(map));
   const has = (p: string) => paths.has(p);
 
-  // 1. Required files
+  // Required files
   for (const f of REQUIRED_FILES) {
     if (!has(f)) problems.push(`Missing required file: ${f}`);
   }
@@ -54,7 +90,7 @@ export function validateGenerated(map: FileMap, category: AppCategory): string[]
   const hasMigration = [...paths].some((p) => /supabase\/migrations\/.*\.sql$/.test(p));
   if (!hasMigration) problems.push("Missing the schema file under supabase/migrations/.");
 
-  // 2. Unresolved local imports
+  // Unresolved local imports
   const resolvable = (spec: string) =>
     [spec, `${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`, `${spec}/index.tsx`].some(has);
   const missing = new Set<string>();
@@ -68,26 +104,18 @@ export function validateGenerated(map: FileMap, category: AppCategory): string[]
     problems.push(`A file imports "@/${m}" but no such file was generated — create it or fix the import.`);
   }
 
-  // 3. Truncation — a file block that never closed usually means the
-  //    generation was cut off mid-stream.
-  for (const [p, content] of Object.entries(map)) {
-    if (content.includes("[FILENAME:") || content.trimEnd().endsWith("[/FILENAME")) {
-      problems.push(`File ${p} looks truncated (contains a stray file marker) — regenerate it in full.`);
-    }
-  }
-
-  // 4. Migration safety (the multi-tenant rule)
+  // Migration safety (the multi-tenant rule)
   const sql = migrationSql(map);
   if (FORBIDDEN_MIGRATION.test(sql)) {
     problems.push(
-      "The migration has a CREATE/ALTER/DROP qualified with public./auth./storage. — remove the schema qualifier; the migration runs inside the tenant's own schema.",
+      "The migration has a CREATE/ALTER/DROP qualified with public./auth./storage. — remove the schema qualifier; it runs inside the tenant's own schema.",
     );
   }
   if (/\bon\s+auth\.users\b/i.test(sql) && /\btrigger\b/i.test(sql)) {
     problems.push("The migration defines a trigger on auth.users — forbidden. Insert the profile row from app code instead.");
   }
 
-  // 5. Reporting contracts (Phase 3/4)
+  // Reporting / automation contracts
   if (hasMigration && !/\bvw_metrics_daily\b/.test(sql)) {
     problems.push("The migration is missing the required `vw_metrics_daily` view (day/metric_key/value).");
   }
@@ -97,8 +125,8 @@ export function validateGenerated(map: FileMap, category: AppCategory): string[]
     );
   }
 
-  // 6. Payments wiring for the categories that need it
-  if (categoryTakesPayments(category)) {
+  // Payments wiring for the categories that can't work without it
+  if (PAYMENTS_REQUIRED.includes(category)) {
     const usesCheckout = Object.values(map).some((c) => c.includes("STRIPE_CHECKOUT_URL"));
     if (!usesCheckout) {
       problems.push(
@@ -107,7 +135,7 @@ export function validateGenerated(map: FileMap, category: AppCategory): string[]
     }
   }
 
-  // 7. Literal hex colours (rule 13) — report the worst offenders only.
+  // Literal hex colours (rule 13) — worst offenders only
   const hexFiles = Object.entries(map)
     .filter(([p, c]) => isCode(p) && HEX_CLASS_RE.test(c))
     .map(([p]) => p);
