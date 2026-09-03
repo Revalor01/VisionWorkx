@@ -4,8 +4,9 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
 import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
-import { parseFileList } from "@/lib/apps/fileMap";
-import type { IntakeData } from "@/lib/database.types";
+import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
+import { repairGenerated } from "@/lib/apps/repairGenerated";
+import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
 // validated before ever being interpolated into raw SQL for the site_settings
@@ -68,6 +69,38 @@ async function vercelPost(path: string, body: unknown) {
       `Vercel POST ${path} → ${res.status}: ${(await res.text()).slice(0, 400)}`
     );
   return res.json();
+}
+
+// Thrown by runDeploy when Vercel reports the customer app's build failed —
+// carries the compiler errors so the POST handler can run one repair pass.
+class BuildError extends Error {
+  constructor(
+    public readonly state: string,
+    public readonly logs: string,
+  ) {
+    super(`Build ${state}`);
+    this.name = "BuildError";
+  }
+}
+
+const BUILD_ERROR_LINE =
+  /(error|Type error|Cannot find|Module not found|Failed to compile|does not exist on type|has no exported member|is not assignable|Unexpected token|Expected|SyntaxError)/i;
+
+// Pull the failing lines out of a deployment's build log.
+async function fetchBuildErrors(deployId: string): Promise<string> {
+  const res = await fetch(
+    vercelUrl(`/v3/deployments/${deployId}/events?builds=1&direction=backward&limit=400`),
+    { headers: vercelHeaders },
+  );
+  if (!res.ok) return "";
+  const events = await res.json();
+  const lines: string[] = [];
+  for (const e of Array.isArray(events) ? events : []) {
+    const text: string = e?.payload?.text ?? e?.text ?? "";
+    if (text && BUILD_ERROR_LINE.test(text)) lines.push(text.replace(/\[[0-9;]*m/g, "").trimEnd());
+  }
+  // Newest-first from the API; show oldest-first, cap the volume.
+  return lines.reverse().slice(-60).join("\n").slice(0, 6000);
 }
 
 async function vercelGet(path: string) {
@@ -1015,7 +1048,8 @@ CREATE TRIGGER emit_automation_event
     const status = await vercelGet(`/v13/deployments/${deployId}`);
     if (status.readyState === "READY") break;
     if (status.readyState === "ERROR" || status.readyState === "CANCELED") {
-      throw new Error(`Build ${status.readyState}`);
+      const logs = await fetchBuildErrors(deployId).catch(() => "");
+      throw new BuildError(status.readyState, logs);
     }
   }
 
@@ -1049,7 +1083,7 @@ CREATE TRIGGER emit_automation_event
 
 // ── POST /api/deploy ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  let body: { appId?: string; _internal?: boolean };
+  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -1096,7 +1130,7 @@ export async function POST(req: NextRequest) {
 
   const { data: appCheck } = await serviceClient
     .from("apps")
-    .select("id, status")
+    .select("id, status, name, category")
     .eq("id", appId)
     .single();
 
@@ -1130,6 +1164,49 @@ export async function POST(req: NextRequest) {
     const url = await runDeploy(appId, userEmail);
     return NextResponse.json({ url });
   } catch (err) {
+    // The customer app failed to BUILD (not a pipeline error). If this
+    // isn't already a repair attempt, run one repair pass over its source
+    // keyed on the compiler errors, then re-trigger a fresh deploy (own
+    // time budget). Fresh /api/deploy calls with _repairAttempt never
+    // repair again — one shot only.
+    if (err instanceof BuildError && err.logs && !body._repairAttempt) {
+      console.error("[api/deploy] build failed, repairing:\n", err.logs.slice(0, 800));
+      try {
+        const { data: srcRow } = await serviceClient
+          .from("apps")
+          .select("generated_code")
+          .eq("id", appId)
+          .single();
+        const current = parseFileMap(srcRow?.generated_code ?? "");
+        if (Object.keys(current).length > 0) {
+          const { map: fixed } = await repairGenerated(
+            current,
+            [
+              "The Vercel build of this app FAILED to compile. Fix exactly these errors — re-emit each affected file in full:\n\n" +
+                err.logs,
+            ],
+            { appName: appCheck.name, category: appCheck.category as AppCategory },
+          );
+          const fixedCode = serializeFileMap(fixed);
+          if (fixedCode !== serializeFileMap(current)) {
+            await serviceClient
+              .from("apps")
+              .update({ generated_code: fixedCode, status: "ready" })
+              .eq("id", appId);
+            const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
+            void fetch(`${origin}/api/deploy`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+              body: JSON.stringify({ appId, _internal: true, _repairAttempt: true }),
+            }).catch((e) => console.error("[api/deploy] repair redeploy trigger failed:", e));
+            return NextResponse.json({ repaired: true, redeploying: true }, { status: 202 });
+          }
+        }
+      } catch (repairErr) {
+        console.error("[api/deploy] repair pass failed:", repairErr);
+      }
+    }
+
     console.error("[api/deploy]", err);
     try {
       await serviceClient.from("apps").update({ status: "failed" }).eq("id", appId);
