@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
     .from("apps")
     .select("id, user_id, name, category")
     .eq("status", "deployed")
+    .not("user_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(MAX_APPS_PER_RUN);
 
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
         .maybeSingle();
       if (seen) continue;
 
-      const u = await loadUsage(app.user_id);
+      const u = await loadUsage(app.user_id!);
       const msg = renderAutomationMessage(raw.trigger_type, app.name, raw.context ?? {});
 
       // SMS channel with no phone on file falls back to email.
@@ -155,7 +156,7 @@ export async function GET(req: NextRequest) {
         trigger_type: raw.trigger_type,
         ref_id: refId,
       });
-      await bumpUsage(app.user_id, useSms ? "sms" : "email");
+      await bumpUsage(app.user_id!, useSms ? "sms" : "email");
       sent++;
       perApp++;
     }

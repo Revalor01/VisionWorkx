@@ -39,7 +39,7 @@ export default async function InsightsPage(props: {
   let insights = await getInsights(appId, app.category, days);
   // First visit before the nightly cron has run — pull the app's view live.
   if (!insights.hasData) {
-    await rollupApp(appId, app.user_id);
+    await rollupApp(appId, app.user_id!);
     insights = await getInsights(appId, app.category, days);
   }
 

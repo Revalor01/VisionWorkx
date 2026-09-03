@@ -62,7 +62,8 @@ export async function recordInitialRevision(appId: string): Promise<void> {
       .select("user_id")
       .eq("id", appId)
       .single();
-    if (!app) return;
+    // Previews (user_id null) have no revision history until they're claimed.
+    if (!app?.user_id) return;
 
     await service.from("app_revisions").insert({
       app_id: appId,
@@ -112,6 +113,9 @@ export async function deployFileMap(
     .single();
   if (error || !app) {
     throw new Error(`deployFileMap: app ${appId} not found`);
+  }
+  if (!app.user_id) {
+    throw new Error("deployFileMap: previews can't be edited — claim the app first");
   }
 
   const previous: FileMap = app.generated_code

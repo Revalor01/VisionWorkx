@@ -194,7 +194,7 @@ export type Database = {
       apps: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           name: string;
           category: AppCategory;
           status: AppStatus;
@@ -206,11 +206,15 @@ export type Database = {
           checkout_secret: string | null;
           vercel_project_id: string | null;
           custom_domain: string | null;
+          preview_token: string | null;
+          preview_email: string | null;
+          preview_expires_at: string | null;
+          claimed_at: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
           name: string;
           category: AppCategory;
           status?: AppStatus;
@@ -222,6 +226,10 @@ export type Database = {
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;
+          preview_token?: string | null;
+          preview_email?: string | null;
+          preview_expires_at?: string | null;
+          claimed_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -231,11 +239,16 @@ export type Database = {
           intake_data?: IntakeData | null;
           generated_code?: string | null;
           deploy_url?: string | null;
+          user_id?: string | null;
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;
+          preview_token?: string | null;
+          preview_email?: string | null;
+          preview_expires_at?: string | null;
+          claimed_at?: string | null;
         };
         Relationships: [];
       };

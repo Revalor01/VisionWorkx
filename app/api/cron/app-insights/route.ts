@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     .from("apps")
     .select("id, user_id")
     .eq("status", "deployed")
+    .not("user_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(MAX_APPS_PER_RUN);
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   let withData = 0;
   for (const app of apps ?? []) {
     try {
-      const n = await rollupApp(app.id, app.user_id);
+      const n = await rollupApp(app.id, app.user_id!);
       processed++;
       if (n > 0) withData++;
     } catch (err) {
