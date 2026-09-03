@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { logAiUsage } from "@/lib/aiUsage";
+import { recordInitialRevision } from "@/lib/apps/redeploy";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -319,6 +320,10 @@ export async function POST(req: NextRequest) {
         .from("apps")
         .update({ generated_code: fullText, status: "ready" })
         .eq("id", appId);
+
+      // Open the app's revision history with this first build (snapshot is
+      // the empty map). finalizeRevision in /api/deploy closes it out.
+      await recordInitialRevision(appId);
 
       // Kick off deploy pipeline (fire-and-forget via internal API route).
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";

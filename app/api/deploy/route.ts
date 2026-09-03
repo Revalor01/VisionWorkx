@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
 import { logAiUsage } from "@/lib/aiUsage";
+import { finalizeRevision } from "@/lib/apps/redeploy";
 import type { IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -1006,6 +1007,9 @@ CREATE TRIGGER emit_automation_event
     status: "deployed",
   });
 
+  // Close out this build's revision row (no-op for apps with no open one).
+  await finalizeRevision(appId, "deployed", { deployUrl: finalUrl });
+
   if (RESEND_KEY && userEmail) {
     await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -1109,6 +1113,7 @@ export async function POST(req: NextRequest) {
     try {
       await serviceClient.from("apps").update({ status: "failed" }).eq("id", appId);
     } catch { /* best-effort */ }
+    await finalizeRevision(appId, "failed", { error: (err as Error).message });
     return NextResponse.json(
       { error: (err as Error).message },
       { status: 500 }
