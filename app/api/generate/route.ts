@@ -232,18 +232,26 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
 // POST /api/generate
 // ---------------------------------------------------------------
 export async function POST(req: NextRequest) {
-  // Auth check via session cookie
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  // A preview generation (Phase 5b) is triggered server-to-server with the
+  // service-role key and has no session; everything else needs one.
+  const isPreview =
+    (req.headers.get("authorization") ?? "") ===
+    `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`;
 
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let userId: string | null = null;
+  if (!isPreview) {
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    userId = user.id;
   }
 
-  let body: { appId?: string };
+  let body: { appId?: string; _preview?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -255,14 +263,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing appId" }, { status: 400 });
   }
 
-  // Fetch app record — service client bypasses RLS, ownership verified by user_id filter
+  // Fetch app record — service client bypasses RLS, ownership verified by
+  // the user_id filter (skipped for a preview, which has no owner yet).
   const serviceClient = createServiceClient();
-  const { data: app, error: appError } = await serviceClient
-    .from("apps")
-    .select("*")
-    .eq("id", appId)
-    .eq("user_id", user.id)
-    .single();
+  let appQuery = serviceClient.from("apps").select("*").eq("id", appId);
+  if (!isPreview) appQuery = appQuery.eq("user_id", userId!);
+  const { data: app, error: appError } = await appQuery.single();
 
   if (appError || !app) {
     return NextResponse.json({ error: "App not found" }, { status: 404 });
