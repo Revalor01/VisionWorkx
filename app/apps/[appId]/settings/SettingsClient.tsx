@@ -23,6 +23,7 @@ import type {
 import RequestChangePanel, { type RevisionRow } from "./RequestChangePanel";
 import PaymentsCard from "./PaymentsCard";
 import AutomationsPanel from "./AutomationsPanel";
+import DomainCard from "./DomainCard";
 
 const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = [
   { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourbusiness" },
@@ -49,6 +50,7 @@ export default function SettingsClient({
   changeQuota,
   paymentsApplicable,
   initialPaymentsStatus,
+  initialCustomDomain,
   unavailable,
   colorsUnavailable,
   galleryUnavailable,
@@ -77,6 +79,7 @@ export default function SettingsClient({
   changeQuota: { used: number; limit: number };
   paymentsApplicable: boolean;
   initialPaymentsStatus: PaymentsStatus;
+  initialCustomDomain: string | null;
   unavailable: boolean;
   colorsUnavailable: boolean;
   galleryUnavailable: boolean;
@@ -253,6 +256,20 @@ export default function SettingsClient({
           {paymentsApplicable && (
             <PaymentsCard appId={appId} initialStatus={initialPaymentsStatus} />
           )}
+          <DomainCard appId={appId} plan={plan} initialDomain={initialCustomDomain} />
+          <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <h2 className="font-semibold text-navy-dark mb-1">Export your app</h2>
+            <p className="text-gray-500 text-sm mb-4">
+              Download the full source and a CSV of every database table. It&apos;s your code and
+              your data — you can host it anywhere.
+            </p>
+            <a
+              href={`/api/apps/${appId}/export`}
+              className="inline-block border border-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Download export (.zip)
+            </a>
+          </section>
         </div>
 
         {unavailable ? (
