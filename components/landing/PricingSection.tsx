@@ -13,8 +13,11 @@ const PLANS = [
     description: "Perfect for getting your first business app live.",
     features: [
       "1 AI-generated app",
-      "Hosting included",
-      "Full app functionality",
+      "Card payments — paid out to your own Stripe account",
+      "Staff logins & team invites",
+      "Custom domain",
+      "Plain-English changes to your live app, anytime",
+      "Owner dashboard + CSV export",
       "VisionWorkx Automation — 100 emails/mo",
       "Email support",
       "14-day free trial",
@@ -31,8 +34,11 @@ const PLANS = [
     description: "For growing businesses that need more reach.",
     features: [
       "3 AI-generated apps",
-      "Hosting included",
-      "Full app functionality",
+      "Card payments — paid out to your own Stripe account",
+      "Staff logins & team invites",
+      "Custom domain",
+      "Plain-English changes to your live app, anytime",
+      "Owner dashboard + CSV export",
       "VisionWorkx Automation — 500 emails/mo",
       "Priority email support",
       "14-day free trial",
@@ -49,8 +55,11 @@ const PLANS = [
     description: "For agencies and power users with no limits.",
     features: [
       "Unlimited AI-generated apps",
-      "Hosting included",
-      "Full app functionality",
+      "Card payments — paid out to your own Stripe account",
+      "Staff logins & team invites",
+      "Custom domain",
+      "Plain-English changes to your live app, anytime",
+      "Owner dashboard + CSV export",
       "VisionWorkx Automation — 2,000 emails/mo",
       "Priority email support",
       "14-day free trial",
@@ -224,6 +233,13 @@ export default function PricingSection() {
         <p className="text-center text-sm text-gray-400 mt-8">
           All plans include a 14-day free trial. No credit card required to
           start.
+        </p>
+        <p className="text-center text-sm text-gray-500 mt-2">
+          Not ready to sign up?{" "}
+          <Link href="/try" className="font-semibold text-navy hover:underline">
+            Preview a real app first
+          </Link>{" "}
+          — free, no account.
         </p>
       </div>
     </section>

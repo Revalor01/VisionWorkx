@@ -39,14 +39,21 @@ const HOW_IT_WORKS = [
     icon: "⚡",
     title: "AI Generates It",
     body: "Our AI builds a complete, production-ready web app tailored to your exact requirements — code, design, and database included.",
-    tag: "Under 5 minutes",
+    tag: "~10 minutes",
   },
   {
     step: "03",
     icon: "🚀",
     title: "Go Live Instantly",
-    body: "Your app is automatically deployed with your branding. Share the link with your customers and start growing right away.",
-    tag: "Same day",
+    body: "Your app deploys automatically with your branding — on your own custom domain when you're ready. Share it and start taking bookings and payments the same day.",
+    tag: "Minutes",
+  },
+  {
+    step: "04",
+    icon: "🔄",
+    title: "Change It Anytime",
+    body: "Need a new field, a different workflow, a price change, staff logins? Describe it in plain English and your live app updates — no rebuild, no developer, no wait.",
+    tag: "Anytime",
   },
 ];
 
@@ -59,9 +66,9 @@ const CATEGORIES = [
     features: [
       "Public booking page",
       "Deposit & cancellation policies",
-      "Staff scheduling",
+      "Card payments straight to your bank (Stripe)",
+      "Staff logins for your team",
       "Calendar management",
-      "Payment collection",
     ],
   },
   {
@@ -74,7 +81,7 @@ const CATEGORIES = [
       "Lead pipeline tracking",
       "Deal stage tracking",
       "Notes & activity history",
-      "Revenue reporting",
+      "Owner dashboard with live metrics",
     ],
   },
   {
@@ -87,7 +94,7 @@ const CATEGORIES = [
       "Order management",
       "Barcode & SKU lookup",
       "Supplier contacts",
-      "Sales reporting",
+      "Owner dashboard with live metrics",
     ],
   },
   {
@@ -99,7 +106,7 @@ const CATEGORIES = [
       "Secure client login",
       "Document sharing",
       "Project status tracking",
-      "Direct messaging",
+      "Team logins & roles",
       "Invoice history",
     ],
   },
@@ -111,7 +118,7 @@ const CATEGORIES = [
     features: [
       "Quote & estimate builder",
       "One-click invoicing",
-      "Online payment collection",
+      "Card payments straight to your bank (Stripe)",
       "Automatic payment reminders",
       "Job history tracking",
     ],
@@ -122,10 +129,10 @@ const CATEGORIES = [
     desc: "Manage recurring memberships, track check-ins, and automate billing.",
     for: "Gyms · Studios · Clubs · Wellness Centers",
     features: [
-      "Recurring membership billing",
+      "Recurring billing to your own Stripe account",
       "Member check-in tracking",
       "Plan tiers & pricing",
-      "Auto-renewal & cancellations",
+      "Staff check-in logins",
       "Attendance reporting",
     ],
   },
@@ -147,9 +154,42 @@ const WHY_VISION_WORKX = [
 ];
 
 const STATS = [
-  { value: "100+", label: "Apps Generated" },
-  { value: "48hr", label: "Average Delivery" },
-  { value: "4.9★", label: "Customer Rating" },
+  { value: "~10 min", label: "From description to live app" },
+  { value: "6 app types", label: "Combine as many as you need" },
+  { value: "$0", label: "To preview before you sign up" },
+];
+
+const EVERY_APP = [
+  {
+    icon: "💳",
+    title: "Card payments",
+    body: "Take deposits, invoices, and memberships. Money goes straight to your own Stripe account — we never hold it.",
+  },
+  {
+    icon: "📊",
+    title: "Owner dashboard",
+    body: "A live metrics view in every app — revenue, bookings, active members — so you see what's working.",
+  },
+  {
+    icon: "👥",
+    title: "Staff logins",
+    body: "Invite your team with a link. Each person gets their own login; you control who sees what.",
+  },
+  {
+    icon: "🌐",
+    title: "Custom domain",
+    body: "Launch on yourbusiness.com — set it up yourself from the dashboard, no support ticket.",
+  },
+  {
+    icon: "⬇️",
+    title: "Your data, exportable",
+    body: "Export everything to CSV anytime. Your business, your data.",
+  },
+  {
+    icon: "🔄",
+    title: "Plain-English edits",
+    body: "Change any screen, field, or rule by describing it. Your live app updates in place.",
+  },
 ];
 
 export default function LandingPage() {
@@ -225,19 +265,26 @@ export default function LandingPage() {
               </h1>
 
               <p className="mt-6 text-lg md:text-xl text-blue-100/80 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                Get a fully functional, deployed web app custom-built for your
-                business — described in plain English, live in days, no
-                developers needed.
+                Describe your business in plain English and get a working web app
+                — bookings, card payments, customer records, staff logins —
+                deployed live in minutes. Need a change later? Just ask for it.
+                No developers, ever.
               </p>
 
               <div className="mt-8 flex flex-col items-center lg:items-start gap-4">
                 <HeroEmailForm />
+                <Link
+                  href="/try"
+                  className="text-sm font-medium text-blue-300 hover:text-white underline underline-offset-4 decoration-blue-500/50 hover:decoration-white transition-all"
+                >
+                  or see a real app built for a business like yours first →
+                </Link>
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-1 text-xs text-blue-300/80">
                   <span className="flex items-center gap-1">
-                    <span className="text-green-400">✓</span> No credit card required
+                    <span className="text-green-400">✓</span> Preview a real app before you sign up
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="text-green-400">✓</span> 14-day free trial
+                    <span className="text-green-400">✓</span> No card for the preview
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="text-green-400">✓</span> Cancel anytime
@@ -349,8 +396,9 @@ export default function LandingPage() {
             ))}
           </ul>
           <p className="mt-8 text-gray-600 text-lg">
-            Vision Workx automates these tasks and builds the app your
-            business needs — instantly.
+            Vision Workx builds the app your business needs in minutes —
+            payments, scheduling, customers, and team access in one place — and
+            keeps changing it as you grow.
           </p>
         </div>
       </section>
@@ -363,18 +411,18 @@ export default function LandingPage() {
               How It Works
             </p>
             <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
-              From idea to live app in days
+              From idea to live app in minutes
             </h2>
             <p className="mt-3 text-gray-500 text-lg">
-              Three steps. No technical skills required.
+              Four steps. No technical skills required.
             </p>
           </div>
 
-          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
             {/* Connector line (desktop only) */}
             <div
               aria-hidden
-              className="hidden md:block absolute top-12 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px border-t-2 border-dashed border-gray-200"
+              className="hidden md:block absolute top-12 left-[calc(12.5%+28px)] right-[calc(12.5%+28px)] h-px border-t-2 border-dashed border-gray-200"
             />
 
             {HOW_IT_WORKS.map((item) => (
@@ -411,7 +459,8 @@ export default function LandingPage() {
               Built for your type of business
             </h2>
             <p className="mt-3 text-gray-500 text-lg">
-              Choose a category — we handle the rest.
+              Pick your main type — then add any others you need. A gym can be
+              booking + memberships + CRM in one app.
             </p>
           </div>
 
@@ -513,6 +562,37 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Everything included ─── */}
+      <section className="py-24 px-4 bg-off-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
+              ✅ In every app, no add-ons
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
+              What every Vision Workx app comes with
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {EVERY_APP.map((item) => (
+              <div
+                key={item.title}
+                className="bg-white border border-gray-200 rounded-2xl p-7 hover:border-navy hover:shadow-lg transition-all"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-2xl shrink-0 mb-4">
+                  {item.icon}
+                </div>
+                <h3 className="text-lg font-bold text-navy-dark leading-tight mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── VisionWorkx Automation ─── */}
       <section className="py-20 px-4 bg-navy-dark text-white">
         <div className="max-w-4xl mx-auto text-center">
@@ -523,9 +603,11 @@ export default function LandingPage() {
             <span className="text-promote-gold">VisionWorkx Automation</span> comes built in
           </h2>
           <p className="text-blue-100 text-lg leading-relaxed max-w-2xl mx-auto">
-            Every app you build ships with automation already running — instant
-            booking confirmations and lead acknowledgment emails, no setup and no
-            add-on purchase. Turn it on or off anytime from your dashboard.
+            Every app ships with automation already running — and the automations
+            match the kind of app you built: booking confirmations,
+            membership-renewal notices, invoice reminders, review requests. No
+            setup, no add-on purchase. Turn any of them on or off from your
+            dashboard.
           </p>
 
           <div className="mt-10 grid grid-cols-3 gap-4 max-w-lg mx-auto">
