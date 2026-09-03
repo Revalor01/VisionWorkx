@@ -4,6 +4,7 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
 import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
+import { parseFileList } from "@/lib/apps/fileMap";
 import type { IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -170,19 +171,9 @@ function findForbiddenMigrationStatements(sql: string): string[] {
   return Array.from(hits);
 }
 
-function parseGeneratedCode(raw: string) {
-  const FILE_BLOCK =
-    /\[FILENAME:\s*([^\]\r\n]+)\]\r?\n([\s\S]*?)\[\/FILENAME\]/g;
-  const files: { path: string; content: string }[] = [];
-  let match: RegExpExecArray | null;
-  FILE_BLOCK.lastIndex = 0;
-  while ((match = FILE_BLOCK.exec(raw)) !== null) {
-    const path = match[1].trim().replace(/^\/+/, "");
-    const content = match[2].trim();
-    if (path) files.push({ path, content });
-  }
-  return files;
-}
+// Single source of truth — same parser the revision/edit features use, so
+// the two can never drift. Handles `]` in a path (Next.js dynamic routes).
+const parseGeneratedCode = parseFileList;
 
 // Claude sometimes references a component in an import without ever emitting
 // that file in its own output — a one-shot generation dropping a file it

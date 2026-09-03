@@ -84,18 +84,28 @@ describe("parseFileList", () => {
     ]);
   });
 
-  it("matches parseGeneratedCode in app/api/deploy/route.ts on the shared regex", () => {
-    // The exact regex the deploy route uses, inlined here so a drift in
-    // fileMap.ts fails this test rather than a production deploy.
-    const FILE_BLOCK = /\[FILENAME:\s*([^\]\r\n]+)\]\r?\n([\s\S]*?)\[\/FILENAME\]/g;
-    const expected: { path: string; content: string }[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = FILE_BLOCK.exec(SAMPLE)) !== null) {
-      const path = m[1].trim().replace(/^\/+/, "");
-      const content = m[2].trim();
-      if (path) expected.push({ path, content });
-    }
-    expect(parseFileList(SAMPLE)).toEqual(expected);
+  it("keeps `]` in a Next.js dynamic-route path instead of dropping the block", () => {
+    // Regression: the old `[^\]\r\n]+` path group stopped at the first `]`,
+    // so `[FILENAME: app/x/[id]/page.tsx]` failed to match and the file was
+    // silently dropped at deploy — every generated app's detail pages 404'd.
+    const blob = [
+      "[FILENAME: app/dashboard/invoices/[id]/page.tsx]",
+      "export default function InvoiceDetail() { return null; }",
+      "[/FILENAME]",
+      "",
+      "[FILENAME: app/portal/quote/[quoteId]/page.tsx]",
+      "export default function Q() { return null; }",
+      "[/FILENAME]",
+      "",
+      "[FILENAME: components/Actions.tsx]",
+      "export const Actions = () => null;",
+      "[/FILENAME]",
+    ].join("\n");
+    expect(Object.keys(parseFileMap(blob))).toEqual([
+      "app/dashboard/invoices/[id]/page.tsx",
+      "app/portal/quote/[quoteId]/page.tsx",
+      "components/Actions.tsx",
+    ]);
   });
 });
 
