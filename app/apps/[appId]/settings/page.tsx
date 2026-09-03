@@ -3,6 +3,7 @@ import { createServerClient, createTenantServiceClient } from "@/lib/supabase";
 import { loadSiteSettingsCascade } from "@/lib/siteSettings";
 import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automationLimits";
 import { CHANGE_REQUEST_LIMITS, monthStartISO } from "@/lib/apps/changeRequestLimits";
+import { categoryTakesPayments } from "@/lib/apps/payments";
 import type { Plan } from "@/lib/database.types";
 import SettingsClient from "./SettingsClient";
 import type { RevisionRow } from "./RequestChangePanel";
@@ -33,7 +34,7 @@ export default async function AppSettingsPage(
     supabase.from("profiles").select("plan, full_name").eq("id", user.id).single(),
     supabase
       .from("apps")
-      .select("id, user_id, name, status, deploy_url, category")
+      .select("id, user_id, name, status, deploy_url, category, payments_status")
       .eq("id", params.appId)
       .eq("user_id", user.id)
       .single(),
@@ -119,6 +120,8 @@ export default async function AppSettingsPage(
       appStatus={app.status}
       initialRevisions={initialRevisions}
       changeQuota={changeQuota}
+      paymentsApplicable={categoryTakesPayments(app.category)}
+      initialPaymentsStatus={app.payments_status}
       unavailable={unavailable}
       colorsUnavailable={colorsUnavailable}
       galleryUnavailable={galleryUnavailable}
