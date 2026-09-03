@@ -993,6 +993,7 @@ CREATE TRIGGER emit_automation_event
   // must be present at build time, so doing this first means a single
   // deployment's build already has them (no second rebuild needed).
   const vercelProjectId = await getOrCreateVercelProject(projectName);
+  await supabasePatch("apps", appId, { vercel_project_id: vercelProjectId }).catch(() => {});
   await setVercelEnvVars(vercelProjectId, SCHEMA, appId, app.checkout_secret ?? null);
   await fetch(vercelUrl(`/v9/projects/${vercelProjectId}`), {
     method: "PATCH",

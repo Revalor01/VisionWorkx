@@ -204,6 +204,8 @@ export type Database = {
           stripe_connect_account_id: string | null;
           payments_status: PaymentsStatus;
           checkout_secret: string | null;
+          vercel_project_id: string | null;
+          custom_domain: string | null;
           created_at: string;
         };
         Insert: {
@@ -218,6 +220,8 @@ export type Database = {
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
           checkout_secret?: string | null;
+          vercel_project_id?: string | null;
+          custom_domain?: string | null;
           created_at?: string;
         };
         Update: {
@@ -230,6 +234,8 @@ export type Database = {
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
           checkout_secret?: string | null;
+          vercel_project_id?: string | null;
+          custom_domain?: string | null;
         };
         Relationships: [];
       };
