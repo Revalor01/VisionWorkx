@@ -11,6 +11,7 @@ const RATES: Record<string, { input: number; output: number }> = {
 // call site for what it does. Shared with revalor-admin's copy of this file.
 export type AiUsageSource =
   | "app_generate"
+  | "app_generate_plan"
   | "app_edit"
   | "app_deploy_repair"
   | "promote_copy"

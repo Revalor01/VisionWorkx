@@ -74,10 +74,20 @@ export function validateGenerated(
   raw: string,
   map: FileMap,
   category: AppCategory,
+  plannedFiles: string[] = [],
 ): string[] {
   const problems: string[] = [...validateRawOutput(raw)];
   const paths = new Set(Object.keys(map));
   const has = (p: string) => paths.has(p);
+
+  // Two-pass: a file the plan committed to that never got emitted (and
+  // isn't a config file the deploy pipeline fills in) is a silent drop.
+  const CONFIG = /^(package\.json|next\.config\.[jt]s|postcss\.config\.js|tailwind\.config\.ts|README\.md|\.env\.local\.example)$/;
+  for (const f of plannedFiles) {
+    if (!has(f) && !CONFIG.test(f) && /\.(tsx?|sql|css)$/.test(f)) {
+      problems.push(`The build plan listed ${f} but it was not generated — create it.`);
+    }
+  }
 
   // Required files
   for (const f of REQUIRED_FILES) {

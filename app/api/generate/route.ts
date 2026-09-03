@@ -7,6 +7,7 @@ import { categoryTakesPayments } from "@/lib/apps/payments";
 import { parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { validateGenerated } from "@/lib/apps/validateGenerated";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
+import { generatePlan } from "@/lib/apps/generatePlan";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -286,7 +287,8 @@ export async function POST(req: NextRequest) {
   }
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const userPrompt = buildUserPrompt(app.intake_data as IntakeData);
+  const intake = app.intake_data as IntakeData;
+  const userPrompt = buildUserPrompt(intake);
   const appCategory = app.category as AppCategory;
   const appName = app.name;
 
@@ -301,15 +303,30 @@ export async function POST(req: NextRequest) {
   // stays open until the save completes — client gets done=true post-save.
   async function streamAndSave() {
     try {
+      // Pass 1: a cheap plan (file manifest + schema) the model commits to
+      // before writing ~100KB of code — cuts mid-stream drift and dropped
+      // files, and gives validateGenerated a manifest to check against.
+      let planFiles: string[] = [];
+      let planBlock = "";
+      try {
+        const plan = await generatePlan(intake);
+        planFiles = plan.files;
+        planBlock = `\n\n## Agreed build plan — implement EXACTLY this, every file, nothing dropped\n${plan.text}\n`;
+        if (!isPreview) {
+          await writer.write(encoder.encode("[Planned the app structure…]\n\n"));
+        }
+      } catch (err) {
+        console.error("[/api/generate] plan pass failed, continuing without it:", err);
+      }
+
+      // Pass 2: implement.
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
-        // A real multi-page app (booking / invoicing / portal with detail
-        // pages) runs past 32k output tokens and gets truncated mid-file.
-        // 64k is the Sonnet ceiling — a stopgap until generation is
-        // multi-pass. maxDuration below already allows the longer stream.
+        // A real multi-page app runs past 32k output tokens; 64k is the
+        // Sonnet ceiling. maxDuration below allows the longer stream.
         max_tokens: 64000,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userPrompt }],
+        messages: [{ role: "user", content: userPrompt + planBlock }],
       });
 
       for await (const chunk of stream) {
@@ -339,7 +356,7 @@ export async function POST(req: NextRequest) {
       // live app with 404ing detail pages.
       let codeToSave = fullText;
       const parsed = parseFileMap(fullText);
-      const problems = validateGenerated(fullText, parsed, appCategory);
+      const problems = validateGenerated(fullText, parsed, appCategory, planFiles);
       if (problems.length > 0) {
         if (!isPreview) {
           await writer.write(
@@ -349,7 +366,7 @@ export async function POST(req: NextRequest) {
         const { map: repaired, rounds, remaining } = await repairGenerated(
           parsed,
           problems,
-          { appName, category: appCategory },
+          { appName, category: appCategory, plannedFiles: planFiles },
         );
         codeToSave = serializeFileMap(repaired);
         console.log(
