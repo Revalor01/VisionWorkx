@@ -24,8 +24,15 @@ export default function TryForm() {
     description: "",
   });
   const [category, setCategory] = useState<AppCategory | null>(null);
+  const [secondary, setSecondary] = useState<AppCategory[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  function toggleSecondary(c: AppCategory) {
+    setSecondary((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c].slice(0, 3),
+    );
+  }
 
   function set(k: keyof typeof form, v: string) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -48,6 +55,7 @@ export default function TryForm() {
             location: form.location,
             description: form.description,
             category,
+            secondaryCategories: secondary.filter((c) => c !== category),
             features: [],
           },
         }),
@@ -136,6 +144,34 @@ export default function TryForm() {
             </button>
           ))}
         </div>
+
+        {category && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs text-gray-500">
+              Need more in one app? Add capabilities (optional)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.filter((c) => c.id !== category).map((c) => {
+                const on = secondary.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleSecondary(c.id)}
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                      on
+                        ? "border-navy bg-navy text-white"
+                        : "border-gray-300 text-gray-600 hover:border-navy"
+                    }`}
+                  >
+                    {on ? "✓ " : "+ "}
+                    {c.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

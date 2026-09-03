@@ -290,6 +290,10 @@ export async function POST(req: NextRequest) {
   const intake = app.intake_data as IntakeData;
   const userPrompt = buildUserPrompt(intake);
   const appCategory = app.category as AppCategory;
+  const appCategories = [
+    appCategory,
+    ...((app.secondary_categories ?? []) as AppCategory[]),
+  ];
   const appName = app.name;
 
   // Tee pattern: stream to client while accumulating for Supabase
@@ -356,7 +360,7 @@ export async function POST(req: NextRequest) {
       // live app with 404ing detail pages.
       let codeToSave = fullText;
       const parsed = parseFileMap(fullText);
-      const problems = validateGenerated(fullText, parsed, appCategory, planFiles);
+      const problems = validateGenerated(fullText, parsed, appCategories, planFiles);
       if (problems.length > 0) {
         if (!isPreview) {
           await writer.write(
@@ -366,7 +370,7 @@ export async function POST(req: NextRequest) {
         const { map: repaired, rounds, remaining } = await repairGenerated(
           parsed,
           problems,
-          { appName, category: appCategory, plannedFiles: planFiles },
+          { appName, category: appCategory, categories: appCategories, plannedFiles: planFiles },
         );
         codeToSave = serializeFileMap(repaired);
         console.log(
@@ -453,8 +457,30 @@ const CATEGORY_DESCRIPTIONS: Record<AppCategory, string> = {
 };
 
 function buildUserPrompt(intake: IntakeData): string {
+  const secondary = (intake.secondaryCategories ?? []).filter(
+    (c) => c !== intake.category,
+  );
   const categoryDesc =
-    CATEGORY_DESCRIPTIONS[intake.category] ?? intake.category;
+    (CATEGORY_DESCRIPTIONS[intake.category] ?? intake.category) +
+    (secondary.length
+      ? ` that ALSO works as a ${secondary
+          .map((c) => CATEGORY_DESCRIPTIONS[c] ?? c)
+          .join(" and a ")}`
+      : "");
+
+  const secondarySection = secondary.length
+    ? `
+
+## Secondary capabilities (required — this is one app that does all of the below)
+Build the primary category above, and ALSO fully include:
+${secondary
+  .map(
+    (c) =>
+      `- ${CATEGORY_DESCRIPTIONS[c] ?? c}: its core pages, its own tables in the same migration, and its rows in vw_metrics_daily / vw_automation_due (use that category's metric_key / trigger_type names).`,
+  )
+  .join("\n")}
+Share auth, layout, navigation, and the customer/contact records across all capabilities — this is a single unified app, not several bolted together.`
+    : "";
 
   const featureLines =
     intake.features.length > 0
@@ -504,7 +530,7 @@ function buildUserPrompt(intake: IntakeData): string {
 - Works for both the customer-facing confirmation and the admin view`
     : "";
 
-  const paymentsSection = categoryTakesPayments(intake.category)
+  const paymentsSection = [intake.category, ...secondary].some(categoryTakesPayments)
     ? `
 
 ## Payments — this app collects real money (required)
@@ -601,10 +627,10 @@ create view vw_automation_due as
   }
 
 ## App Category
-${intake.category}
+${intake.category}${secondary.length ? ` (+ ${secondary.join(", ")})` : ""}
 
 ## Required Features
-${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${paymentsSection}${reportingSection}
+${featureLines}${secondarySection}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${paymentsSection}${reportingSection}
 
 ## Branding
 - Primary/background colors are runtime-configurable — do NOT hardcode any hex color. Use ONLY the \`primary\`/\`background\` Tailwind theme tokens per rule 13 (bg-primary, text-primary, bg-background, hover:bg-primary/90, etc.)

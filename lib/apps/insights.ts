@@ -79,12 +79,16 @@ export async function rollupApp(appId: string, userId: string): Promise<number> 
   return payload.length;
 }
 
-/** Shape app_metrics for the dashboard over the last `days`. */
+/** Shape app_metrics for the dashboard over the last `days`. Accepts one
+ *  category or an app's primary + secondary categories. */
 export async function getInsights(
   appId: string,
-  category: AppCategory,
+  categories: AppCategory | readonly AppCategory[],
   days: number,
 ): Promise<Insights> {
+  const cats = Array.isArray(categories)
+    ? (categories as AppCategory[])
+    : [categories as AppCategory];
   const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
   const { data } = await createServiceClient()
     .from("app_metrics")
@@ -102,7 +106,12 @@ export async function getInsights(
     if (!lastCaptured || r.captured_at > lastCaptured) lastCaptured = r.captured_at;
   }
 
-  const order = [...CATEGORY_HEADLINE_METRICS[category]];
+  const order: string[] = [];
+  for (const c of cats) {
+    for (const k of CATEGORY_HEADLINE_METRICS[c] ?? []) {
+      if (!order.includes(k)) order.push(k);
+    }
+  }
   for (const k of byKey.keys()) if (!order.includes(k)) order.push(k);
 
   const metrics: MetricSeries[] = order

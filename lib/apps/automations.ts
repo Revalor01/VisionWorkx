@@ -138,13 +138,35 @@ export function automationsForCategory(category: AppCategory): AutomationDef[] {
   return AUTOMATIONS_BY_CATEGORY[category] ?? [];
 }
 
-export function timeBasedAutomations(category: AppCategory): AutomationDef[] {
-  return automationsForCategory(category).filter((a) => a.timeBased);
+/** Union of the automations for an app's primary + secondary categories, */
+/* deduped by trigger_type, primary-category order first. */
+export function automationsForCategories(
+  categories: readonly AppCategory[],
+): AutomationDef[] {
+  const seen = new Set<string>();
+  const out: AutomationDef[] = [];
+  for (const c of categories) {
+    for (const def of automationsForCategory(c)) {
+      if (!seen.has(def.trigger_type)) {
+        seen.add(def.trigger_type);
+        out.push(def);
+      }
+    }
+  }
+  return out;
+}
+
+export function timeBasedAutomations(
+  categories: AppCategory | readonly AppCategory[],
+): AutomationDef[] {
+  const list = Array.isArray(categories) ? categories : [categories as AppCategory];
+  return automationsForCategories(list).filter((a) => a.timeBased);
 }
 
 export function findAutomation(
-  category: AppCategory,
+  categories: AppCategory | readonly AppCategory[],
   triggerType: string,
 ): AutomationDef | undefined {
-  return automationsForCategory(category).find((a) => a.trigger_type === triggerType);
+  const list = Array.isArray(categories) ? categories : [categories as AppCategory];
+  return automationsForCategories(list).find((a) => a.trigger_type === triggerType);
 }

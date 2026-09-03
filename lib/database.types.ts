@@ -137,6 +137,7 @@ export interface IntakeData {
   location: string;
   description?: string;
   category: AppCategory;
+  secondaryCategories?: AppCategory[];
   features: string[];
   primaryColor: string;
   backgroundColor?: string;
@@ -197,6 +198,7 @@ export type Database = {
           user_id: string | null;
           name: string;
           category: AppCategory;
+          secondary_categories: AppCategory[];
           status: AppStatus;
           intake_data: IntakeData | null;
           generated_code: string | null;
@@ -217,6 +219,7 @@ export type Database = {
           user_id?: string | null;
           name: string;
           category: AppCategory;
+          secondary_categories?: AppCategory[];
           status?: AppStatus;
           intake_data?: IntakeData | null;
           generated_code?: string | null;
@@ -235,6 +238,7 @@ export type Database = {
         Update: {
           name?: string;
           category?: AppCategory;
+          secondary_categories?: AppCategory[];
           status?: AppStatus;
           intake_data?: IntakeData | null;
           generated_code?: string | null;

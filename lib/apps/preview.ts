@@ -61,6 +61,7 @@ export async function createPreviewApp(
       user_id: null,
       name,
       category: intake.category,
+      secondary_categories: intake.secondaryCategories ?? [],
       status: "generating",
       intake_data: intake,
       preview_token: token,
