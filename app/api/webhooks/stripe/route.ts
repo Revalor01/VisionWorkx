@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase";
+import { syncConnectAccount } from "@/lib/apps/payments";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
 
 // Stripe uses "canceled"; our schema uses "cancelled"
@@ -183,6 +184,15 @@ export async function POST(req: NextRequest) {
         ]);
 
         console.log(`[stripe] subscription deleted — user ${userId}`);
+        break;
+      }
+
+      // ── Connected account state changed (Phase 2 payments) ──────
+      // Delivered for connected accounts when the endpoint is configured
+      // to listen on Connect; also fires for the platform account itself,
+      // which syncConnectAccount safely ignores (no matching app row).
+      case "account.updated": {
+        await syncConnectAccount(event.data.object as Stripe.Account);
         break;
       }
 

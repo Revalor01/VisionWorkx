@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { logAiUsage } from "@/lib/aiUsage";
 import { recordInitialRevision } from "@/lib/apps/redeploy";
+import { categoryTakesPayments } from "@/lib/apps/payments";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -435,6 +436,54 @@ function buildUserPrompt(intake: IntakeData): string {
 - Works for both the customer-facing confirmation and the admin view`
     : "";
 
+  const paymentsSection = categoryTakesPayments(intake.category)
+    ? `
+
+## Payments — this app collects real money (required)
+The business charges its customers through **its own Stripe account**. Two SERVER-side env vars are provided, but ONLY after the owner connects Stripe from VisionWorkx — treat both as optional and possibly empty:
+- \`process.env.STRIPE_CHECKOUT_URL\` — POST here to create a Stripe Checkout session
+- \`process.env.APP_CHECKOUT_SECRET\` — send it as the \`x-vw-checkout-secret\` request header
+
+Rules:
+- If either var is missing/empty, render every payment control in a clearly labelled "Payments aren't set up yet" **disabled** state. Never throw, never show a dead button. For \`booking\`, in that case just skip the deposit step and confirm bookings directly.
+- NEVER call Stripe directly and NEVER put a Stripe key anywhere in this app. All money flows through \`STRIPE_CHECKOUT_URL\`.
+- Create the session and confirm payment ONLY from server routes / server actions, never client-side.
+
+Create a session:
+\`\`\`ts
+const res = await fetch(process.env.STRIPE_CHECKOUT_URL!, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "x-vw-checkout-secret": process.env.APP_CHECKOUT_SECRET! },
+  body: JSON.stringify({
+    mode: "payment",                 // or "subscription"
+    amount: 4999,                    // integer cents (mode "payment", or "subscription" with no priceId)
+    currency: "usd",
+    interval: "month",               // mode "subscription" only
+    productName: "Invoice #1024",
+    successUrl: "https://YOUR_APP_URL/pay/success?recordId=1024&session_id={CHECKOUT_SESSION_ID}",
+    cancelUrl: "https://YOUR_APP_URL/pay/cancelled?recordId=1024",
+    metadata: { recordId: "1024" },
+  }),
+});
+const { url } = await res.json();     // redirect the customer to \`url\`
+\`\`\`
+Put the literal string \`{CHECKOUT_SESSION_ID}\` in \`successUrl\` — Stripe substitutes the real id. Derive \`YOUR_APP_URL\` from the incoming request URL, do not hardcode it.
+
+Confirm before marking anything paid (server-side, on the success route):
+\`\`\`ts
+const r = await fetch(\`\${process.env.STRIPE_CHECKOUT_URL}?session_id=\${sessionId}\`, {
+  headers: { "x-vw-checkout-secret": process.env.APP_CHECKOUT_SECRET! },
+});
+const { paid, metadata } = await r.json();
+if (paid) { /* mark the record paid in the tenant DB */ }
+\`\`\`
+
+Category specifics:
+- **invoicing** — a "Pay this invoice" button on each unpaid invoice (\`mode: "payment"\`, \`amount\` = invoice total in cents). Mark it paid only after the server confirms the session.
+- **membership** — each plan tier is \`mode: "subscription"\` with \`amount\` (cents) + \`interval\`. Record the member active once confirmed.
+- **booking** — an optional deposit at booking time (\`mode: "payment"\`, \`amount\` = deposit). The booking stays "pending" until the deposit is confirmed.`
+    : "";
+
   return `Build a complete ${categoryDesc} for the following business.
 
 ## Business Details
@@ -447,7 +496,7 @@ function buildUserPrompt(intake: IntakeData): string {
 ${intake.category}
 
 ## Required Features
-${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}
+${featureLines}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${paymentsSection}
 
 ## Branding
 - Primary/background colors are runtime-configurable — do NOT hardcode any hex color. Use ONLY the \`primary\`/\`background\` Tailwind theme tokens per rule 13 (bg-primary, text-primary, bg-background, hover:bg-primary/90, etc.)

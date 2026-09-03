@@ -13,8 +13,15 @@ import {
   galleryPhotoUrlToPath,
   uploadGalleryPhoto,
 } from "@/lib/uploadGalleryPhoto";
-import type { AppCategory, AppStatus, AutomationWorkflow, Plan } from "@/lib/database.types";
+import type {
+  AppCategory,
+  AppStatus,
+  AutomationWorkflow,
+  PaymentsStatus,
+  Plan,
+} from "@/lib/database.types";
 import RequestChangePanel, { type RevisionRow } from "./RequestChangePanel";
+import PaymentsCard from "./PaymentsCard";
 
 const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = [
   { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourbusiness" },
@@ -59,6 +66,8 @@ export default function SettingsClient({
   appStatus,
   initialRevisions,
   changeQuota,
+  paymentsApplicable,
+  initialPaymentsStatus,
   unavailable,
   colorsUnavailable,
   galleryUnavailable,
@@ -82,6 +91,8 @@ export default function SettingsClient({
   appStatus: AppStatus;
   initialRevisions: RevisionRow[];
   changeQuota: { used: number; limit: number };
+  paymentsApplicable: boolean;
+  initialPaymentsStatus: PaymentsStatus;
   unavailable: boolean;
   colorsUnavailable: boolean;
   galleryUnavailable: boolean;
@@ -290,13 +301,16 @@ export default function SettingsClient({
         <h1 className="text-2xl font-bold text-navy-dark mb-1">App Settings</h1>
         <p className="text-gray-500 text-sm mb-8">{appName}</p>
 
-        <div className="mb-8">
+        <div className="mb-8 space-y-8">
           <RequestChangePanel
             appId={appId}
             appStatus={appStatus}
             initialRevisions={initialRevisions}
             initialQuota={changeQuota}
           />
+          {paymentsApplicable && (
+            <PaymentsCard appId={appId} initialStatus={initialPaymentsStatus} />
+          )}
         </div>
 
         {unavailable ? (
