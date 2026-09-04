@@ -156,6 +156,8 @@ export type Database = {
           company_name: string | null;
           plan: Plan;
           created_at: string;
+          blocked: boolean;
+          block_reason: string | null;
         };
         Insert: {
           id: string;
@@ -163,11 +165,15 @@ export type Database = {
           company_name?: string | null;
           plan?: Plan;
           created_at?: string;
+          blocked?: boolean;
+          block_reason?: string | null;
         };
         Update: {
           full_name?: string | null;
           company_name?: string | null;
           plan?: Plan;
+          blocked?: boolean;
+          block_reason?: string | null;
         };
         Relationships: [];
       };
