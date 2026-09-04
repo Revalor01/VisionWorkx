@@ -50,9 +50,21 @@ export async function GET() {
     const priceId =
       (lineItem?.pricing as { price_details?: { price: string } } | null)
         ?.price_details?.price ?? "";
-    if (priceId === process.env.STRIPE_STARTER_PRICE_ID) plan = "Starter";
-    else if (priceId === process.env.STRIPE_GROWTH_PRICE_ID) plan = "Growth";
-    else if (priceId === process.env.STRIPE_PRO_PRICE_ID) plan = "Pro";
+    if (
+      priceId === process.env.STRIPE_STARTER_PRICE_ID ||
+      priceId === process.env.STRIPE_STARTER_ANNUAL_PRICE_ID
+    )
+      plan = "Starter";
+    else if (
+      priceId === process.env.STRIPE_GROWTH_PRICE_ID ||
+      priceId === process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID
+    )
+      plan = "Growth";
+    else if (
+      priceId === process.env.STRIPE_PRO_PRICE_ID ||
+      priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID
+    )
+      plan = "Pro";
 
     return {
       id: inv.id,
