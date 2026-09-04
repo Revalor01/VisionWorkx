@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
     process.env.STRIPE_STARTER_PRICE_ID,
     process.env.STRIPE_GROWTH_PRICE_ID,
     process.env.STRIPE_PRO_PRICE_ID,
+    process.env.STRIPE_STARTER_ANNUAL_PRICE_ID,
+    process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID,
+    process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
   ].filter(Boolean);
   if (!ALLOWED_PRICE_IDS.includes(priceId)) {
     return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });

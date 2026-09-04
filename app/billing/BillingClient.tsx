@@ -17,14 +17,22 @@ interface BillingClientProps {
   appCount: number;
   trialDaysLeft: number;
   isInTrial: boolean;
-  priceIds: { starter: string; growth: string; pro: string };
+  priceIds: {
+    starter: string;
+    growth: string;
+    pro: string;
+    starterAnnual: string;
+    growthAnnual: string;
+    proAnnual: string;
+  };
 }
 
 const PLANS: {
   name: Exclude<Plan, "free">;
   label: string;
   price: string;
-  annual: string;
+  annualPerMo: string;
+  annualTotal: string;
   apps: string;
   appLimit: number;
   features: string[];
@@ -33,8 +41,9 @@ const PLANS: {
   {
     name: "starter",
     label: "Starter",
-    price: "$49",
-    annual: "$349/yr",
+    price: "$59",
+    annualPerMo: "$47",
+    annualTotal: "$566/yr",
     apps: "1 app",
     appLimit: 1,
     features: [
@@ -48,8 +57,9 @@ const PLANS: {
   {
     name: "growth",
     label: "Growth",
-    price: "$99",
-    annual: "$699/yr",
+    price: "$129",
+    annualPerMo: "$103",
+    annualTotal: "$1,238/yr",
     apps: "3 apps",
     appLimit: 3,
     features: [
@@ -63,8 +73,9 @@ const PLANS: {
   {
     name: "pro",
     label: "Pro",
-    price: "$199",
-    annual: "$1,399/yr",
+    price: "$299",
+    annualPerMo: "$239",
+    annualTotal: "$2,870/yr",
     apps: "Unlimited apps",
     appLimit: Infinity,
     features: [
@@ -104,6 +115,9 @@ export default function BillingClient({
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">(
+    "monthly"
+  );
 
   // Handle Stripe redirect back with ?checkout=success
   useEffect(() => {
@@ -247,6 +261,41 @@ export default function BillingClient({
             : "Choose a plan"}
         </h2>
 
+        {/* Billing interval toggle */}
+        <div className="mb-6 inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1">
+          <button
+            type="button"
+            onClick={() => setBillingInterval("monthly")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              billingInterval === "monthly"
+                ? "bg-navy-dark text-white"
+                : "text-gray-500 hover:text-navy-dark"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingInterval("annual")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
+              billingInterval === "annual"
+                ? "bg-navy-dark text-white"
+                : "text-gray-500 hover:text-navy-dark"
+            }`}
+          >
+            Annual
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                billingInterval === "annual"
+                  ? "bg-blue-500/30 text-blue-100"
+                  : "bg-green-100 text-green-700"
+              }`}
+            >
+              Save 20%
+            </span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {PLANS.map((plan) => {
             const isCurrent =
@@ -272,7 +321,11 @@ export default function BillingClient({
                     {isCurrent && " · Current"}
                   </p>
                   <div className="flex items-end gap-1 mb-1">
-                    <span className="text-3xl font-bold">{plan.price}</span>
+                    <span className="text-3xl font-bold">
+                      {billingInterval === "annual"
+                        ? plan.annualPerMo
+                        : plan.price}
+                    </span>
                     <span
                       className={`text-xs mb-1.5 ${
                         plan.highlight ? "text-blue-200" : "text-gray-500"
@@ -286,7 +339,9 @@ export default function BillingClient({
                       plan.highlight ? "text-blue-300" : "text-gray-400"
                     }`}
                   >
-                    or {plan.annual} annually · {plan.apps}
+                    {billingInterval === "annual"
+                      ? `billed ${plan.annualTotal} · ${plan.apps}`
+                      : `or ${plan.annualPerMo}/mo billed annually · ${plan.apps}`}
                   </p>
                   <ul className="space-y-1.5 mb-6">
                     {plan.features.map((f) => (
@@ -333,7 +388,12 @@ export default function BillingClient({
                 ) : (
                   <button
                     onClick={() =>
-                      handleCheckout(priceIds[plan.name], plan.name)
+                      handleCheckout(
+                        billingInterval === "annual"
+                          ? priceIds[`${plan.name}Annual`]
+                          : priceIds[plan.name],
+                        plan.name
+                      )
                     }
                     disabled={loadingPlan !== null}
                     className={`text-center text-sm font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60 ${

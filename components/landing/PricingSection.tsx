@@ -6,9 +6,9 @@ import Link from "next/link";
 const PLANS = [
   {
     name: "Starter",
-    monthly: 49,
-    annual: 39,
-    annualTotal: 468,
+    monthly: 59,
+    annual: 47,
+    annualTotal: 566,
     apps: "1 app included",
     description: "Perfect for getting your first business app live.",
     features: [
@@ -27,9 +27,9 @@ const PLANS = [
   },
   {
     name: "Growth",
-    monthly: 99,
-    annual: 79,
-    annualTotal: 948,
+    monthly: 129,
+    annual: 103,
+    annualTotal: 1238,
     apps: "3 apps included",
     description: "For growing businesses that need more reach.",
     features: [
@@ -48,9 +48,9 @@ const PLANS = [
   },
   {
     name: "Pro",
-    monthly: 199,
-    annual: 159,
-    annualTotal: 1908,
+    monthly: 299,
+    annual: 239,
+    annualTotal: 2870,
     apps: "Unlimited apps",
     description: "For agencies and power users with no limits.",
     features: [

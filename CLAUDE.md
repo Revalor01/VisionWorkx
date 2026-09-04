@@ -32,11 +32,11 @@ retailer, clinic) who needs a custom app but can't afford $15,000–$80,000 in a
 
 ## Pricing Tiers
 
-| Tier    | Monthly | Annual   | Apps | Key Features                              |
-|---------|---------|----------|------|-------------------------------------------|
-| Starter | $49/mo  | $349/yr  | 1    | Subdomain, core features, email support   |
-| Growth  | $99/mo  | $699/yr  | 3    | Custom domain, analytics, priority support|
-| Pro     | $199/mo | $1399/yr | ∞    | White label, API access, dedicated onboard|
+| Tier    | Monthly | Annual (20% off) | Apps | Key Features                              |
+|---------|---------|------------------|------|-------------------------------------------|
+| Starter | $59/mo  | $566/yr          | 1    | Subdomain, core features, email support   |
+| Growth  | $129/mo | $1,238/yr        | 3    | Custom domain, analytics, priority support|
+| Pro     | $299/mo | $2,870/yr        | ∞    | White label, API access, dedicated onboard|
 
 ---
 
@@ -211,10 +211,11 @@ Update app status from 'generating' to 'ready' on completion.
 
 ### PROMPT 5 — Stripe Billing
 ```
-Implement Stripe billing for Vision Workx with three subscription tiers:
-- Starter: $49/mo (price ID from env)
-- Growth: $99/mo (price ID from env)
-- Pro: $199/mo (price ID from env)
+Implement Stripe billing for Vision Workx with three subscription tiers,
+each with a monthly and an annual (20% off) price ID from env:
+- Starter: $59/mo or $566/yr
+- Growth: $129/mo or $1,238/yr
+- Pro: $299/mo or $2,870/yr
 
 Build:
 1. /billing page showing current plan and usage

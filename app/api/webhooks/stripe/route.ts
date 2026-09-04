@@ -21,6 +21,9 @@ function getPlanFromPriceId(priceId: string): Exclude<Plan, "free"> | null {
     [process.env.STRIPE_STARTER_PRICE_ID ?? ""]: "starter",
     [process.env.STRIPE_GROWTH_PRICE_ID ?? ""]: "growth",
     [process.env.STRIPE_PRO_PRICE_ID ?? ""]: "pro",
+    [process.env.STRIPE_STARTER_ANNUAL_PRICE_ID ?? ""]: "starter",
+    [process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID ?? ""]: "growth",
+    [process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? ""]: "pro",
   };
   return map[priceId] ?? null;
 }
