@@ -740,6 +740,12 @@ export default function AdminDashboard({
           >
             Sanctum →
           </a>
+          <a
+            href="/api/admin/sso/issue?target=proactive"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
+            Proactive →
+          </a>
           <span className="hidden sm:inline text-white/20">|</span>
           <a
             href="/api/admin/sso/issue?target=revalor"
