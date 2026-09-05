@@ -631,6 +631,29 @@ export default function LandingPage() {
       {/* ─── Pricing ─── */}
       <PricingSection />
 
+      {/* ─── Custom Builds ─── */}
+      <section id="custom-builds" className="py-20 px-4 bg-navy-dark text-white">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-sm font-semibold text-promote-gold uppercase tracking-widest mb-3">
+            Beyond Self-Serve
+          </p>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Need something more custom?</h2>
+          <p className="text-blue-200 text-lg leading-relaxed mb-8">
+            Some businesses need more than a template can offer — a custom integration, a workflow that doesn&apos;t
+            fit a category, or a build handled start to finish. Our team will scope it, build it on the same
+            platform powering Vision Workx, and deploy it — so you get a working product without building anything
+            yourself.
+          </p>
+          <a
+            href="mailto:info@revalorllc.com?subject=Custom%20Build%20Inquiry"
+            className="inline-block bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
+          >
+            Talk to Our Team →
+          </a>
+          <p className="mt-6 text-sm text-blue-400">Typical project: $2,500–$15,000, depending on scope</p>
+        </div>
+      </section>
+
       {/* ─── Why Vision Workx Exists ─── */}
       <section id="why-choose-us" className="py-24 px-4 bg-white">
         <div className="max-w-3xl mx-auto text-center">
