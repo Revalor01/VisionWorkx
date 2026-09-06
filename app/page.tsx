@@ -266,9 +266,12 @@ export default function LandingPage() {
 
               <p className="mt-6 text-lg md:text-xl text-blue-100/80 leading-relaxed max-w-lg mx-auto lg:mx-0">
                 Describe your business in plain English and get a working{" "}
-                <span className="inline-block font-bold text-white border-2 border-white/80 rounded-full px-3 py-0.5 whitespace-nowrap">
-                  web app
-                </span>{" "}
+                <Link
+                  href="/web-app-vs-web-page"
+                  className="inline-block font-bold text-white border-2 border-white/80 rounded-full px-3 py-0.5 whitespace-nowrap hover:bg-white hover:text-blue-900 hover:border-white transition-colors"
+                >
+                  web app →
+                </Link>{" "}
                 — bookings, card payments, customer records, staff logins —
                 deployed live in minutes. Need a change later? Just ask for it.
                 No developers, ever.
