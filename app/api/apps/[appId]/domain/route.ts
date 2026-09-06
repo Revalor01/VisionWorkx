@@ -77,9 +77,11 @@ export async function POST(
   if (!owned.app.deploy_url) {
     return NextResponse.json({ error: "This app isn't live yet." }, { status: 409 });
   }
-  if (owned.plan !== "growth" && owned.plan !== "pro") {
+  // Custom domain is listed on every paid tier (Starter/Growth/Pro) on the pricing page -
+  // only the free trial is gated out here.
+  if (owned.plan === "free") {
     return NextResponse.json(
-      { error: "Custom domains are on the Growth and Pro plans." },
+      { error: "Custom domains are available on paid plans." },
       { status: 403 },
     );
   }

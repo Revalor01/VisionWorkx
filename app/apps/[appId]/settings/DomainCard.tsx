@@ -39,7 +39,8 @@ export default function DomainCard({
   plan: Plan;
   initialDomain: string | null;
 }) {
-  const gated = plan !== "growth" && plan !== "pro";
+  // Custom domain is on every paid tier (Starter and up) - only the free trial is gated.
+  const gated = plan === "free";
   const [domain, setDomain] = useState<string | null>(initialDomain);
   const [status, setStatus] = useState<DomainStatus | null>(null);
   const [input, setInput] = useState("");
@@ -112,11 +113,11 @@ export default function DomainCard({
       {gated ? (
         <p className="text-gray-500 text-sm">
           Point your own domain (like <code className="text-navy-dark">app.yourbusiness.com</code>)
-          at this app on the{" "}
+          at this app on any{" "}
           <Link href="/billing" className="font-semibold underline">
-            Growth
-          </Link>{" "}
-          plan and up.
+            paid plan
+          </Link>
+          .
         </p>
       ) : !domain ? (
         <>
