@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { LinkedInPost, LinkedInPostStatus, SocialBrand, SocialVideoAsset } from "@/lib/database.types";
+import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset } from "@/lib/database.types";
 
 const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
   approved: "bg-sky-100 text-sky-700",
   posted: "bg-green-100 text-green-700",
+};
+
+const PRODUCT_LABEL: Record<LinkedInProduct, string> = {
+  visionworkx: "VisionWorkx",
+  proactive: "Proactive",
 };
 
 export default function LinkedInTab({
@@ -23,6 +28,7 @@ export default function LinkedInTab({
   setVideoAssets: React.Dispatch<React.SetStateAction<SocialVideoAsset[]>>;
 }) {
   const [topic, setTopic] = useState("");
+  const [product, setProduct] = useState<LinkedInProduct>("visionworkx");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,7 +42,7 @@ export default function LinkedInTab({
       const res = await fetch("/api/social/linkedin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim() || undefined }),
+        body: JSON.stringify({ topic: topic.trim() || undefined, product }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -60,6 +66,14 @@ export default function LinkedInTab({
         </p>
         {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
         <div className="flex gap-3 items-center">
+          <select
+            value={product}
+            onChange={(e) => setProduct(e.target.value as LinkedInProduct)}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="visionworkx">VisionWorkx</option>
+            <option value="proactive">Proactive</option>
+          </select>
           <input
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
@@ -171,9 +185,14 @@ function PostCard({
   return (
     <div className="bg-white border border-green-600 rounded-xl p-4">
       <div className="flex justify-between items-start mb-2">
-        <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[post.status]}`}>
-          {post.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+            {PRODUCT_LABEL[post.product]}
+          </span>
+          <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[post.status]}`}>
+            {post.status}
+          </span>
+        </div>
         <button
           onClick={() => fetch(`/api/social/linkedin/${post.id}`, { method: "DELETE" }).then(() => setPosts((prev) => prev.filter((p) => p.id !== post.id)))}
           className="text-xs text-red-600 hover:underline"

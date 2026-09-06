@@ -87,6 +87,7 @@ export type SocialRiskLevel = "low" | "medium" | "high";
 export type SocialContentGeneratedBy = "manual" | "autonomous" | "content_engine";
 export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation";
 export type LinkedInPostStatus = "draft" | "approved" | "posted";
+export type LinkedInProduct = "visionworkx" | "proactive";
 
 export interface LeadSignal {
   tier: 1 | 2 | 3 | 4;
@@ -1520,6 +1521,7 @@ export type Database = {
         Row: {
           id: string;
           video_asset_id: string | null;
+          product: LinkedInProduct;
           hook: string | null;
           caption: string;
           hashtags: string[];
@@ -1531,6 +1533,7 @@ export type Database = {
         Insert: {
           id?: string;
           video_asset_id?: string | null;
+          product?: LinkedInProduct;
           hook?: string | null;
           caption: string;
           hashtags?: string[];
@@ -1540,6 +1543,7 @@ export type Database = {
         };
         Update: {
           video_asset_id?: string | null;
+          product?: LinkedInProduct;
           hook?: string | null;
           caption?: string;
           hashtags?: string[];
