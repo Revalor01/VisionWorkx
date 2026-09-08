@@ -77,9 +77,22 @@ export const PRODUCTS: Record<BlogProduct, ProductConfig> = {
     ],
     url: "https://revalor-automation.vercel.app/#revalor-wellness",
   },
+  proactive: {
+    name: "Proactive",
+    niche: "an AI-powered leadership coaching and reflection app — journaling, mood tracking, and guided decision-making",
+    audience: "adults in leadership or high-responsibility roles wanting clearer thinking and better decisions",
+    tone: "confident, direct, growth-oriented",
+    seedKeywords: [
+      "leadership coaching app",
+      "AI leadership coach",
+      "decision making journal app",
+      "reflection app for leaders",
+    ],
+    url: "https://proactive-zeta-three.vercel.app",
+  },
 };
 
-export const PRODUCT_ORDER: BlogProduct[] = ["visionworkx", "chorebit", "feelflow", "mindbit", "sanctum"];
+export const PRODUCT_ORDER: BlogProduct[] = ["visionworkx", "chorebit", "feelflow", "mindbit", "sanctum", "proactive"];
 
 /** Picks the product least recently blogged about, so coverage rotates evenly. */
 export function nextProductInRotation(lastPosts: { product: BlogProduct; created_at: string }[]): BlogProduct {

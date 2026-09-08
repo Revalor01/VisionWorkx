@@ -10,6 +10,7 @@ const SECTION: Record<string, "business" | "kids" | "wellness"> = {
   feelflow: "kids",
   mindbit: "kids",
   sanctum: "wellness",
+  proactive: "business",
 };
 
 const PRODUCTS_SITE = "https://products.revalorllc.com";
