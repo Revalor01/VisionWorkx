@@ -454,6 +454,78 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Guided Build Session ─── */}
+      <section id="guided-build" className="py-20 px-4 bg-navy-dark text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-sm font-semibold text-promote-gold uppercase tracking-widest mb-3">
+            Not sure what you need?
+          </p>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Talk it through. We&apos;ll figure it out{" "}
+            <span className="text-promote-gold">and build it.</span>
+          </h2>
+          <p className="text-blue-100 text-lg leading-relaxed max-w-2xl mx-auto">
+            The builder asks you to pick features. This doesn&apos;t. Get on a short guided
+            session, describe your business the way you&apos;d explain it to a friend, and we
+            work out exactly what your app should do — then build it, live, in minutes.
+          </p>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-3 text-left">
+            {[
+              [
+                "1",
+                "Tell us about your business",
+                "A short back-and-forth — what you do, how customers find you, what eats your time. No tech questions.",
+              ],
+              [
+                "2",
+                "We map it to a build",
+                "Your answers become a plan: the app type, the features you actually need, payments, staff logins. Change anything before we start.",
+              ],
+              [
+                "3",
+                "Your app starts building",
+                "Approve the plan and generation kicks off. A working app on a live link in minutes — the real thing, not a mockup.",
+              ],
+            ].map(([n, title, body]) => (
+              <div key={n} className="bg-white/5 border border-blue-800 rounded-xl p-5">
+                <div className="w-8 h-8 rounded-lg bg-navy border border-promote-gold flex items-center justify-center text-promote-gold font-bold text-sm mb-3">
+                  {n}
+                </div>
+                <h3 className="font-bold text-white mb-1.5">{title}</h3>
+                <p className="text-sm text-blue-300 leading-relaxed">{body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 inline-flex flex-col items-center gap-1.5 rounded-2xl border border-blue-800 bg-white/5 px-6 py-5">
+            <p className="text-blue-100">
+              You walk away with a <span className="font-semibold text-white">live app</span> and a{" "}
+              <span className="font-semibold text-white">build brief</span> in your inbox.
+            </p>
+            <p className="text-3xl font-bold text-promote-gold mt-1">$10</p>
+            <p className="text-sm text-blue-300">
+              Credited to your first month — so if you subscribe, the session was free.
+            </p>
+          </div>
+
+          <div className="mt-8">
+            <a
+              href="mailto:info@revalorllc.com?subject=Guided%20Build%20Session"
+              className="inline-block bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
+            >
+              Request your session →
+            </a>
+            <p className="mt-4 text-sm text-blue-400">
+              About 10 minutes · applied to your first month · already know what you want?{" "}
+              <Link href="/try" className="underline hover:text-white">
+                Use the free builder
+              </Link>
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ─── App Categories ─── */}
       <section id="categories" className="py-24 px-4 bg-off-white">
         <div className="max-w-5xl mx-auto">
