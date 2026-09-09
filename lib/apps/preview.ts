@@ -35,22 +35,30 @@ export interface CreatePreviewResult {
 /**
  * Create a preview app (or return the caller's existing un-claimed one) and
  * return its token. Does not start generation — the caller triggers that.
+ *
+ * `testMode` is for QA of the /try funnel itself (see TRY_TEST_CODES): it
+ * records the intake with status "test_skipped" so the caller can skip
+ * generation entirely — no Claude build call, no per-app Vercel/Supabase.
+ * Test runs also skip the per-email dedup so a tester can go again.
  */
 export async function createPreviewApp(
   email: string,
   intake: IntakeData,
+  opts: { testMode?: boolean } = {},
 ): Promise<CreatePreviewResult> {
   const service = createServiceClient();
   const norm = email.trim().toLowerCase();
 
-  const { data: existing } = await service
-    .from("apps")
-    .select("id, preview_token, status")
-    .eq("preview_email", norm)
-    .is("claimed_at", null)
-    .maybeSingle();
-  if (existing?.preview_token) {
-    return { id: existing.id, token: existing.preview_token, resumed: true };
+  if (!opts.testMode) {
+    const { data: existing } = await service
+      .from("apps")
+      .select("id, preview_token, status")
+      .eq("preview_email", norm)
+      .is("claimed_at", null)
+      .maybeSingle();
+    if (existing?.preview_token) {
+      return { id: existing.id, token: existing.preview_token, resumed: true };
+    }
   }
 
   const token = newPreviewToken();
@@ -62,7 +70,7 @@ export async function createPreviewApp(
       name,
       category: intake.category,
       secondary_categories: intake.secondaryCategories ?? [],
-      status: "generating",
+      status: opts.testMode ? "test_skipped" : "generating",
       intake_data: intake,
       preview_token: token,
       preview_email: norm,

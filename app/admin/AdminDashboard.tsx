@@ -49,6 +49,7 @@ const STATUS_STYLE: Record<AppStatus, { label: string; cls: string }> = {
   deployed:   { label: "Live",       cls: "bg-green-100 text-green-700" },
   failed:     { label: "Failed",     cls: "bg-red-100 text-red-700" },
   deploy_failed: { label: "Deploy Failed", cls: "bg-red-100 text-red-700" },
+  test_skipped: { label: "Test run", cls: "bg-gray-100 text-gray-600" },
 };
 
 const PLAN_STYLE: Record<Plan, string> = {

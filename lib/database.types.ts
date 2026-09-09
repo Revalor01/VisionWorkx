@@ -12,7 +12,8 @@ export type AppStatus =
   | "deploying"     // Vercel build queued / building
   | "deployed"      // live at deploy_url
   | "failed"        // generation failed
-  | "deploy_failed"; // Vercel deployment failed
+  | "deploy_failed" // Vercel deployment failed
+  | "test_skipped"; // /try test mode — intake captured, build intentionally not run
 export type AppRevisionKind =
   | "create"    // the initial generation
   | "change"    // a plain-English edit request

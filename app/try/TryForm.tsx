@@ -74,6 +74,10 @@ export default function TryForm() {
     }
   }
 
+  // Present -> test mode: full form + recommender, but /api/try stops
+  // before the build. Handed out as /try?k=<code>.
+  const testCode = params.get("k") ?? "";
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!category || submitting) return;
@@ -85,6 +89,7 @@ export default function TryForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: form.email,
+          testCode: testCode || undefined,
           intake: {
             businessName: form.businessName,
             businessType: form.businessType,
@@ -114,6 +119,12 @@ export default function TryForm() {
 
   return (
     <form onSubmit={submit} className="mt-8 space-y-6">
+      {testCode && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <span className="font-semibold">Test mode.</span> Walk through the whole form and the
+          recommender — we&apos;ll stop before building anything. Nothing gets deployed.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-navy-dark">Your email</label>
@@ -275,10 +286,12 @@ export default function TryForm() {
         disabled={!category || !form.email || !form.businessName || !form.businessType || submitting}
         className="w-full rounded-xl bg-navy-dark py-3 font-semibold text-white transition-colors hover:bg-navy disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {submitting ? "Starting…" : "Build my app"}
+        {submitting ? "Starting…" : testCode ? "Run test (no build)" : "Build my app"}
       </button>
       <p className="text-center text-xs text-gray-400">
-        Free preview · expires in 72 hours · no card required
+        {testCode
+          ? "Test run · nothing is built or deployed"
+          : "Free preview · expires in 72 hours · no card required"}
       </p>
     </form>
   );

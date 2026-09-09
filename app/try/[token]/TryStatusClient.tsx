@@ -35,7 +35,7 @@ export default function TryStatusClient({
   const [state, setState] = useState<PreviewState>(initial);
 
   useEffect(() => {
-    if (state.status === "deployed" || state.status.endsWith("failed")) return;
+    if (state.status === "deployed" || state.status === "test_skipped" || state.status.endsWith("failed")) return;
     const t = setInterval(async () => {
       try {
         const res = await fetch(`/api/try/${token}`);
@@ -49,6 +49,7 @@ export default function TryStatusClient({
     return () => clearInterval(t);
   }, [token, state.status]);
 
+  const testRun = state.status === "test_skipped";
   const stage = STAGES[state.status] ?? { label: state.status, pct: 20 };
   const failed = state.status.endsWith("failed");
   const live = state.status === "deployed" && state.deployUrl;
@@ -63,11 +64,13 @@ export default function TryStatusClient({
         <div>
           <h1 className="text-2xl font-bold text-navy-dark">{state.name}</h1>
           <p className="text-sm text-gray-500">
-            {live
-              ? `Your preview is live${hrs != null ? ` — expires in ${hrs}h` : ""}.`
-              : failed
-                ? "Something went wrong building this one."
-                : stage.label}
+            {testRun
+              ? "Test run — we stopped before building."
+              : live
+                ? `Your preview is live${hrs != null ? ` — expires in ${hrs}h` : ""}.`
+                : failed
+                  ? "Something went wrong building this one."
+                  : stage.label}
           </p>
         </div>
         {live && (
@@ -80,7 +83,18 @@ export default function TryStatusClient({
         )}
       </div>
 
-      {!live && !failed && (
+      {testRun && (
+        <div className="mt-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+          <p className="font-semibold">Test complete — nothing was built or deployed.</p>
+          <p className="mt-1 text-green-700">
+            The form and the recommender ran end to end for{" "}
+            <span className="font-medium">{state.name}</span>. Go back to your test link to run
+            through it again.
+          </p>
+        </div>
+      )}
+
+      {!live && !failed && !testRun && (
         <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-gray-200">
           <div
             className="h-full rounded-full bg-navy-dark transition-all duration-700"

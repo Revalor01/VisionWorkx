@@ -17,15 +17,31 @@ const CATEGORIES: AppCategory[] = [
 ];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// POST { email, intake } — create a no-account preview app and start
-// generating it. Returns a token for the /try/[token] status page.
+// Codes that put the /try flow in test mode — full form + recommender,
+// but stop before the build (no Claude generate, no per-app infra).
+// Set TRY_TEST_CODES to a comma-separated list; hand a code to a tester
+// as /try?k=<code>.
+const TEST_CODES = (process.env.TRY_TEST_CODES ?? "")
+  .split(",")
+  .map((c) => c.trim())
+  .filter(Boolean);
+
+// POST { email, intake, testCode? } — create a no-account preview app.
+// Starts generation unless a valid testCode is supplied. Returns a token
+// for the /try/[token] status page.
 export async function POST(req: NextRequest) {
-  let body: { email?: string; intake?: Partial<IntakeData> };
+  let body: { email?: string; intake?: Partial<IntakeData>; testCode?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const testCode = (body.testCode ?? "").trim();
+  if (testCode && !TEST_CODES.includes(testCode)) {
+    return NextResponse.json({ error: "That test link isn't valid." }, { status: 403 });
+  }
+  const testMode = testCode.length > 0;
 
   const email = (body.email ?? "").trim().toLowerCase();
   if (!EMAIL_RE.test(email)) {
@@ -60,13 +76,13 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const { id, token, resumed } = await createPreviewApp(email, intake);
-    if (!resumed) {
+    const { id, token, resumed } = await createPreviewApp(email, intake, { testMode });
+    if (!resumed && !testMode) {
       // Runs after the response is sent; `after()` prevents the function
       // from freezing mid-generation.
       after(() => runPreviewGenerate(id));
     }
-    return NextResponse.json({ token, resumed }, { status: resumed ? 200 : 201 });
+    return NextResponse.json({ token, resumed, testMode }, { status: resumed ? 200 : 201 });
   } catch (err) {
     console.error("[api/try] create failed:", err);
     return NextResponse.json(

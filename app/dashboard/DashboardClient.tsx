@@ -86,6 +86,11 @@ const STATUS_CONFIG: Record<
     cls: "bg-red-100 text-red-700",
     dot: "bg-red-400",
   },
+  test_skipped: {
+    label: "Test run",
+    cls: "bg-gray-100 text-gray-600",
+    dot: "bg-gray-400",
+  },
 };
 
 // ── Types ───────────────────────────────────────────────────────
