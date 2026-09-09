@@ -31,6 +31,7 @@ export default async function AdminPage() {
     { data: referrals },
     { data: revisions },
     { data: aiUsage },
+    { count: guidedSessionsCount },
   ] = await Promise.all([
     service
       .from("apps")
@@ -83,6 +84,9 @@ export default async function AdminPage() {
       .select("source, cost_usd, created_at")
       .order("created_at", { ascending: false })
       .limit(8000),
+    service
+      .from("guided_session_requests")
+      .select("id", { count: "exact", head: true }),
   ]);
 
   const oldestUndeliveredAt = oldestUndeliveredRows?.[0]?.created_at ?? null;
@@ -165,6 +169,7 @@ export default async function AdminPage() {
       initialReferrals={referrals ?? []}
       revisions={revisions ?? []}
       aiUsage={aiUsage ?? []}
+      guidedSessions={guidedSessionsCount ?? 0}
     />
 
   );

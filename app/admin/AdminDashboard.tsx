@@ -24,6 +24,7 @@ interface AdminDashboardProps {
   initialPartners: PartnerApplication[];
   initialReferrals: PartnerReferral[];
   revisions: { kind: AppRevisionKind; status: AppRevisionStatus; created_at: string }[];
+  guidedSessions: number;
   aiUsage: { source: string; cost_usd: number | null; created_at: string }[];
 }
 
@@ -98,6 +99,7 @@ export default function AdminDashboard({
   initialReferrals,
   revisions,
   aiUsage,
+  guidedSessions,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -846,7 +848,7 @@ export default function AdminDashboard({
                   value={stats.previews}
                   sub={`${stats.testRuns} test-mode run${stats.testRuns === 1 ? "" : "s"}`}
                 />
-                <StatCard label="Recommender uses" value={stats.recommenderUses} />
+                <StatCard label="Recommender uses" value={stats.recommenderUses} sub={`${guidedSessions} guided session${guidedSessions === 1 ? "" : "s"}`} />
                 <StatCard
                   label="AI spend (30d)"
                   value={`$${stats.aiSpend30.toFixed(2)}`}

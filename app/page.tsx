@@ -524,14 +524,14 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-8">
-            <a
-              href="mailto:info@revalorllc.com?subject=Guided%20Build%20Session"
-              className="inline-block bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
+            <Link
+              href="/guided"
+              className="inline-block bg-promote-gold hover:brightness-110 text-navy-dark font-bold px-8 py-4 rounded-xl text-base transition-all shadow-lg shadow-promote-gold/30"
             >
-              Request your session →
-            </a>
+              Book your session — $10 →
+            </Link>
             <p className="mt-4 text-sm text-blue-400">
-              About 10 minutes · applied to your first month · already know what you want?{" "}
+              Credited to your first month · already know what you want?{" "}
               <Link href="/try" className="underline hover:text-white">
                 Use the free builder
               </Link>

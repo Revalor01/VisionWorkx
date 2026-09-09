@@ -577,6 +577,34 @@ export type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      guided_session_requests: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          email: string;
+          full_name: string | null;
+          business_name: string | null;
+          business_type: string | null;
+          description: string | null;
+          status: "requested" | "scheduled" | "delivered" | "cancelled";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          email: string;
+          full_name?: string | null;
+          business_name?: string | null;
+          business_type?: string | null;
+          description?: string | null;
+          status?: "requested" | "scheduled" | "delivered" | "cancelled";
+          created_at?: string;
+        };
+        Update: {
+          status?: "requested" | "scheduled" | "delivered" | "cancelled";
+        };
+        Relationships: [];
+      };
       blog_product_config: {
         Row: {
           product: BlogProductSlug;
