@@ -82,9 +82,9 @@ export async function confirmGuidedSession(opts: {
       body: JSON.stringify({
         from,
         to: [OPERATOR_EMAIL],
-        subject: `Paid Guided Build Session: ${request.business_name || request.business_type}`,
+        subject: `${opts.comp ? "Comp" : "Paid"} Guided Build Session: ${request.business_name || request.business_type}`,
         html: `<div style="font-family:sans-serif;max-width:640px;margin:0 auto">
-          <h2 style="color:#1A3A5C">Paid Guided Build Session ($10)</h2>
+          <h2 style="color:#1A3A5C">${opts.comp ? "Comp (tester)" : "Paid ($10)"} Guided Build Session</h2>
           <table style="font-size:14px;border-collapse:collapse">
             <tr><td style="padding:4px 14px 4px 0;color:#666">Name</td><td><strong>${esc(request.full_name || "—")}</strong></td></tr>
             <tr><td style="padding:4px 14px 4px 0;color:#666">Email</td><td><strong>${esc(request.email)}</strong></td></tr>
