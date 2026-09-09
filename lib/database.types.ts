@@ -213,6 +213,7 @@ export type Database = {
           deploy_url: string | null;
           stripe_connect_account_id: string | null;
           payments_status: PaymentsStatus;
+          payments_test_mode: boolean;
           checkout_secret: string | null;
           vercel_project_id: string | null;
           custom_domain: string | null;
@@ -234,6 +235,7 @@ export type Database = {
           deploy_url?: string | null;
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
+          payments_test_mode?: boolean;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;
@@ -254,6 +256,7 @@ export type Database = {
           user_id?: string | null;
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
+          payments_test_mode?: boolean;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;

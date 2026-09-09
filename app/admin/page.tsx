@@ -35,7 +35,7 @@ export default async function AdminPage() {
   ] = await Promise.all([
     service
       .from("apps")
-      .select("id, user_id, name, category, status, deploy_url, created_at, intake_data")
+      .select("id, user_id, name, category, status, deploy_url, created_at, intake_data, payments_test_mode")
       .order("created_at", { ascending: false }),
     service
       .from("profiles")

@@ -16,7 +16,7 @@ async function authedApp(appId: string, req: NextRequest) {
   const service = createServiceClient();
   const { data: app } = await service
     .from("apps")
-    .select("id, checkout_secret, stripe_connect_account_id, payments_status")
+    .select("id, checkout_secret, stripe_connect_account_id, payments_status, payments_test_mode")
     .eq("id", appId)
     .single();
   if (!app || !app.checkout_secret || app.checkout_secret !== secret) return null;
@@ -72,7 +72,11 @@ export async function GET(
   }
 
   try {
-    const result = await checkoutSessionPaid(app.stripe_connect_account_id, sessionId);
+    const result = await checkoutSessionPaid(
+      app.stripe_connect_account_id,
+      sessionId,
+      !!app.payments_test_mode,
+    );
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });

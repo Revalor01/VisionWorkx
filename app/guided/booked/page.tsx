@@ -39,10 +39,10 @@ export default async function GuidedBookedPage() {
     cta = { href: "/guided", label: "Finish checkout →" };
   } else if (request.status === "delivered") {
     heading = "Your build is ready";
-    body = `We've sent the build brief and a live preview for ${biz} to your email. Open your dashboard to see the app.`;
+    body = `We've sent the build brief and a live preview for ${biz} to your email (check your spam or junk folder if it's not in your inbox). Open your dashboard to see the app.`;
   } else {
     heading = "You're booked in";
-    body = `Payment received. We're working out exactly what ${biz} needs and will email your build brief and a live preview to ${user.email}. You can safely close this — nothing else to do right now.`;
+    body = `Payment received. We're working out exactly what ${biz} needs and will email your build brief and a live preview to ${user.email} — check your spam or junk folder if you don't see it. You can safely close this — nothing else to do right now.`;
   }
 
   return (

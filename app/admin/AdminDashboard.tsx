@@ -12,7 +12,7 @@ import { scoreBucket } from "@/lib/leadScoring";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AdminDashboardProps {
-  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data">[];
+  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode">[];
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
   subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
@@ -604,6 +604,31 @@ export default function AdminDashboard({
     }
   }
 
+  // ── Stripe Connect test-mode toggle ───────────────────────────
+  const [paymentsTestMode, setPaymentsTestMode] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(apps.map((a) => [a.id, !!a.payments_test_mode])),
+  );
+  const [togglingTest, setTogglingTest] = useState<Record<string, boolean>>({});
+
+  async function handleTogglePaymentsTest(appId: string) {
+    const next = !paymentsTestMode[appId];
+    setTogglingTest((t) => ({ ...t, [appId]: true }));
+    try {
+      const res = await fetch("/api/admin/payments-test-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId, enabled: next }),
+      });
+      if (res.ok) {
+        setPaymentsTestMode((m) => ({ ...m, [appId]: next }));
+      }
+    } catch {
+      /* leave as-is */
+    } finally {
+      setTogglingTest((t) => ({ ...t, [appId]: false }));
+    }
+  }
+
   // ── Delete user action ─────────────────────────────────────────
   async function handleDeleteUser(userId: string, email: string) {
     const confirmed = window.confirm(
@@ -877,6 +902,9 @@ export default function AdminDashboard({
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+                paymentsTestMode={paymentsTestMode}
+                togglingTest={togglingTest}
+                onTogglePaymentsTest={handleTogglePaymentsTest}
               />
             </div>
           </div>
@@ -912,6 +940,9 @@ export default function AdminDashboard({
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+                paymentsTestMode={paymentsTestMode}
+                togglingTest={togglingTest}
+                onTogglePaymentsTest={handleTogglePaymentsTest}
               />
               <Pagination
                 page={appsPageClamped}
@@ -2120,12 +2151,18 @@ function AppTable({
   redeploying,
   redeployMessages,
   onRedeploy,
+  paymentsTestMode,
+  togglingTest,
+  onTogglePaymentsTest,
 }: {
   apps: AdminDashboardProps["apps"];
   userEmails: Record<string, string>;
   redeploying: Record<string, boolean>;
   redeployMessages: Record<string, string>;
   onRedeploy: (id: string) => void;
+  paymentsTestMode: Record<string, boolean>;
+  togglingTest: Record<string, boolean>;
+  onTogglePaymentsTest: (id: string) => void;
 }) {
   const canRedeploy = (status: AppStatus) =>
     status === "failed" || status === "deploy_failed" || status === "ready";
@@ -2198,6 +2235,24 @@ function AppTable({
                           className="text-xs px-3 py-1 rounded-lg bg-[#1A3A5C] text-white hover:bg-[#2E6DA4] disabled:opacity-50 transition-colors whitespace-nowrap"
                         >
                           {redeploying[app.id] ? "…" : "Redeploy"}
+                        </button>
+                      )}
+                      {app.user_id && (
+                        <button
+                          onClick={() => onTogglePaymentsTest(app.id)}
+                          disabled={togglingTest[app.id]}
+                          title="Stripe Connect test mode — payments run against Stripe test data (card 4242…). Toggling resets this app's Connect onboarding."
+                          className={`text-xs px-3 py-1 rounded-lg border transition-colors whitespace-nowrap disabled:opacity-50 ${
+                            paymentsTestMode[app.id]
+                              ? "border-amber-400 bg-amber-50 text-amber-700"
+                              : "border-zinc-300 text-zinc-500 hover:bg-slate-100"
+                          }`}
+                        >
+                          {togglingTest[app.id]
+                            ? "…"
+                            : paymentsTestMode[app.id]
+                              ? "Test pay: ON"
+                              : "Test pay: off"}
                         </button>
                       )}
                       {msg && (

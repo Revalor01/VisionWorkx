@@ -23,7 +23,7 @@ const STATUS_SUB: Record<Status, string> = {
   deploying:
     "Building and deploying to Vercel. This takes 3–6 minutes — feel free to leave this page.",
   complete:
-    "Your app is live and connected to your database. Check your email for the link!",
+    "Your app is live and connected to your database. The link is in your email — check your spam or junk folder if you don't see it.",
   failed:
     "Something went wrong during generation. Your progress has been saved — please try again.",
 };
@@ -435,8 +435,8 @@ export default function GenerateClient({
           <div className="text-center">
             <p className="text-xs text-gray-400">
               {stalled
-                ? "This is taking longer than usual to report back. Your app has most likely finished — the live link is in your email, and it's in your dashboard."
-                : "Your app is building on Vercel. You can safely leave this page — we'll email you when it's live."}
+                ? "This is taking longer than usual to report back. Your app has most likely finished — the live link is in your email (check spam/junk too), and it's in your dashboard."
+                : "Your app is building on Vercel. You can safely leave this page — we'll email you when it's live (check your spam folder if it doesn't arrive)."}
             </p>
             <Link
               href="/dashboard"

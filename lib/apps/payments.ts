@@ -16,8 +16,15 @@ export function categoryTakesPayments(category: AppCategory): boolean {
   return PAYMENT_CATEGORIES.includes(category);
 }
 
-function platformStripe(): Stripe {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!);
+// When an app has payments_test_mode = true, every Connect call for it runs
+// against Stripe test data (STRIPE_TEST_SECRET_KEY) so a tester can walk the
+// whole flow with no real money. Falls back to live if the test key is unset.
+function platformStripe(testMode = false): Stripe {
+  const key =
+    testMode && process.env.STRIPE_TEST_SECRET_KEY
+      ? process.env.STRIPE_TEST_SECRET_KEY
+      : process.env.STRIPE_SECRET_KEY!;
+  return new Stripe(key);
 }
 
 function appOrigin(): string {
@@ -48,12 +55,12 @@ export async function startConnectOnboarding(
   const service = createServiceClient();
   const { data: app } = await service
     .from("apps")
-    .select("id, stripe_connect_account_id, checkout_secret")
+    .select("id, stripe_connect_account_id, checkout_secret, payments_test_mode")
     .eq("id", appId)
     .single();
   if (!app) throw new Error("app not found");
 
-  const stripe = platformStripe();
+  const stripe = platformStripe(!!app.payments_test_mode);
 
   let accountId = app.stripe_connect_account_id;
   if (!accountId) {
@@ -109,8 +116,11 @@ export async function syncConnectAccount(account: Stripe.Account): Promise<void>
 }
 
 /** Pull the account fresh and reconcile (used by the connect route). */
-export async function refreshConnectStatus(accountId: string): Promise<"none" | "pending" | "active"> {
-  const account = await platformStripe().accounts.retrieve(accountId);
+export async function refreshConnectStatus(
+  accountId: string,
+  testMode = false,
+): Promise<"none" | "pending" | "active"> {
+  const account = await platformStripe(testMode).accounts.retrieve(accountId);
   await syncConnectAccount(account);
   return account.charges_enabled ? "active" : "pending";
 }
@@ -138,13 +148,18 @@ export interface CheckoutRequest {
  * malformed. Returns the hosted Checkout URL.
  */
 export async function createConnectedCheckout(
-  app: { stripe_connect_account_id: string | null; payments_status: string },
+  app: {
+    stripe_connect_account_id: string | null;
+    payments_status: string;
+    payments_test_mode?: boolean | null;
+  },
   req: CheckoutRequest,
 ): Promise<string> {
   if (!app.stripe_connect_account_id || app.payments_status !== "active") {
     throw new Error("payments are not set up for this app");
   }
 
+  const stripe = platformStripe(!!app.payments_test_mode);
   const currency = (req.currency ?? "usd").toLowerCase();
   const feePct = platformFeePercent();
   const params: Stripe.Checkout.SessionCreateParams = {
@@ -192,7 +207,7 @@ export async function createConnectedCheckout(
     if (feePct > 0) params.subscription_data = { application_fee_percent: feePct };
   }
 
-  const session = await platformStripe().checkout.sessions.create(params, {
+  const session = await stripe.checkout.sessions.create(params, {
     stripeAccount: app.stripe_connect_account_id,
   });
   return session.url ?? "";
@@ -202,8 +217,9 @@ export async function createConnectedCheckout(
 export async function checkoutSessionPaid(
   accountId: string,
   sessionId: string,
+  testMode = false,
 ): Promise<{ paid: boolean; metadata: Record<string, string> }> {
-  const session = await platformStripe().checkout.sessions.retrieve(
+  const session = await platformStripe(testMode).checkout.sessions.retrieve(
     sessionId,
     {},
     { stripeAccount: accountId },

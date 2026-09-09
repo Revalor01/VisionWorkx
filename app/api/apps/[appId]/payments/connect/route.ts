@@ -8,7 +8,7 @@ async function ownApp(appId: string, userId: string) {
   const service = createServiceClient();
   const { data: app } = await service
     .from("apps")
-    .select("id, user_id, deploy_url, stripe_connect_account_id, payments_status")
+    .select("id, user_id, deploy_url, stripe_connect_account_id, payments_status, payments_test_mode")
     .eq("id", appId)
     .single();
   if (!app || app.user_id !== userId) return null;
@@ -37,7 +37,7 @@ export async function GET(
   let status = app.payments_status;
   if (status === "pending" && app.stripe_connect_account_id) {
     try {
-      status = await refreshConnectStatus(app.stripe_connect_account_id);
+      status = await refreshConnectStatus(app.stripe_connect_account_id, !!app.payments_test_mode);
     } catch (err) {
       console.error("[payments/connect] refresh failed:", err);
     }

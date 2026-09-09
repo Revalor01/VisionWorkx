@@ -105,6 +105,7 @@ export default function RequestChangePanel({
   initialQuota: Quota;
 }) {
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [revisions, setRevisions] = useState<RevisionRow[]>(initialRevisions);
   const [quota, setQuota] = useState<Quota>(initialQuota);
   const [text, setText] = useState("");
@@ -191,6 +192,20 @@ export default function RequestChangePanel({
     }
   }
 
+  // Chips are a starting point, not a replacement — append (with a blank
+  // line if they've already written something) and drop the cursor at the
+  // end so they can keep elaborating.
+  function addExample(ex: string) {
+    setText((t) => (t.trim() ? `${t.trim()}\n\n${ex}` : ex));
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.selectionStart = el.selectionEnd = el.value.length;
+      }
+    });
+  }
+
   const latest = revisions[0];
   const canUndoLatest =
     latest && latest.status === "deployed" && latest.kind !== "create" && !pending && !appBusy;
@@ -204,30 +219,38 @@ export default function RequestChangePanel({
         </span>
       </div>
       <p className="text-gray-500 text-sm mb-4">
-        Describe what you want changed in plain English. We edit your app and redeploy it — your
-        live link stays up the whole time.
+        Describe what you want changed in plain English, and add any context that helps — what it&apos;s
+        for, an example, how it should differ from how it works now. The more detail you give, the
+        closer the result. We edit your app and redeploy it — your live link stays up the whole time.
       </p>
 
       <form onSubmit={submit}>
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={3}
-          maxLength={2000}
+          rows={6}
+          maxLength={4000}
           disabled={submitting || pending || quotaSpent || appBusy}
-          placeholder="e.g. Add a phone number field to the booking form, and show it on the confirmation page."
+          placeholder={
+            "e.g. Add a phone number field to the booking form, and show it on the confirmation page.\n\n" +
+            "Context: most of my customers call to confirm, so I need their number visible when the booking comes in. It should be required, and formatted like (555) 123-4567."
+          }
           className="w-full rounded-xl border border-gray-300 p-3 text-sm text-navy-dark placeholder:text-gray-400 focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy disabled:bg-gray-50 disabled:text-gray-400"
         />
+        <p className="mt-1 text-xs text-gray-400 tabular-nums">{text.length} / 4000</p>
 
         {!text.trim() && !submitting && !pending && !quotaSpent && !appBusy && (
           <div className="mt-3">
-            <p className="text-xs text-gray-400 mb-1.5">Not sure how to word it? Tap an example:</p>
+            <p className="text-xs text-gray-400 mb-1.5">
+              Not sure how to word it? Tap an example to drop it in, then add your own detail:
+            </p>
             <div className="flex flex-wrap gap-2">
               {[...(CATEGORY_EXAMPLES[category] ?? []), ...UNIVERSAL_EXAMPLES].map((ex) => (
                 <button
                   key={ex}
                   type="button"
-                  onClick={() => setText(ex)}
+                  onClick={() => addExample(ex)}
                   className="rounded-full border border-gray-300 px-3 py-1 text-left text-xs text-gray-600 transition-colors hover:border-navy hover:text-navy-dark"
                 >
                   {ex}

@@ -41,15 +41,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err) {
-    console.error("[stripe webhook] signature verification failed:", err);
+  // Verify against the live signing secret first, then the test one (set
+  // when a Connect test-mode endpoint is configured). Test events for
+  // account.updated / checkout.session.completed run through the same
+  // handler — they're keyed on our own IDs, not on livemode.
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_TEST_WEBHOOK_SECRET,
+  ].filter((s): s is string => !!s);
+
+  let event: Stripe.Event | null = null;
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, secret);
+      break;
+    } catch {
+      /* try the next secret */
+    }
+  }
+  if (!event) {
+    console.error("[stripe webhook] signature verification failed for all secrets");
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 

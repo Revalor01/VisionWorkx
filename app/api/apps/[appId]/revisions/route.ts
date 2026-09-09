@@ -8,7 +8,7 @@ import type { Plan } from "@/lib/database.types";
 
 export const runtime = "nodejs";
 
-const MAX_REQUEST_TEXT = 2000;
+const MAX_REQUEST_TEXT = 4000;
 
 function appOrigin(): string {
   return process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";

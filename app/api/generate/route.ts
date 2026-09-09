@@ -172,6 +172,12 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
                 <a href={settings.social_links.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>
               )}
               {/* only render a link for keys that are actually present in social_links */}
+              {/* Required, non-configurable — see rule 15 */}
+              <p className="text-center text-xs text-gray-400 py-4">
+                Built by{' '}
+                <a href="https://vision-workx.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Vision Workx</a>{' '}
+                by Revalor
+              </p>
             </footer>
           </body>
         </html>
@@ -232,7 +238,19 @@ NEXT_PUBLIC_SUPABASE_SCHEMA=public
         </>
       )
     }
-    \`\`\``;
+    \`\`\`
+
+15. CRITICAL — every page of this app must carry a small "Built by Vision Workx" credit in the footer. Put it ONCE in \`app/layout.tsx\` (inside the shared \`<footer>\` from rule 12's pattern, after the social links) so it renders on every route automatically. Exact markup — text link, NO logo/image:
+    \`\`\`tsx
+    <p className="text-center text-xs text-gray-400 py-4">
+      Built by{' '}
+      <a href="https://vision-workx.vercel.app" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+        Vision Workx
+      </a>{' '}
+      by Revalor
+    </p>
+    \`\`\`
+    Do not remove it, hide it, or route it through \`site_settings\`. It is not configurable. Keep it visually quiet (small, muted) but present and legible on light and dark backgrounds.`;
 
 // ---------------------------------------------------------------
 // POST /api/generate
