@@ -213,6 +213,65 @@ export async function createConnectedCheckout(
   return session.url ?? "";
 }
 
+export interface ConnectedTxn {
+  id: string;
+  /** unix seconds */
+  created: number;
+  /** integer cents */
+  amount: number;
+  currency: string;
+  /** "succeeded" | "pending" | "failed" */
+  status: string;
+  paid: boolean;
+  refunded: boolean;
+  amountRefunded: number;
+  description: string | null;
+  customerEmail: string | null;
+  receiptUrl: string | null;
+}
+
+/**
+ * List recent charges on the app's connected account, newest first —
+ * powers the "Payments history" view inside the generated app. Live read
+ * from Stripe (so refunds/disputes made in the Stripe dashboard show up),
+ * never a local mirror. `starting_after` is a charge id for pagination.
+ */
+export async function listConnectedCharges(
+  app: {
+    stripe_connect_account_id: string | null;
+    payments_test_mode?: boolean | null;
+  },
+  opts: { limit?: number; startingAfter?: string } = {},
+): Promise<{ transactions: ConnectedTxn[]; hasMore: boolean }> {
+  if (!app.stripe_connect_account_id) {
+    return { transactions: [], hasMore: false };
+  }
+
+  const stripe = platformStripe(!!app.payments_test_mode);
+  const limit = Math.min(Math.max(Math.round(opts.limit ?? 25), 1), 100);
+
+  const res = await stripe.charges.list(
+    { limit, ...(opts.startingAfter ? { starting_after: opts.startingAfter } : {}) },
+    { stripeAccount: app.stripe_connect_account_id },
+  );
+
+  const transactions: ConnectedTxn[] = res.data.map((c) => ({
+    id: c.id,
+    created: c.created,
+    amount: c.amount,
+    currency: c.currency,
+    status: c.status,
+    paid: c.paid && c.status === "succeeded",
+    refunded: c.refunded,
+    amountRefunded: c.amount_refunded,
+    description: c.description ?? null,
+    customerEmail: c.billing_details?.email ?? c.receipt_email ?? null,
+    receiptUrl: c.receipt_url ?? null,
+  }));
+
+  return { transactions, hasMore: res.has_more };
+}
+
 /** Look up a session on the connected account and report whether it's paid. */
 export async function checkoutSessionPaid(
   accountId: string,

@@ -751,6 +751,12 @@ async function setVercelEnvVars(
             target: ["production", "preview"],
           },
           {
+            key: "STRIPE_TRANSACTIONS_URL",
+            value: `${appOrigin}/api/apps/${appId}/transactions`,
+            type: "plain",
+            target: ["production", "preview"],
+          },
+          {
             key: "APP_CHECKOUT_SECRET",
             value: checkoutSecret,
             type: "encrypted",

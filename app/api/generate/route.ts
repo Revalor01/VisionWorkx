@@ -589,6 +589,7 @@ The business owner needs to give staff their own logins to the admin area.
 ## Payments — this app collects real money (required)
 The business charges its customers through **its own Stripe account**. Two SERVER-side env vars are provided, but ONLY after the owner connects Stripe from VisionWorkx — treat both as optional and possibly empty:
 - \`process.env.STRIPE_CHECKOUT_URL\` — POST here to create a Stripe Checkout session
+- \`process.env.STRIPE_TRANSACTIONS_URL\` — GET here for the payment history (see "Payments history" below)
 - \`process.env.APP_CHECKOUT_SECRET\` — send it as the \`x-vw-checkout-secret\` request header
 
 Rules:
@@ -624,6 +625,22 @@ const r = await fetch(\`\${process.env.STRIPE_CHECKOUT_URL}?session_id=\${sessio
 const { paid, metadata } = await r.json();
 if (paid) { /* mark the record paid in the tenant DB */ }
 \`\`\`
+
+Payments history (required when payments are set up) — an admin-only "Payments" page that lists what the business has actually been paid. It is a LIVE read from Stripe, never a local table:
+\`\`\`ts
+// server component / server route, admin-gated
+const r = await fetch(\`\${process.env.STRIPE_TRANSACTIONS_URL}?limit=50\`, {
+  headers: { "x-vw-checkout-secret": process.env.APP_CHECKOUT_SECRET! },
+  cache: "no-store",
+});
+const { transactions, hasMore } = await r.json();
+// transactions: { id, created (unix s), amount (cents), currency, status,
+//   paid, refunded, amountRefunded (cents), description, customerEmail, receiptUrl }[]
+\`\`\`
+- Add it to the admin dashboard nav as "Payments". Table columns: date, customer (email or "—"), description, amount (\`amount/100\` in \`currency\`), status badge (Paid / Pending / Failed; show "Refunded" when \`refunded\`, or "Partial refund" when \`0 < amountRefunded < amount\`), and a "Receipt" link when \`receiptUrl\` is present.
+- "Load more" passes \`?starting_after=<last transaction id>\` when \`hasMore\`.
+- If \`STRIPE_TRANSACTIONS_URL\` / \`APP_CHECKOUT_SECRET\` are missing, or the list is empty, show the same "Payments aren't set up yet" / "No payments yet" empty state — never an error.
+- Never call Stripe directly from this page and never expose \`APP_CHECKOUT_SECRET\` to the browser.
 
 Category specifics:
 - **invoicing** — a "Pay this invoice" button on each unpaid invoice (\`mode: "payment"\`, \`amount\` = invoice total in cents). Mark it paid only after the server confirms the session.
