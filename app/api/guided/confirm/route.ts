@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
           <h1 style="color:#1A3A5C">You're booked in</h1>
           <p>Thanks${name ? `, ${esc(name)}` : ""} — payment received. We've got your Guided Build Session for <strong>${esc(biz)}</strong>.</p>
           <p>We'll work out exactly what your app should do and send your <strong>build brief and a live preview</strong> to this email. Your account is ready now.</p>
-          <p style="margin:28px 0"><a href="${APP_URL}/dashboard" style="background:#1A3A5C;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Go to your dashboard →</a></p>
+          <p style="margin:28px 0"><a href="${APP_URL}/guided/booked" style="background:#1A3A5C;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View your booking →</a></p>
           <p style="color:#666;font-size:14px">Your $10 is credited to your first month if you subscribe.</p>
           <p style="color:#999;font-size:12px">Vision Workx · A Revalor Company</p>
         </div>`,

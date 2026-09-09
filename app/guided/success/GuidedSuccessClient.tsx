@@ -60,11 +60,14 @@ export default function GuidedSuccessClient({ sessionId }: { sessionId: string }
         a live preview to your email. Your $10 is credited to your first month if you subscribe.
       </p>
       <Link
-        href="/dashboard"
+        href="/guided/booked"
         className="inline-block bg-navy-dark text-white font-semibold px-6 py-3 rounded-xl hover:bg-navy transition-colors"
       >
-        Go to your dashboard →
+        View your booking →
       </Link>
+      <p className="mt-3 text-xs text-gray-400">
+        We emailed this link too — open it on any device to pick up where you left off.
+      </p>
     </div>
   );
 }
