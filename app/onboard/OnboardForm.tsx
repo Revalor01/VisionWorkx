@@ -6,6 +6,7 @@ import Image from "next/image";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { uploadLogo as uploadLogoFile, logoPathToUrl } from "@/lib/uploadLogo";
+import BrandPreview from "@/components/BrandPreview";
 import type { AppCategory, IntakeData, Plan } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -587,6 +588,13 @@ export default function OnboardForm({
                     </span>
                   </div>
                 </div>
+
+                <BrandPreview
+                  primary={data.primaryColor}
+                  background={data.backgroundColor ?? "#F8FAFC"}
+                  font={data.font}
+                  businessName={data.businessName}
+                />
 
                 {/* Font */}
                 <div>

@@ -25,6 +25,17 @@ function appOrigin(): string {
 }
 
 /**
+ * Platform's cut of every payment routed through a customer's connected
+ * account, as a percent of the transaction (PLATFORM_FEE_PERCENT, e.g.
+ * "1" = 1%). Collected as a Stripe application fee on the direct charge.
+ * Unset / 0 / out of range → no fee.
+ */
+export function platformFeePercent(): number {
+  const raw = parseFloat(process.env.PLATFORM_FEE_PERCENT ?? "");
+  return Number.isFinite(raw) && raw > 0 && raw <= 90 ? raw : 0;
+}
+
+/**
  * Ensure the app has a Standard connected account and a checkout secret,
  * then return a fresh Stripe onboarding link. Called every time the owner
  * clicks "set up" / "finish setup" — account links are single-use and
@@ -135,6 +146,7 @@ export async function createConnectedCheckout(
   }
 
   const currency = (req.currency ?? "usd").toLowerCase();
+  const feePct = platformFeePercent();
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: req.mode,
     success_url: req.successUrl,
@@ -154,7 +166,13 @@ export async function createConnectedCheckout(
         },
       },
     ];
+    if (feePct > 0) {
+      params.payment_intent_data = {
+        application_fee_amount: Math.round(req.amount * (feePct / 100)),
+      };
+    }
   } else if (req.priceId) {
+    if (feePct > 0) params.subscription_data = { application_fee_percent: feePct };
     params.line_items = [{ price: req.priceId, quantity: 1 }];
   } else {
     // No pre-made Price — build a recurring one inline (Checkout supports
@@ -171,6 +189,7 @@ export async function createConnectedCheckout(
         },
       },
     ];
+    if (feePct > 0) params.subscription_data = { application_fee_percent: feePct };
   }
 
   const session = await platformStripe().checkout.sessions.create(params, {

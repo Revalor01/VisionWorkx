@@ -6,9 +6,12 @@ import type { PaymentsStatus } from "@/lib/database.types";
 export default function PaymentsCard({
   appId,
   initialStatus,
+  feePercent = 0,
 }: {
   appId: string;
   initialStatus: PaymentsStatus;
+  /** VisionWorkx's cut of each payment, as a percent. 0 = no fee. */
+  feePercent?: number;
 }) {
   const [status, setStatus] = useState<PaymentsStatus>(initialStatus);
   const [working, setWorking] = useState(false);
@@ -65,6 +68,9 @@ export default function PaymentsCard({
           <p className="text-sm text-green-700 mb-3">
             ✓ Payments are on. Your app can charge customers, and the money goes straight to your
             own Stripe account.
+            {feePercent > 0 && (
+              <> VisionWorkx keeps {feePercent}% of each payment as a processing fee.</>
+            )}
           </p>
           <a
             href="https://dashboard.stripe.com"
@@ -80,7 +86,11 @@ export default function PaymentsCard({
           <p className="text-gray-500 text-sm mb-4">
             {status === "pending"
               ? "Stripe still needs a few details before your app can take payments. Pick up where you left off — it takes about two minutes."
-              : "Let customers pay you right inside your app. Connect a Stripe account (or make a new one) and payment features turn on automatically."}
+              : `Let customers pay you right inside your app. Connect a Stripe account (or make a new one) and payment features turn on automatically.${
+                  feePercent > 0
+                    ? ` VisionWorkx keeps ${feePercent}% of each payment; Stripe's own fees are separate.`
+                    : ""
+                }`}
           </p>
           <button
             onClick={start}

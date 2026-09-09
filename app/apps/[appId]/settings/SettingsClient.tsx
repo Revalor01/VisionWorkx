@@ -24,6 +24,7 @@ import RequestChangePanel, { type RevisionRow } from "./RequestChangePanel";
 import PaymentsCard from "./PaymentsCard";
 import AutomationsPanel from "./AutomationsPanel";
 import DomainCard from "./DomainCard";
+import BrandPreview from "@/components/BrandPreview";
 
 const SOCIAL_PLATFORMS: { key: string; label: string; placeholder: string }[] = [
   { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/yourbusiness" },
@@ -51,6 +52,7 @@ export default function SettingsClient({
   changeQuota,
   paymentsApplicable,
   initialPaymentsStatus,
+  paymentsFeePercent,
   initialCustomDomain,
   unavailable,
   colorsUnavailable,
@@ -81,6 +83,7 @@ export default function SettingsClient({
   changeQuota: { used: number; limit: number };
   paymentsApplicable: boolean;
   initialPaymentsStatus: PaymentsStatus;
+  paymentsFeePercent: number;
   initialCustomDomain: string | null;
   unavailable: boolean;
   colorsUnavailable: boolean;
@@ -257,7 +260,11 @@ export default function SettingsClient({
             initialQuota={changeQuota}
           />
           {paymentsApplicable && (
-            <PaymentsCard appId={appId} initialStatus={initialPaymentsStatus} />
+            <PaymentsCard
+              appId={appId}
+              initialStatus={initialPaymentsStatus}
+              feePercent={paymentsFeePercent}
+            />
           )}
           <DomainCard appId={appId} plan={plan} initialDomain={initialCustomDomain} />
           <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -394,6 +401,11 @@ export default function SettingsClient({
                       </span>
                     </div>
                   </div>
+                  <BrandPreview primary={primaryColor} background={backgroundColor} />
+                  <p className="text-xs text-gray-400">
+                    Color changes save instantly — your live site picks them up on the next visit, no
+                    rebuild.
+                  </p>
                 </div>
               </section>
             )}

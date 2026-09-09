@@ -7,7 +7,7 @@ import {
   currentAutomationPeriod,
 } from "@/lib/automationLimits";
 import { CHANGE_REQUEST_LIMITS, monthStartISO } from "@/lib/apps/changeRequestLimits";
-import { categoryTakesPayments } from "@/lib/apps/payments";
+import { categoryTakesPayments, platformFeePercent } from "@/lib/apps/payments";
 import type { Plan } from "@/lib/database.types";
 import SettingsClient from "./SettingsClient";
 import type { RevisionRow } from "./RequestChangePanel";
@@ -127,6 +127,7 @@ export default async function AppSettingsPage(
       changeQuota={changeQuota}
       paymentsApplicable={categoryTakesPayments(app.category)}
       initialPaymentsStatus={app.payments_status}
+      paymentsFeePercent={platformFeePercent()}
       initialCustomDomain={app.custom_domain}
       unavailable={unavailable}
       colorsUnavailable={colorsUnavailable}

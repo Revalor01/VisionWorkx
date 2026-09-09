@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AppCategory } from "@/lib/database.types";
 import { TEAM_ACCESS_FEATURE } from "@/lib/features";
+import BrandPreview from "@/components/BrandPreview";
 
 const CATEGORIES: { id: AppCategory; title: string; desc: string }[] = [
   { id: "booking", title: "Booking & Scheduling", desc: "Online appointments, staff scheduling, a public booking page" },
@@ -24,6 +25,9 @@ export default function TryForm() {
     location: "",
     description: "",
   });
+  const [primaryColor, setPrimaryColor] = useState("#1A3A5C");
+  const [backgroundColor, setBackgroundColor] = useState("#F8FAFC");
+  const [showColors, setShowColors] = useState(false);
   const [category, setCategory] = useState<AppCategory | null>(null);
   const [secondary, setSecondary] = useState<AppCategory[]>([]);
   const [teamLogins, setTeamLogins] = useState(false);
@@ -98,6 +102,8 @@ export default function TryForm() {
             category,
             secondaryCategories: secondary.filter((c) => c !== category),
             features: teamLogins ? [TEAM_ACCESS_FEATURE] : [],
+            primaryColor,
+            backgroundColor,
           },
         }),
       });
@@ -272,6 +278,48 @@ export default function TryForm() {
               </span>
             </span>
           </label>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-navy/20 bg-navy/[0.03] p-4">
+        {!showColors ? (
+          <button
+            type="button"
+            onClick={() => setShowColors(true)}
+            className="text-sm font-semibold text-navy hover:underline"
+          >
+            + Pick your colors <span className="font-normal text-gray-500">(optional)</span>
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-navy-dark">Colors</p>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="color"
+                  value={backgroundColor}
+                  onChange={(e) => setBackgroundColor(e.target.value)}
+                  className="h-10 w-10 cursor-pointer rounded-lg border border-gray-300 p-0.5"
+                />
+                Background
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="h-10 w-10 cursor-pointer rounded-lg border border-gray-300 p-0.5"
+                />
+                Buttons &amp; accents
+              </label>
+            </div>
+            <BrandPreview
+              primary={primaryColor}
+              background={backgroundColor}
+              businessName={form.businessName}
+            />
+            <p className="text-xs text-gray-400">You can fine-tune or change these anytime after.</p>
+          </div>
         )}
       </div>
 
