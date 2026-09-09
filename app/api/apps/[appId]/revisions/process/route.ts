@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { parseFileMap } from "@/lib/apps/fileMap";
 import { editApp, EditNoOpError } from "@/lib/apps/editApp";
 import { failRevision, shipRevisionEdit } from "@/lib/apps/redeploy";
+import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import type { AppCategory } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -51,7 +52,7 @@ export async function POST(
 
   const { data: app } = await service
     .from("apps")
-    .select("id, name, category, generated_code")
+    .select("id, name, category, generated_code, user_id")
     .eq("id", appId)
     .single();
   if (!app?.generated_code) {
@@ -79,6 +80,17 @@ export async function POST(
     }
     console.error("[revisions/process] editApp failed:", err);
     await failRevision(revisionId, `Edit failed: ${(err as Error).message}`);
+    const owner = app.user_id
+      ? (await service.auth.admin.getUserById(app.user_id)).data.user?.email ?? `user ${app.user_id}`
+      : null;
+    await notifyBuildFailure({
+      stage: "change",
+      appId,
+      appName: app.name,
+      customer: owner,
+      requestText: revision.request_text,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 

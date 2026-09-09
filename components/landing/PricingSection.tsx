@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CHANGE_REQUEST_LIMITS } from "@/lib/apps/changeRequestLimits";
 
 const PLANS = [
   {
@@ -16,7 +17,7 @@ const PLANS = [
       "Card payments — paid out to your own Stripe account",
       "Staff logins & team invites",
       "Custom domain",
-      "Plain-English changes to your live app, anytime",
+      `${CHANGE_REQUEST_LIMITS.starter} plain-English changes to your live app / month`,
       "Owner dashboard + CSV export",
       "VisionWorkx Automation — 100 emails/mo",
       "Email support",
@@ -37,7 +38,7 @@ const PLANS = [
       "Card payments — paid out to your own Stripe account",
       "Staff logins & team invites",
       "Custom domain",
-      "Plain-English changes to your live app, anytime",
+      `${CHANGE_REQUEST_LIMITS.growth} plain-English changes to your live app / month`,
       "Owner dashboard + CSV export",
       "VisionWorkx Automation — 500 emails/mo",
       "Priority email support",
@@ -58,7 +59,7 @@ const PLANS = [
       "Card payments — paid out to your own Stripe account",
       "Staff logins & team invites",
       "Custom domain",
-      "Plain-English changes to your live app, anytime",
+      `${CHANGE_REQUEST_LIMITS.pro} plain-English changes to your live app / month`,
       "Owner dashboard + CSV export",
       "VisionWorkx Automation — 2,000 emails/mo",
       "Priority email support",

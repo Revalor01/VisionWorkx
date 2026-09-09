@@ -12,12 +12,13 @@ function esc(s: string): string {
 }
 
 export async function notifyBuildFailure(opts: {
-  stage: "generate" | "deploy";
+  stage: "generate" | "deploy" | "change";
   appId: string;
   appName?: string | null;
   customer?: string | null;
   error: string;
   buildLog?: string | null;
+  requestText?: string | null;
 }): Promise<void> {
   if (!RESEND_KEY) {
     console.warn(`[operatorAlert] RESEND_API_KEY missing — skipped ${opts.stage}-failure alert for ${opts.appId}`);
@@ -28,6 +29,7 @@ export async function notifyBuildFailure(opts: {
     ["Stage", opts.stage],
     ["App", `${opts.appName || "(unnamed)"} — ${opts.appId}`],
     ["Customer", opts.customer || "unknown"],
+    ...(opts.requestText ? ([["Change request", opts.requestText.slice(0, 400)]] as [string, string][]) : []),
     ["Error", opts.error.slice(0, 600)],
   ];
   const table = rows
