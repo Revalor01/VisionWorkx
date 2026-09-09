@@ -1061,9 +1061,32 @@ CREATE TRIGGER emit_automation_event
   });
 
   // Close out this build's revision row (no-op for apps with no open one).
-  await finalizeRevision(appId, "deployed", { deployUrl: finalUrl });
+  const finalized = await finalizeRevision(appId, "deployed", { deployUrl: finalUrl });
 
   if (RESEND_KEY && userEmail) {
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const btn = `<p style="margin:30px 0"><a href="${finalUrl}" style="background:#1A3A5C;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Your Live App →</a></p>`;
+    const foot = `<p style="color:#666;font-size:14px">Vision Workx · A Revalor Company</p>`;
+
+    let subject: string;
+    let html: string;
+    if (finalized?.kind === "change") {
+      const n = finalized.changedFiles.length;
+      subject = `Your change to "${app.name}" is live`;
+      html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px">
+        <h1 style="color:#1A3A5C">Your change is live</h1>
+        <p>The change you requested for <strong>${esc(app.name)}</strong> is done and deployed.</p>
+        ${finalized.changelog ? `<p style="background:#f6f7f9;border-radius:8px;padding:12px 14px"><strong>What changed:</strong> ${esc(finalized.changelog)}</p>` : ""}
+        ${n ? `<p style="color:#666;font-size:14px">${n} file${n === 1 ? "" : "s"} updated. Your live link stayed up the whole time.</p>` : ""}
+        ${btn}
+        <p style="color:#666;font-size:14px">Not quite right? Undo it or request another change from your app's Settings.</p>
+        ${foot}
+      </div>`;
+    } else {
+      subject = `Your app "${app.name}" is live!`;
+      html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px"><h1 style="color:#1A3A5C">Your app is live!</h1><p>Your <strong>${esc(app.name)}</strong> app is deployed and connected to your database.</p>${btn}${foot}</div>`;
+    }
+
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -1073,8 +1096,8 @@ CREATE TRIGGER emit_automation_event
       body: JSON.stringify({
         from: "Vision Workx <notifications@notify.revalorllc.com>",
         to: [userEmail],
-        subject: `Your app "${app.name}" is live!`,
-        html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px"><h1 style="color:#1A3A5C">Your app is live!</h1><p>Your <strong>${app.name}</strong> app is deployed and connected to your database.</p><p style="margin:30px 0"><a href="${finalUrl}" style="background:#1A3A5C;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold">View Your Live App →</a></p><p style="color:#666;font-size:14px">Vision Workx · A Revalor Company</p></div>`,
+        subject,
+        html,
       }),
     }).catch(() => {});
   }

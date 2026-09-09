@@ -214,22 +214,28 @@ export async function failRevision(revisionId: string, error: string): Promise<v
  * open revision — apps generated before this table existed still deploy
  * fine. Best-effort; never throws.
  */
+export interface FinalizedRevision {
+  kind: "create" | "change" | "rollback";
+  changelog: string | null;
+  changedFiles: string[];
+}
+
 export async function finalizeRevision(
   appId: string,
   outcome: "deployed" | "failed",
   extra: { deployUrl?: string; previewUrl?: string; error?: string } = {},
-): Promise<void> {
+): Promise<FinalizedRevision | null> {
   try {
     const service = createServiceClient();
     const { data: open } = await service
       .from("app_revisions")
-      .select("id")
+      .select("id, kind, changelog, changed_files")
       .eq("app_id", appId)
       .in("status", ["queued", "building"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!open) return;
+    if (!open) return null;
 
     await service
       .from("app_revisions")
@@ -240,7 +246,14 @@ export async function finalizeRevision(
         error: outcome === "failed" ? (extra.error ?? "unknown error").slice(0, 2000) : null,
       })
       .eq("id", open.id);
+
+    return {
+      kind: open.kind,
+      changelog: open.changelog ?? null,
+      changedFiles: open.changed_files ?? [],
+    };
   } catch (err) {
     console.error("[apps/redeploy] finalizeRevision failed:", err);
+    return null;
   }
 }
