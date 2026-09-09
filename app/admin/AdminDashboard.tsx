@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import type { App, AppCategory, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerReferral, PartnerReferralStatus, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
+import type { App, AppCategory, AppRevisionKind, AppRevisionStatus, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerReferral, PartnerReferralStatus, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
 import { scoreBucket } from "@/lib/leadScoring";
@@ -23,6 +23,8 @@ interface AdminDashboardProps {
   initialLeads: Lead[];
   initialPartners: PartnerApplication[];
   initialReferrals: PartnerReferral[];
+  revisions: { kind: AppRevisionKind; status: AppRevisionStatus; created_at: string }[];
+  aiUsage: { source: string; cost_usd: number | null; created_at: string }[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -94,6 +96,8 @@ export default function AdminDashboard({
   initialLeads,
   initialPartners,
   initialReferrals,
+  revisions,
+  aiUsage,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -477,6 +481,15 @@ export default function AdminDashboard({
       (a) => Date.now() - new Date(a.created_at).getTime() < 7 * 86400000
     ).length;
 
+    const now = Date.now();
+    const within = (iso: string, days: number) => now - new Date(iso).getTime() < days * 86400000;
+
+    const changeReqs = revisions.filter((r) => r.kind === "change");
+    const aiSpend = (days?: number) =>
+      aiUsage
+        .filter((u) => days == null || within(u.created_at, days))
+        .reduce((s, u) => s + (u.cost_usd ?? 0), 0);
+
     return {
       totalUsers: profiles.length,
       totalApps: apps.length,
@@ -486,8 +499,20 @@ export default function AdminDashboard({
       generating: apps.filter((a) => a.status === "generating").length,
       deploying: apps.filter((a) => a.status === "deploying" || a.status === "ready").length,
       failed: apps.filter((a) => a.status === "failed" || a.status === "deploy_failed").length,
+
+      // Client activity
+      changeReqs: changeReqs.length,
+      changeReqsWeek: changeReqs.filter((r) => within(r.created_at, 7)).length,
+      changeReqsFailed: changeReqs.filter((r) => r.status === "failed").length,
+      previews: apps.filter((a) => !a.user_id).length,
+      testRuns: apps.filter((a) => a.status === "test_skipped").length,
+      recommenderUses: aiUsage.filter((u) => u.source === "try_recommend").length,
+      genFailed: apps.filter((a) => a.status === "failed").length,
+      deployFailed: apps.filter((a) => a.status === "deploy_failed").length,
+      aiSpend30: aiSpend(30),
+      aiSpendAll: aiSpend(),
     };
-  }, [apps, profiles, subscriptions]);
+  }, [apps, profiles, subscriptions, revisions, aiUsage]);
 
   // ── Automations derived state ───────────────────────────────────
   const instrumentedSet = useMemo(() => new Set(instrumentedAppIds), [instrumentedAppIds]);
@@ -804,6 +829,35 @@ export default function AdminDashboard({
                 <PipelineStat label="Deploying" count={stats.deploying} color="blue" />
                 <PipelineStat label="Live" count={stats.liveApps} color="green" />
                 <PipelineStat label="Failed" count={stats.failed} color="red" />
+              </div>
+            </div>
+
+            {/* Client activity */}
+            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
+              <h2 className="font-semibold text-zinc-900 mb-4">Client Activity</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <StatCard
+                  label="Change requests"
+                  value={stats.changeReqs}
+                  sub={`${stats.changeReqsWeek} this week · ${stats.changeReqsFailed} failed`}
+                />
+                <StatCard
+                  label="/try previews"
+                  value={stats.previews}
+                  sub={`${stats.testRuns} test-mode run${stats.testRuns === 1 ? "" : "s"}`}
+                />
+                <StatCard label="Recommender uses" value={stats.recommenderUses} />
+                <StatCard
+                  label="AI spend (30d)"
+                  value={`$${stats.aiSpend30.toFixed(2)}`}
+                  sub={`$${stats.aiSpendAll.toFixed(2)} all-time`}
+                  accent="blue"
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <PipelineStat label="Generate failed" count={stats.genFailed} color="red" />
+                <PipelineStat label="Deploy failed" count={stats.deployFailed} color="red" />
+                <PipelineStat label="Change failed" count={stats.changeReqsFailed} color="red" />
               </div>
             </div>
 

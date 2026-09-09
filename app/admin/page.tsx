@@ -29,6 +29,8 @@ export default async function AdminPage() {
     { data: leads },
     { data: partners },
     { data: referrals },
+    { data: revisions },
+    { data: aiUsage },
   ] = await Promise.all([
     service
       .from("apps")
@@ -71,6 +73,16 @@ export default async function AdminPage() {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(1000),
+    service
+      .from("app_revisions")
+      .select("kind, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(3000),
+    service
+      .from("ai_usage_log")
+      .select("source, cost_usd, created_at")
+      .order("created_at", { ascending: false })
+      .limit(8000),
   ]);
 
   const oldestUndeliveredAt = oldestUndeliveredRows?.[0]?.created_at ?? null;
@@ -151,6 +163,8 @@ export default async function AdminPage() {
       initialLeads={leads ?? []}
       initialPartners={partners ?? []}
       initialReferrals={referrals ?? []}
+      revisions={revisions ?? []}
+      aiUsage={aiUsage ?? []}
     />
 
   );
