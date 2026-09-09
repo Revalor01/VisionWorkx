@@ -588,6 +588,9 @@ export type Database = {
           description: string | null;
           status: "requested" | "scheduled" | "delivered" | "cancelled";
           created_at: string;
+          paid_at: string | null;
+          stripe_session_id: string | null;
+          stripe_customer_id: string | null;
         };
         Insert: {
           id?: string;
@@ -599,9 +602,15 @@ export type Database = {
           description?: string | null;
           status?: "requested" | "scheduled" | "delivered" | "cancelled";
           created_at?: string;
+          paid_at?: string | null;
+          stripe_session_id?: string | null;
+          stripe_customer_id?: string | null;
         };
         Update: {
           status?: "requested" | "scheduled" | "delivered" | "cancelled";
+          paid_at?: string | null;
+          stripe_session_id?: string | null;
+          stripe_customer_id?: string | null;
         };
         Relationships: [];
       };

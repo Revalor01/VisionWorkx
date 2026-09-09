@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import PasswordInput from "@/components/PasswordInput";
 
-export default function GuidedSessionPage() {
-  const router = useRouter();
+function GuidedForm() {
+  const params = useSearchParams();
+  const cancelled = params.get("cancelled") === "1";
   const [form, setForm] = useState({
     fullName: "",
     businessName: "",
@@ -18,7 +19,6 @@ export default function GuidedSessionPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
 
   function set(k: keyof typeof form, v: string) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -62,39 +62,16 @@ export default function GuidedSessionPage() {
       }),
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(json.error ?? "Something went wrong filing your request.");
+    if (!res.ok || !json.url) {
+      setError(json.error ?? "Something went wrong starting checkout.");
       setLoading(false);
       return;
     }
-    setDone(true);
-    setLoading(false);
+    window.location.href = json.url; // Stripe Checkout
   }
 
   const inputCls =
     "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy focus:border-transparent";
-
-  if (done) {
-    return (
-      <div className="min-h-screen bg-off-white flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md text-center">
-          <div className="text-5xl mb-5">✅</div>
-          <h1 className="text-2xl font-bold text-navy-dark mb-3">You&apos;re booked in</h1>
-          <p className="text-gray-600 text-sm leading-relaxed mb-6">
-            We&apos;ll work out what your app should do and send your build brief and a live
-            preview to <strong className="text-navy-dark">{form.email}</strong>. Your account is
-            ready now.
-          </p>
-          <Link
-            href="/dashboard"
-            className="inline-block bg-navy-dark text-white font-semibold px-6 py-3 rounded-xl hover:bg-navy transition-colors"
-          >
-            Go to your dashboard →
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-off-white flex items-center justify-center px-4 py-12">
@@ -110,6 +87,11 @@ export default function GuidedSessionPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          {cancelled && !error && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-50 text-amber-800 text-sm border border-amber-200">
+              Payment was cancelled — your account is created, just finish checkout below to book.
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
               {error}
@@ -177,5 +159,13 @@ export default function GuidedSessionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GuidedSessionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-off-white" />}>
+      <GuidedForm />
+    </Suspense>
   );
 }
