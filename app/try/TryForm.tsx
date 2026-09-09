@@ -29,6 +29,9 @@ export default function TryForm() {
   const [teamLogins, setTeamLogins] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [recommending, setRecommending] = useState(false);
+  const [recError, setRecError] = useState("");
+  const [rationale, setRationale] = useState("");
 
   function toggleSecondary(c: AppCategory) {
     setSecondary((prev) =>
@@ -38,6 +41,37 @@ export default function TryForm() {
 
   function set(k: keyof typeof form, v: string) {
     setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  async function recommend() {
+    if (recommending) return;
+    setRecommending(true);
+    setRecError("");
+    setRationale("");
+    try {
+      const res = await fetch("/api/try/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName: form.businessName,
+          businessType: form.businessType,
+          description: form.description,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRecError(data.error ?? "Couldn't get a recommendation.");
+        return;
+      }
+      setCategory(data.category);
+      setSecondary(Array.isArray(data.secondaryCategories) ? data.secondaryCategories : []);
+      setTeamLogins(data.teamLogins === true);
+      setRationale(typeof data.rationale === "string" ? data.rationale : "");
+    } catch {
+      setRecError("Network error — try again, or pick your app type below.");
+    } finally {
+      setRecommending(false);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -127,7 +161,41 @@ export default function TryForm() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-navy/20 bg-navy/[0.03] p-4">
+        <label className="mb-1 block text-sm font-medium text-navy-dark">
+          In a sentence or two, what does this need to do?
+        </label>
+        <p className="mb-2 text-xs text-gray-500">
+          Describe it like you&apos;d explain it to a friend — we&apos;ll suggest the setup. You can
+          change anything after.
+        </p>
+        <textarea
+          rows={3}
+          value={form.description}
+          onChange={(e) => set("description", e.target.value)}
+          placeholder="e.g. Customers should be able to book a crew online and pay a deposit, and my two crew leads need their own logins."
+          className={inputCls}
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={recommend}
+            disabled={recommending || !form.businessType.trim() || form.description.trim().length < 10}
+            className="rounded-lg border border-navy bg-white px-4 py-2 text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {recommending ? "Thinking…" : "✨ Recommend my setup"}
+          </button>
+          {recError && <span className="text-xs text-red-600">{recError}</span>}
+        </div>
+      </div>
+
       <div>
+        {rationale && (
+          <div className="mb-3 rounded-xl border border-navy/30 bg-navy/5 p-3 text-sm text-navy-dark">
+            <span className="font-semibold">Based on that, we suggest the below.</span> {rationale}{" "}
+            <span className="text-gray-500">Change anything that doesn&apos;t fit.</span>
+          </div>
+        )}
         <p className="mb-2 text-sm font-medium text-navy-dark">What should the app do?</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {CATEGORIES.map((c) => (
@@ -194,19 +262,6 @@ export default function TryForm() {
             </span>
           </label>
         )}
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-navy-dark">
-          Anything specific it needs? <span className="text-gray-400">(optional)</span>
-        </label>
-        <textarea
-          rows={3}
-          value={form.description}
-          onChange={(e) => set("description", e.target.value)}
-          placeholder="e.g. customers should be able to pick a crew member, and I want a deposit taken at booking."
-          className={inputCls}
-        />
       </div>
 
       {error && (
