@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase";
 import { syncConnectAccount } from "@/lib/apps/payments";
+import { confirmGuidedSession } from "@/lib/apps/guidedSession";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
 
 // Stripe uses "canceled"; our schema uses "cancelled"
@@ -60,6 +61,23 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.userId;
+
+        // One-time Guided Build Session payment — no subscription.
+        if (
+          session.mode === "payment" &&
+          session.payment_status === "paid" &&
+          session.metadata?.requestId
+        ) {
+          const status = await confirmGuidedSession({
+            stripe,
+            requestId: session.metadata.requestId,
+          });
+          console.log(
+            `[stripe] guided session ${status} — request ${session.metadata.requestId}`
+          );
+          break;
+        }
+
         const stripeCustomerId =
           typeof session.customer === "string" ? session.customer : null;
         const stripeSubscriptionId =
