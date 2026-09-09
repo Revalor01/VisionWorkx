@@ -24,7 +24,7 @@ export default function HeroEmailForm() {
       />
       <button
         type="submit"
-        className="shrink-0 bg-navy hover:bg-blue-500 text-promote-gold border border-promote-gold font-semibold px-6 py-3.5 rounded-xl text-sm transition-colors whitespace-nowrap shadow-lg shadow-blue-900/40"
+        className="shrink-0 bg-promote-gold hover:brightness-110 text-navy-dark font-bold px-6 py-3.5 rounded-xl text-sm transition-all whitespace-nowrap shadow-lg shadow-promote-gold/30"
       >
         Start Building Free →
       </button>

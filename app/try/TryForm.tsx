@@ -284,7 +284,7 @@ export default function TryForm() {
       <button
         type="submit"
         disabled={!category || !form.email || !form.businessName || !form.businessType || submitting}
-        className="w-full rounded-xl bg-navy-dark py-3 font-semibold text-white transition-colors hover:bg-navy disabled:cursor-not-allowed disabled:opacity-40"
+        className="w-full rounded-xl bg-promote-gold py-3 font-bold text-navy-dark shadow-lg shadow-promote-gold/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
       >
         {submitting ? "Starting…" : testCode ? "Run test (no build)" : "Build my app"}
       </button>

@@ -281,17 +281,17 @@ export default function LandingPage() {
                 <HeroEmailForm />
                 <a
                   href="#guided-build"
-                  className="group flex w-full max-w-md items-center justify-between gap-3 rounded-xl border-2 border-promote-gold bg-promote-gold/10 px-5 py-3.5 text-left transition-colors hover:bg-promote-gold"
+                  className="group flex w-full max-w-md items-center justify-between gap-3 rounded-xl border border-blue-500/40 bg-white/[0.03] px-5 py-3 text-left transition-colors hover:border-promote-gold/70 hover:bg-white/[0.06]"
                 >
                   <span>
-                    <span className="block text-sm font-bold text-promote-gold group-hover:text-navy-dark">
+                    <span className="block text-sm font-semibold text-white">
                       Not sure what you need?
                     </span>
-                    <span className="block text-xs text-blue-200/90 group-hover:text-navy-dark/80">
+                    <span className="block text-xs text-blue-300">
                       Talk it through — we&apos;ll work out the setup and build it. $10, credited to your first month.
                     </span>
                   </span>
-                  <span className="shrink-0 text-lg text-promote-gold group-hover:text-navy-dark">→</span>
+                  <span className="shrink-0 text-blue-300 transition-colors group-hover:text-promote-gold">→</span>
                 </a>
                 <Link
                   href="/try"
