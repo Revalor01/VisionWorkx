@@ -119,7 +119,7 @@ function GuidedForm() {
             </div>
             <div>
               <label className="block text-sm font-medium text-navy-dark mb-1.5">Email</label>
-              <input type="email" required value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@yourbusiness.com" className={inputCls} />
+              <input type="email" required value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@gmail.com" className={inputCls} />
             </div>
             <div>
               <label className="block text-sm font-medium text-navy-dark mb-1.5">Password</label>

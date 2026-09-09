@@ -18,7 +18,7 @@ export default function HeroEmailForm() {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@yourbusiness.com"
+        placeholder="you@gmail.com"
         className="flex-1 min-w-0 bg-white/10 border border-blue-500/50 text-white placeholder-blue-300/70 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm"
         required
       />

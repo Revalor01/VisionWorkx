@@ -133,7 +133,7 @@ export default function TryForm() {
             required
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
-            placeholder="you@yourbusiness.com"
+            placeholder="you@gmail.com"
             className={inputCls}
           />
         </div>
