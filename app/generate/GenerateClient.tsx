@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppNavbar from "@/components/nav/AppNavbar";
+import { createBrowserClient } from "@/lib/supabase-browser";
 
 type Status = "connecting" | "generating" | "deploying" | "complete" | "failed";
 
@@ -50,6 +51,7 @@ export default function GenerateClient({
   const [progress, setProgress] = useState(5);
   const [error, setError] = useState("");
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  const [stalled, setStalled] = useState(false);
 
   const codeWindowRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -81,36 +83,50 @@ export default function GenerateClient({
     return () => clearInterval(interval);
   }, [status]);
 
-  // Poll Supabase REST for deploy_url after code generation completes
+  // Poll for the app's final state after code generation completes. Uses the
+  // session-authenticated browser client (an anon-key read is blocked by RLS
+  // on `apps`, which returned nothing and left the bar stuck at 95% even
+  // though the deploy had finished). `status` is the source of truth —
+  // deploy_url is populated in the same write but treated as best-effort.
   const startPolling = useCallback((id: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
+    const supabase = createBrowserClient();
+    let attempts = 0;
 
     pollRef.current = setInterval(async () => {
+      attempts += 1;
       try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-        const res = await fetch(
-          `${supabaseUrl}/rest/v1/apps?id=eq.${id}&select=status,deploy_url`,
-          {
-            headers: {
-              apikey: anonKey,
-              Authorization: `Bearer ${anonKey}`,
-            },
-          }
-        );
-        if (!res.ok) return;
-        const [row] = await res.json();
-        if (!row) return;
+        const { data: row } = await supabase
+          .from("apps")
+          .select("status, deploy_url")
+          .eq("id", id)
+          .maybeSingle();
 
-        if (row.deploy_url) {
+        if (row?.status === "deployed") {
           clearInterval(pollRef.current!);
-          setDeployUrl(row.deploy_url);
+          pollRef.current = null;
+          setDeployUrl(row.deploy_url ?? null);
           setStatus("complete");
           setProgress(100);
-        } else if (row.status === "failed") {
+          return;
+        }
+        if (row?.status === "failed" || row?.status === "deploy_failed") {
           clearInterval(pollRef.current!);
-          setError("Deployment failed. Please try again from your dashboard.");
+          pollRef.current = null;
+          setError(
+            row.status === "deploy_failed"
+              ? "Deployment failed. Please try again from your dashboard."
+              : "Generation failed. Please try again from your dashboard."
+          );
           setStatus("failed");
+          return;
+        }
+        // ~14 min with no terminal state: stop the endless 95% bar. The
+        // build has usually finished and the live link is in the email.
+        if (attempts >= 140) {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          setStalled(true);
         }
       } catch {
         // ignore network errors — keep polling
@@ -418,8 +434,9 @@ export default function GenerateClient({
         {isDeploying && (
           <div className="text-center">
             <p className="text-xs text-gray-400">
-              Your app is building on Vercel. You can safely leave this page —
-              we&apos;ll email you when it&apos;s live.
+              {stalled
+                ? "This is taking longer than usual to report back. Your app has most likely finished — the live link is in your email, and it's in your dashboard."
+                : "Your app is building on Vercel. You can safely leave this page — we'll email you when it's live."}
             </p>
             <Link
               href="/dashboard"
