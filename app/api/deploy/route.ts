@@ -6,6 +6,7 @@ import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
 import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
+import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -1221,6 +1222,14 @@ export async function POST(req: NextRequest) {
       await serviceClient.from("apps").update({ status: "failed" }).eq("id", appId);
     } catch { /* best-effort */ }
     await finalizeRevision(appId, "failed", { error: (err as Error).message });
+    await notifyBuildFailure({
+      stage: "deploy",
+      appId,
+      appName: appCheck?.name ?? null,
+      customer: userEmail,
+      error: (err as Error).message,
+      buildLog: err instanceof BuildError ? err.logs : null,
+    });
     return NextResponse.json(
       { error: (err as Error).message },
       { status: 500 }

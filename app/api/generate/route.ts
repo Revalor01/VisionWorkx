@@ -8,6 +8,7 @@ import { parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { validateGenerated } from "@/lib/apps/validateGenerated";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { generatePlan } from "@/lib/apps/generatePlan";
+import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -426,6 +427,13 @@ export async function POST(req: NextRequest) {
       } catch (saveErr) {
         console.error("[/api/generate] failed to update status:", saveErr);
       }
+      await notifyBuildFailure({
+        stage: "generate",
+        appId,
+        appName,
+        customer: app?.preview_email ?? (app?.user_id ? `user ${app.user_id}` : null),
+        error: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       try {
         await writer.close();
