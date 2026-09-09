@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
+import { confirmGuidedSession } from "@/lib/apps/guidedSession";
 
 export const runtime = "nodejs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
 const GUIDED_PRICE_ID = process.env.STRIPE_GUIDED_SESSION_PRICE_ID; // optional
+
+// Tester bypass — a valid ?comp=<code> (from the /guided form) skips the
+// $10 Checkout entirely: the request is filed, marked paid, and the
+// emails go out, so the full guided flow can be tested without a charge.
+const COMP_CODES = (process.env.GUIDED_COMP_CODES ?? "")
+  .split(",")
+  .map((c) => c.trim())
+  .filter(Boolean);
 
 // POST { fullName, businessName, businessType, description } — the caller
 // must already be signed in (the /guided form creates the account first).
@@ -26,12 +35,19 @@ export async function POST(req: NextRequest) {
     businessName?: string;
     businessType?: string;
     description?: string;
+    compCode?: string;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  const compCode = (body.compCode ?? "").trim();
+  if (compCode && !COMP_CODES.includes(compCode)) {
+    return NextResponse.json({ error: "That comp code isn't valid." }, { status: 403 });
+  }
+  const comp = compCode.length > 0;
 
   const fullName = (body.fullName ?? "").trim().slice(0, 120) || null;
   const businessName = (body.businessName ?? "").trim().slice(0, 120) || null;
@@ -45,8 +61,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const service = createServiceClient();
+
+  // ── Comp path: no Stripe, no charge. File the row, then confirm it
+  // (marks paid + scheduled + sends the emails) via the shared function.
+  if (comp) {
+    const { data: request, error: insErr } = await service
+      .from("guided_session_requests")
+      .insert({
+        user_id: user.id,
+        email: user.email,
+        full_name: fullName,
+        business_name: businessName,
+        business_type: businessType,
+        description,
+      })
+      .select("id")
+      .single();
+    if (insErr || !request) {
+      console.error("[api/guided] comp insert failed:", insErr?.message);
+      return NextResponse.json({ error: "Couldn't file your request. Try again." }, { status: 500 });
+    }
+    await confirmGuidedSession({ requestId: request.id, comp: true });
+    return NextResponse.json({ comped: true });
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
   // Reuse (or create) the same Stripe customer the subscription checkout
   // uses, so the $10 charge and any future subscription are on one

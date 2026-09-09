@@ -19,9 +19,11 @@ function esc(s: string): string {
 export type GuidedConfirmStatus = "confirmed" | "already" | "not_found";
 
 export async function confirmGuidedSession(opts: {
-  stripe: Stripe;
+  stripe?: Stripe;
   requestId?: string;
   sessionId?: string;
+  /** Comp (tester) — skip the $10 balance credit; no payment happened. */
+  comp?: boolean;
 }): Promise<GuidedConfirmStatus> {
   const service = createServiceClient();
 
@@ -41,7 +43,7 @@ export async function confirmGuidedSession(opts: {
     .update({ paid_at: new Date().toISOString(), status: "scheduled" })
     .eq("id", request.id);
 
-  if (request.stripe_customer_id) {
+  if (!opts.comp && opts.stripe && request.stripe_customer_id) {
     await opts.stripe.customers
       .createBalanceTransaction(request.stripe_customer_id, {
         amount: -1000,

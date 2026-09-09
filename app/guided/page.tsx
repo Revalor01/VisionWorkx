@@ -9,6 +9,7 @@ import PasswordInput from "@/components/PasswordInput";
 function GuidedForm() {
   const params = useSearchParams();
   const cancelled = params.get("cancelled") === "1";
+  const compCode = params.get("comp") ?? "";
   const [form, setForm] = useState({
     fullName: "",
     businessName: "",
@@ -59,9 +60,14 @@ function GuidedForm() {
         businessName: form.businessName,
         businessType: form.businessType,
         description: form.description,
+        compCode: compCode || undefined,
       }),
     });
     const json = await res.json().catch(() => ({}));
+    if (res.ok && json.comped) {
+      window.location.href = "/guided/booked"; // tester — no payment
+      return;
+    }
     if (!res.ok || !json.url) {
       setError(json.error ?? "Something went wrong starting checkout.");
       setLoading(false);
@@ -146,7 +152,7 @@ function GuidedForm() {
               disabled={loading}
               className="w-full bg-promote-gold hover:brightness-110 text-navy-dark font-bold py-3 rounded-xl shadow-lg shadow-promote-gold/20 transition-all disabled:opacity-40"
             >
-              {loading ? "Booking…" : "Book my session — $10"}
+              {loading ? "Booking…" : compCode ? "Book my session (comp — no charge)" : "Book my session — $10"}
             </button>
             <p className="text-center text-xs text-gray-400">
               Already have an account?{" "}
