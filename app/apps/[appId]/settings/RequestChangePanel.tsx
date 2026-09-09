@@ -2,7 +2,53 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AppRevisionKind, AppRevisionStatus, AppStatus } from "@/lib/database.types";
+import type { AppCategory, AppRevisionKind, AppRevisionStatus, AppStatus } from "@/lib/database.types";
+
+// Plain-English example changes to un-blank the page. Shown only while
+// the box is empty; tapping one drops it into the textarea to edit.
+const UNIVERSAL_EXAMPLES = [
+  "Change the brand color to a deep green.",
+  "Add a short 'About us' section to the homepage.",
+];
+
+const CATEGORY_EXAMPLES: Record<AppCategory, string[]> = {
+  booking: [
+    "Add a phone number field to the booking form and show it on the confirmation page.",
+    "Let customers pick which staff member they want when they book.",
+    "Take a 20% deposit at the time of booking.",
+    "Send customers a reminder the day before their appointment.",
+  ],
+  crm: [
+    "Add a 'source' field to each contact so I can track where leads came from.",
+    "Add a stage between 'New' and 'Won' called 'Proposal Sent'.",
+    "Show a follow-up date on each contact and highlight the overdue ones.",
+    "Add a notes section to the contact detail page.",
+  ],
+  inventory: [
+    "Email me when any item drops below 5 in stock.",
+    "Add a supplier name and reorder link to each product.",
+    "Add a 'location' field so I can track which shelf an item is on.",
+    "Show total inventory value on the dashboard.",
+  ],
+  portal: [
+    "Let clients upload files, not just download them.",
+    "Add a status badge (In progress / Waiting on you / Done) to each project.",
+    "Add a message thread on each project so clients can ask questions.",
+    "Show clients their invoice history and let them pay online.",
+  ],
+  invoicing: [
+    "Add my logo and business address to the top of every invoice.",
+    "Let me add a discount line to a quote.",
+    "Send an automatic payment reminder 3 days after an invoice is due.",
+    "Add a 'deposit required' option when I send a quote.",
+  ],
+  membership: [
+    "Add an annual plan option alongside the monthly one.",
+    "Track how many times each member has checked in this month.",
+    "Let me pause a membership instead of only cancelling it.",
+    "Show members their next billing date in their account.",
+  ],
+};
 
 export interface RevisionRow {
   id: string;
@@ -48,11 +94,13 @@ function revisionTitle(r: RevisionRow): string {
 export default function RequestChangePanel({
   appId,
   appStatus,
+  category,
   initialRevisions,
   initialQuota,
 }: {
   appId: string;
   appStatus: AppStatus;
+  category: AppCategory;
   initialRevisions: RevisionRow[];
   initialQuota: Quota;
 }) {
@@ -170,6 +218,25 @@ export default function RequestChangePanel({
           placeholder="e.g. Add a phone number field to the booking form, and show it on the confirmation page."
           className="w-full rounded-xl border border-gray-300 p-3 text-sm text-navy-dark placeholder:text-gray-400 focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy disabled:bg-gray-50 disabled:text-gray-400"
         />
+
+        {!text.trim() && !submitting && !pending && !quotaSpent && !appBusy && (
+          <div className="mt-3">
+            <p className="text-xs text-gray-400 mb-1.5">Not sure how to word it? Tap an example:</p>
+            <div className="flex flex-wrap gap-2">
+              {[...(CATEGORY_EXAMPLES[category] ?? []), ...UNIVERSAL_EXAMPLES].map((ex) => (
+                <button
+                  key={ex}
+                  type="button"
+                  onClick={() => setText(ex)}
+                  className="rounded-full border border-gray-300 px-3 py-1 text-left text-xs text-gray-600 transition-colors hover:border-navy hover:text-navy-dark"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mt-3 flex items-center gap-3">
           <button
             type="submit"

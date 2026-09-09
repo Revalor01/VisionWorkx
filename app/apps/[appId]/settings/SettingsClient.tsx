@@ -252,6 +252,7 @@ export default function SettingsClient({
           <RequestChangePanel
             appId={appId}
             appStatus={appStatus}
+            category={appCategory}
             initialRevisions={initialRevisions}
             initialQuota={changeQuota}
           />
