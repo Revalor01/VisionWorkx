@@ -1199,8 +1199,11 @@ export async function POST(req: NextRequest) {
     // keyed on the compiler errors, then re-trigger a fresh deploy (own
     // time budget). Fresh /api/deploy calls with _repairAttempt never
     // repair again — one shot only.
-    if (err instanceof BuildError && err.logs && !body._repairAttempt) {
-      console.error("[api/deploy] build failed, repairing:\n", err.logs.slice(0, 800));
+    if (err instanceof BuildError && !body._repairAttempt) {
+      console.error(
+        "[api/deploy] build failed, repairing:\n",
+        (err.logs || "(no build logs returned by Vercel)").slice(0, 800)
+      );
       try {
         const { data: srcRow } = await serviceClient
           .from("apps")
@@ -1209,12 +1212,33 @@ export async function POST(req: NextRequest) {
           .single();
         const current = parseFileMap(srcRow?.generated_code ?? "");
         if (Object.keys(current).length > 0) {
-          const { map: fixed } = await repairGenerated(
-            current,
-            [
+          // Prefer the real compiler output. Vercel sometimes returns an
+          // empty build log though — still worth one repair pass keyed on
+          // the static checks we can run ourselves (rule-13 hex classes,
+          // plus a general "make it compile" audit).
+          let instructions: string[];
+          if (err.logs) {
+            instructions = [
               "The Vercel build of this app FAILED to compile. Fix exactly these errors — re-emit each affected file in full:\n\n" +
                 err.logs,
-            ],
+            ];
+          } else {
+            const colorHits = findLiteralColorClasses(
+              patchFiles(parseGeneratedCode(srcRow?.generated_code ?? ""))
+            );
+            instructions = [
+              "The Vercel build of this app FAILED to compile and no build log was returned. Audit every file for what breaks a Next.js 16 production build and re-emit each fixed file IN FULL: undefined or unimported types, missing local imports, wrong prop shapes, unclosed JSX, `next/headers` or other server-only imports pulled into a Client Component, and calls to APIs that don't exist.",
+              ...(colorHits.length > 0
+                ? [
+                    "Rule 13 violation — these files use literal hex color classes (bg-[#...], text-[#...], etc.) that are invalid against the platform Tailwind config. Replace every one with the primary/background theme tokens:\n" +
+                      colorHits.map((h) => `  - ${h.path} (${h.count})`).join("\n"),
+                  ]
+                : []),
+            ];
+          }
+          const { map: fixed } = await repairGenerated(
+            current,
+            instructions,
             {
               appName: appCheck.name,
               category: appCheck.category as AppCategory,
