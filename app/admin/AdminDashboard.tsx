@@ -883,43 +883,6 @@ export default function AdminDashboard({
             Dev Activity →
           </Link>
           <span className="hidden sm:inline text-white/20">|</span>
-          <a
-            href="/api/admin/sso/issue?target=chorebit"
-            className="text-xs text-white/70 hover:text-white transition-colors"
-          >
-            Chorebit →
-          </a>
-          <a
-            href="/api/admin/sso/issue?target=feelflow"
-            className="text-xs text-white/70 hover:text-white transition-colors"
-          >
-            FeelFlow →
-          </a>
-          <a
-            href="/api/admin/sso/issue?target=mindbit"
-            className="text-xs text-white/70 hover:text-white transition-colors"
-          >
-            MindBit →
-          </a>
-          <a
-            href="/api/admin/sso/issue?target=sanctum"
-            className="text-xs text-white/70 hover:text-white transition-colors"
-          >
-            Sanctum →
-          </a>
-          <a
-            href="/api/admin/sso/issue?target=proactive"
-            className="text-xs text-white/70 hover:text-white transition-colors"
-          >
-            Proactive →
-          </a>
-          <span className="hidden sm:inline text-white/20">|</span>
-          <a
-            href="/api/admin/sso/issue?target=revalor"
-            className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors"
-          >
-            Revalor Admin →
-          </a>
           <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
             ← Back to Dashboard
           </Link>
@@ -927,6 +890,50 @@ export default function AdminDashboard({
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div className="flex flex-wrap items-center gap-3 mb-6 pb-4 border-b border-zinc-200">
+          <h2 className="text-sm font-bold text-white bg-[#1A3A5C] rounded-full px-4 py-1 w-28 text-center shrink-0">
+            Products
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/api/admin/sso/issue?target=chorebit"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
+            >
+              Chorebit →
+            </a>
+            <a
+              href="/api/admin/sso/issue?target=feelflow"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
+            >
+              FeelFlow →
+            </a>
+            <a
+              href="/api/admin/sso/issue?target=mindbit"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
+            >
+              MindBit →
+            </a>
+            <a
+              href="/api/admin/sso/issue?target=sanctum"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
+            >
+              Sanctum →
+            </a>
+            <a
+              href="/api/admin/sso/issue?target=proactive"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
+            >
+              Proactive →
+            </a>
+            <a
+              href="/api/admin/sso/issue?target=revalor"
+              className="rounded-lg border border-[#B8860B]/50 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-[#B8860B] hover:bg-[#B8860B]/5"
+            >
+              Revalor Admin →
+            </a>
+          </div>
+        </div>
+
 
         {/* Page title */}
         <div className="mb-6">

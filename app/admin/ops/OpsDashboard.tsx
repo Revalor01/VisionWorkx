@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SupabaseProjectRow, VercelProjectRow } from "./page";
+import AdminNavBar from "../AdminNavBar";
 
 const PLAN_LIMIT_BYTES = 8 * 1024 ** 3; // Supabase Pro plan: 8 GB included per project
 
@@ -62,6 +63,8 @@ export default function OpsDashboard({
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <AdminNavBar category="operations" current="vw-ops" />
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Ops Dashboard</h1>
           <p className="text-zinc-400 text-sm mt-1">

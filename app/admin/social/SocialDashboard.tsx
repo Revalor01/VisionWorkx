@@ -9,6 +9,7 @@ import InboxTab from "./InboxTab";
 import RecapTab from "./RecapTab";
 import PerformanceTab from "./PerformanceTab";
 import HelpTab from "./HelpTab";
+import AdminNavBar from "../AdminNavBar";
 import LinkedInTab from "./LinkedInTab";
 import CalendarTab, { type BlogPostCalendarRow, type CampaignCalendarRow, type VideoJobCalendarRow } from "./CalendarTab";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon, LinkedInIcon } from "./PlatformIcons";
@@ -68,6 +69,8 @@ export default function SocialDashboard({
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <AdminNavBar category="media" current="social" />
+
         <div className="mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[#1A3A5C]">Revalor Social Media Manager</h1>

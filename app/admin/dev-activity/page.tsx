@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { ADMIN_SSO_COOKIE, ADMIN_EMAIL, verifySessionCookie } from "@/lib/adminSso";
 import type { DevActivityLogEntry } from "@/lib/database.types";
+import AdminNavBar from "../AdminNavBar";
 
 const MACHINE_COLORS: Record<string, string> = {
   windows: "bg-blue-500/20 text-blue-300",
@@ -61,6 +62,8 @@ export default async function DevActivityPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        <AdminNavBar category="operations" current="vw-dev-activity" />
+
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Dev Activity</h1>
           <p className="text-zinc-400 text-sm mt-1">

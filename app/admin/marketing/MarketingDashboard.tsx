@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MarketingAutonomy, MarketingCampaign, MarketingProduct, MarketingRecurrence, MarketingRecurringSchedule } from "@/lib/database.types";
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
+import AdminNavBar from "../AdminNavBar";
 
 const PRODUCTS: { value: MarketingProduct; label: string }[] = MARKETING_PRODUCTS.map((p) => ({
   value: p.slug,
@@ -348,6 +349,8 @@ export default function MarketingDashboard({
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        <AdminNavBar category="media" current="marketing" />
+
         <h1 className="text-2xl font-bold text-white mb-1">Email Marketing</h1>
         <p className="text-slate-400 text-sm mb-8">
           Campaigns to real users of Revalor&apos;s own products — pulled live from each product&apos;s own user base.
