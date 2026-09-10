@@ -12,7 +12,10 @@ export const maxDuration = 120;
 // in build_canary_runs — the /admin "Build Reliability" panel reads the
 // pass rate off that. A build that doesn't deploy also pages the operator:
 // the pipeline is broken for real customers too.
-const CANARY_EMAIL = "canary@visionworkx.internal";
+// One email per intake — `apps` has a partial unique index on
+// preview_email for unclaimed rows, so all four canaries can't share one.
+const canaryEmail = (key: string) => `canary+${key}@visionworkx.internal`;
+const CANARY_EMAIL_LIKE = "canary+%@visionworkx.internal";
 
 function intake(over: Partial<IntakeData> & { category: AppCategory }): IntakeData {
   return {
@@ -125,14 +128,14 @@ export async function GET(req: NextRequest) {
   await service
     .from("apps")
     .delete()
-    .eq("preview_email", CANARY_EMAIL)
+    .like("preview_email", CANARY_EMAIL_LIKE)
     .lt("created_at", new Date(Date.now() - 2 * 86400_000).toISOString());
 
   // 3. Fire a fresh set.
   const fired: string[] = [];
   for (const g of GOLDEN) {
     try {
-      const { id } = await createPreviewApp(CANARY_EMAIL, g.intake, { skipDedup: true });
+      const { id } = await createPreviewApp(canaryEmail(g.key), g.intake, { skipDedup: true });
       await service.from("build_canary_runs").insert({
         intake_key: g.key,
         app_id: id,
