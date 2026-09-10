@@ -353,6 +353,36 @@ the customer sees anything.
 
 ---
 
+## Stripe payments (Connect)
+
+Generated apps in the storefront / invoicing / booking / membership
+categories take money through the app owner's **own** Stripe account via
+Connect (Standard accounts, direct charges, 1% platform fee). VisionWorkx
+runs its own dedicated Stripe platform account (`acct_1UE7GCBedYJHvzis`),
+separate from the shared Revalor account.
+
+**One gotcha that will bite:** the platform account needs **Accounts v1
+support** enabled (Stripe → Settings → Features), live *and* sandbox — the
+code uses the v1 `accounts.create` API, which new Stripe accounts block by
+default.
+
+Full walkthrough (owner setup, test mode, operator/platform setup, env
+vars, payment flow, troubleshooting): **`docs/stripe-payments.md`**.
+
+---
+
+## Generated-app framework pin
+
+Generated apps are pinned to **Next 14** (`"next": "^14.2.0"`, React `^18`).
+The generated Supabase server client uses the synchronous `cookies()` API;
+Next 15 made it async and Next 16 removed the sync fallback, which breaks
+every server-side auth check (the app then loops between `/login` and its
+home route). `app/api/deploy/route.ts` clamps the version on every build,
+`validateGenerated.ts` fails a drifted `package.json` pre-deploy, and the
+canary now HTTP-probes each golden build for a redirect loop.
+
+---
+
 ## Company Context
 
 **Product:** Vision Workx
