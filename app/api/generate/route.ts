@@ -9,6 +9,7 @@ import { validateGenerated } from "@/lib/apps/validateGenerated";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { generatePlan } from "@/lib/apps/generatePlan";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
+import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -416,7 +417,7 @@ export async function POST(req: NextRequest) {
       // Save generated code — happens while HTTP response is still technically open
       await serviceClient
         .from("apps")
-        .update({ generated_code: codeToSave, status: "ready" })
+        .update({ generated_code: codeToSave, status: "ready", failure_reason: null })
         .eq("id", appId);
 
       // Open the app's revision history with this first build (snapshot is
@@ -440,10 +441,12 @@ export async function POST(req: NextRequest) {
       }
     } catch (err) {
       console.error("[/api/generate] stream error:", err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const reason = classifyBuildError(errMsg);
       try {
         await serviceClient
           .from("apps")
-          .update({ status: "failed" })
+          .update({ status: "failed", failure_reason: reason })
           .eq("id", appId);
       } catch (saveErr) {
         console.error("[/api/generate] failed to update status:", saveErr);
@@ -453,7 +456,8 @@ export async function POST(req: NextRequest) {
         appId,
         appName,
         customer: app?.preview_email ?? (app?.user_id ? `user ${app.user_id}` : null),
-        error: err instanceof Error ? err.message : String(err),
+        error: errMsg,
+        title: operatorAlertTitle(reason),
       });
     } finally {
       try {

@@ -200,6 +200,26 @@ export type Database = {
         };
         Relationships: [];
       };
+      system_health: {
+        Row: {
+          key: string;
+          ok: boolean;
+          detail: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          ok: boolean;
+          detail?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          ok?: boolean;
+          detail?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       apps: {
         Row: {
           id: string;
@@ -214,6 +234,7 @@ export type Database = {
           stripe_connect_account_id: string | null;
           payments_status: PaymentsStatus;
           payments_test_mode: boolean;
+          failure_reason: string | null;
           checkout_secret: string | null;
           vercel_project_id: string | null;
           custom_domain: string | null;
@@ -236,6 +257,7 @@ export type Database = {
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
           payments_test_mode?: boolean;
+          failure_reason?: string | null;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;
@@ -257,6 +279,7 @@ export type Database = {
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
           payments_test_mode?: boolean;
+          failure_reason?: string | null;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;

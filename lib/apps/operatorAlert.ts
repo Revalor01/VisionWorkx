@@ -12,13 +12,15 @@ function esc(s: string): string {
 }
 
 export async function notifyBuildFailure(opts: {
-  stage: "generate" | "deploy" | "change";
+  stage: "generate" | "deploy" | "change" | "canary" | "health";
   appId: string;
   appName?: string | null;
   customer?: string | null;
   error: string;
   buildLog?: string | null;
   requestText?: string | null;
+  /** Overrides the default "Build failed — <stage>" heading/subject. */
+  title?: string | null;
 }): Promise<void> {
   if (!RESEND_KEY) {
     console.warn(`[operatorAlert] RESEND_API_KEY missing — skipped ${opts.stage}-failure alert for ${opts.appId}`);
@@ -42,8 +44,9 @@ export async function notifyBuildFailure(opts: {
     ? `<p style="font-size:12px;color:#666;margin:16px 0 4px">Build log (truncated):</p><pre style="white-space:pre-wrap;font-size:12px;background:#f6f6f6;padding:12px;border-radius:8px;overflow:auto">${esc(opts.buildLog.slice(0, 3000))}</pre>`
     : "";
 
+  const heading = opts.title ? esc(opts.title) : `Build failed &mdash; ${opts.stage}`;
   const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:640px;margin:0 auto;padding:8px">
-    <h2 style="color:#b91c1c;margin:0 0 12px">Build failed &mdash; ${opts.stage}</h2>
+    <h2 style="color:#b91c1c;margin:0 0 12px">${heading}</h2>
     <table style="font-size:14px;border-collapse:collapse">${table}</table>
     ${logBlock}
     <p style="margin-top:20px"><a href="${APP_URL}/admin/ops" style="color:#1A3A5C;font-weight:600">Open the Ops dashboard &rarr;</a></p>
@@ -57,7 +60,9 @@ export async function notifyBuildFailure(opts: {
       body: JSON.stringify({
         from: "Vision Workx <notifications@notify.revalorllc.com>",
         to: [OPERATOR_EMAIL],
-        subject: `⚠️ ${opts.stage} failed: ${opts.appName || opts.appId}`,
+        subject: opts.title
+          ? opts.title.replace(/[🔴⚠️]/gu, "").trim()
+          : `⚠️ ${opts.stage} failed: ${opts.appName || opts.appId}`,
         html,
       }),
     });

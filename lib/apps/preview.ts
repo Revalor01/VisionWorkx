@@ -44,12 +44,12 @@ export interface CreatePreviewResult {
 export async function createPreviewApp(
   email: string,
   intake: IntakeData,
-  opts: { testMode?: boolean } = {},
+  opts: { testMode?: boolean; skipDedup?: boolean } = {},
 ): Promise<CreatePreviewResult> {
   const service = createServiceClient();
   const norm = email.trim().toLowerCase();
 
-  if (!opts.testMode) {
+  if (!opts.testMode && !opts.skipDedup) {
     const { data: existing } = await service
       .from("apps")
       .select("id, preview_token, status")

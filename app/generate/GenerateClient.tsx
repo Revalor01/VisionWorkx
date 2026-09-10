@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { customerFailureMessage, isInfraFailure } from "@/lib/apps/buildFailure";
 
 type Status = "connecting" | "generating" | "deploying" | "complete" | "failed";
 
@@ -52,6 +53,9 @@ export default function GenerateClient({
   const [error, setError] = useState("");
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [stalled, setStalled] = useState(false);
+  // Infra failure (credits, Anthropic down, timeout) — "on us", retrying
+  // won't help; hide the retry button and tell them we'll email.
+  const [infraFailure, setInfraFailure] = useState(false);
 
   const codeWindowRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -85,6 +89,25 @@ export default function GenerateClient({
     return () => clearInterval(interval);
   }, [status]);
 
+  // After a failure, read the server's classification and phrase the
+  // message accordingly — "on us, we'll email you" vs "hit retry".
+  const resolveFailure = useCallback(async (id: string, fallback: string) => {
+    let reason: string | null = null;
+    try {
+      const supabase = createBrowserClient();
+      const { data } = await supabase
+        .from("apps")
+        .select("failure_reason")
+        .eq("id", id)
+        .maybeSingle();
+      reason = data?.failure_reason ?? null;
+    } catch {
+      /* use fallback */
+    }
+    setInfraFailure(reason ? isInfraFailure(reason as never) : false);
+    setError(reason ? customerFailureMessage(reason) : fallback);
+  }, []);
+
   // Poll for the app's final state after code generation completes. Uses the
   // session-authenticated browser client (an anon-key read is blocked by RLS
   // on `apps`, which returned nothing and left the bar stuck at 95% even
@@ -115,7 +138,8 @@ export default function GenerateClient({
         if (row?.status === "failed" || row?.status === "deploy_failed") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
-          setError(
+          void resolveFailure(
+            id,
             row.status === "deploy_failed"
               ? "Deployment failed. Please try again from your dashboard."
               : "Generation failed. Please try again from your dashboard."
@@ -134,7 +158,7 @@ export default function GenerateClient({
         // ignore network errors — keep polling
       }
     }, 6000);
-  }, []);
+  }, [resolveFailure]);
 
   useEffect(() => {
     return () => {
@@ -192,11 +216,13 @@ export default function GenerateClient({
         if ((err as Error).name === "AbortError") return;
         console.error("[generate client]", err);
         // A drop after many minutes / a lot of streamed code almost always
-        // means the build was too big to finish inside the time limit —
-        // not a transient blip. Point at the real fix.
+        // means the build was too big to finish inside the time limit.
         const elapsedMin = (Date.now() - startedAtRef.current) / 60000;
         const looksTooBig = elapsedMin > 8 || streamLenRef.current > 80_000;
-        setError(
+        // Prefer the server's classification (credits / overloaded /
+        // timeout / build_error) when it has written one.
+        void resolveFailure(
+          id,
           looksTooBig
             ? "This build ran out of time — it's likely too large to finish in one pass. Start over with fewer app types (one, or at most two add-ons), then add the rest later by describing the change in plain English."
             : (err as Error).message || "An unexpected error occurred. Please try again."
@@ -204,7 +230,7 @@ export default function GenerateClient({
         setStatus("failed");
       }
     },
-    [startPolling]
+    [startPolling, resolveFailure]
   );
 
   useEffect(() => {
@@ -489,22 +515,39 @@ export default function GenerateClient({
 
         {isFailed && (
           <div className="text-center space-y-3">
-            <button
-              onClick={() => {
-                hasStarted.current = false;
-                startGeneration(appId);
-              }}
-              className="inline-block bg-red-600 text-white font-semibold px-8 py-3 rounded-xl hover:bg-red-700 transition-colors"
-            >
-              Try Again
-            </button>
-            <p className="text-xs text-gray-400">
-              Or{" "}
-              <Link href="/dashboard" className="text-navy underline">
-                go to your dashboard
-              </Link>{" "}
-              and generate a new app.
-            </p>
+            {infraFailure ? (
+              <>
+                <p className="text-sm text-gray-600 max-w-md mx-auto">
+                  Nothing to redo — we&apos;ll email you the moment your app is building again.
+                </p>
+                <Link
+                  href="/dashboard"
+                  className="inline-block bg-navy-dark text-white font-semibold px-8 py-3 rounded-xl hover:bg-navy transition-colors"
+                >
+                  Go to Dashboard
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    hasStarted.current = false;
+                    setInfraFailure(false);
+                    startGeneration(appId);
+                  }}
+                  className="inline-block bg-red-600 text-white font-semibold px-8 py-3 rounded-xl hover:bg-red-700 transition-colors"
+                >
+                  Try Again
+                </button>
+                <p className="text-xs text-gray-400">
+                  Or{" "}
+                  <Link href="/dashboard" className="text-navy underline">
+                    go to your dashboard
+                  </Link>{" "}
+                  and generate a new app.
+                </p>
+              </>
+            )}
           </div>
         )}
       </main>

@@ -43,6 +43,18 @@
     {
       "path": "/api/cron/preview-cleanup",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/reap-stuck-builds",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/anthropic-health",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/canary-build",
+      "schedule": "0 5 * * *"
     }
   ]
 }

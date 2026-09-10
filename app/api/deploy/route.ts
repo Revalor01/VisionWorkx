@@ -7,6 +7,7 @@ import { finalizeRevision } from "@/lib/apps/redeploy";
 import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
+import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -1064,6 +1065,7 @@ CREATE TRIGGER emit_automation_event
   await supabasePatch("apps", appId, {
     deploy_url: finalUrl,
     status: "deployed",
+    failure_reason: null,
   });
 
   // Close out this build's revision row (no-op for apps with no open one).
@@ -1271,8 +1273,12 @@ export async function POST(req: NextRequest) {
     }
 
     console.error("[api/deploy]", err);
+    const reason = err instanceof BuildError ? "build_error" : classifyBuildError((err as Error).message);
     try {
-      await serviceClient.from("apps").update({ status: "failed" }).eq("id", appId);
+      await serviceClient
+        .from("apps")
+        .update({ status: "failed", failure_reason: reason })
+        .eq("id", appId);
     } catch { /* best-effort */ }
     await finalizeRevision(appId, "failed", { error: (err as Error).message });
     await notifyBuildFailure({
@@ -1282,6 +1288,7 @@ export async function POST(req: NextRequest) {
       customer: userEmail,
       error: (err as Error).message,
       buildLog: err instanceof BuildError ? err.logs : null,
+      title: operatorAlertTitle(reason),
     });
     return NextResponse.json(
       { error: (err as Error).message },
