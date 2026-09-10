@@ -1126,56 +1126,6 @@ CREATE TRIGGER emit_automation_event
       );
     }
 
-    // 3c. Storefront admin allowlist — the generated /admin only checks
-    // "is someone logged in", but auth.users is shared across every tenant,
-    // so ANY VisionWorkx account could otherwise manage this store. Seed the
-    // owner's email into store_settings.admin_emails and rebuild the write
-    // policies on the storefront tables to require it. Deterministic +
-    // non-fatal; the policy set is a fixed list of known storefront tables.
-    const ownerEmail =
-      userEmail && /^[^\s'"\\;]+@[^\s'"\\;]+$/.test(userEmail) ? userEmail : null;
-    if (app.category === "storefront" && ownerEmail) {
-      try {
-        await supabaseSQL(`
-set search_path to "${SCHEMA}";
-
-alter table store_settings add column if not exists admin_emails text[] not null default '{}';
-update store_settings
-  set admin_emails = (select array_agg(distinct e) from unnest(coalesce(admin_emails,'{}') || array['${ownerEmail}']::text[]) e);
-
-create or replace function "${SCHEMA}".is_store_admin() returns boolean
-  language sql stable security definer set search_path = "${SCHEMA}" as $fn$
-  select coalesce((auth.jwt() ->> 'email') = any (select unnest(admin_emails) from store_settings limit 1), false)
-$fn$;
-
-do $pol$
-declare
-  p record;
-  t text;
-begin
-  for p in select policyname, tablename from pg_policies
-    where schemaname = '${SCHEMA}' and tablename in ('products','product_images','store_settings','orders')
-  loop execute format('drop policy %I on "${SCHEMA}".%I', p.policyname, p.tablename); end loop;
-  foreach t in array array['products','product_images','store_settings']::text[] loop
-    execute format('create policy sf_read on "${SCHEMA}".%I for select to anon, authenticated using (true)', t);
-    execute format('create policy sf_write on "${SCHEMA}".%I for all to authenticated using ("${SCHEMA}".is_store_admin()) with check ("${SCHEMA}".is_store_admin())', t);
-  end loop;
-end $pol$;
-
--- orders: a shopper (anon) may create / update a *pending* order at checkout; only admins read or manage.
-create policy sf_orders_anon_insert on orders for insert to anon, authenticated with check (status = 'pending');
-create policy sf_orders_anon_update on orders for update to anon, authenticated using (status = 'pending');
-create policy sf_orders_admin_read on orders for select to authenticated using ("${SCHEMA}".is_store_admin());
-create policy sf_orders_admin_update on orders for update to authenticated using ("${SCHEMA}".is_store_admin());
-create policy sf_orders_admin_delete on orders for delete to authenticated using ("${SCHEMA}".is_store_admin());
-`);
-      } catch (err) {
-        console.error(
-          `[api/deploy] storefront admin allowlist failed for ${SCHEMA}:`,
-          err
-        );
-      }
-    }
   }
 
   // 4. Parse + patch files
