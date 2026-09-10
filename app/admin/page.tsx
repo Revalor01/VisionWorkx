@@ -83,7 +83,7 @@ export default async function AdminPage() {
       .from("ai_usage_log")
       .select("source, cost_usd, created_at")
       .order("created_at", { ascending: false })
-      .limit(8000),
+      .limit(20000),
     service
       .from("guided_session_requests")
       .select("id", { count: "exact", head: true }),

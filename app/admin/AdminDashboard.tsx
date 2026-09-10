@@ -492,6 +492,38 @@ export default function AdminDashboard({
         .filter((u) => days == null || within(u.created_at, days))
         .reduce((s, u) => s + (u.cost_usd ?? 0), 0);
 
+    // ── AI cost (Anthropic) breakdown ──
+    const AI_GROUP: Record<string, string> = {
+      app_generate: "App builds",
+      app_generate_plan: "App builds",
+      app_deploy_repair: "App builds",
+      app_edit: "Change edits",
+      try_recommend: "Recommender",
+    };
+    const aiRows = aiUsage.map((u) => ({
+      cost: u.cost_usd ?? 0,
+      at: new Date(u.created_at).getTime(),
+      group: AI_GROUP[u.source] ?? "Content & marketing",
+    }));
+    const aiSum = (pred: (r: (typeof aiRows)[number]) => boolean) =>
+      aiRows.filter(pred).reduce((s, r) => s + r.cost, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const aiByGroup: Record<string, number> = {};
+    for (const r of aiRows) aiByGroup[r.group] = (aiByGroup[r.group] ?? 0) + r.cost;
+    const buildCount = aiUsage.filter((u) => u.source === "app_generate").length;
+    const aiByDay: { day: string; cost: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = new Date(now - i * 86400000);
+      dayStart.setHours(0, 0, 0, 0);
+      const from = dayStart.getTime();
+      aiByDay.push({
+        day: dayStart.toLocaleDateString(undefined, { month: "numeric", day: "numeric" }),
+        cost: aiSum((r) => r.at >= from && r.at < from + 86400000),
+      });
+    }
+
     return {
       totalUsers: profiles.length,
       totalApps: apps.length,
@@ -511,8 +543,14 @@ export default function AdminDashboard({
       recommenderUses: aiUsage.filter((u) => u.source === "try_recommend").length,
       genFailed: apps.filter((a) => a.status === "failed").length,
       deployFailed: apps.filter((a) => a.status === "deploy_failed").length,
+      aiSpend7: aiSum((r) => now - r.at < 7 * 86400000),
       aiSpend30: aiSpend(30),
+      aiSpendMonth: aiSum((r) => r.at >= monthStart.getTime()),
       aiSpendAll: aiSpend(),
+      aiByGroup,
+      aiByDay,
+      buildCount,
+      aiCostPerBuild: buildCount ? (aiByGroup["App builds"] ?? 0) / buildCount : 0,
     };
   }, [apps, profiles, subscriptions, revisions, aiUsage]);
 
@@ -886,6 +924,63 @@ export default function AdminDashboard({
                 <PipelineStat label="Deploy failed" count={stats.deployFailed} color="red" />
                 <PipelineStat label="Change failed" count={stats.changeReqsFailed} color="red" />
               </div>
+            </div>
+
+            {/* AI cost (Anthropic) */}
+            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-zinc-900">AI Cost (Anthropic)</h2>
+                <a
+                  href="https://console.anthropic.com/settings/usage"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Anthropic console →
+                </a>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <StatCard label="This month" value={`$${stats.aiSpendMonth.toFixed(2)}`} accent="blue" />
+                <StatCard label="Last 7 days" value={`$${stats.aiSpend7.toFixed(2)}`} />
+                <StatCard label="Last 30 days" value={`$${stats.aiSpend30.toFixed(2)}`} />
+                <StatCard
+                  label="All-time"
+                  value={`$${stats.aiSpendAll.toFixed(2)}`}
+                  sub={`${stats.buildCount} build${stats.buildCount === 1 ? "" : "s"} · $${stats.aiCostPerBuild.toFixed(2)}/build`}
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {Object.entries(stats.aiByGroup)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([g, c]) => (
+                    <StatCard key={g} label={g} value={`$${c.toFixed(2)}`} />
+                  ))}
+              </div>
+              <div className="mt-5">
+                <p className="text-xs text-zinc-500 mb-2">Daily spend · last 14 days</p>
+                <div className="flex items-end gap-1 h-20">
+                  {stats.aiByDay.map((d) => {
+                    const max = Math.max(...stats.aiByDay.map((x) => x.cost), 0.01);
+                    return (
+                      <div
+                        key={d.day}
+                        className="flex-1 flex flex-col items-center gap-1"
+                        title={`${d.day}: $${d.cost.toFixed(2)}`}
+                      >
+                        <div
+                          className="w-full rounded-t bg-blue-500/80"
+                          style={{ height: `${Math.max(2, (d.cost / max) * 100)}%` }}
+                        />
+                        <span className="text-[9px] text-zinc-400">{d.day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-zinc-400">
+                Computed from logged token usage at Anthropic list prices. Does not reflect your
+                account credit balance — check the Anthropic console for that.
+              </p>
             </div>
 
             {/* Recent apps */}
