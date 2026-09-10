@@ -16,7 +16,10 @@ export const maxDuration = 120;
 // One email per intake — `apps` has a partial unique index on
 // preview_email for unclaimed rows, so all four canaries can't share one.
 const canaryEmail = (key: string) => `canary+${key}@visionworkx.internal`;
-const CANARY_EMAIL_LIKE = "canary+%@visionworkx.internal";
+// No "+" in the pattern: PostgREST decodes "+" in a query string to a
+// space, so `.like("...canary+%...")` silently matches nothing. The
+// ".internal" TLD is canary-only (real test users are @visionworkx.dev).
+const CANARY_EMAIL_LIKE = "%@visionworkx.internal";
 
 function intake(over: Partial<IntakeData> & { category: AppCategory }): IntakeData {
   return {
