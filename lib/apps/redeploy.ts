@@ -65,6 +65,17 @@ export async function recordInitialRevision(appId: string): Promise<void> {
     // Previews (user_id null) have no revision history until they're claimed.
     if (!app?.user_id) return;
 
+    // Idempotent — an automatic re-generation must not open a second
+    // "create" revision on the same app.
+    const { data: existing } = await service
+      .from("app_revisions")
+      .select("id")
+      .eq("app_id", appId)
+      .eq("kind", "create")
+      .limit(1)
+      .maybeSingle();
+    if (existing) return;
+
     await service.from("app_revisions").insert({
       app_id: appId,
       user_id: app.user_id,

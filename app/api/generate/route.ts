@@ -276,7 +276,7 @@ export async function POST(req: NextRequest) {
     userId = user.id;
   }
 
-  let body: { appId?: string; _preview?: boolean };
+  let body: { appId?: string; _preview?: boolean; _autoRetry?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -443,6 +443,30 @@ export async function POST(req: NextRequest) {
       console.error("[/api/generate] stream error:", err);
       const errMsg = err instanceof Error ? err.message : String(err);
       const reason = classifyBuildError(errMsg);
+
+      // One automatic retry for the flaky classes (a bad model run, a
+      // transient overload) before the customer ever sees "failed" — the
+      // app stays in `generating`, the client keeps polling, and the retry
+      // runs in its own fresh function invocation / time budget.
+      const retryable =
+        reason === "generation" ||
+        reason === "anthropic_overloaded" ||
+        reason === "anthropic_rate_limit";
+      if (retryable && !body._autoRetry) {
+        console.warn(`[/api/generate] auto-retrying once after ${reason}`);
+        if (reason !== "generation") await new Promise((r) => setTimeout(r, 8000));
+        const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
+        void fetch(`${origin}/api/generate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+          },
+          body: JSON.stringify({ appId, _preview: isPreview, _autoRetry: true }),
+        }).catch((e) => console.error("[/api/generate] auto-retry trigger failed:", e));
+        return; // leave status as-is; the retry owns the outcome
+      }
+
       try {
         await serviceClient
           .from("apps")
@@ -456,7 +480,7 @@ export async function POST(req: NextRequest) {
         appId,
         appName,
         customer: app?.preview_email ?? (app?.user_id ? `user ${app.user_id}` : null),
-        error: errMsg,
+        error: `${errMsg}${body._autoRetry ? " (this was already the automatic retry)" : ""}`,
         title: operatorAlertTitle(reason),
       });
     } finally {

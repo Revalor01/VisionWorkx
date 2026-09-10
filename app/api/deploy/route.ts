@@ -710,6 +710,30 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
   const envProdIdx = out.findIndex((f) => f.path === ".env.production");
   if (envProdIdx !== -1) out.splice(envProdIdx, 1);
 
+  // Rule 13: literal hex color classes (bg-[#1A3A5C], text-[#fff]) are
+  // invalid against the platform tailwind config and have caused real
+  // "Build ERROR" failures. Rewrite them deterministically here rather
+  // than hoping the model or a repair pass gets it — near-black/near-white
+  // map to real neutral utilities, everything else to the primary token.
+  const HEX_CLASS_RE =
+    /\b(bg|text|border|ring|from|via|to|fill|stroke|divide|outline|decoration|shadow|accent|caret|ring-offset)-\[#([0-9a-fA-F]{3,8})\]/g;
+  const hexLum = (hx: string): number => {
+    let h = hx.replace(/^#/, "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    if (h.length >= 6) h = h.slice(0, 6);
+    const n = parseInt(h.padEnd(6, "0"), 16);
+    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  };
+  for (const f of out) {
+    if (!/\.(tsx?|jsx?)$/.test(f.path) || !f.content.includes("-[#")) continue;
+    f.content = f.content.replace(HEX_CLASS_RE, (_m, util: string, hex: string) => {
+      const l = hexLum(hex);
+      if (l <= 0.12) return `${util}-zinc-900`;
+      if (l >= 0.92) return `${util}-white`;
+      return `${util}-primary`;
+    });
+  }
+
   return out;
 }
 
@@ -939,6 +963,25 @@ WHERE id = true;
         `Generated migration touches shared schemas and was blocked (${forbidden.join(
           ", "
         )}) — this would corrupt platform-wide tables like auth.users. Regenerate the app.`
+      );
+    }
+
+    // 3a. Dry-run the migration in a throwaway schema first. A bad column
+    // name / missing table / type mismatch should be caught and sent to
+    // the repair pass BEFORE it half-applies to the real tenant schema
+    // (which leaves the app permanently broken). Cleanup always runs.
+    const dryId = `zz_dryrun_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    let dryErr: string | null = null;
+    try {
+      await supabaseSQL(`CREATE SCHEMA "${dryId}"; SET search_path TO "${dryId}";\n${migrationSql}`);
+    } catch (e) {
+      dryErr = (e as Error).message;
+    }
+    await supabaseSQL(`DROP SCHEMA IF EXISTS "${dryId}" CASCADE;`).catch(() => {});
+    if (dryErr) {
+      throw new BuildError(
+        "MIGRATION",
+        `The generated database migration failed to run:\n\n${dryErr}`,
       );
     }
 
@@ -1219,7 +1262,12 @@ export async function POST(req: NextRequest) {
           // the static checks we can run ourselves (rule-13 hex classes,
           // plus a general "make it compile" audit).
           let instructions: string[];
-          if (err.logs) {
+          if (err.state === "MIGRATION") {
+            instructions = [
+              "The generated Supabase migration (the *.sql file under supabase/migrations/) FAILED when run. Fix the SQL and re-emit the migration file IN FULL. Most common cause: a column name used in a policy, index, trigger, view, or foreign key that doesn't match the column actually created in the CREATE TABLE (e.g. `is_active` vs `active`). Also check for referenced-but-missing tables and type mismatches. Error:\n\n" +
+                err.logs,
+            ];
+          } else if (err.logs) {
             instructions = [
               "The Vercel build of this app FAILED to compile. Fix exactly these errors — re-emit each affected file in full:\n\n" +
                 err.logs,
