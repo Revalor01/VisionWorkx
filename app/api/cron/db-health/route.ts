@@ -19,7 +19,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function probe(): Promise<{ ok: boolean; status: number; schemaCache: boolean; detail: string }> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+    // A real table read — the `/rest/v1/` root only answers to the
+    // service_role key. A schema-cache failure is global, so `apps` 503s
+    // just like every tenant table would.
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/apps?select=id&limit=1`, {
       headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
     });
     if (res.ok) return { ok: true, status: res.status, schemaCache: false, detail: "ok" };
