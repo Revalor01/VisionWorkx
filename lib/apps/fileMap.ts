@@ -34,6 +34,21 @@ function fileBlockRegex(): RegExp {
 }
 
 /**
+ * Strip a wrapping markdown code fence from a file's content. The model
+ * sometimes emits ```lang ... ``` around a whole file despite "output only
+ * code" — a leading fence line and/or a trailing ``` are never valid file
+ * content and have caused real build/migration failures (a ```sql fence
+ * inside a .sql migration). Idempotent; leaves fenced blocks that sit
+ * *within* real content alone (only trims one fence at each end).
+ */
+export function stripCodeFence(s: string): string {
+  let out = s.trim();
+  out = out.replace(/^```[a-zA-Z0-9_+-]*[ \t]*\r?\n/, "");
+  out = out.replace(/\r?\n```[ \t]*$/, "");
+  return out.trim();
+}
+
+/**
  * Parse a `generated_code` blob into an ordered list of files, applying the
  * exact same normalisation the deploy route does: the path is trimmed and
  * has leading slashes stripped, the content is trimmed, and a block with an
@@ -46,7 +61,7 @@ export function parseFileList(raw: string): ParsedFile[] {
   let match: RegExpExecArray | null;
   while ((match = re.exec(raw)) !== null) {
     const path = match[1].trim().replace(/^\/+/, "");
-    const content = match[2].trim();
+    const content = stripCodeFence(match[2]);
     if (path) files.push({ path, content });
   }
   return files;

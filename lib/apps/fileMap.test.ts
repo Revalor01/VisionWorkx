@@ -107,6 +107,34 @@ describe("parseFileList", () => {
       "components/Actions.tsx",
     ]);
   });
+
+  it("strips a wrapping markdown code fence from file content", () => {
+    // Regression: the model wrapped a migration in ```sql ... ``` and the
+    // whole build failed with `syntax error at or near "\`\`\`"`.
+    const blob = [
+      "[FILENAME: supabase/migrations/001_init.sql]",
+      "```sql",
+      "create table t (id uuid primary key);",
+      "```",
+      "[/FILENAME]",
+      "",
+      "[FILENAME: app/page.tsx]",
+      "```tsx",
+      "export default function P() { return null; }",
+      "```",
+      "[/FILENAME]",
+    ].join("\n");
+    const map = parseFileMap(blob);
+    expect(map["supabase/migrations/001_init.sql"]).toBe(
+      "create table t (id uuid primary key);",
+    );
+    expect(map["app/page.tsx"]).toBe("export default function P() { return null; }");
+  });
+
+  it("leaves an unfenced file untouched", () => {
+    const blob = "[FILENAME: a.ts]\nconst x = 1;\n[/FILENAME]";
+    expect(parseFileMap(blob)["a.ts"]).toBe("const x = 1;");
+  });
 });
 
 describe("serializeFileMap ↔ parseFileMap round-trip", () => {

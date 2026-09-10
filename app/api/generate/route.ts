@@ -383,8 +383,11 @@ export async function POST(req: NextRequest) {
       // unresolved imports, migration-contract gaps) and run a targeted
       // repair pass before saving — much cheaper than a failed deploy or a
       // live app with 404ing detail pages.
-      let codeToSave = fullText;
+      // Normalise on the way in — round-tripping through the parser strips
+      // any wrapping markdown code fences the model emitted (a ```sql fence
+      // inside a migration has broken real builds).
       const parsed = parseFileMap(fullText);
+      let codeToSave = serializeFileMap(parsed);
       const problems = validateGenerated(
         fullText,
         parsed,
