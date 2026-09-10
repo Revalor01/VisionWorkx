@@ -40,27 +40,25 @@ export default function AdminNavBar({ category, current }: { category: NavCatego
   const label = category === "media" ? "Media" : "Operations";
 
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-6 pb-4 border-b border-zinc-200">
+    <div className="flex flex-wrap items-center gap-2 mb-6 pb-4 border-b border-zinc-200">
       <h2 className="text-sm font-bold text-white bg-[#1A3A5C] rounded-full px-4 py-1 w-28 text-center shrink-0">
         {label}
       </h2>
-      <div className="flex flex-wrap gap-2">
-        {links.map((l) => (
-          <a
-            key={l.key}
-            href={l.href}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
-          >
-            {l.label} →
-          </a>
-        ))}
+      {links.map((l) => (
         <a
-          href={`${REVALOR_ADMIN}/`}
-          className="rounded-lg border border-[#B8860B]/50 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-[#B8860B] hover:bg-[#B8860B]/5"
+          key={l.key}
+          href={l.href}
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-500 hover:border-zinc-400"
         >
-          Revalor Admin →
+          {l.label} →
         </a>
-      </div>
+      ))}
+      <a
+        href={`${REVALOR_ADMIN}/`}
+        className="rounded-lg border border-[#B8860B]/50 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-[#B8860B] hover:bg-[#B8860B]/5"
+      >
+        Revalor Admin →
+      </a>
     </div>
   );
 }
