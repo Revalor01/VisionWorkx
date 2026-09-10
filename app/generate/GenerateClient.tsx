@@ -199,12 +199,41 @@ export default function GenerateClient({
   useEffect(() => {
     if (!appId || hasStarted.current) return;
     hasStarted.current = true;
-    startGeneration(appId);
+
+    // A page refresh remounts this component. Never kick off a SECOND
+    // generation on an app that's already built or building — that
+    // overwrites a working app with a fresh (sometimes failing) re-gen.
+    // Check server state first; resume the deploy view instead.
+    (async () => {
+      try {
+        const supabase = createBrowserClient();
+        const { data: row } = await supabase
+          .from("apps")
+          .select("status, deploy_url")
+          .eq("id", appId)
+          .maybeSingle();
+        if (row?.status === "deployed") {
+          setDeployUrl(row.deploy_url ?? null);
+          setStatus("complete");
+          setProgress(100);
+          return;
+        }
+        if (row?.status === "deploying" || row?.status === "ready") {
+          setStatus("deploying");
+          setProgress(80);
+          startPolling(appId);
+          return;
+        }
+      } catch {
+        /* fall through to a fresh generation */
+      }
+      startGeneration(appId);
+    })();
 
     return () => {
       abortRef.current?.abort();
     };
-  }, [appId, startGeneration]);
+  }, [appId, startGeneration, startPolling]);
 
   if (!appId) {
     return (

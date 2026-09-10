@@ -302,7 +302,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing intake data" }, { status: 400 });
   }
 
-  if (app.status === "ready") {
+  // Already generated / mid-pipeline / live — never silently regenerate
+  // (a /generate page refresh remounts the client and would otherwise
+  // kick a second build over a working one).
+  if (app.status === "ready" || app.status === "deploying" || app.status === "deployed") {
     return NextResponse.json({ error: "App already generated" }, { status: 409 });
   }
 
