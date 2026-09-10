@@ -104,6 +104,33 @@ export function validateGenerated(
   const hasMigration = [...paths].some((p) => /supabase\/migrations\/.*\.sql$/.test(p));
   if (!hasMigration) problems.push("Missing the schema file under supabase/migrations/.");
 
+  // package.json — the framework must stay on the Next 14 line. The
+  // generated Supabase server client uses the synchronous cookies() API;
+  // Next 15 made it async and Next 16 removed the sync fallback, which
+  // breaks every server-side auth check — the app then bounces between
+  // /login and its home route forever. An unpinned "next" (or "latest")
+  // drifts there on its own once a newer major is published.
+  const pkgRaw = map["package.json"];
+  if (pkgRaw) {
+    try {
+      const pkg = JSON.parse(pkgRaw);
+      const nextVer = pkg?.dependencies?.next ?? pkg?.devDependencies?.next;
+      if (nextVer && !/^[\^~]?14(\.|$)/.test(String(nextVer).trim())) {
+        problems.push(
+          `package.json pins "next" to "${nextVer}" — keep it on the Next 14 line ("^14.2.0"). Newer majors make cookies() async and break server-side auth.`,
+        );
+      }
+      const reactVer = pkg?.dependencies?.react;
+      if (reactVer && !/^[\^~]?18(\.|$)/.test(String(reactVer).trim())) {
+        problems.push(
+          `package.json pins "react" to "${reactVer}" — Next 14 pairs with React 18 ("^18").`,
+        );
+      }
+    } catch {
+      problems.push("package.json is present but not valid JSON — fix it.");
+    }
+  }
+
   // Unresolved local imports
   const resolvable = (spec: string) =>
     [spec, `${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`, `${spec}/index.tsx`].some(has);

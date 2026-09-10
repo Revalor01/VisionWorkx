@@ -86,6 +86,56 @@ const GOLDEN: { key: string; intake: IntakeData }[] = [
   },
 ];
 
+// A build can reach "deployed" and still be broken at runtime — the
+// classic case is a Next-major drift that makes server-side auth fail, so
+// the app redirects between /login and its home route forever. Follow the
+// redirect chain from the app root a few hops: an oscillation or a 5xx is
+// a canary failure even though the deploy "succeeded". Network flakes are
+// ignored — a transient fetch error must not fail the pipeline signal.
+async function smokeCheck(
+  deployUrl: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    let url = deployUrl;
+    const seen: string[] = [];
+    for (let hop = 0; hop < 6; hop++) {
+      const res = await fetch(url, { redirect: "manual", signal: ac.signal });
+      if (res.status >= 500) {
+        return { ok: false, reason: `runtime ${res.status} at ${new URL(url).pathname}` };
+      }
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc) break;
+        const next = new URL(loc, url);
+        const path = next.pathname;
+        seen.push(path);
+        // same path 3× or an A→B→A→B oscillation = a redirect loop
+        if (
+          seen.filter((p) => p === path).length >= 3 ||
+          (seen.length >= 4 &&
+            seen[seen.length - 1] === seen[seen.length - 3] &&
+            seen[seen.length - 2] === seen[seen.length - 4])
+        ) {
+          return {
+            ok: false,
+            reason: `redirect loop (${seen.slice(-4).join(" → ")}) — likely a Next 15/16 SSR-auth regression`,
+          };
+        }
+        url = next.toString();
+        continue;
+      }
+      break; // 2xx / 4xx — the app is serving, not looping
+    }
+    return { ok: true };
+  } catch {
+    return { ok: true }; // transient network error — do not fail the build on it
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function GET(req: NextRequest) {
   if ((req.headers.get("authorization") ?? "") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -111,13 +161,27 @@ export async function GET(req: NextRequest) {
     const running = app && ["generating", "ready", "deploying"].includes(app.status);
     if (running && ageMin < 30) continue; // still building — grade next run
 
-    const pass = app?.status === "deployed";
+    let pass = app?.status === "deployed";
+    let failReason = pass
+      ? null
+      : app?.failure_reason ?? (app ? app.status : "no app row");
+
+    // Deployed builds get a runtime smoke check — a green deploy that
+    // redirect-loops or 5xxs is still a broken build.
+    if (pass && app?.deploy_url) {
+      const smoke = await smokeCheck(app.deploy_url);
+      if (!smoke.ok) {
+        pass = false;
+        failReason = smoke.reason;
+      }
+    }
+
     graded[run.intake_key] = pass ? "pass" : "fail";
     await service
       .from("build_canary_runs")
       .update({
         status: pass ? "pass" : "fail",
-        failure_reason: pass ? null : app?.failure_reason ?? (app ? app.status : "no app row"),
+        failure_reason: failReason,
         deploy_url: app?.deploy_url ?? null,
         duration_sec: Math.round(ageMin * 60),
         graded_at: new Date().toISOString(),
@@ -130,9 +194,7 @@ export async function GET(req: NextRequest) {
         appId: run.app_id,
         appName: `Canary — ${run.intake_key}`,
         customer: null,
-        error: `Golden build "${run.intake_key}" did not deploy — ${
-          app?.failure_reason ?? app?.status ?? "no app row"
-        }. The generate → deploy pipeline is failing for this shape.`,
+        error: `Golden build "${run.intake_key}" failed — ${failReason}. The generate → deploy pipeline is failing for this shape.`,
         title: `🔴 CANARY FAILED (${run.intake_key}) — the build pipeline is degraded`,
       });
     }
