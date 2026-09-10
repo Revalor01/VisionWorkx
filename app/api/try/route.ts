@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     secondaryCategories: Array.isArray(i.secondaryCategories)
       ? (i.secondaryCategories.filter(
           (c): c is AppCategory => CATEGORIES.includes(c as AppCategory) && c !== i.category,
-        ).slice(0, 3))
+        ).slice(0, 2))
       : [],
     features: Array.isArray(i.features) ? i.features.slice(0, 20).map(String) : [],
     primaryColor: /^#[0-9a-f]{6}$/i.test(i.primaryColor ?? "") ? i.primaryColor! : "#1A3A5C",

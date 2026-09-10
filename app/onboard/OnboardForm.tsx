@@ -412,27 +412,33 @@ export default function OnboardForm({
                     <span className="text-gray-400 font-normal">(optional)</span>
                   </p>
                   <p className="text-xs text-gray-500 mb-2">
-                    A gym might be Booking + Membership + CRM. Pick up to 3.
+                    A gym might be Booking + Membership. Pick up to 2 — each extra type makes
+                    the build bigger and slower.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {CATEGORIES.filter((c) => c.id !== data.category).map((c) => {
-                      const on = (data.secondaryCategories ?? []).includes(c.id);
+                      const selected = data.secondaryCategories ?? [];
+                      const on = selected.includes(c.id);
+                      const atMax = selected.length >= 2 && !on;
                       return (
                         <button
                           key={c.id}
                           type="button"
+                          disabled={atMax}
                           onClick={() =>
                             update(
                               "secondaryCategories",
                               on
-                                ? (data.secondaryCategories ?? []).filter((x) => x !== c.id)
-                                : [...(data.secondaryCategories ?? []), c.id].slice(0, 3),
+                                ? selected.filter((x) => x !== c.id)
+                                : [...selected, c.id].slice(0, 2),
                             )
                           }
                           className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                             on
                               ? "border-navy-dark bg-navy-dark text-white"
-                              : "border-gray-300 text-gray-600 hover:border-navy"
+                              : atMax
+                                ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                                : "border-gray-300 text-gray-600 hover:border-navy"
                           }`}
                         >
                           {on ? "✓ " : "+ "}
@@ -441,6 +447,12 @@ export default function OnboardForm({
                       );
                     })}
                   </div>
+                  {(data.secondaryCategories ?? []).length >= 2 && (
+                    <p className="mt-2 text-xs text-amber-600">
+                      That&apos;s the max. A build this size takes longer and can time out — you can
+                      always add more later by describing the change in plain English.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -57,6 +57,8 @@ export default function GenerateClient({
   const abortRef = useRef<AbortController | null>(null);
   const hasStarted = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedAtRef = useRef(0);
+  const streamLenRef = useRef(0);
 
   // Auto-scroll code window as new content arrives
   useEffect(() => {
@@ -143,6 +145,8 @@ export default function GenerateClient({
   const startGeneration = useCallback(
     async (id: string) => {
       abortRef.current = new AbortController();
+      startedAtRef.current = Date.now();
+      streamLenRef.current = 0;
       setStatus("connecting");
       setProgress(5);
       setStreamedText("");
@@ -176,6 +180,7 @@ export default function GenerateClient({
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
+          streamLenRef.current += chunk.length;
           setStreamedText((prev) => prev + chunk);
         }
 
@@ -186,9 +191,15 @@ export default function GenerateClient({
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         console.error("[generate client]", err);
+        // A drop after many minutes / a lot of streamed code almost always
+        // means the build was too big to finish inside the time limit —
+        // not a transient blip. Point at the real fix.
+        const elapsedMin = (Date.now() - startedAtRef.current) / 60000;
+        const looksTooBig = elapsedMin > 8 || streamLenRef.current > 80_000;
         setError(
-          (err as Error).message ||
-            "An unexpected error occurred. Please try again."
+          looksTooBig
+            ? "This build ran out of time — it's likely too large to finish in one pass. Start over with fewer app types (one, or at most two add-ons), then add the rest later by describing the change in plain English."
+            : (err as Error).message || "An unexpected error occurred. Please try again."
         );
         setStatus("failed");
       }

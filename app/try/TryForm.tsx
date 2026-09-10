@@ -39,7 +39,7 @@ export default function TryForm() {
 
   function toggleSecondary(c: AppCategory) {
     setSecondary((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c].slice(0, 3),
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c].slice(0, 2),
     );
   }
 
@@ -235,20 +235,25 @@ export default function TryForm() {
         {category && (
           <div className="mt-3">
             <p className="mb-1.5 text-xs text-gray-500">
-              Need more in one app? Add capabilities (optional)
+              Need more in one app? Add up to 2 (optional) — each one makes the build bigger and
+              slower.
             </p>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.filter((c) => c.id !== category).map((c) => {
                 const on = secondary.includes(c.id);
+                const atMax = secondary.length >= 2 && !on;
                 return (
                   <button
                     key={c.id}
                     type="button"
+                    disabled={atMax}
                     onClick={() => toggleSecondary(c.id)}
                     className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                       on
                         ? "border-navy bg-navy text-white"
-                        : "border-gray-300 text-gray-600 hover:border-navy"
+                        : atMax
+                          ? "border-gray-200 text-gray-300 cursor-not-allowed"
+                          : "border-gray-300 text-gray-600 hover:border-navy"
                     }`}
                   >
                     {on ? "✓ " : "+ "}
@@ -257,6 +262,12 @@ export default function TryForm() {
                 );
               })}
             </div>
+            {secondary.length >= 2 && (
+              <p className="mt-2 text-xs text-amber-600">
+                That&apos;s the max — a bigger build takes longer and can time out. You can add more
+                later by describing the change in plain English.
+              </p>
+            )}
           </div>
         )}
 

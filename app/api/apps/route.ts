@@ -9,6 +9,15 @@ const CATEGORY_LABEL: Record<string, string> = {
   portal: "Customer Portal",
 };
 
+// Add-on categories, deduped, primary removed, capped at 2. Past two, the
+// generation runs longer than the function limit and the build times out.
+const MAX_SECONDARY = 2;
+function capSecondary(intake: IntakeData) {
+  return [...new Set(intake.secondaryCategories ?? [])]
+    .filter((c) => c !== intake.category)
+    .slice(0, MAX_SECONDARY);
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
   const {
@@ -26,6 +35,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  // Cap add-on categories at 2 — more than that and generation runs past
+  // the function time limit and the build times out.
+  intake.secondaryCategories = capSecondary(intake);
 
   const appName = `${intake.businessName} ${CATEGORY_LABEL[intake.category] ?? intake.category}`;
 
@@ -74,6 +86,7 @@ export async function PATCH(req: NextRequest) {
   if (!appId || !intake) {
     return NextResponse.json({ error: "Missing appId or intake" }, { status: 400 });
   }
+  intake.secondaryCategories = capSecondary(intake);
 
   const serviceClient = createServiceClient();
 
