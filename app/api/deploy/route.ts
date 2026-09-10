@@ -459,7 +459,13 @@ export default config;
           dependencies: {
             "@supabase/ssr": "^0.3.0",
             "@supabase/supabase-js": "^2.39.0",
-            next: "14.1.0",
+            // Pinned to the Next 14 line on purpose: the generated
+            // Supabase server client (below) uses the synchronous
+            // `cookies()` API, which Next 15+ made async — an unpinned
+            // `next` drifts to 15/16 and every protected route then
+            // redirects to /login (server can't read the auth cookie),
+            // fighting the client-side session => infinite redirect loop.
+            next: "^14.2.0",
             react: "^18",
             "react-dom": "^18",
           },
@@ -469,7 +475,7 @@ export default config;
             "@types/react-dom": "^18",
             autoprefixer: "^10.0.1",
             eslint: "^8",
-            "eslint-config-next": "14.1.0",
+            "eslint-config-next": "^14.2.0",
             postcss: "^8",
             typescript: "^5",
           },
@@ -723,6 +729,35 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
       pkg.devDependencies = pkg.devDependencies || {};
       if (!pkg.devDependencies["tailwindcss"])
         pkg.devDependencies["tailwindcss"] = "^3.4.0";
+
+      // Clamp the framework to the Next 14 line. The generated Supabase
+      // server client uses the synchronous `cookies()` API; Next 15 made
+      // it async and Next 16 removed the sync fallback entirely. On 15/16
+      // the server never reads the auth cookie, so every protected route
+      // redirects to /login while the client (which still has a session)
+      // bounces back — an infinite /login<->/dashboard redirect loop.
+      // The AI's own package.json increasingly emits "next": "latest"/15/16;
+      // force it back to ^14.2.0 unless it already targets 14.
+      const isNext14 = (v: unknown) =>
+        typeof v === "string" && /^[\^~]?14(\.|$)/.test(v.trim());
+      const isReact18 = (v: unknown) =>
+        typeof v === "string" && /^[\^~]?18(\.|$)/.test(v.trim());
+      if (!isNext14(pkg.dependencies["next"]))
+        pkg.dependencies["next"] = "^14.2.0";
+      if (!isNext14(pkg.devDependencies["eslint-config-next"]))
+        pkg.devDependencies["eslint-config-next"] = "^14.2.0";
+      // Next 14 pairs with React 18 — a stray React 19 pin breaks the build.
+      if (!isReact18(pkg.dependencies["react"]))
+        pkg.dependencies["react"] = "^18";
+      if (!isReact18(pkg.dependencies["react-dom"]))
+        pkg.dependencies["react-dom"] = "^18";
+      if (pkg.devDependencies["@types/react"] &&
+          !isReact18(pkg.devDependencies["@types/react"]))
+        pkg.devDependencies["@types/react"] = "^18";
+      if (pkg.devDependencies["@types/react-dom"] &&
+          !isReact18(pkg.devDependencies["@types/react-dom"]))
+        pkg.devDependencies["@types/react-dom"] = "^18";
+
       pkgFile.content = JSON.stringify(pkg, null, 2);
     } catch { /* leave as-is */ }
   }

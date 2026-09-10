@@ -40,7 +40,7 @@ Output ONLY code files — no explanations, no preamble, no text outside the fil
 [/FILENAME]
 
 Tech stack:
-- Next.js 14 App Router, TypeScript throughout
+- Next.js 14 App Router, TypeScript throughout. In package.json pin "next" to "^14.2.0" and "eslint-config-next" to "^14.2.0" (with react/react-dom "^18") — this codebase's Supabase server client uses the synchronous cookies() API, which Next 15+ made async; an unpinned "next" drifts to 15/16 and breaks server-side auth.
 - Supabase for auth + postgres database (@supabase/supabase-js, @supabase/ssr)
 - Tailwind CSS for all styling — no external UI component libraries
 - next/font/google for the font
