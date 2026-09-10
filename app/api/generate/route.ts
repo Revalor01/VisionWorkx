@@ -680,6 +680,8 @@ Seed 6–8 realistic \`products\` with \`active = true\` and one \`product_image
 
 Cart is \`localStorage\` ONLY — never a DB table. The server re-reads every price from \`products\` at checkout; never trust prices sent from the browser.
 
+TypeScript: when you build the cart's display rows by mapping cart items to their product and skipping ones whose product isn't found, the map returns \`(Row | null)[]\`. NEVER assign that to \`Row[]\` — finish the chain with \`.filter((r): r is Row => r != null)\`. This is the #1 cause of a failed storefront build.
+
 ### Checkout (server route / server action only)
 0. FIRST check \`process.env.STRIPE_CHECKOUT_URL\` and \`process.env.APP_CHECKOUT_SECRET\`. If EITHER is missing/empty, return \`{ error: "This store isn't accepting online payments yet." }\` and do NOT create an order. The \`/cart\` page shows that message inline and disables the Checkout button — never "Failed to create order", never a throw.
 1. Recompute subtotal + shipping from the DB and \`store_settings\`.

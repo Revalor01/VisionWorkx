@@ -789,6 +789,38 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
     });
   }
 
+  // `const x: T[] = arr.map((i) => { if (!p) return null; return {...} })`
+  // is a `(T | null)[]` and fails `tsc`. The storefront cart components hit
+  // this repeatedly and the repair pass plays whack-a-mole (fixes one file,
+  // the next deploy fails on another). Append a null-filter deterministically.
+  for (const f of out) {
+    if (!/\.tsx?$/.test(f.path)) continue;
+    let c = f.content;
+    const re = /:\s*([A-Za-z_$][\w$]*)\[\]\s*=\s*[^;]*?\.map\(/g;
+    const edits: { at: number; text: string }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(c))) {
+      const type = m[1];
+      let i = re.lastIndex; // just after the '(' of .map(
+      let depth = 1;
+      for (; i < c.length && depth > 0; i++) {
+        if (c[i] === "(") depth++;
+        else if (c[i] === ")") depth--;
+      }
+      if (depth !== 0) continue;
+      const body = c.slice(re.lastIndex, i - 1);
+      if (!/\breturn\s+null\b/.test(body)) continue;
+      if (c.slice(i).replace(/^\s*/, "").startsWith(".filter(")) continue;
+      edits.push({ at: i, text: `\n        .filter((v): v is ${type} => v != null)` });
+    }
+    if (edits.length) {
+      for (const e of edits.sort((a, b) => b.at - a.at)) {
+        c = c.slice(0, e.at) + e.text + c.slice(e.at);
+      }
+      f.content = c;
+    }
+  }
+
   return out;
 }
 
