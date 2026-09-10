@@ -6,18 +6,21 @@ import { operatorAlertTitle } from "@/lib/apps/buildFailure";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// A generation that runs past the 900s function ceiling is hard-killed —
-// its own catch never runs, so the app sits in `generating`/`ready`
-// forever and neither the customer nor the operator is told. This sweeps
-// those up: past the threshold for its state, mark it failed
-// (failure_reason 'timeout') and fire the operator alert.
+// A build hard-killed at a function ceiling never runs its own catch, so
+// the app sits in a non-terminal state forever with nobody told. This
+// sweeps those up: past the threshold for its state, mark it failed
+// (failure_reason 'timeout') and alert the operator.
 //
-// generating/ready : 18 min  (900s limit + margin)
-// deploying         : 25 min  (Vercel build poll can legitimately be long)
+// Thresholds are measured from apps.created_at and must cover the WORST
+// legitimate path, not the average:
+//   generating/ready : 30 min — one generate (<=15m) + the one automatic
+//                      retry (<=15m).
+//   deploying        : 40 min — deploy (<=13m) + one repair pass + the
+//                      repair redeploy (<=13m).
 const THRESHOLD_MIN: Record<string, number> = {
-  generating: 18,
-  ready: 18,
-  deploying: 25,
+  generating: 30,
+  ready: 30,
+  deploying: 40,
 };
 
 export async function GET(req: NextRequest) {
