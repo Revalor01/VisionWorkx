@@ -663,20 +663,27 @@ create table orders (
   created_at timestamptz not null default now()
 );
 \`\`\`
-RLS: \`products\`/\`product_images\`/\`store_settings\` — anon+authenticated \`select\`, authenticated \`all\`. \`orders\` — authenticated \`all\` only (NO anon select; rows are created server-side). Seed 6–8 realistic \`products\` with \`active = true\` and one \`product_images\` row each (use \`https://picsum.photos/seed/<slug>/600/600\` as placeholder URLs) so the store looks stocked on first run.
+RLS (this app has NO service-role key — every server route uses the anon key, so a shopper is the \`anon\` role even from a server action; get these exactly right or checkout breaks):
+- \`products\` / \`product_images\` / \`store_settings\` — \`select\` to \`anon, authenticated\`; \`insert/update/delete\` to \`authenticated\` only.
+- \`orders\` — a shopper (anon) must be able to place and then complete their own order, but never read other people's:
+  - \`insert\` to \`anon, authenticated\` with \`with check (status = 'pending')\`
+  - \`update\` to \`anon, authenticated\` with \`using (status = 'pending')\` (so the /store/success route can flip a pending order to paid, but nothing shipped can be touched)
+  - \`select\` and \`delete\` to \`authenticated\` only (the store owner's admin)
+Seed 6–8 realistic \`products\` with \`active = true\` and one \`product_images\` row each (use \`https://picsum.photos/seed/<slug>/600/600\` as placeholder URLs) so the store looks stocked on first run.
 
 ### Customer pages
 - \`app/page.tsx\` → redirect to \`/store\` (or make \`/store\` the homepage). Public, no auth.
 - \`/store\` — product grid: first image, name, price (\`price_cents/100\`). Only \`active\` products. Empty state if none.
 - \`/store/[slug]\` — image gallery (all \`product_images\` ordered by \`position\`), name, price, description, quantity, **Add to cart**.
-- \`/cart\` — reads the cart from \`localStorage\` (key \`"cart"\`, shape \`[{product_id, qty}]\`); fetches those products fresh for name/price/image; shows line items with qty steppers, subtotal, a shipping line computed from \`store_settings\` (\`shipping_flat_cents\`, waived when subtotal ≥ \`free_shipping_over_cents\`), and total. A short **ship-to form** (name, address, city, state, zip, email) then a **Checkout** button.
+- \`/cart\` — reads the cart from \`localStorage\` (key \`"cart"\`, shape \`[{product_id, qty}]\`); fetches those products fresh for name/price/image; shows line items with qty steppers, subtotal, a shipping line computed from \`store_settings\` (\`shipping_flat_cents\`, waived when subtotal ≥ \`free_shipping_over_cents\`), and total. A short **ship-to form** (name, address, city, state, zip, email) then a **Checkout** button. The page's SERVER component reads \`process.env.STRIPE_CHECKOUT_URL\` and passes a \`paymentsEnabled\` boolean to the client — when false, the Checkout button is disabled and shows "This store isn't accepting online payments yet."
 - \`/store/success\` — reads \`?order_id\` and \`?session_id\`; server-confirms payment (below); on success shows the order + items and clears the cart client-side.
 
 Cart is \`localStorage\` ONLY — never a DB table. The server re-reads every price from \`products\` at checkout; never trust prices sent from the browser.
 
 ### Checkout (server route / server action only)
+0. FIRST check \`process.env.STRIPE_CHECKOUT_URL\` and \`process.env.APP_CHECKOUT_SECRET\`. If EITHER is missing/empty, return \`{ error: "This store isn't accepting online payments yet." }\` and do NOT create an order. The \`/cart\` page shows that message inline and disables the Checkout button — never "Failed to create order", never a throw.
 1. Recompute subtotal + shipping from the DB and \`store_settings\`.
-2. Insert an \`orders\` row: \`status='pending'\`, \`items\` = \`[{product_id, name, qty, unit_cents}]\`, the ship-to fields, \`email\`.
+2. Insert an \`orders\` row: \`status='pending'\`, \`items\` = \`[{product_id, name, qty, unit_cents}]\`, the ship-to fields, \`email\`. (The anon insert policy above allows this only when \`status = 'pending'\`.)
 3. POST \`process.env.STRIPE_CHECKOUT_URL\` with header \`x-vw-checkout-secret: process.env.APP_CHECKOUT_SECRET\`:
 \`\`\`ts
 body: JSON.stringify({

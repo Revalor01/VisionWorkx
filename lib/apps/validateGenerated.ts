@@ -168,6 +168,11 @@ export function validateGenerated(
     if (!usesLineItems) {
       problems.push("Storefront: the checkout must POST STRIPE_CHECKOUT_URL with a `lineItems` cart, not a single `amount` — nothing uses `lineItems`.");
     }
+    // A shopper is the `anon` role (no service key). Without an anon
+    // insert policy on `orders`, checkout fails with an RLS error.
+    if (hasMigration && /\borders\b/.test(sql) && !/anon[\s\S]{0,400}orders|orders[\s\S]{0,400}anon/i.test(sql)) {
+      problems.push("Storefront: `orders` has no policy granting `anon` insert/update — a shopper (anon role) can't place an order. Add: insert to anon+authenticated with check (status='pending'), update to anon+authenticated using (status='pending'), select/delete authenticated only.");
+    }
   }
 
   // Staff logins & team invites (Phase 6c) — only when the owner picked it
