@@ -53,6 +53,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/cron/db-health",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/canary-build",
       "schedule": "0 5 * * *"
     },
