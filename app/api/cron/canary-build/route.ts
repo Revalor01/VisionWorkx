@@ -86,12 +86,17 @@ const GOLDEN: { key: string; intake: IntakeData }[] = [
   },
 ];
 
-// A build can reach "deployed" and still be broken at runtime — the
-// classic case is a Next-major drift that makes server-side auth fail, so
-// the app redirects between /login and its home route forever. Follow the
-// redirect chain from the app root a few hops: an oscillation or a 5xx is
-// a canary failure even though the deploy "succeeded". Network flakes are
-// ignored — a transient fetch error must not fail the pipeline signal.
+// A build can reach "deployed" and still be broken at runtime. Two checks
+// against the live app root:
+//  1. Redirect loop — a Next-major drift breaks server-side auth so the
+//     app bounces /login <-> home forever. Follow the chain a few hops;
+//     an oscillation or a 5xx is a failure even though the deploy "worked".
+//  2. Framework drift — `next/font` emits `__variable_*` class names on
+//     Next 15+ and `__className_*` on 14. Generated apps are pinned to 14
+//     (deploy/route.ts); if a build shows the 15+ marker the pin slipped
+//     and auth will loop as soon as there's a session — fail it now.
+// A transient fetch error / timeout is ignored — it must not fail the
+// pipeline signal on its own.
 async function smokeCheck(
   deployUrl: string,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
@@ -100,6 +105,7 @@ async function smokeCheck(
   try {
     let url = deployUrl;
     const seen: string[] = [];
+    let finalRes: Response | null = null;
     for (let hop = 0; hop < 6; hop++) {
       const res = await fetch(url, { redirect: "manual", signal: ac.signal });
       if (res.status >= 500) {
@@ -107,7 +113,7 @@ async function smokeCheck(
       }
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
-        if (!loc) break;
+        if (!loc) { finalRes = res; break; }
         const next = new URL(loc, url);
         const path = next.pathname;
         seen.push(path);
@@ -126,11 +132,22 @@ async function smokeCheck(
         url = next.toString();
         continue;
       }
-      break; // 2xx / 4xx — the app is serving, not looping
+      finalRes = res; // 2xx / 4xx — the app is serving, not looping
+      break;
+    }
+
+    if (finalRes && finalRes.ok) {
+      const html = (await finalRes.text().catch(() => "")).slice(0, 8000);
+      if (/__variable_[a-f0-9]/.test(html) && !/__className_[a-f0-9]/.test(html)) {
+        return {
+          ok: false,
+          reason: "app built on Next 15/16 (next/font __variable_ marker) — the ^14.2.0 pin slipped; server-side auth will loop",
+        };
+      }
     }
     return { ok: true };
   } catch {
-    return { ok: true }; // transient network error — do not fail the build on it
+    return { ok: true }; // transient network error / timeout — don't fail the build on it
   } finally {
     clearTimeout(timer);
   }
@@ -159,7 +176,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     const ageMin = (Date.now() - new Date(run.created_at).getTime()) / 60000;
     const running = app && ["generating", "ready", "deploying"].includes(app.status);
-    if (running && ageMin < 30) continue; // still building — grade next run
+    if (running && ageMin < 35) continue; // still building — grade next run
 
     let pass = app?.status === "deployed";
     let failReason = pass
@@ -183,7 +200,9 @@ export async function GET(req: NextRequest) {
         status: pass ? "pass" : "fail",
         failure_reason: failReason,
         deploy_url: app?.deploy_url ?? null,
-        duration_sec: Math.round(ageMin * 60),
+        // Only a lie otherwise: if we didn't grade within ~45 min of
+        // creation we don't know the real build time.
+        duration_sec: ageMin <= 45 ? Math.round(ageMin * 60) : null,
         graded_at: new Date().toISOString(),
       })
       .eq("id", run.id);
@@ -207,7 +226,7 @@ export async function GET(req: NextRequest) {
     .select("id, created_at")
     .eq("status", "pending");
   const inFlight = (stillPending ?? []).some(
-    (r) => Date.now() - new Date(r.created_at).getTime() < 40 * 60_000,
+    (r) => Date.now() - new Date(r.created_at).getTime() < 45 * 60_000,
   );
   if (inFlight) {
     return NextResponse.json({ graded, fired: [], skipped: "set in flight" });
@@ -233,7 +252,17 @@ export async function GET(req: NextRequest) {
     await removeTenantSchema(c.id);
   }
   await service.from("apps").delete().like("preview_email", CANARY_EMAIL_LIKE);
-  await service.from("build_canary_runs").delete().eq("status", "pending");
+  // Anything still pending here is ≥45 min old and never graded (no app_id,
+  // or a lost grade) — record it as a failure rather than silently deleting
+  // it, so a chronically stuck shape shows up in the pass rate.
+  await service
+    .from("build_canary_runs")
+    .update({
+      status: "fail",
+      failure_reason: "stuck — no deployable app within the grading window",
+      graded_at: new Date().toISOString(),
+    })
+    .eq("status", "pending");
 
   // 3. Fire a fresh set.
   const fired: string[] = [];

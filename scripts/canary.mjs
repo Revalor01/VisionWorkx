@@ -14,7 +14,9 @@
  *   CRON_SECRET, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL
  *   NEXT_PUBLIC_APP_URL (falls back to production)
  *
- * Exit code is non-zero if any golden build failed.
+ * Exit code: 0 = every graded golden build passed; 1 = a build failed or
+ * nothing could be graded; 2 = the script itself couldn't run (bad env,
+ * the API stayed 5xx through every retry, etc).
  */
 
 import { readFileSync } from "fs";
@@ -23,7 +25,6 @@ import { dirname, join } from "path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_APP_URL = "https://vision-workx.vercel.app";
-const GOLDEN_COUNT = 4;
 
 function loadEnvLocal() {
   const env = {};
@@ -53,33 +54,67 @@ if (!CRON_SECRET || !SB_URL || !SB_KEY) {
 const mode = process.argv[2] || "";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Retry on 5xx and network errors — a transient Supabase/PostgREST blip
+// (e.g. a schema-cache reload) used to crash the whole run.
+async function req(url, opts = {}, { retries = 4, label = url } = {}) {
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, opts);
+      if (res.status >= 500) {
+        lastErr = new Error(`${label} -> ${res.status} ${(await res.text().catch(() => "")).slice(0, 200)}`);
+      } else if (!res.ok) {
+        throw new Error(`${label} -> ${res.status} ${(await res.text().catch(() => "")).slice(0, 300)}`);
+      } else {
+        return res.json();
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+    if (i < retries) await sleep(3000 * (i + 1));
+  }
+  throw lastErr;
+}
+
+const sb = (path) =>
+  req(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+  }, { label: `supabase ${path.split("?")[0]}` });
+
 async function hitCron() {
-  const res = await fetch(`${APP_URL}/api/cron/canary-build`, {
+  return req(`${APP_URL}/api/cron/canary-build`, {
     headers: { Authorization: `Bearer ${CRON_SECRET}` },
-  });
-  if (!res.ok) throw new Error(`canary-build cron ${res.status}: ${await res.text()}`);
-  return res.json();
+  }, { label: "canary-build cron" });
 }
 
 async function pendingCount() {
-  const res = await fetch(
-    `${SB_URL}/rest/v1/build_canary_runs?status=eq.pending&select=id`,
-    { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
-  );
-  return (await res.json()).length;
+  const rows = await sb("build_canary_runs?status=eq.pending&select=id");
+  return Array.isArray(rows) ? rows.length : 0;
 }
 
-async function recent(n = 8) {
-  const res = await fetch(
-    `${SB_URL}/rest/v1/build_canary_runs?select=intake_key,status,failure_reason,duration_sec,created_at&order=created_at.desc&limit=${n}`,
-    { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
+// Latest row per intake_key from the most recent ~30.
+async function latestPerKey() {
+  const rows = await sb(
+    "build_canary_runs?select=intake_key,status,failure_reason,duration_sec,created_at&order=created_at.desc&limit=30",
   );
-  return res.json();
+  if (!Array.isArray(rows)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const r of rows) {
+    if (seen.has(r.intake_key)) continue;
+    seen.add(r.intake_key);
+    out.push(r);
+  }
+  return out;
 }
 
 function printRuns(runs) {
   console.log("\n  intake            result   detail");
   console.log("  ────────────────  ───────  ─────────────────────────────────");
+  if (runs.length === 0) {
+    console.log("  (no canary runs found)");
+    return;
+  }
   for (const r of runs) {
     const detail =
       r.status === "pass"
@@ -87,7 +122,7 @@ function printRuns(runs) {
           ? `${Math.round(r.duration_sec / 60)} min`
           : ""
         : r.failure_reason || "";
-    console.log(`  ${r.intake_key.padEnd(16)}  ${r.status.padEnd(7)}  ${detail}`);
+    console.log(`  ${String(r.intake_key).padEnd(16)}  ${String(r.status).padEnd(7)}  ${detail}`);
   }
 }
 
@@ -97,6 +132,7 @@ function printRuns(runs) {
     const out = await hitCron();
     console.log("  fired:", out.fired?.join(", ") || "(none)");
     if (out.graded && Object.keys(out.graded).length) console.log("  graded previous:", JSON.stringify(out.graded));
+    if (out.skipped) console.log("  skipped:", out.skipped);
     if (mode === "--fire") {
       console.log("\nRun `node scripts/canary.mjs --grade` in ~10-15 min.");
       return;
@@ -109,17 +145,20 @@ function printRuns(runs) {
   while (pending > 0 && Date.now() < deadline) {
     console.log(`  ${pending} build(s) still running… (${new Date().toLocaleTimeString()})`);
     await sleep(60_000);
-    await hitCron().catch(() => {}); // re-grade as they land
+    await hitCron().catch((e) => console.log(`  (re-grade blip: ${e.message || e})`));
     pending = await pendingCount();
   }
 
-  const runs = await recent(GOLDEN_COUNT);
+  const runs = await latestPerKey();
   printRuns(runs);
   const graded = runs.filter((r) => r.status === "pass" || r.status === "fail");
   const passed = graded.filter((r) => r.status === "pass").length;
-  console.log(`\n  ${passed}/${graded.length} passed` + (pending > 0 ? `  (${pending} still running — re-run --grade later)` : ""));
+  console.log(
+    `\n  ${passed}/${graded.length} passed` +
+      (pending > 0 ? `  (${pending} still running — re-run --grade later)` : ""),
+  );
   process.exit(graded.length > 0 && passed === graded.length ? 0 : 1);
 })().catch((e) => {
-  console.error(e.message || e);
+  console.error("canary.mjs:", e.message || e);
   process.exit(2);
 });
