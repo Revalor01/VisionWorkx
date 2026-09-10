@@ -328,6 +328,31 @@ without a browser session.
 
 ---
 
+## Build reliability — the golden-intake canary
+
+`/api/cron/canary-build` runs a fixed set of "golden" intakes (booking,
+booking+CRM, invoicing, portal) through the **real** generate → deploy pipeline
+every night and records each to `build_canary_runs`. `/admin` → overview →
+**Build Reliability** shows the 7d/30d pass rate — that number is the go/no-go on
+whether the product is stable.
+
+**Before shipping any change to the generation prompt (`app/api/generate/route.ts`
+SYSTEM_PROMPT), `lib/apps/repairGenerated.ts`, `validateGenerated.ts`, or
+`app/api/deploy/route.ts`, run:**
+```bash
+node scripts/canary.mjs        # fires the set, waits ~15 min, prints pass/fail
+```
+A non-zero exit = at least one golden build broke; don't ship.
+
+Supporting pieces: `apps.failure_reason` classifies every failure
+(`lib/apps/buildFailure.ts`); infra failures (credits/overload/timeout) tell the
+customer "we'll email you" instead of "retry"; `/api/cron/anthropic-health`
+(hourly) and `/api/cron/reap-stuck-builds` (10 min) page the operator on infra
+problems and stuck builds. Generation auto-retries once on a flaky failure before
+the customer sees anything.
+
+---
+
 ## Company Context
 
 **Product:** Vision Workx

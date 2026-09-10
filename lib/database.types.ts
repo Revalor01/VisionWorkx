@@ -220,6 +220,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      build_canary_runs: {
+        Row: {
+          id: string;
+          intake_key: string;
+          app_id: string | null;
+          status: string;
+          failure_reason: string | null;
+          duration_sec: number | null;
+          deploy_url: string | null;
+          created_at: string;
+          graded_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          intake_key: string;
+          app_id?: string | null;
+          status: string;
+          failure_reason?: string | null;
+          duration_sec?: number | null;
+          deploy_url?: string | null;
+          created_at?: string;
+          graded_at?: string | null;
+        };
+        Update: {
+          app_id?: string | null;
+          status?: string;
+          failure_reason?: string | null;
+          duration_sec?: number | null;
+          deploy_url?: string | null;
+          graded_at?: string | null;
+        };
+        Relationships: [];
+      };
       apps: {
         Row: {
           id: string;

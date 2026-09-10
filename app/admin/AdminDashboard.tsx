@@ -26,6 +26,13 @@ interface AdminDashboardProps {
   revisions: { kind: AppRevisionKind; status: AppRevisionStatus; created_at: string }[];
   guidedSessions: number;
   aiUsage: { source: string; cost_usd: number | null; created_at: string }[];
+  canaryRuns: {
+    intake_key: string;
+    status: string;
+    failure_reason: string | null;
+    duration_sec: number | null;
+    created_at: string;
+  }[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -100,6 +107,7 @@ export default function AdminDashboard({
   revisions,
   aiUsage,
   guidedSessions,
+  canaryRuns,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -554,6 +562,38 @@ export default function AdminDashboard({
     };
   }, [apps, profiles, subscriptions, revisions, aiUsage]);
 
+  // ── Build reliability (golden-intake canary) ────────────────────
+  const canaryStats = useMemo(() => {
+    const now = Date.now();
+    const graded = canaryRuns.filter((r) => r.status === "pass" || r.status === "fail");
+    const rate = (days: number) => {
+      const inWin = graded.filter((r) => now - new Date(r.created_at).getTime() < days * 86400000);
+      if (inWin.length === 0) return null;
+      return inWin.filter((r) => r.status === "pass").length / inWin.length;
+    };
+    const durations = graded
+      .filter((r) => r.status === "pass" && r.duration_sec)
+      .map((r) => r.duration_sec as number);
+    const avgSec = durations.length
+      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+      : null;
+    const byKey: Record<string, { pass: number; total: number }> = {};
+    for (const r of graded.filter((x) => now - new Date(x.created_at).getTime() < 30 * 86400000)) {
+      byKey[r.intake_key] = byKey[r.intake_key] ?? { pass: 0, total: 0 };
+      byKey[r.intake_key].total += 1;
+      if (r.status === "pass") byKey[r.intake_key].pass += 1;
+    }
+    return {
+      rate7: rate(7),
+      rate30: rate(30),
+      avgMin: avgSec != null ? Math.round(avgSec / 60) : null,
+      pending: canaryRuns.filter((r) => r.status === "pending").length,
+      byKey,
+      recent: canaryRuns.slice(0, 12),
+      total30: graded.filter((r) => now - new Date(r.created_at).getTime() < 30 * 86400000).length,
+    };
+  }, [canaryRuns]);
+
   // ── Automations derived state ───────────────────────────────────
   const instrumentedSet = useMemo(() => new Set(instrumentedAppIds), [instrumentedAppIds]);
   const oldestPendingAgeMinutes = useMemo(() => {
@@ -981,6 +1021,105 @@ export default function AdminDashboard({
                 Computed from logged token usage at Anthropic list prices. Does not reflect your
                 account credit balance — check the Anthropic console for that.
               </p>
+            </div>
+
+            {/* Build reliability */}
+            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-semibold text-zinc-900">Build Reliability</h2>
+                <span className="text-xs text-zinc-400">
+                  golden-intake canary · {canaryStats.total30} graded in 30d
+                  {canaryStats.pending > 0 ? ` · ${canaryStats.pending} running` : ""}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 mb-4">
+                Synthetic first builds run daily through the real generate → deploy pipeline. This
+                is the number that says whether the product is stable.
+              </p>
+              {canaryStats.total30 === 0 ? (
+                <p className="text-sm text-zinc-500">No runs graded yet — first results land after tonight&apos;s cron.</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <StatCard
+                      label="Success rate (7d)"
+                      value={canaryStats.rate7 == null ? "—" : `${Math.round(canaryStats.rate7 * 100)}%`}
+                      accent={
+                        canaryStats.rate7 == null
+                          ? undefined
+                          : canaryStats.rate7 >= 0.9
+                            ? "green"
+                            : "red"
+                      }
+                    />
+                    <StatCard
+                      label="Success rate (30d)"
+                      value={canaryStats.rate30 == null ? "—" : `${Math.round(canaryStats.rate30 * 100)}%`}
+                    />
+                    <StatCard
+                      label="Avg build time"
+                      value={canaryStats.avgMin == null ? "—" : `${canaryStats.avgMin} min`}
+                    />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {Object.entries(canaryStats.byKey).map(([k, v]) => (
+                      <div key={k} className="rounded-xl border border-zinc-200 p-3">
+                        <p className="text-xs text-zinc-500">{k}</p>
+                        <p
+                          className={`text-lg font-bold ${
+                            v.pass === v.total ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {v.pass}/{v.total}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="text-zinc-400">
+                        <tr>
+                          <th className="text-left font-medium py-1">When</th>
+                          <th className="text-left font-medium py-1">Intake</th>
+                          <th className="text-left font-medium py-1">Result</th>
+                          <th className="text-left font-medium py-1">Detail</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {canaryStats.recent.map((r, i) => (
+                          <tr key={i}>
+                            <td className="py-1.5 text-zinc-500 whitespace-nowrap">
+                              {new Date(r.created_at).toLocaleDateString()}{" "}
+                              {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td className="py-1.5 text-zinc-700">{r.intake_key}</td>
+                            <td className="py-1.5">
+                              <span
+                                className={`font-semibold ${
+                                  r.status === "pass"
+                                    ? "text-green-600"
+                                    : r.status === "fail"
+                                      ? "text-red-600"
+                                      : "text-zinc-400"
+                                }`}
+                              >
+                                {r.status}
+                              </span>
+                            </td>
+                            <td className="py-1.5 text-zinc-500">
+                              {r.status === "pass"
+                                ? r.duration_sec
+                                  ? `${Math.round(r.duration_sec / 60)} min`
+                                  : ""
+                                : r.failure_reason ?? ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Recent apps */}

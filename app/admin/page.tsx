@@ -32,6 +32,7 @@ export default async function AdminPage() {
     { data: revisions },
     { data: aiUsage },
     { count: guidedSessionsCount },
+    { data: canaryRuns },
   ] = await Promise.all([
     service
       .from("apps")
@@ -87,6 +88,11 @@ export default async function AdminPage() {
     service
       .from("guided_session_requests")
       .select("id", { count: "exact", head: true }),
+    service
+      .from("build_canary_runs")
+      .select("intake_key, status, failure_reason, duration_sec, created_at")
+      .order("created_at", { ascending: false })
+      .limit(300),
   ]);
 
   const oldestUndeliveredAt = oldestUndeliveredRows?.[0]?.created_at ?? null;
@@ -170,6 +176,7 @@ export default async function AdminPage() {
       revisions={revisions ?? []}
       aiUsage={aiUsage ?? []}
       guidedSessions={guidedSessionsCount ?? 0}
+      canaryRuns={canaryRuns ?? []}
     />
 
   );
