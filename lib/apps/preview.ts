@@ -23,6 +23,7 @@ const CATEGORY_LABEL: Record<AppCategory, string> = {
   portal: "Customer Portal",
   invoicing: "Invoicing App",
   membership: "Membership App",
+  storefront: "Online Store",
 };
 
 export interface CreatePreviewResult {

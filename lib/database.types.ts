@@ -5,7 +5,8 @@ export type AppCategory =
   | "inventory"
   | "portal"
   | "invoicing"
-  | "membership";
+  | "membership"
+  | "storefront";
 export type AppStatus =
   | "generating"    // Claude API call in progress
   | "ready"         // code saved, awaiting deployment

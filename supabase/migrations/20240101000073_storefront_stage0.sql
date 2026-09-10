@@ -1,0 +1,11 @@
+-- Storefront category — Stage 0 (platform plumbing only, no tenant tables).
+-- This migration is a marker; the actual changes are in the vision-workx
+-- app code + a "product-images" storage bucket:
+--   - AppCategory union gains "storefront"
+--   - CheckoutRequest.lineItems (N-line-item cart) + buildCartLineItems()
+--   - POST /api/apps/[appId]/product-image (secret-authed image upload)
+--   - deploy injects PRODUCT_IMAGE_UPLOAD_URL
+--   - PAYMENT_CATEGORIES += storefront
+-- Generated storefront apps (Stage 1+) create their own product/order
+-- tables in their tenant schema.
+select 1;

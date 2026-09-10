@@ -35,6 +35,7 @@ export const CATEGORY_HEADLINE_METRICS: Record<AppCategory, string[]> = {
   portal: ["active_clients", "documents_shared", "messages_sent"],
   invoicing: ["invoices_sent", "invoices_paid", "revenue_cents", "quotes_created"],
   membership: ["members_active", "members_new", "members_churned", "revenue_cents"],
+  storefront: ["orders_created", "units_sold", "revenue_cents"],
 };
 
 export interface DailyPoint {

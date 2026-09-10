@@ -55,6 +55,7 @@ const CATEGORY_ICONS: Record<AppCategory, string> = {
   portal: "🔐",
   invoicing: "🧾",
   membership: "🎫",
+  storefront: "🛍️",
 };
 
 const STATUS_STYLE: Record<AppStatus, { label: string; cls: string }> = {

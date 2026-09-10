@@ -529,6 +529,7 @@ const CATEGORY_DESCRIPTIONS: Record<AppCategory, string> = {
   portal: "client portal with document sharing and messaging",
   invoicing: "invoicing and quote management system",
   membership: "membership and recurring billing management system",
+  storefront: "online store — product catalogue, cart, checkout, and orders",
 };
 
 function buildUserPrompt(intake: IntakeData): string {

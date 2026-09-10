@@ -132,6 +132,8 @@ export const AUTOMATIONS_BY_CATEGORY: Record<AppCategory, AutomationDef[]> = {
       channels: ["email"],
     },
   ],
+  // Order automations land in storefront Stage 3.
+  storefront: [],
 };
 
 export function automationsForCategory(category: AppCategory): AutomationDef[] {

@@ -145,6 +145,8 @@ const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
     BILINGUAL_FEATURE,
     QR_CODE_FEATURE,
   ],
+  // Storefront ships with a fixed feature set (Stage 1); no toggles yet.
+  storefront: [],
 };
 
 const FONTS = ["Inter", "Lato", "Roboto", "Playfair Display", "Montserrat"];

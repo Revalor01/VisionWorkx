@@ -48,6 +48,12 @@ const CATEGORY_EXAMPLES: Record<AppCategory, string[]> = {
     "Let me pause a membership instead of only cancelling it.",
     "Show members their next billing date in their account.",
   ],
+  storefront: [
+    "Add a second photo slot to each product.",
+    "Turn on free shipping for orders over $75.",
+    "Add a 'Sale' badge to any product with a discounted price.",
+    "Email me a packing slip whenever a new order comes in.",
+  ],
 };
 
 export interface RevisionRow {

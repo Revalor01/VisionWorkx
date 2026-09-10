@@ -41,6 +41,7 @@ const CATEGORY_ICONS: Record<AppCategory, string> = {
   portal: "🔐",
   invoicing: "🧾",
   membership: "🎫",
+  storefront: "🛍️",
 };
 
 const CATEGORY_LABELS: Record<AppCategory, string> = {
@@ -50,6 +51,7 @@ const CATEGORY_LABELS: Record<AppCategory, string> = {
   portal: "Customer Portal",
   invoicing: "Invoicing & Quotes",
   membership: "Membership Management",
+  storefront: "Online Store",
 };
 
 const STATUS_CONFIG: Record<

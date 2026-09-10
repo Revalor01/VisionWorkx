@@ -10,7 +10,12 @@ import type { AppCategory } from "@/lib/database.types";
 
 // Categories where "collect payments online" is part of the pitch.
 // "booking" is here for deposits at booking time.
-export const PAYMENT_CATEGORIES: readonly AppCategory[] = ["invoicing", "membership", "booking"];
+export const PAYMENT_CATEGORIES: readonly AppCategory[] = [
+  "invoicing",
+  "membership",
+  "booking",
+  "storefront",
+];
 
 export function categoryTakesPayments(category: AppCategory): boolean {
   return PAYMENT_CATEGORIES.includes(category);
@@ -138,8 +143,50 @@ export interface CheckoutRequest {
   priceId?: string;
   /** For mode "subscription" without a priceId: billing interval (default month). */
   interval?: "day" | "week" | "month" | "year";
+  /**
+   * mode "payment" only — a real cart. Each entry is one Checkout line
+   * item; the platform fee is taken on the total. Overrides `amount` /
+   * `productName` when present. Used by the storefront category.
+   */
+  lineItems?: {
+    name: string;
+    amountCents: number;
+    quantity: number;
+    imageUrl?: string;
+  }[];
   /** Echoed back on the session so the app can reconcile its own record. */
   metadata?: Record<string, string>;
+}
+
+/**
+ * Build Stripe Checkout line items + the total from a cart. Pure — split
+ * out of createConnectedCheckout so it's unit-testable without Stripe.
+ * Clamps quantity to 1..999 and drops non-positive amounts.
+ */
+export function buildCartLineItems(
+  items: NonNullable<CheckoutRequest["lineItems"]>,
+  currency: string,
+): { lineItems: Stripe.Checkout.SessionCreateParams.LineItem[]; totalCents: number } {
+  const clean = items
+    .slice(0, 100) // Stripe's line-item ceiling
+    .map((i) => ({
+      name: (i.name || "Item").slice(0, 250),
+      amountCents: Math.round(i.amountCents),
+      quantity: Math.min(999, Math.max(1, Math.round(i.quantity || 1))),
+      imageUrl: i.imageUrl && /^https:\/\//.test(i.imageUrl) ? i.imageUrl : undefined,
+    }))
+    .filter((i) => i.amountCents > 0);
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = clean.map((i) => ({
+    quantity: i.quantity,
+    price_data: {
+      currency,
+      unit_amount: i.amountCents,
+      product_data: { name: i.name, ...(i.imageUrl ? { images: [i.imageUrl] } : {}) },
+    },
+  }));
+  const totalCents = clean.reduce((s, i) => s + i.amountCents * i.quantity, 0);
+  return { lineItems, totalCents };
 }
 
 /**
@@ -170,20 +217,32 @@ export async function createConnectedCheckout(
   };
 
   if (req.mode === "payment") {
-    if (!req.amount || req.amount < 50) throw new Error("amount must be at least 50");
-    params.line_items = [
-      {
-        quantity: 1,
-        price_data: {
-          currency,
-          unit_amount: Math.round(req.amount),
-          product_data: { name: req.productName?.slice(0, 250) || "Payment" },
+    let totalCents: number;
+    if (req.lineItems && req.lineItems.length > 0) {
+      // Real cart (storefront).
+      const built = buildCartLineItems(req.lineItems, currency);
+      if (built.lineItems.length === 0 || built.totalCents < 50) {
+        throw new Error("cart total must be at least 50");
+      }
+      params.line_items = built.lineItems;
+      totalCents = built.totalCents;
+    } else {
+      if (!req.amount || req.amount < 50) throw new Error("amount must be at least 50");
+      totalCents = Math.round(req.amount);
+      params.line_items = [
+        {
+          quantity: 1,
+          price_data: {
+            currency,
+            unit_amount: totalCents,
+            product_data: { name: req.productName?.slice(0, 250) || "Payment" },
+          },
         },
-      },
-    ];
+      ];
+    }
     if (feePct > 0) {
       params.payment_intent_data = {
-        application_fee_amount: Math.round(req.amount * (feePct / 100)),
+        application_fee_amount: Math.round(totalCents * (feePct / 100)),
       };
     }
   } else if (req.priceId) {

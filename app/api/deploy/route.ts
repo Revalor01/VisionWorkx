@@ -802,6 +802,12 @@ async function setVercelEnvVars(
             target: ["production", "preview"],
           },
           {
+            key: "PRODUCT_IMAGE_UPLOAD_URL",
+            value: `${appOrigin}/api/apps/${appId}/product-image`,
+            type: "plain",
+            target: ["production", "preview"],
+          },
+          {
             key: "APP_CHECKOUT_SECRET",
             value: checkoutSecret,
             type: "encrypted",
