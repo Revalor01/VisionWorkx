@@ -114,6 +114,24 @@ async function vercelGet(path: string) {
   return res.json();
 }
 
+// A transient failure here (network blip, one flaky 5xx, a rate limit) used
+// to unwind the whole runDeploy() and mark a possibly-succeeding deployment
+// "failed" with no deploy_url ever recorded, even though Vercel's own build
+// kept going independently of whether our status check happened to land.
+// Retry a few times with backoff before letting it propagate.
+async function vercelGetWithRetry(path: string, attempts = 3) {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await vercelGet(path);
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await delay(2000 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
 async function supabasePatch(table: string, id: string, data: Record<string, unknown>) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
     method: "PATCH",
@@ -1096,7 +1114,7 @@ CREATE TRIGGER emit_automation_event
   const deadline = Date.now() + 9 * 60 * 1000;
   while (Date.now() < deadline) {
     await delay(8000);
-    const status = await vercelGet(`/v13/deployments/${deployId}`);
+    const status = await vercelGetWithRetry(`/v13/deployments/${deployId}`);
     if (status.readyState === "READY") break;
     if (status.readyState === "ERROR" || status.readyState === "CANCELED") {
       const logs = await fetchBuildErrors(deployId).catch(() => "");
