@@ -124,12 +124,22 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. Clean up canary apps older than 2 days (rows only).
-  await service
-    .from("apps")
-    .delete()
-    .like("preview_email", CANARY_EMAIL_LIKE)
-    .lt("created_at", new Date(Date.now() - 2 * 86400_000).toISOString());
+  // A set is still in flight (e.g. the 10-minute schedule fired again
+  // mid-build) — grade only, don't stack another set.
+  const { data: stillPending } = await service
+    .from("build_canary_runs")
+    .select("id, created_at")
+    .eq("status", "pending");
+  const inFlight = (stillPending ?? []).some(
+    (r) => Date.now() - new Date(r.created_at).getTime() < 40 * 60_000,
+  );
+  if (inFlight) {
+    return NextResponse.json({ graded, fired: [], skipped: "set in flight" });
+  }
+
+  // 2. Clean up all canary apps + any orphaned pending rows before firing.
+  await service.from("apps").delete().like("preview_email", CANARY_EMAIL_LIKE);
+  await service.from("build_canary_runs").delete().eq("status", "pending");
 
   // 3. Fire a fresh set.
   const fired: string[] = [];
