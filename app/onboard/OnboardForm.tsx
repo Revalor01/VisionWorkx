@@ -66,6 +66,23 @@ const CATEGORIES: {
     title: "Membership Management",
     desc: "Recurring billing, member check-ins, plan tiers",
   },
+  {
+    id: "storefront",
+    icon: "🛍️",
+    title: "Online Store",
+    desc: "Product catalogue, cart, online checkout, order management",
+  },
+];
+
+// Storefront has no feature toggles yet (Stage 1) — this read-only list
+// is shown on the features step so the owner knows what they get.
+const STOREFRONT_INCLUDES = [
+  "Public product catalogue with photos and prices",
+  "Shopping cart and secure hosted checkout",
+  "Customer name, email and shipping address capture",
+  "Orders list with a one-click “mark shipped”",
+  "Admin screen to add, edit and photograph products",
+  "A flat shipping fee you set",
 ];
 
 const FEATURES_BY_CATEGORY: Record<AppCategory, string[]> = {
@@ -461,7 +478,30 @@ export default function OnboardForm({
           )}
 
           {/* ── Step 3 — Feature selection ── */}
-          {step === 3 && data.category && (
+          {step === 3 && data.category === "storefront" && (
+            <div>
+              <h2 className="text-xl font-bold text-navy-dark mb-1">
+                What&apos;s in your store
+              </h2>
+              <p className="text-gray-500 text-sm mb-6">
+                Online stores come with a fixed set of features for now. You can
+                fine-tune anything later by describing the change in plain English.
+              </p>
+              <ul className="space-y-2">
+                {STOREFRONT_INCLUDES.map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 text-sm text-navy-dark"
+                  >
+                    <span className="text-navy shrink-0">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {step === 3 && data.category && data.category !== "storefront" && (
             <div>
               <h2 className="text-xl font-bold text-navy-dark mb-1">
                 Choose your features
@@ -667,9 +707,11 @@ export default function OnboardForm({
                 <ReviewRow
                   label="Features"
                   value={
-                    data.features.length > 0
-                      ? data.features.join(", ")
-                      : "None selected"
+                    data.category === "storefront"
+                      ? "Standard online-store set (catalogue, cart, checkout, orders)"
+                      : data.features.length > 0
+                        ? data.features.join(", ")
+                        : "None selected"
                   }
                 />
                 <ReviewRow

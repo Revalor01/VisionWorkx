@@ -7,6 +7,9 @@ const CATEGORY_LABEL: Record<string, string> = {
   crm: "CRM",
   inventory: "Inventory App",
   portal: "Customer Portal",
+  invoicing: "Invoicing App",
+  membership: "Membership App",
+  storefront: "Online Store",
 };
 
 // Add-on categories, deduped, primary removed, capped at 2. Past two, the

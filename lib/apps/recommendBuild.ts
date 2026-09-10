@@ -22,6 +22,7 @@ const CATEGORIES: { id: AppCategory; blurb: string }[] = [
   { id: "portal", blurb: "a client login to check status, share files, pay invoices" },
   { id: "invoicing", blurb: "quotes, estimates, invoices, getting paid" },
   { id: "membership", blurb: "recurring memberships, check-ins, plan tiers" },
+  { id: "storefront", blurb: "selling physical products online — a catalogue, cart, checkout, and orders" },
 ];
 
 const ALL: AppCategory[] = CATEGORIES.map((c) => c.id);

@@ -14,6 +14,7 @@ const CATEGORIES: AppCategory[] = [
   "portal",
   "invoicing",
   "membership",
+  "storefront",
 ];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

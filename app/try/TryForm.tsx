@@ -13,6 +13,7 @@ const CATEGORIES: { id: AppCategory; title: string; desc: string }[] = [
   { id: "portal", title: "Customer Portal", desc: "Client login, document sharing, messaging" },
   { id: "invoicing", title: "Invoicing & Quotes", desc: "Send quotes, invoice clients, collect payments" },
   { id: "membership", title: "Membership", desc: "Recurring billing, check-ins, plan tiers" },
+  { id: "storefront", title: "Online Store", desc: "Product catalogue, cart, online checkout, orders" },
 ];
 
 export default function TryForm() {
