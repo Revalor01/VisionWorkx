@@ -111,6 +111,46 @@ export default function PaymentsCard({
           {error}
         </div>
       )}
+
+      <details className="group mt-4 border-t border-gray-100 pt-3">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-navy hover:underline">
+          <span className="text-xs transition-transform group-open:rotate-90">
+            &#8250;
+          </span>
+          How this works
+        </summary>
+        <div className="mt-3 space-y-2 border-l-2 border-gray-100 pl-4 text-sm text-gray-600">
+          <p>
+            Payments run through <strong>your own</strong> Stripe account — you
+            own the account, your customers, and the money. VisionWorkx just
+            creates the checkout page for you.
+            {feePercent > 0 && (
+              <>
+                {" "}
+                VisionWorkx keeps {feePercent}% of each payment; Stripe&rsquo;s
+                own fees (about 2.9% + 30&cent;) are separate.
+              </>
+            )}
+          </p>
+          <p>
+            <strong>Setup takes about two minutes.</strong> &ldquo;Set up
+            payments&rdquo; sends you to Stripe. Have ready: your business type,
+            an EIN or SSN, your address and date of birth, and a bank account
+            for payouts.
+          </p>
+          <p>
+            Once Stripe clears you, payment features switch on automatically —
+            checkout, booking deposits, invoice payments, or subscriptions,
+            whichever your app uses. If Stripe still needs something you&rsquo;ll
+            come back to a <strong>Finish payment setup</strong> button here.
+          </p>
+          <p>
+            Stripe pays out to your bank on a rolling schedule (about two
+            business days per charge; the first payout can take around a week).
+            See every charge and payout in your Stripe Dashboard.
+          </p>
+        </div>
+      </details>
     </section>
   );
 }
