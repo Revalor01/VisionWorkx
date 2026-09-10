@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { createPreviewApp, runPreviewGenerate } from "@/lib/apps/preview";
+import { removeTenantSchema } from "@/lib/apps/tenantSchema";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
@@ -137,7 +138,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ graded, fired: [], skipped: "set in flight" });
   }
 
-  // 2. Clean up all canary apps + any orphaned pending rows before firing.
+  // 2. Fully tear down previous canary apps (Vercel project + tenant
+  // schema + db_schema entry + row) so they don't accumulate. Then drop
+  // any orphaned pending rows.
+  const { data: oldCanaries } = await service
+    .from("apps")
+    .select("id, vercel_project_id")
+    .like("preview_email", CANARY_EMAIL_LIKE);
+  for (const c of oldCanaries ?? []) {
+    if (c.vercel_project_id && process.env.VERCEL_API_TOKEN) {
+      const team = process.env.VERCEL_TEAM_ID
+        ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}`
+        : "";
+      await fetch(`https://api.vercel.com/v9/projects/${c.vercel_project_id}${team}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` },
+      }).catch(() => {});
+    }
+    await removeTenantSchema(c.id);
+  }
   await service.from("apps").delete().like("preview_email", CANARY_EMAIL_LIKE);
   await service.from("build_canary_runs").delete().eq("status", "pending");
 

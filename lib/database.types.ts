@@ -401,6 +401,8 @@ export type Database = {
           plan: Exclude<Plan, "free"> | null;
           status: SubscriptionStatus | null;
           current_period_end: string | null;
+          trial_ending_notified_at: string | null;
+          payment_failed_notified_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -411,6 +413,8 @@ export type Database = {
           plan?: Exclude<Plan, "free"> | null;
           status?: SubscriptionStatus | null;
           current_period_end?: string | null;
+          trial_ending_notified_at?: string | null;
+          payment_failed_notified_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -419,6 +423,8 @@ export type Database = {
           plan?: Exclude<Plan, "free"> | null;
           status?: SubscriptionStatus | null;
           current_period_end?: string | null;
+          trial_ending_notified_at?: string | null;
+          payment_failed_notified_at?: string | null;
         };
         Relationships: [];
       };

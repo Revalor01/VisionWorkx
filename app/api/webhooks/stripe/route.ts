@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase";
 import { syncConnectAccount } from "@/lib/apps/payments";
 import { confirmGuidedSession } from "@/lib/apps/guidedSession";
+import { sendBillingEmail, lookupUserEmails } from "@/lib/billing/notify";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
 
 // Stripe uses "canceled"; our schema uses "cancelled"
@@ -216,6 +217,59 @@ export async function POST(req: NextRequest) {
         ]);
 
         console.log(`[stripe] subscription deleted — user ${userId}`);
+        break;
+      }
+
+      // ── Renewal charge failed — dunning ────────────────────────
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId =
+          typeof invoice.customer === "string" ? invoice.customer : null;
+        if (!stripeCustomerId) break;
+
+        const { data: sub } = await serviceClient
+          .from("subscriptions")
+          .select("id, user_id, payment_failed_notified_at")
+          .eq("stripe_customer_id", stripeCustomerId)
+          .maybeSingle();
+        if (!sub?.user_id) break;
+
+        // Once per failure episode — cleared on the next successful payment.
+        if (sub.payment_failed_notified_at) break;
+
+        const emails = await lookupUserEmails([sub.user_id]);
+        const to = emails[sub.user_id];
+        if (to) {
+          await sendBillingEmail({
+            to,
+            subject: "Your Vision Workx payment didn't go through",
+            heading: "We couldn't process your payment",
+            body: [
+              "The card on file was declined on your latest Vision Workx charge. Your apps are still live for now.",
+              "Update your card on the billing page and we'll retry automatically. If it keeps failing, the subscription will pause until it's sorted.",
+            ],
+            ctaLabel: "Update payment method",
+          });
+        }
+        await serviceClient
+          .from("subscriptions")
+          .update({ payment_failed_notified_at: new Date().toISOString() })
+          .eq("id", sub.id);
+        console.log(`[stripe] payment failed — user ${sub.user_id}, dunning sent=${!!to}`);
+        break;
+      }
+
+      // ── Payment succeeded — clear any dunning flag ─────────────
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId =
+          typeof invoice.customer === "string" ? invoice.customer : null;
+        if (!stripeCustomerId) break;
+        await serviceClient
+          .from("subscriptions")
+          .update({ payment_failed_notified_at: null })
+          .eq("stripe_customer_id", stripeCustomerId)
+          .not("payment_failed_notified_at", "is", null);
         break;
       }
 
