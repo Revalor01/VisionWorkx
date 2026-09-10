@@ -123,6 +123,9 @@ export default function AdminDashboard({
   const [userSearch, setUserSearch] = useState("");
   const [redeploying, setRedeploying] = useState<Record<string, boolean>>({});
   const [redeployMessages, setRedeployMessages] = useState<Record<string, string>>({});
+  const [deletingApps, setDeletingApps] = useState<Record<string, boolean>>({});
+  const [deletedAppIds, setDeletedAppIds] = useState<Set<string>>(new Set());
+  const [appDeleteErrors, setAppDeleteErrors] = useState<Record<string, string>>({});
   const [deletingUsers, setDeletingUsers] = useState<Record<string, boolean>>({});
   const [deletedUserIds, setDeletedUserIds] = useState<Set<string>>(new Set());
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
@@ -641,6 +644,7 @@ export default function AdminDashboard({
   const filteredApps = useMemo(() => {
     const q = appSearch.toLowerCase();
     return apps.filter((a) => {
+      if (deletedAppIds.has(a.id)) return false;
       const email = (a.user_id && userEmails[a.user_id]) ?? "";
       const matchesSearch =
         !q ||
@@ -650,7 +654,7 @@ export default function AdminDashboard({
       const matchesStatus = appStatusFilter === "all" || a.status === appStatusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [apps, appSearch, appStatusFilter, userEmails]);
+  }, [apps, appSearch, appStatusFilter, userEmails, deletedAppIds]);
 
   // ── Filtered users ─────────────────────────────────────────────
   const filteredUsers = useMemo(() => {
@@ -715,6 +719,35 @@ export default function AdminDashboard({
       setRedeployMessages((m) => ({ ...m, [appId]: "Network error" }));
     } finally {
       setRedeploying((r) => ({ ...r, [appId]: false }));
+    }
+  }
+
+  // ── Delete app action ─────────────────────────────────────────
+  async function handleDeleteApp(appId: string, name: string) {
+    const confirmed = window.confirm(
+      `Permanently delete "${name}"?\n\nThis deletes its Vercel project, its tenant database schema (ALL of the app's data), and its Vision Workx records. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingApps((d) => ({ ...d, [appId]: true }));
+    setAppDeleteErrors((e) => ({ ...e, [appId]: "" }));
+    try {
+      const res = await fetch("/api/admin/delete-app", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDeletedAppIds((s) => new Set(s).add(appId));
+        router.refresh();
+      } else {
+        setAppDeleteErrors((e) => ({ ...e, [appId]: data.error ?? "Delete failed" }));
+      }
+    } catch {
+      setAppDeleteErrors((e) => ({ ...e, [appId]: "Network error" }));
+    } finally {
+      setDeletingApps((d) => ({ ...d, [appId]: false }));
     }
   }
 
@@ -1301,11 +1334,14 @@ export default function AdminDashboard({
                 </button>
               </div>
               <AppTable
-                apps={apps.slice(0, 10)}
+                apps={apps.filter((a) => !deletedAppIds.has(a.id)).slice(0, 10)}
                 userEmails={userEmails}
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+                deletingApps={deletingApps}
+                appDeleteErrors={appDeleteErrors}
+                onDeleteApp={handleDeleteApp}
                 paymentsTestMode={paymentsTestMode}
                 togglingTest={togglingTest}
                 onTogglePaymentsTest={handleTogglePaymentsTest}
@@ -1345,6 +1381,9 @@ export default function AdminDashboard({
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+                deletingApps={deletingApps}
+                appDeleteErrors={appDeleteErrors}
+                onDeleteApp={handleDeleteApp}
                 paymentsTestMode={paymentsTestMode}
                 togglingTest={togglingTest}
                 onTogglePaymentsTest={handleTogglePaymentsTest}
@@ -2557,6 +2596,9 @@ function AppTable({
   redeploying,
   redeployMessages,
   onRedeploy,
+  deletingApps,
+  appDeleteErrors,
+  onDeleteApp,
   paymentsTestMode,
   togglingTest,
   onTogglePaymentsTest,
@@ -2567,6 +2609,9 @@ function AppTable({
   redeploying: Record<string, boolean>;
   redeployMessages: Record<string, string>;
   onRedeploy: (id: string) => void;
+  deletingApps: Record<string, boolean>;
+  appDeleteErrors: Record<string, string>;
+  onDeleteApp: (id: string, name: string) => void;
   paymentsTestMode: Record<string, boolean>;
   togglingTest: Record<string, boolean>;
   onTogglePaymentsTest: (id: string) => void;
@@ -2681,6 +2726,17 @@ function AppTable({
                         <span className={`text-xs ${msg.includes("✓") ? "text-green-600" : "text-red-600"}`}>
                           {msg}
                         </span>
+                      )}
+                      <button
+                        onClick={() => onDeleteApp(app.id, app.name)}
+                        disabled={deletingApps[app.id]}
+                        title="Permanently delete this app — Vercel project, tenant database, and all records."
+                        className="text-xs px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors whitespace-nowrap"
+                      >
+                        {deletingApps[app.id] ? "Deleting…" : "Delete"}
+                      </button>
+                      {appDeleteErrors[app.id] && (
+                        <span className="text-xs text-red-600">{appDeleteErrors[app.id]}</span>
                       )}
                     </div>
                   </td>
