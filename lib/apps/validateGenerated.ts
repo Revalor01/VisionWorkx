@@ -200,6 +200,13 @@ export function validateGenerated(
     if (hasMigration && /\borders\b/.test(sql) && !/anon[\s\S]{0,400}orders|orders[\s\S]{0,400}anon/i.test(sql)) {
       problems.push("Storefront: `orders` has no policy granting `anon` insert/update — a shopper (anon role) can't place an order. Add: insert to anon+authenticated with check (status='pending'), update to anon+authenticated using (status='pending'), select/delete authenticated only.");
     }
+    // auth.users is shared across every store — a plain getUser() check lets
+    // any VisionWorkx account into this admin. The layout must gate on the
+    // store_settings.admin_emails allowlist.
+    const adminLayout = map["app/admin/layout.tsx"];
+    if (adminLayout && !/admin_emails/.test(adminLayout)) {
+      problems.push("Storefront: app/admin/layout.tsx doesn't check `store_settings.admin_emails` — being logged in isn't enough (auth.users is shared across every store). After getUser(), read admin_emails and redirect('/login?denied=1') if the user's email isn't in it.");
+    }
   }
 
   // Staff logins & team invites (Phase 6c) — only when the owner picked it

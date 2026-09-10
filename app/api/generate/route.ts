@@ -646,7 +646,8 @@ create table store_settings (
   id boolean primary key default true check (id),
   shipping_flat_cents integer not null default 0,
   free_shipping_over_cents integer,            -- null = never free
-  currency text not null default 'usd'
+  currency text not null default 'usd',
+  admin_emails text[] not null default '{}'    -- who may open /admin (seeded by the platform post-deploy)
 );
 insert into store_settings (id) values (true) on conflict do nothing;
 create table orders (
@@ -722,12 +723,13 @@ export async function POST(req: Request) {
 \`\`\`
 Admin image pickers POST the file to \`/api/upload\` and store the returned \`url\` in \`product_images\`. If \`PRODUCT_IMAGE_UPLOAD_URL\` is missing, show a disabled "image upload isn't available" state.
 
-### Admin (auth-gated, every page checks \`supabase.auth.getUser()\`)
+### Admin (allowlist-gated — auth.users is shared across every store)
+Being logged in is NOT enough. In \`app/admin/layout.tsx\` (server), after \`supabase.auth.getUser()\`: read \`store_settings.admin_emails\` and if the user's email is not in that array, \`redirect('/login?denied=1')\`. Do the same guard at the top of EVERY \`app/api/admin/*\` route and return \`403\` if it fails. \`/login\` shows "That account isn't an admin for this store." when \`?denied=1\`. (The platform seeds \`admin_emails\` with the owner's address after deploy; the Settings page may add/remove more.)
 - Nav: **Products · Orders · Payments · Settings**
 - \`/admin/products\` — list (thumb, name, price, active toggle, delete). "Add product" → form: name, description, price (dollars input → store cents), active; a multi-image picker (upload → \`product_images\`, drag or ▲▼ to set \`position\`). Editing a product edits the same fields.
 - \`/admin/orders\` — list newest first (date, email, item count, total, status badge). Row → items table, ship-to block, and a status \`<select>\` \`new → packed → shipped\` (also \`cancelled\`). \`pending\` orders (payment never completed) show greyed with no actions.
 - \`/admin/payments\` — the live Stripe history from \`process.env.STRIPE_TRANSACTIONS_URL\` (see the "Payments history" block in the Payments section: date / customer / description / amount / status / receipt, "Load more").
-- \`/admin/settings\` (store) — edit \`store_settings\`: flat shipping (dollars), free-shipping threshold (dollars, blank = off), currency (read-only \`usd\` for now).
+- \`/admin/settings\` (store) — edit \`store_settings\`: flat shipping (dollars), free-shipping threshold (dollars, blank = off), currency (read-only \`usd\` for now), and **Admin users** — the \`admin_emails\` list (add by email, remove; never let the list become empty).
 
 ### Reporting
 In \`vw_metrics_daily\` emit \`orders_created\` (paid orders per day, by \`paid_at::date\`), \`units_sold\` (sum of item qty on paid orders), \`revenue_cents\` (sum of \`total_cents\` on paid orders). Do NOT emit metrics for \`pending\` orders.`
