@@ -622,6 +622,7 @@ export type Database = {
           input_tokens: number;
           output_tokens: number;
           cost_usd: number | null;
+          app_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -631,6 +632,7 @@ export type Database = {
           input_tokens: number;
           output_tokens: number;
           cost_usd?: number | null;
+          app_id?: string | null;
           created_at?: string;
         };
         Update: Record<string, never>;

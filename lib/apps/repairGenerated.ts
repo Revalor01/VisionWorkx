@@ -80,6 +80,8 @@ export async function repairGenerated(
     categories?: readonly AppCategory[];
     plannedFiles?: string[];
     features?: readonly string[];
+    /** Attributes the repair's AI cost to this app. */
+    appId?: string | null;
   },
 ): Promise<RepairResult> {
   let map = initial;
@@ -118,6 +120,7 @@ export async function repairGenerated(
       model: MODEL,
       inputTokens: message.usage.input_tokens,
       outputTokens: message.usage.output_tokens,
+      appId: ctx.appId ?? null,
     });
     const patch = parseFileMap(text);
     if (Object.keys(patch).length === 0) break; // nothing usable came back

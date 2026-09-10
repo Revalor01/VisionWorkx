@@ -82,7 +82,7 @@ export default async function AdminPage() {
       .limit(3000),
     service
       .from("ai_usage_log")
-      .select("source, cost_usd, created_at")
+      .select("source, cost_usd, created_at, app_id")
       .order("created_at", { ascending: false })
       .limit(20000),
     service

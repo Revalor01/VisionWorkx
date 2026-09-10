@@ -35,6 +35,8 @@ export async function logAiUsage(params: {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  /** Set for build-related calls so cost can be attributed to one app. */
+  appId?: string | null;
 }): Promise<void> {
   const rate = RATES[params.model];
   const costUsd = rate ? params.inputTokens * rate.input + params.outputTokens * rate.output : null;
@@ -46,6 +48,7 @@ export async function logAiUsage(params: {
     input_tokens: params.inputTokens,
     output_tokens: params.outputTokens,
     cost_usd: costUsd,
+    app_id: params.appId ?? null,
   });
 
   if (error) console.error("[aiUsage] failed to log usage:", error);

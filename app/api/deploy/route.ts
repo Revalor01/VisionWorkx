@@ -280,7 +280,8 @@ function findLiteralColorClasses(
 // gap to fill in rather than hoping a second one-shot attempt does better.
 async function repairMissingFiles(
   files: { path: string; content: string }[],
-  missing: string[]
+  missing: string[],
+  appId?: string | null,
 ): Promise<{ path: string; content: string }[]> {
   if (!ANTHROPIC_API_KEY || missing.length === 0) return files;
 
@@ -338,6 +339,7 @@ Generate a reasonable, functional implementation for each missing file (a form c
     model: "claude-sonnet-4-6",
     inputTokens: finalMessage.usage.input_tokens,
     outputTokens: finalMessage.usage.output_tokens,
+    appId: appId ?? null,
   });
   const repairedFiles = parseGeneratedCode(text).map((f) => {
     const needsClientDirective =
@@ -1069,7 +1071,7 @@ CREATE TRIGGER emit_automation_event
   let missingImports = findMissingLocalImports(files);
   if (missingImports.length > 0) {
     console.warn(`[api/deploy] Missing files detected, attempting repair: ${missingImports.join(", ")}`);
-    files = await repairMissingFiles(files, missingImports);
+    files = await repairMissingFiles(files, missingImports, appId);
     missingImports = findMissingLocalImports(files);
     if (missingImports.length > 0) {
       throw new Error(
@@ -1316,6 +1318,7 @@ export async function POST(req: NextRequest) {
               ],
               features:
                 ((appCheck.intake_data as IntakeData | null)?.features ?? []),
+              appId,
             },
           );
           const fixedCode = serializeFileMap(fixed);

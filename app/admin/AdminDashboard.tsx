@@ -8,6 +8,11 @@ import type { App, AppCategory, AppRevisionKind, AppRevisionStatus, AppStatus, A
 import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
 import { scoreBucket } from "@/lib/leadScoring";
+import {
+  BUILD_COST_ESTIMATES,
+  estimatedBuildInfraUsd,
+  UNMODELED_COSTS,
+} from "@/lib/apps/buildCost";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -25,7 +30,7 @@ interface AdminDashboardProps {
   initialReferrals: PartnerReferral[];
   revisions: { kind: AppRevisionKind; status: AppRevisionStatus; created_at: string }[];
   guidedSessions: number;
-  aiUsage: { source: string; cost_usd: number | null; created_at: string }[];
+  aiUsage: { source: string; cost_usd: number | null; created_at: string; app_id: string | null }[];
   canaryRuns: {
     intake_key: string;
     status: string;
@@ -594,6 +599,36 @@ export default function AdminDashboard({
     };
   }, [canaryRuns]);
 
+  // ── Cost per build (actual AI + infra estimate) ────────────────
+  const buildCost = useMemo(() => {
+    const perBuild = new Map<string, number>();
+    for (const u of aiUsage) {
+      if (!u.app_id) continue;
+      perBuild.set(u.app_id, (perBuild.get(u.app_id) ?? 0) + (u.cost_usd ?? 0));
+    }
+    const costs = [...perBuild.values()].sort((a, b) => a - b);
+    const n = costs.length;
+    const pct = (p: number) => (n === 0 ? 0 : costs[Math.min(n - 1, Math.floor(p * n))]);
+    const avgAi = n === 0 ? 0 : costs.reduce((a, b) => a + b, 0) / n;
+    const infra = estimatedBuildInfraUsd();
+    // Attributed-build total AI spend as a share of ALL AI spend — shows
+    // how much of the bill is builds vs. everything else.
+    const allAi = aiUsage.reduce((s, u) => s + (u.cost_usd ?? 0), 0);
+    const buildsAi = costs.reduce((a, b) => a + b, 0);
+    return {
+      n,
+      avgAi,
+      medianAi: pct(0.5),
+      p90Ai: pct(0.9),
+      maxAi: n === 0 ? 0 : costs[n - 1],
+      infra,
+      totalAvg: avgAi + infra,
+      totalP90: pct(0.9) + infra,
+      buildShareOfAi: allAi > 0 ? buildsAi / allAi : 0,
+      perBuild,
+    };
+  }, [aiUsage]);
+
   // ── Automations derived state ───────────────────────────────────
   const instrumentedSet = useMemo(() => new Set(instrumentedAppIds), [instrumentedAppIds]);
   const oldestPendingAgeMinutes = useMemo(() => {
@@ -1122,6 +1157,135 @@ export default function AdminDashboard({
               )}
             </div>
 
+            {/* Cost per build / unit economics */}
+            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
+              <h2 className="font-semibold text-zinc-900 mb-1">Cost per Build</h2>
+              <p className="text-xs text-zinc-500 mb-4">
+                What it actually costs to produce one app. AI is measured; infra is an estimate;
+                ongoing hosting is not in here (see bottom). Use this to sanity-check plan pricing.
+              </p>
+
+              {buildCost.n === 0 ? (
+                <p className="text-sm text-zinc-500">
+                  No builds have per-app AI cost attributed yet — starts accruing on the next build.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <StatCard
+                      label="AI / build (avg)"
+                      value={`$${buildCost.avgAi.toFixed(2)}`}
+                      sub={`measured · ${buildCost.n} build${buildCost.n === 1 ? "" : "s"}`}
+                      accent="blue"
+                    />
+                    <StatCard label="AI / build (median)" value={`$${buildCost.medianAi.toFixed(2)}`} />
+                    <StatCard
+                      label="AI / build (p90)"
+                      value={`$${buildCost.p90Ai.toFixed(2)}`}
+                      sub={`worst seen $${buildCost.maxAi.toFixed(2)}`}
+                    />
+                    <StatCard
+                      label="Builds share of AI bill"
+                      value={`${Math.round(buildCost.buildShareOfAi * 100)}%`}
+                      sub="rest is content/marketing"
+                    />
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs font-semibold text-zinc-600 mb-2">
+                      Fully-loaded cost to produce one build
+                    </p>
+                    <table className="text-sm">
+                      <tbody>
+                        <tr>
+                          <td className="py-0.5 pr-6 text-zinc-500">AI (measured, avg)</td>
+                          <td className="py-0.5 font-medium">${buildCost.avgAi.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-6 text-zinc-500">Our compute (est.)</td>
+                          <td className="py-0.5">${BUILD_COST_ESTIMATES.ourComputeUsd.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-6 text-zinc-500">Customer Vercel build (est.)</td>
+                          <td className="py-0.5">${BUILD_COST_ESTIMATES.vercelBuildUsd.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-6 text-zinc-500">Emails (est.)</td>
+                          <td className="py-0.5">${BUILD_COST_ESTIMATES.emailUsd.toFixed(3)}</td>
+                        </tr>
+                        <tr className="border-t border-zinc-200">
+                          <td className="py-1 pr-6 font-semibold text-zinc-800">Total / build (avg)</td>
+                          <td className="py-1 font-bold text-zinc-900">
+                            ${buildCost.totalAvg.toFixed(2)}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-6 text-zinc-500">Total / build (p90)</td>
+                          <td className="py-0.5">${buildCost.totalP90.toFixed(2)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-zinc-600 mb-2">
+                      Against plan pricing (build cost is one-time)
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-zinc-400">
+                          <tr>
+                            <th className="text-left font-medium py-1">Plan</th>
+                            <th className="text-left font-medium py-1">Price/mo</th>
+                            <th className="text-left font-medium py-1">Build cost recouped in</th>
+                            <th className="text-left font-medium py-1">First-month gross</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {(["starter", "growth", "pro"] as const).map((p) => {
+                            const price = PLAN_MRR[p];
+                            const days = Math.ceil((buildCost.totalAvg / price) * 30);
+                            const firstMonth = price - buildCost.totalAvg;
+                            return (
+                              <tr key={p}>
+                                <td className="py-1.5 capitalize text-zinc-700">{p}</td>
+                                <td className="py-1.5">${price}</td>
+                                <td className="py-1.5 text-zinc-600">
+                                  {days <= 1 ? "< 1 day" : `${days} days`}
+                                </td>
+                                <td
+                                  className={`py-1.5 font-semibold ${
+                                    firstMonth > 0 ? "text-green-600" : "text-red-600"
+                                  }`}
+                                >
+                                  ${firstMonth.toFixed(2)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-3">
+                    <p className="text-xs font-semibold text-amber-800 mb-1">
+                      Not in the number above — account for these separately:
+                    </p>
+                    <ul className="text-xs text-amber-800 space-y-0.5 list-disc pl-4">
+                      {UNMODELED_COSTS.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                    <p className="text-[11px] text-amber-700/80 mt-2">
+                      Infra estimates live in <code>lib/apps/buildCost.ts</code> — tune them from real
+                      Vercel/Resend invoices.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Recent apps */}
             <div className="bg-white rounded-2xl border border-[#B8860B] overflow-hidden">
               <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
@@ -1139,6 +1303,7 @@ export default function AdminDashboard({
                 paymentsTestMode={paymentsTestMode}
                 togglingTest={togglingTest}
                 onTogglePaymentsTest={handleTogglePaymentsTest}
+                aiCostByApp={buildCost.perBuild}
               />
             </div>
           </div>
@@ -1177,6 +1342,7 @@ export default function AdminDashboard({
                 paymentsTestMode={paymentsTestMode}
                 togglingTest={togglingTest}
                 onTogglePaymentsTest={handleTogglePaymentsTest}
+                aiCostByApp={buildCost.perBuild}
               />
               <Pagination
                 page={appsPageClamped}
@@ -2388,6 +2554,7 @@ function AppTable({
   paymentsTestMode,
   togglingTest,
   onTogglePaymentsTest,
+  aiCostByApp,
 }: {
   apps: AdminDashboardProps["apps"];
   userEmails: Record<string, string>;
@@ -2397,9 +2564,11 @@ function AppTable({
   paymentsTestMode: Record<string, boolean>;
   togglingTest: Record<string, boolean>;
   onTogglePaymentsTest: (id: string) => void;
+  aiCostByApp: Map<string, number>;
 }) {
   const canRedeploy = (status: AppStatus) =>
     status === "failed" || status === "deploy_failed" || status === "ready";
+  const infra = estimatedBuildInfraUsd();
 
   return (
     <div className="overflow-x-auto">
@@ -2409,6 +2578,7 @@ function AppTable({
             <Th>App</Th>
             <Th>User</Th>
             <Th>Status</Th>
+            <Th>Build cost</Th>
             <Th>Created</Th>
             <Th>URL</Th>
             <Th>Actions</Th>
@@ -2417,7 +2587,7 @@ function AppTable({
         <tbody className="divide-y divide-zinc-100">
           {apps.length === 0 ? (
             <tr>
-              <td colSpan={6} className="text-center py-12 text-zinc-500">
+              <td colSpan={7} className="text-center py-12 text-zinc-500">
                 No apps found
               </td>
             </tr>
@@ -2442,6 +2612,18 @@ function AppTable({
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusCfg.cls}`}>
                       {statusCfg.label}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap">
+                    {aiCostByApp.has(app.id) ? (
+                      <span title={`AI $${(aiCostByApp.get(app.id) ?? 0).toFixed(2)} + ~$${infra.toFixed(2)} infra est.`}>
+                        <span className="font-medium text-zinc-800">
+                          ${((aiCostByApp.get(app.id) ?? 0) + infra).toFixed(2)}
+                        </span>
+                        <span className="text-zinc-400"> (AI ${(aiCostByApp.get(app.id) ?? 0).toFixed(2)})</span>
+                      </span>
+                    ) : (
+                      <span className="text-zinc-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
                     {new Date(app.created_at).toLocaleDateString()}

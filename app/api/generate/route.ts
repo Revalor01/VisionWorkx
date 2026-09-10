@@ -337,7 +337,7 @@ export async function POST(req: NextRequest) {
       let planFiles: string[] = [];
       let planBlock = "";
       try {
-        const plan = await generatePlan(intake);
+        const plan = await generatePlan(intake, appId);
         planFiles = plan.files;
         planBlock = `\n\n## Agreed build plan — implement EXACTLY this, every file, nothing dropped\n${plan.text}\n`;
         if (!isPreview) {
@@ -376,6 +376,7 @@ export async function POST(req: NextRequest) {
         model: "claude-sonnet-4-6",
         inputTokens: finalMessage.usage.input_tokens,
         outputTokens: finalMessage.usage.output_tokens,
+        appId,
       });
 
       // Phase 6a: static-check the output (truncation, missing files,
@@ -406,6 +407,7 @@ export async function POST(req: NextRequest) {
             categories: appCategories,
             plannedFiles: planFiles,
             features: intake.features ?? [],
+            appId,
           },
         );
         codeToSave = serializeFileMap(repaired);

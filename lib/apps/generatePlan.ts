@@ -60,7 +60,10 @@ function parseFilesSection(plan: string): string[] {
     .map((l) => l.replace(/^\/+/, ""));
 }
 
-export async function generatePlan(intake: IntakeData): Promise<GenerationPlan> {
+export async function generatePlan(
+  intake: IntakeData,
+  appId?: string | null,
+): Promise<GenerationPlan> {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const user = [
@@ -85,6 +88,7 @@ export async function generatePlan(intake: IntakeData): Promise<GenerationPlan> 
     model: MODEL,
     inputTokens: message.usage.input_tokens,
     outputTokens: message.usage.output_tokens,
+    appId: appId ?? null,
   });
 
   const text = message.content
