@@ -620,6 +620,110 @@ The business owner needs to give staff their own logins to the admin area.
 - The customer-facing pages are unchanged — this is admin-side only.`
     : "";
 
+  const storefrontSection = intake.category === "storefront"
+    ? `
+
+## Online store (this IS the app — build all of it)
+
+### Tables (in your migration, tenant schema — no variants in this version)
+\`\`\`sql
+create table products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  description text,
+  price_cents integer not null default 0,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create table product_images (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id) on delete cascade,
+  url text not null,
+  position integer not null default 0
+);
+create table store_settings (
+  id boolean primary key default true check (id),
+  shipping_flat_cents integer not null default 0,
+  free_shipping_over_cents integer,            -- null = never free
+  currency text not null default 'usd'
+);
+insert into store_settings (id) values (true) on conflict do nothing;
+create table orders (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  items jsonb not null,                         -- [{product_id, name, qty, unit_cents}]
+  subtotal_cents integer not null,
+  shipping_cents integer not null default 0,
+  total_cents integer not null,
+  ship_name text, ship_address text, ship_city text, ship_state text, ship_zip text,
+  status text not null default 'pending' check (status in ('pending','new','packed','shipped','cancelled')),
+  stripe_session_id text,
+  paid_at timestamptz,
+  created_at timestamptz not null default now()
+);
+\`\`\`
+RLS: \`products\`/\`product_images\`/\`store_settings\` — anon+authenticated \`select\`, authenticated \`all\`. \`orders\` — authenticated \`all\` only (NO anon select; rows are created server-side). Seed 6–8 realistic \`products\` with \`active = true\` and one \`product_images\` row each (use \`https://picsum.photos/seed/<slug>/600/600\` as placeholder URLs) so the store looks stocked on first run.
+
+### Customer pages
+- \`app/page.tsx\` → redirect to \`/store\` (or make \`/store\` the homepage). Public, no auth.
+- \`/store\` — product grid: first image, name, price (\`price_cents/100\`). Only \`active\` products. Empty state if none.
+- \`/store/[slug]\` — image gallery (all \`product_images\` ordered by \`position\`), name, price, description, quantity, **Add to cart**.
+- \`/cart\` — reads the cart from \`localStorage\` (key \`"cart"\`, shape \`[{product_id, qty}]\`); fetches those products fresh for name/price/image; shows line items with qty steppers, subtotal, a shipping line computed from \`store_settings\` (\`shipping_flat_cents\`, waived when subtotal ≥ \`free_shipping_over_cents\`), and total. A short **ship-to form** (name, address, city, state, zip, email) then a **Checkout** button.
+- \`/store/success\` — reads \`?order_id\` and \`?session_id\`; server-confirms payment (below); on success shows the order + items and clears the cart client-side.
+
+Cart is \`localStorage\` ONLY — never a DB table. The server re-reads every price from \`products\` at checkout; never trust prices sent from the browser.
+
+### Checkout (server route / server action only)
+1. Recompute subtotal + shipping from the DB and \`store_settings\`.
+2. Insert an \`orders\` row: \`status='pending'\`, \`items\` = \`[{product_id, name, qty, unit_cents}]\`, the ship-to fields, \`email\`.
+3. POST \`process.env.STRIPE_CHECKOUT_URL\` with header \`x-vw-checkout-secret: process.env.APP_CHECKOUT_SECRET\`:
+\`\`\`ts
+body: JSON.stringify({
+  mode: "payment",
+  lineItems: [
+    ...items.map(i => ({ name: i.name, amountCents: i.unit_cents, quantity: i.qty, imageUrl: i.image_url })),
+    ...(shipping_cents > 0 ? [{ name: "Shipping", amountCents: shipping_cents, quantity: 1 }] : []),
+  ],
+  currency: storeSettings.currency,
+  successUrl: "https://YOUR_APP_URL/store/success?order_id=" + order.id + "&session_id={CHECKOUT_SESSION_ID}",
+  cancelUrl: "https://YOUR_APP_URL/cart?cancelled=1",
+  metadata: { order_id: order.id },
+})
+\`\`\`
+Use the literal \`{CHECKOUT_SESSION_ID}\`; derive \`YOUR_APP_URL\` from the request URL. Redirect the customer to the returned \`url\`.
+4. On \`/store/success\` (server): GET \`\${process.env.STRIPE_CHECKOUT_URL}?session_id=<the session id>\` with the same \`x-vw-checkout-secret\` header → \`{ paid }\`. If \`paid\` and the order is still \`pending\`: set \`status='new'\`, \`paid_at=now()\`, \`stripe_session_id\`. Idempotent — a second visit must not double-anything.
+- If \`STRIPE_CHECKOUT_URL\` or \`APP_CHECKOUT_SECRET\` is missing/empty: the catalogue still renders, but the cart's Checkout button is replaced with a disabled "The store isn't accepting payments yet" note. Never a dead button, never a throw.
+
+### Product images — upload (server-side only)
+The admin uploads product photos through your OWN route (never expose \`APP_CHECKOUT_SECRET\` to the browser). Add \`app/api/upload/route.ts\`:
+\`\`\`ts
+export async function POST(req: Request) {
+  const form = await req.formData();
+  const file = form.get("file");
+  const out = new FormData();
+  out.append("file", file as Blob);
+  const r = await fetch(process.env.PRODUCT_IMAGE_UPLOAD_URL!, {
+    method: "POST",
+    headers: { "x-vw-checkout-secret": process.env.APP_CHECKOUT_SECRET! },
+    body: out,
+  });
+  return Response.json(await r.json());   // { url } | { error }
+}
+\`\`\`
+Admin image pickers POST the file to \`/api/upload\` and store the returned \`url\` in \`product_images\`. If \`PRODUCT_IMAGE_UPLOAD_URL\` is missing, show a disabled "image upload isn't available" state.
+
+### Admin (auth-gated, every page checks \`supabase.auth.getUser()\`)
+- Nav: **Products · Orders · Payments · Settings**
+- \`/admin/products\` — list (thumb, name, price, active toggle, delete). "Add product" → form: name, description, price (dollars input → store cents), active; a multi-image picker (upload → \`product_images\`, drag or ▲▼ to set \`position\`). Editing a product edits the same fields.
+- \`/admin/orders\` — list newest first (date, email, item count, total, status badge). Row → items table, ship-to block, and a status \`<select>\` \`new → packed → shipped\` (also \`cancelled\`). \`pending\` orders (payment never completed) show greyed with no actions.
+- \`/admin/payments\` — the live Stripe history from \`process.env.STRIPE_TRANSACTIONS_URL\` (see the "Payments history" block in the Payments section: date / customer / description / amount / status / receipt, "Load more").
+- \`/admin/settings\` (store) — edit \`store_settings\`: flat shipping (dollars), free-shipping threshold (dollars, blank = off), currency (read-only \`usd\` for now).
+
+### Reporting
+In \`vw_metrics_daily\` emit \`orders_created\` (paid orders per day, by \`paid_at::date\`), \`units_sold\` (sum of item qty on paid orders), \`revenue_cents\` (sum of \`total_cents\` on paid orders). Do NOT emit metrics for \`pending\` orders.`
+    : "";
+
   const paymentsSection = [intake.category, ...secondary].some(categoryTakesPayments)
     ? `
 
@@ -682,7 +786,8 @@ const { transactions, hasMore } = await r.json();
 Category specifics:
 - **invoicing** — a "Pay this invoice" button on each unpaid invoice (\`mode: "payment"\`, \`amount\` = invoice total in cents). Mark it paid only after the server confirms the session.
 - **membership** — each plan tier is \`mode: "subscription"\` with \`amount\` (cents) + \`interval\`. Record the member active once confirmed.
-- **booking** — an optional deposit at booking time (\`mode: "payment"\`, \`amount\` = deposit). The booking stays "pending" until the deposit is confirmed.`
+- **booking** — an optional deposit at booking time (\`mode: "payment"\`, \`amount\` = deposit). The booking stays "pending" until the deposit is confirmed.
+- **storefront** — do NOT use \`amount\`; use \`lineItems\` (a cart). Full flow is in the "Online store" section above.`
     : "";
 
   const reportingSection = `
@@ -696,6 +801,7 @@ Only emit \`metric_key\` values whose underlying table you actually created. Do 
 - portal:     \`documents_shared\`, \`messages_sent\`, \`active_clients\`
 - invoicing:  \`invoices_sent\`, \`invoices_paid\`, \`quotes_created\`, \`revenue_cents\`
 - membership: \`members_new\`, \`members_churned\`, \`members_active\`, \`revenue_cents\`
+- storefront: \`orders_created\`, \`units_sold\`, \`revenue_cents\`
 \`revenue_cents\` = SUM of amounts actually paid that day, in integer cents (from the payments flow if this app has one; otherwise omit the key entirely).
 The view MUST NOT reference any table you didn't create and MUST NOT error on an empty database. Example:
 \`\`\`sql
@@ -737,7 +843,7 @@ create view vw_automation_due as
 ${intake.category}${secondary.length ? ` (+ ${secondary.join(", ")})` : ""}
 
 ## Required Features
-${featureLines}${secondarySection}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${teamSection}${paymentsSection}${reportingSection}
+${featureLines}${secondarySection}${locationSection}${bilingualSection}${qrCodeSection}${calendarExportSection}${teamSection}${storefrontSection}${paymentsSection}${reportingSection}
 
 ## Branding
 - Primary/background colors are runtime-configurable — do NOT hardcode any hex color. Use ONLY the \`primary\`/\`background\` Tailwind theme tokens per rule 13 (bg-primary, text-primary, bg-background, hover:bg-primary/90, etc.)

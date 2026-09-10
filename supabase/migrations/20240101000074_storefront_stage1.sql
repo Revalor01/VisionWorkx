@@ -1,0 +1,12 @@
+-- Storefront category — Stage 1 (catalogue core). No tenant tables here;
+-- generated storefront apps create their own products / product_images /
+-- orders / store_settings in their tenant schema per the "Online store"
+-- section of the generation system prompt.
+--
+-- App-code changes: storefrontSection in app/api/generate/route.ts,
+-- validateGenerated storefront checks, vw_metrics_daily storefront keys,
+-- and a "storefront" golden-canary intake (canary_key = "storefront").
+--
+-- NOT exposed in /try or /onboard — reachable only via a Guided Build
+-- Session until the storefront canary has passed >= 5 consecutive nights.
+select 1;

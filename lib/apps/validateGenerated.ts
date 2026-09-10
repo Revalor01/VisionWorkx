@@ -10,7 +10,7 @@ import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 // Categories that CANNOT function without collecting money (unlike booking,
 // where a deposit is optional) — so a generated one that never references
 // the Checkout bridge is broken.
-const PAYMENTS_REQUIRED: readonly AppCategory[] = ["invoicing", "membership"];
+const PAYMENTS_REQUIRED: readonly AppCategory[] = ["invoicing", "membership", "storefront"];
 
 const REQUIRED_FILES = ["app/layout.tsx", "app/page.tsx", ".env.local.example"];
 
@@ -146,6 +146,27 @@ export function validateGenerated(
       problems.push(
         "This app collects payments but nothing references process.env.STRIPE_CHECKOUT_URL — wire up the platform Checkout bridge.",
       );
+    }
+  }
+
+  // Storefront (Stage 1) — the catalogue + cart + orders shape
+  if (categories.includes("storefront")) {
+    if (hasMigration && !/\bcreate\s+table\s+products\b/i.test(sql)) {
+      problems.push("Storefront: the migration has no `products` table — add it (id, name, slug, description, price_cents, active, created_at).");
+    }
+    if (hasMigration && !/\bcreate\s+table\s+orders\b/i.test(sql)) {
+      problems.push("Storefront: the migration has no `orders` table — add it (id, email, items jsonb, subtotal_cents, shipping_cents, total_cents, ship_* fields, status, paid_at).");
+    }
+    if (!has("app/store/page.tsx")) {
+      problems.push("Storefront: app/store/page.tsx (the public product grid) was not generated — create it.");
+    }
+    const usesUpload = Object.values(map).some((c) => c.includes("PRODUCT_IMAGE_UPLOAD_URL"));
+    if (!usesUpload) {
+      problems.push("Storefront: nothing references process.env.PRODUCT_IMAGE_UPLOAD_URL — the admin needs a server route that proxies product-image uploads (see the Online store spec).");
+    }
+    const usesLineItems = Object.values(map).some((c) => /lineItems/.test(c));
+    if (!usesLineItems) {
+      problems.push("Storefront: the checkout must POST STRIPE_CHECKOUT_URL with a `lineItems` cart, not a single `amount` — nothing uses `lineItems`.");
     }
   }
 

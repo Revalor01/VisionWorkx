@@ -74,6 +74,16 @@ const GOLDEN: { key: string; intake: IntakeData }[] = [
       description: "Clients log in to see case status, share documents, and message us.",
     }),
   },
+  {
+    key: "storefront",
+    intake: intake({
+      category: "storefront",
+      businessName: "Canary Candles",
+      businessType: "Small candle maker",
+      description:
+        "Sell about 15 candles online — a photo or two each, one price each. Customers browse, add to cart, enter their address, and pay. One admin screen to add products and mark orders shipped.",
+    }),
+  },
 ];
 
 export async function GET(req: NextRequest) {
