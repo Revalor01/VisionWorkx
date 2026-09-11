@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { createPreviewApp, runPreviewGenerate } from "@/lib/apps/preview";
-import { removeTenantSchema } from "@/lib/apps/tenantSchema";
+import {
+  removeTenantSchema,
+  tenantSchemaExists,
+  reconcilePostgrestSchemas,
+} from "@/lib/apps/tenantSchema";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
@@ -153,6 +157,54 @@ async function smokeCheck(
   }
 }
 
+// Vercel names a generated-app project `vw-<name slug, 30 chars>-<appId[:8]>`
+// (see slugify() in app/api/deploy/route.ts). Reconstruct it so we can delete
+// the project even when apps.vercel_project_id was never written.
+function canaryProjectName(name: string, appId: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 30);
+  return `vw-${base || "app"}-${appId.slice(0, 8)}`;
+}
+
+async function deleteCanaryVercelProject(
+  appId: string,
+  name: string,
+  vercelProjectId: string | null,
+): Promise<void> {
+  const token = process.env.VERCEL_API_TOKEN;
+  if (!token) return;
+  const team = process.env.VERCEL_TEAM_ID
+    ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}`
+    : "";
+  // Try the stored id first, then the deterministic project name.
+  const handles = [vercelProjectId, canaryProjectName(name, appId)].filter(
+    (h): h is string => Boolean(h),
+  );
+  let deleted = false;
+  let sawNotFound = false;
+  for (const handle of handles) {
+    try {
+      const res = await fetch(
+        `https://api.vercel.com/v9/projects/${encodeURIComponent(handle)}${team}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.ok) {
+        deleted = true;
+        break;
+      }
+      if (res.status === 404) sawNotFound = true;
+    } catch {
+      /* try the next handle */
+    }
+  }
+  if (!deleted && !sawNotFound) {
+    console.error(`[canary] could not delete Vercel project for ${appId} (${name})`);
+  }
+}
+
 export async function GET(req: NextRequest) {
   if ((req.headers.get("authorization") ?? "") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -232,26 +284,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ graded, fired: [], skipped: "set in flight" });
   }
 
-  // 2. Fully tear down previous canary apps (Vercel project + tenant
-  // schema + db_schema entry + row) so they don't accumulate. Then drop
-  // any orphaned pending rows.
+  // 2. Fully tear down the previous canary set: Vercel project + tenant
+  // schema (+ its db_schema entry) + row. A canary run must leave NO residue
+  // — the audit found ~10 leaked schemas and ~12 leaked Vercel projects from
+  // this step's old failure modes: a null vercel_project_id skipped the
+  // project delete, and the row was deleted even when the schema drop failed,
+  // orphaning it. (docs/stabilization-plan.md T0.4)
   const { data: oldCanaries } = await service
     .from("apps")
-    .select("id, vercel_project_id")
+    .select("id, name, vercel_project_id")
     .like("preview_email", CANARY_EMAIL_LIKE);
   for (const c of oldCanaries ?? []) {
-    if (c.vercel_project_id && process.env.VERCEL_API_TOKEN) {
-      const team = process.env.VERCEL_TEAM_ID
-        ? `?teamId=${encodeURIComponent(process.env.VERCEL_TEAM_ID)}`
-        : "";
-      await fetch(`https://api.vercel.com/v9/projects/${c.vercel_project_id}${team}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` },
-      }).catch(() => {});
+    await deleteCanaryVercelProject(c.id, c.name, c.vercel_project_id);
+    await removeTenantSchema(c.id); // unexpose-then-drop, landmine-safe
+
+    // Only drop the row once its schema is actually gone. If the drop failed
+    // (transient Management API error), keep the row so the NEXT run retries
+    // instead of orphaning the schema forever.
+    let schemaGone = true;
+    try {
+      schemaGone = !(await tenantSchemaExists(c.id));
+    } catch {
+      schemaGone = false;
     }
-    await removeTenantSchema(c.id);
+    if (schemaGone) {
+      await service.from("apps").delete().eq("id", c.id);
+    } else {
+      console.error(
+        `[canary] schema for ${c.id} still present after teardown — keeping the row for retry`,
+      );
+    }
   }
-  await service.from("apps").delete().like("preview_email", CANARY_EMAIL_LIKE);
+  // Belt-and-braces: heal any stale db_schema exposure entry left by a drop
+  // that partially failed in a past run.
+  await reconcilePostgrestSchemas().catch((err) =>
+    console.error("[canary] reconcilePostgrestSchemas failed:", err),
+  );
   // Anything still pending here is ≥45 min old and never graded (no app_id,
   // or a lost grade) — record it as a failure rather than silently deleting
   // it, so a chronically stuck shape shows up in the pass rate.

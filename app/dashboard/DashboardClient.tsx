@@ -78,15 +78,18 @@ const STATUS_CONFIG: Record<
     cls: "bg-green-100 text-green-700",
     dot: "bg-green-400",
   },
+  // The customer never sees the raw word "failed" — a hard failure shows as
+  // "we're on it" with the build_notice update; the operator is alerted and
+  // closes the loop. (/admin reads app.status directly and shows the truth.)
   failed: {
-    label: "Failed",
-    cls: "bg-red-100 text-red-700",
-    dot: "bg-red-400",
+    label: "We're on it",
+    cls: "bg-amber-100 text-amber-800",
+    dot: "bg-amber-400 animate-pulse",
   },
   deploy_failed: {
-    label: "Deploy Failed",
-    cls: "bg-red-100 text-red-700",
-    dot: "bg-red-400",
+    label: "We're on it",
+    cls: "bg-amber-100 text-amber-800",
+    dot: "bg-amber-400 animate-pulse",
   },
   test_skipped: {
     label: "Test run",
@@ -124,7 +127,6 @@ export default function DashboardClient({
   const supabase = useMemo(() => createBrowserClient(), []);
   const [apps, setApps] = useState<App[]>(initialApps);
   const [workflows, setWorkflows] = useState<AutomationWorkflow[]>(initialWorkflows);
-  const [pollCount, setPollCount] = useState(0);
   const [togglingAppId, setTogglingAppId] = useState<string | null>(null);
 
   async function toggleAutomation(
@@ -168,17 +170,32 @@ export default function DashboardClient({
   const hasAutomationCapableApp = apps.some((a) => AUTOMATION_BY_CATEGORY[a.category]);
   const automationAtLimit = automationUsage.sent >= automationUsage.limit;
   const automationNearLimit = automationUsage.sent >= automationUsage.limit * 0.8;
-  const hasGenerating = apps.some(
-    (a) => a.status === "generating" || a.status === "ready" || a.status === "deploying"
+  // Keep polling while anything is mid-build OR sitting in a "we're on it"
+  // (failed/deploy_failed) state — so an operator's fix flips the card to Live
+  // in front of the customer without a refresh. Capped at ~1h for a build that
+  // never resolves.
+  const hasActiveBuild = apps.some(
+    (a) =>
+      a.status === "generating" ||
+      a.status === "ready" ||
+      a.status === "deploying" ||
+      a.status === "failed" ||
+      a.status === "deploy_failed"
   );
 
-  // Poll every 5s while any app is generating
+  // Poll every 5s while any app is still building or being worked on
   useEffect(() => {
-    if (!hasGenerating) return;
+    if (!hasActiveBuild) return;
 
     let active = true;
+    let ticks = 0;
 
     const interval = setInterval(async () => {
+      // ~1h cap so an app that never resolves doesn't poll forever.
+      if (++ticks > 720) {
+        clearInterval(interval);
+        return;
+      }
       const { data } = await supabase
         .from("apps")
         .select("*")
@@ -187,7 +204,6 @@ export default function DashboardClient({
 
       if (data && active) {
         setApps(data as App[]);
-        setPollCount((n) => n + 1);
       }
     }, 5000);
 
@@ -195,7 +211,7 @@ export default function DashboardClient({
       active = false;
       clearInterval(interval);
     };
-  }, [hasGenerating, supabase, userId]);
+  }, [hasActiveBuild, supabase, userId]);
 
   const firstName = profile.fullName?.split(" ")[0] ?? null;
   const greeting = firstName ? `Welcome back, ${firstName}` : "Welcome back";
@@ -299,18 +315,27 @@ export default function DashboardClient({
         )}
 
         {/* ── Polling indicator ── */}
-        {hasGenerating && (
-          <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-6">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+        {hasActiveBuild && (
+          <div
+            className={`flex items-center gap-2 text-xs border rounded-xl px-4 py-2.5 mb-6 ${
+              apps.some((a) => a.status === "failed" || a.status === "deploy_failed")
+                ? "text-amber-700 bg-amber-50 border-amber-200"
+                : "text-blue-600 bg-blue-50 border-blue-200"
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${
+                apps.some((a) => a.status === "failed" || a.status === "deploy_failed")
+                  ? "bg-amber-500"
+                  : "bg-blue-500"
+              }`}
+            />
             <span>
-              {apps.some((a) => a.status === "deploying")
-                ? "Deploying to Vercel — checking for updates every 5 seconds…"
-                : "Generating your app — checking for updates every 5 seconds…"}
-              {pollCount > 0 && (
-                <span className="text-blue-400 ml-1">
-                  (refreshed {pollCount} time{pollCount !== 1 ? "s" : ""})
-                </span>
-              )}
+              {apps.some((a) => a.status === "failed" || a.status === "deploy_failed")
+                ? "One of your apps hit a snag — we're on it and this page updates automatically."
+                : apps.some((a) => a.status === "deploying")
+                  ? "Publishing your app — this page updates automatically."
+                  : "Building your app — this page updates automatically."}
             </span>
           </div>
         )}
@@ -412,21 +437,16 @@ function AppCard({
         </div>
       )}
 
-      {app.status === "deploy_failed" && (
-        <div className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">
-          Deployment failed. Please contact support or try again.
-        </div>
-      )}
-
-      {app.status === "failed" && (
-        <div className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">
-          Generation failed.{" "}
-          <Link
-            href={`/generate?appId=${app.id}`}
-            className="font-semibold underline"
-          >
-            Try again →
-          </Link>
+      {(app.status === "failed" || app.status === "deploy_failed") && (
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-4">
+          <div className="flex items-center gap-1.5 font-semibold mb-0.5">
+            <span className="text-amber-500">!</span>
+            We&apos;ve run into an issue
+          </div>
+          <p className="leading-relaxed">
+            {app.build_notice ??
+              "Our team was notified automatically and is working on it — we'll email you when your app is ready."}
+          </p>
         </div>
       )}
 
@@ -475,6 +495,15 @@ function AppCard({
           <Link
             href={`/generate?appId=${app.id}`}
             className="flex-1 min-w-[90px] text-center text-xs font-medium text-amber-700 bg-amber-50 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
+          >
+            View Progress →
+          </Link>
+        )}
+
+        {(app.status === "failed" || app.status === "deploy_failed") && (
+          <Link
+            href={`/generate?appId=${app.id}`}
+            className="flex-1 min-w-[90px] text-center text-xs font-medium text-blue-600 bg-blue-50 py-2.5 rounded-xl hover:bg-blue-100 transition-colors"
           >
             View Progress →
           </Link>

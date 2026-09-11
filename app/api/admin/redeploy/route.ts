@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const { data: app } = await service
     .from("apps")
-    .select("id, status, generated_code")
+    .select("id, status, generated_code, pending_generated_code")
     .eq("id", appId)
     .single();
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "App not found" }, { status: 404 });
   }
 
-  if (!app.generated_code) {
+  if (!app.generated_code && !app.pending_generated_code) {
     return NextResponse.json({ error: "No generated code — regenerate this app first" }, { status: 400 });
   }
 

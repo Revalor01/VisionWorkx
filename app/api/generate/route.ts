@@ -10,6 +10,7 @@ import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { generatePlan } from "@/lib/apps/generatePlan";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
+import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -330,7 +331,16 @@ export async function POST(req: NextRequest) {
   // writer.close() only called after Supabase save, so the HTTP response
   // stays open until the save completes — client gets done=true post-save.
   async function streamAndSave() {
+    // The client is shown coarse phases only — never the generated code, never
+    // repair details. The stream carries `[[PHASE:x]]` markers and `[[TICK]]`
+    // heartbeats; GenerateClient parses those and ignores everything else.
+    // (docs/stabilization-plan.md — client-exposure work)
+    const phase = async (name: "designing" | "building" | "reviewing") => {
+      if (!isPreview) await writer.write(encoder.encode(`[[PHASE:${name}]]\n`));
+    };
     try {
+      await phase("designing");
+
       // Pass 1: a cheap plan (file manifest + schema) the model commits to
       // before writing ~100KB of code — cuts mid-stream drift and dropped
       // files, and gives validateGenerated a manifest to check against.
@@ -340,14 +350,12 @@ export async function POST(req: NextRequest) {
         const plan = await generatePlan(intake, appId);
         planFiles = plan.files;
         planBlock = `\n\n## Agreed build plan — implement EXACTLY this, every file, nothing dropped\n${plan.text}\n`;
-        if (!isPreview) {
-          await writer.write(encoder.encode("[Planned the app structure…]\n\n"));
-        }
       } catch (err) {
         console.error("[/api/generate] plan pass failed, continuing without it:", err);
       }
 
       // Pass 2: implement.
+      await phase("building");
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-6",
         // A real multi-page app runs past 32k output tokens; 64k is the
@@ -357,16 +365,20 @@ export async function POST(req: NextRequest) {
         messages: [{ role: "user", content: userPrompt + planBlock }],
       });
 
+      // The generated code never reaches the browser — only accumulate it.
+      // Emit a heartbeat every ~8s so the connection (and any proxy in front
+      // of it) stays warm and the client can show liveness.
+      let lastTick = Date.now();
       for await (const chunk of stream) {
         if (
           chunk.type === "content_block_delta" &&
           chunk.delta.type === "text_delta"
         ) {
-          const text = chunk.delta.text;
-          // A preview generation has no client reading the stream — writing
-          // to it would just fill a buffer nobody drains. Only accumulate.
-          if (!isPreview) await writer.write(encoder.encode(text));
-          fullText += text;
+          fullText += chunk.delta.text;
+          if (!isPreview && Date.now() - lastTick > 8000) {
+            await writer.write(encoder.encode("[[TICK]]\n"));
+            lastTick = Date.now();
+          }
         }
       }
 
@@ -395,12 +407,8 @@ export async function POST(req: NextRequest) {
         planFiles,
         intake.features ?? [],
       );
+      await phase("reviewing");
       if (problems.length > 0) {
-        if (!isPreview) {
-          await writer.write(
-            encoder.encode(`\n\n[Checking the generated app… ${problems.length} thing(s) to fix]\n`),
-          );
-        }
         const { map: repaired, rounds, remaining } = await repairGenerated(
           parsed,
           problems,
@@ -419,10 +427,43 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Save generated code — happens while HTTP response is still technically open
+      // An empty / truncated-to-nothing blob must never be persisted as
+      // status:"ready" — that's the "generated_code is NULL, status stuck"
+      // failure. Fail loud instead. (docs/stabilization-plan.md T0.1)
+      if (!codeToSave || codeToSave.length < 200) {
+        await serviceClient
+          .from("apps")
+          .update({
+            status: "failed",
+            failure_reason: "generation",
+            build_notice: DEFAULT_BUILD_NOTICE,
+            build_notice_at: new Date().toISOString(),
+          })
+          .eq("id", appId);
+        await notifyBuildFailure({
+          stage: "generate",
+          appId,
+          appName,
+          customer: app?.preview_email ?? (app?.user_id ? `user ${app.user_id}` : null),
+          error: "generation produced no usable code",
+          title: operatorAlertTitle("generation"),
+        });
+        return;
+      }
+
+      // Save generated code — happens while HTTP response is still technically
+      // open. First build → generated_code. A regeneration of an app that
+      // already has a last-good version → stage in pending_generated_code so a
+      // failed rebuild can't destroy the running app's source; a successful
+      // deploy promotes it (docs/stabilization-plan.md T0.1).
+      const isRegen = Boolean(app?.generated_code);
       await serviceClient
         .from("apps")
-        .update({ generated_code: codeToSave, status: "ready", failure_reason: null })
+        .update(
+          isRegen
+            ? { pending_generated_code: codeToSave, status: "ready", failure_reason: null }
+            : { generated_code: codeToSave, status: "ready", failure_reason: null },
+        )
         .eq("id", appId);
 
       // Open the app's revision history with this first build (snapshot is
@@ -475,7 +516,12 @@ export async function POST(req: NextRequest) {
       try {
         await serviceClient
           .from("apps")
-          .update({ status: "failed", failure_reason: reason })
+          .update({
+            status: "failed",
+            failure_reason: reason,
+            build_notice: DEFAULT_BUILD_NOTICE,
+            build_notice_at: new Date().toISOString(),
+          })
           .eq("id", appId);
       } catch (saveErr) {
         console.error("[/api/generate] failed to update status:", saveErr);

@@ -17,7 +17,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AdminDashboardProps {
-  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode">[];
+  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at">[];
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
   subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
@@ -123,6 +123,7 @@ export default function AdminDashboard({
   const [userSearch, setUserSearch] = useState("");
   const [redeploying, setRedeploying] = useState<Record<string, boolean>>({});
   const [redeployMessages, setRedeployMessages] = useState<Record<string, string>>({});
+  const [noticeMessages, setNoticeMessages] = useState<Record<string, string>>({});
   const [deletingApps, setDeletingApps] = useState<Record<string, boolean>>({});
   const [deletedAppIds, setDeletedAppIds] = useState<Set<string>>(new Set());
   const [appDeleteErrors, setAppDeleteErrors] = useState<Record<string, string>>({});
@@ -719,6 +720,30 @@ export default function AdminDashboard({
       setRedeployMessages((m) => ({ ...m, [appId]: "Network error" }));
     } finally {
       setRedeploying((r) => ({ ...r, [appId]: false }));
+    }
+  }
+
+  // ── Post a customer-facing build update ───────────────────────
+  async function handlePostNotice(appId: string, current: string | null) {
+    const next = window.prompt(
+      "Update the customer sees on /generate and their dashboard (blank to clear):",
+      current ?? "",
+    );
+    if (next === null) return;
+    setNoticeMessages((m) => ({ ...m, [appId]: "Saving…" }));
+    try {
+      const res = await fetch("/api/admin/build-notice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId, notice: next }),
+      });
+      const data = await res.json();
+      setNoticeMessages((m) => ({
+        ...m,
+        [appId]: res.ok ? "Update posted ✓" : data.error ?? "Failed",
+      }));
+    } catch {
+      setNoticeMessages((m) => ({ ...m, [appId]: "Network error" }));
     }
   }
 
@@ -1339,6 +1364,8 @@ export default function AdminDashboard({
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+                noticeMessages={noticeMessages}
+                onPostNotice={handlePostNotice}
                 deletingApps={deletingApps}
                 appDeleteErrors={appDeleteErrors}
                 onDeleteApp={handleDeleteApp}
@@ -1381,6 +1408,8 @@ export default function AdminDashboard({
                 redeploying={redeploying}
                 redeployMessages={redeployMessages}
                 onRedeploy={handleRedeploy}
+                noticeMessages={noticeMessages}
+                onPostNotice={handlePostNotice}
                 deletingApps={deletingApps}
                 appDeleteErrors={appDeleteErrors}
                 onDeleteApp={handleDeleteApp}
@@ -2596,6 +2625,8 @@ function AppTable({
   redeploying,
   redeployMessages,
   onRedeploy,
+  noticeMessages,
+  onPostNotice,
   deletingApps,
   appDeleteErrors,
   onDeleteApp,
@@ -2609,6 +2640,8 @@ function AppTable({
   redeploying: Record<string, boolean>;
   redeployMessages: Record<string, string>;
   onRedeploy: (id: string) => void;
+  noticeMessages: Record<string, string>;
+  onPostNotice: (id: string, current: string | null) => void;
   deletingApps: Record<string, boolean>;
   appDeleteErrors: Record<string, string>;
   onDeleteApp: (id: string, name: string) => void;
@@ -2721,6 +2754,26 @@ function AppTable({
                               ? "Test pay: ON"
                               : "Test pay: off"}
                         </button>
+                      )}
+                      {(app.status === "failed" || app.status === "deploy_failed") && (
+                        <button
+                          onClick={() => onPostNotice(app.id, app.build_notice)}
+                          title={
+                            app.build_notice
+                              ? `Customer sees: "${app.build_notice}"`
+                              : "Post a status update the customer sees on /generate and their dashboard"
+                          }
+                          className="text-xs px-3 py-1 rounded-lg border border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors whitespace-nowrap"
+                        >
+                          {app.build_notice ? "Edit update" : "Post update"}
+                        </button>
+                      )}
+                      {noticeMessages[app.id] && (
+                        <span
+                          className={`text-xs ${noticeMessages[app.id].includes("✓") ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {noticeMessages[app.id]}
+                        </span>
                       )}
                       {msg && (
                         <span className={`text-xs ${msg.includes("✓") ? "text-green-600" : "text-red-600"}`}>

@@ -5,35 +5,11 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { customerFailureMessage, isInfraFailure } from "@/lib/apps/buildFailure";
-
-type Status = "connecting" | "generating" | "deploying" | "complete" | "failed";
-
-const STATUS_HEADLINE: Record<Status, string> = {
-  connecting: "Connecting to Vision Workx AI…",
-  generating: "Generating your app…",
-  deploying: "Deploying your app…",
-  complete: "Your app is live!",
-  failed: "Generation failed",
-};
-
-const STATUS_SUB: Record<Status, string> = {
-  connecting: "Warming up the AI — this takes just a moment.",
-  generating:
-    "Watch your app being written in real time. This usually takes 2–5 minutes.",
-  deploying:
-    "Building and deploying to Vercel. This takes 3–6 minutes — feel free to leave this page.",
-  complete:
-    "Your app is live and connected to your database. The link is in your email — check your spam or junk folder if you don't see it.",
-  failed:
-    "Something went wrong during generation. Your progress has been saved — please try again.",
-};
-
-const STEPS = [
-  { key: "generating", label: "Generating code" },
-  { key: "saving", label: "Saving to your account" },
-  { key: "deploying", label: "Deploying to Vercel" },
-] as const;
+import {
+  BUILD_PHASES,
+  clientBuildState,
+  type StreamPhase,
+} from "@/lib/apps/clientStatus";
 
 export default function GenerateClient({
   userName,
@@ -47,72 +23,34 @@ export default function GenerateClient({
   const searchParams = useSearchParams();
   const appId = searchParams.get("appId");
 
-  const [status, setStatus] = useState<Status>("connecting");
-  const [streamedText, setStreamedText] = useState("");
-  const [progress, setProgress] = useState(5);
-  const [error, setError] = useState("");
+  // The two inputs to the customer-facing view: a live stream phase hint
+  // (while /api/generate is streaming) and the DB status (after, via polling).
+  const [streamPhase, setStreamPhase] = useState<StreamPhase | null>(null);
+  const [dbStatus, setDbStatus] = useState<string | null>(null);
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
-  const [stalled, setStalled] = useState(false);
-  // Infra failure (credits, Anthropic down, timeout) — "on us", retrying
-  // won't help; hide the retry button and tell them we'll email.
-  const [infraFailure, setInfraFailure] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [noticeAt, setNoticeAt] = useState<string | null>(null);
+  const [longRunning, setLongRunning] = useState(false);
+  // A gentle crawl within the current phase so the bar is never frozen — it's
+  // reset whenever the phase advances.
+  const [drift, setDrift] = useState(0);
 
-  const codeWindowRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hasStarted = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAtRef = useRef(0);
-  const streamLenRef = useRef(0);
 
-  // Auto-scroll code window as new content arrives
+  const view = clientBuildState(dbStatus, { streamPhase, notice, noticeAt });
+
   useEffect(() => {
-    const el = codeWindowRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [streamedText]);
+    setDrift(0);
+    if (view.done) return;
+    const t = setInterval(() => setDrift((d) => Math.min(d + 0.5, 16)), 2500);
+    return () => clearInterval(t);
+  }, [view.phase, view.done]);
 
-  // Slow progress animation during generation (caps at 65%)
-  useEffect(() => {
-    if (status !== "generating") return;
-    const interval = setInterval(() => {
-      setProgress((p) => Math.min(p + 0.4, 65));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [status]);
-
-  // Deploying progress animation (65% → 95%)
-  useEffect(() => {
-    if (status !== "deploying") return;
-    setProgress(68);
-    const interval = setInterval(() => {
-      setProgress((p) => Math.min(p + 0.15, 95));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [status]);
-
-  // After a failure, read the server's classification and phrase the
-  // message accordingly — "on us, we'll email you" vs "hit retry".
-  const resolveFailure = useCallback(async (id: string, fallback: string) => {
-    let reason: string | null = null;
-    try {
-      const supabase = createBrowserClient();
-      const { data } = await supabase
-        .from("apps")
-        .select("failure_reason")
-        .eq("id", id)
-        .maybeSingle();
-      reason = data?.failure_reason ?? null;
-    } catch {
-      /* use fallback */
-    }
-    setInfraFailure(reason ? isInfraFailure(reason as never) : false);
-    setError(reason ? customerFailureMessage(reason) : fallback);
-  }, []);
-
-  // Poll for the app's final state after code generation completes. Uses the
-  // session-authenticated browser client (an anon-key read is blocked by RLS
-  // on `apps`, which returned nothing and left the bar stuck at 95% even
-  // though the deploy had finished). `status` is the source of truth —
-  // deploy_url is populated in the same write but treated as best-effort.
+  // Poll the app row after the generate stream closes; `status` is the source
+  // of truth. Uses the session-authenticated client (an anon read is blocked
+  // by RLS on `apps`).
   const startPolling = useCallback((id: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
     const supabase = createBrowserClient();
@@ -123,42 +61,40 @@ export default function GenerateClient({
       try {
         const { data: row } = await supabase
           .from("apps")
-          .select("status, deploy_url")
+          .select("status, deploy_url, build_notice, build_notice_at")
           .eq("id", id)
           .maybeSingle();
 
+        if (row?.status) {
+          setDbStatus(row.status);
+          setStreamPhase(null);
+        }
+        setNotice(row?.build_notice ?? null);
+        setNoticeAt(row?.build_notice_at ?? null);
+
         if (row?.status === "deployed") {
-          clearInterval(pollRef.current!);
-          pollRef.current = null;
           setDeployUrl(row.deploy_url ?? null);
-          setStatus("complete");
-          setProgress(100);
-          return;
-        }
-        if (row?.status === "failed" || row?.status === "deploy_failed") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
-          void resolveFailure(
-            id,
-            row.status === "deploy_failed"
-              ? "Deployment failed. Please try again from your dashboard."
-              : "Generation failed. Please try again from your dashboard."
-          );
-          setStatus("failed");
           return;
         }
-        // ~14 min with no terminal state: stop the endless 95% bar. The
-        // build has usually finished and the live link is in the email.
-        if (attempts >= 140) {
+        // failed / deploy_failed is NOT surfaced as a failure — clientBuildState()
+        // renders "We've run into an issue" + the build_notice update panel. We
+        // keep polling either way so an operator's follow-up update (and an
+        // eventual successful deploy) appear on this screen without a refresh.
+
+        // Long tail: after ~45 min stop polling. The update panel and the
+        // email carry it from here.
+        if (attempts >= 450) {
           clearInterval(pollRef.current!);
           pollRef.current = null;
-          setStalled(true);
+          setLongRunning(true);
         }
       } catch {
-        // ignore network errors — keep polling
+        // ignore transient network errors — keep polling
       }
     }, 6000);
-  }, [resolveFailure]);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -169,13 +105,10 @@ export default function GenerateClient({
   const startGeneration = useCallback(
     async (id: string) => {
       abortRef.current = new AbortController();
-      startedAtRef.current = Date.now();
-      streamLenRef.current = 0;
-      setStatus("connecting");
-      setProgress(5);
-      setStreamedText("");
-      setError("");
+      setStreamPhase("designing");
+      setDbStatus(null);
       setDeployUrl(null);
+      setLongRunning(false);
 
       try {
         const response = await fetch("/api/generate", {
@@ -185,52 +118,45 @@ export default function GenerateClient({
           signal: abortRef.current.signal,
         });
 
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(
-            (data as { error?: string }).error ?? `HTTP ${response.status}`
-          );
+        if (!response.ok || !response.body) {
+          // The stream never opened — go straight to polling; the server may
+          // still finish, and if not, the operator is alerted.
+          startPolling(id);
+          return;
         }
-
-        if (!response.body) throw new Error("No response body");
-
-        setStatus("generating");
-        setProgress(10);
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let buf = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          streamLenRef.current += chunk.length;
-          setStreamedText((prev) => prev + chunk);
+          buf += decoder.decode(value, { stream: true });
+          // Parse whole lines; keep any trailing partial line in `buf`.
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            const m = line.match(/^\[\[PHASE:(designing|building|reviewing)\]\]$/);
+            if (m) setStreamPhase(m[1] as StreamPhase);
+            // [[TICK]] and anything else are ignored.
+          }
         }
 
-        // Stream closed — code saved server-side, deploy pipeline fired
-        setStatus("deploying");
-        setProgress(68);
+        // Stream closed — code saved server-side, deploy pipeline fired.
+        setStreamPhase(null);
+        setDbStatus("ready");
         startPolling(id);
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         console.error("[generate client]", err);
-        // A drop after many minutes / a lot of streamed code almost always
-        // means the build was too big to finish inside the time limit.
-        const elapsedMin = (Date.now() - startedAtRef.current) / 60000;
-        const looksTooBig = elapsedMin > 8 || streamLenRef.current > 80_000;
-        // Prefer the server's classification (credits / overloaded /
-        // timeout / build_error) when it has written one.
-        void resolveFailure(
-          id,
-          looksTooBig
-            ? "This build ran out of time — it's likely too large to finish in one pass. Start over with fewer app types (one, or at most two add-ons), then add the rest later by describing the change in plain English."
-            : (err as Error).message || "An unexpected error occurred. Please try again."
-        );
-        setStatus("failed");
+        // A drop mid-stream — the server may still be finishing. Poll for the
+        // real outcome rather than declaring anything failed.
+        setStreamPhase(null);
+        startPolling(id);
       }
     },
-    [startPolling, resolveFailure]
+    [startPolling],
   );
 
   useEffect(() => {
@@ -238,26 +164,29 @@ export default function GenerateClient({
     hasStarted.current = true;
 
     // A page refresh remounts this component. Never kick off a SECOND
-    // generation on an app that's already built or building — that
-    // overwrites a working app with a fresh (sometimes failing) re-gen.
-    // Check server state first; resume the deploy view instead.
+    // generation on an app that's already built or building.
     (async () => {
       try {
         const supabase = createBrowserClient();
         const { data: row } = await supabase
           .from("apps")
-          .select("status, deploy_url")
+          .select("status, deploy_url, build_notice, build_notice_at")
           .eq("id", appId)
           .maybeSingle();
+        setNotice(row?.build_notice ?? null);
+        setNoticeAt(row?.build_notice_at ?? null);
         if (row?.status === "deployed") {
+          setDbStatus("deployed");
           setDeployUrl(row.deploy_url ?? null);
-          setStatus("complete");
-          setProgress(100);
           return;
         }
-        if (row?.status === "deploying" || row?.status === "ready") {
-          setStatus("deploying");
-          setProgress(80);
+        if (
+          row?.status === "deploying" ||
+          row?.status === "ready" ||
+          row?.status === "failed" ||
+          row?.status === "deploy_failed"
+        ) {
+          setDbStatus(row.status);
           startPolling(appId);
           return;
         }
@@ -279,9 +208,7 @@ export default function GenerateClient({
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
             <div className="text-5xl mb-4">⚠️</div>
-            <h1 className="text-xl font-bold text-navy-dark mb-2">
-              Missing app ID
-            </h1>
+            <h1 className="text-xl font-bold text-navy-dark mb-2">Missing app ID</h1>
             <p className="text-gray-500 text-sm mb-6">
               This page requires an app ID. Go back to your dashboard and try
               creating a new app.
@@ -298,174 +225,77 @@ export default function GenerateClient({
     );
   }
 
-  const codeLineCount = streamedText.split("\n").length;
-  const isGenerating = status === "generating";
-  const isDeploying = status === "deploying";
-  const isDone = status === "complete";
-  const isFailed = status === "failed";
+  // phaseBase = start of the current phase's slice; + drift, capped just shy
+  // of the next phase so an advance always feels like forward motion.
+  const phaseBase = ((view.phase - 1) / BUILD_PHASES.length) * 100;
+  const phaseCeil = (view.phase / BUILD_PHASES.length) * 100 - 2;
+  const pct = view.done ? 100 : Math.round(Math.min(phaseBase + drift, phaseCeil));
+
+  const fmtWhen = (iso: string | null) => {
+    if (!iso) return "";
+    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.round(mins / 60);
+    return hrs < 24 ? `${hrs} hr ago` : new Date(iso).toLocaleString();
+  };
 
   return (
     <div className="min-h-screen bg-off-white flex flex-col">
       <AppNavbar userName={userName} plan={plan} />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-10">
+      <main className="flex-1 max-w-xl mx-auto w-full px-4 py-14">
         {/* Headline */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-10">
           <div className="flex items-center justify-center gap-2 mb-3">
-            {(isGenerating || isDeploying) && (
+            {view.done ? (
+              <span className="text-green-500 text-lg">✓</span>
+            ) : view.settling ? (
+              <span className="text-amber-500 text-lg">!</span>
+            ) : (
               <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             )}
-            {isDone && <span className="text-green-500 text-lg">✓</span>}
-            {isFailed && <span className="text-red-500 text-lg">✗</span>}
-            <h1 className="text-2xl font-bold text-navy-dark">
-              {STATUS_HEADLINE[status]}
-            </h1>
+            <h1 className="text-2xl font-bold text-navy-dark">{view.headline}</h1>
           </div>
-          <p className="text-gray-500 text-sm max-w-md mx-auto">
-            {STATUS_SUB[status]}
-          </p>
-          {error && (
-            <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 inline-block">
-              {error}
-            </p>
-          )}
+          <p className="text-gray-500 text-sm max-w-md mx-auto">{view.sub}</p>
         </div>
 
         {/* Progress bar */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-gray-400">Progress</span>
-            <span className="text-xs text-gray-400">{Math.round(progress)}%</span>
-          </div>
+        <div className="mb-8">
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className={`h-2 rounded-full transition-all duration-1000 ${
-                isDone
-                  ? "bg-green-500"
-                  : isFailed
-                  ? "bg-red-500"
-                  : "bg-navy-dark"
+                view.done ? "bg-green-500" : view.settling ? "bg-amber-400" : "bg-navy-dark"
               }`}
-              style={{ width: `${progress}%` }}
+              style={{ width: `${pct}%` }}
             />
           </div>
-          {streamedText && (
-            <p className="text-xs text-gray-400 mt-1 text-right">
-              {codeLineCount.toLocaleString()} lines generated
-            </p>
-          )}
         </div>
 
-        {/* Code window */}
-        <div className="bg-[#0d1117] rounded-2xl overflow-hidden shadow-2xl border border-gray-800 mb-6">
-          <div className="flex items-center gap-2 px-4 py-3 bg-[#161b22] border-b border-gray-800">
-            <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
-            <span className="w-3 h-3 rounded-full bg-[#febc2e]" />
-            <span className="w-3 h-3 rounded-full bg-[#28c840]" />
-            <span className="ml-4 text-xs text-gray-500 font-mono">
-              {isDeploying
-                ? "vision-workx-ai — deploying to vercel…"
-                : isDone
-                ? "vision-workx-ai — deployment complete"
-                : "vision-workx-ai — generating app…"}
-            </span>
-            {isGenerating && (
-              <span className="ml-auto text-xs text-green-400 font-mono animate-pulse">
-                ● LIVE
-              </span>
-            )}
-            {isDeploying && (
-              <span className="ml-auto text-xs text-yellow-400 font-mono animate-pulse">
-                ⚙ BUILDING
-              </span>
-            )}
-            {isDone && (
-              <span className="ml-auto text-xs text-green-400 font-mono">
-                ✓ DEPLOYED
-              </span>
-            )}
-          </div>
-
-          <div
-            ref={codeWindowRef}
-            className="p-5 font-mono text-xs leading-relaxed max-h-[55vh] overflow-y-auto scroll-smooth"
-            style={{ minHeight: "280px" }}
-          >
-            {status === "connecting" && (
-              <p className="text-blue-400 animate-pulse">
-                $ Connecting to Vision Workx AI…
-              </p>
-            )}
-
-            {streamedText === "" && isGenerating && (
-              <p className="text-yellow-400 animate-pulse">
-                $ Building your app — code will appear here shortly…
-              </p>
-            )}
-
-            {streamedText !== "" && (
-              <pre className="whitespace-pre-wrap text-gray-300">
-                {streamedText}
-                {isGenerating && (
-                  <span className="inline-block w-2 h-4 bg-gray-300 animate-pulse ml-0.5 align-middle" />
-                )}
-              </pre>
-            )}
-
-            {isDeploying && (
-              <div className="mt-4 text-yellow-300 space-y-1">
-                <p className="animate-pulse">$ npm install &amp;&amp; npm run build</p>
-                <p className="text-gray-500 text-xs">Building on Vercel infrastructure — this takes 3–6 minutes…</p>
-              </div>
-            )}
-
-            {isDone && deployUrl && (
-              <p className="text-green-400 mt-4">
-                ✓ Live at:{" "}
-                <a href={deployUrl} className="underline" target="_blank" rel="noreferrer">
-                  {deployUrl}
-                </a>
-              </p>
-            )}
-
-            {isDone && streamedText === "" && (
-              <p className="text-green-400">✓ Generation and deployment complete.</p>
-            )}
-
-            {isFailed && (
-              <p className="text-red-400">✗ Error during generation.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Status steps */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-          {STEPS.map((step, i) => {
-            const isDoneStep =
-              (i === 0 && ["generating", "deploying", "complete"].includes(status)) ||
-              (i === 1 && ["deploying", "complete"].includes(status)) ||
-              (i === 2 && status === "complete");
-            const isActiveStep =
-              (i === 0 && status === "generating") ||
-              (i === 1 && status === "generating") ||
-              (i === 2 && status === "deploying");
-
+        {/* Phase steps */}
+        <div className="space-y-2.5 mb-8">
+          {BUILD_PHASES.map(({ n, label }) => {
+            const isDone = view.done ? true : n < view.phase;
+            const isActive = !view.done && n === view.phase;
+            const attention = isActive && view.settling;
             return (
               <div
-                key={step.key}
-                className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm border ${
-                  isDoneStep
+                key={n}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm border ${
+                  isDone
                     ? "bg-green-50 border-green-200 text-green-700"
-                    : isActiveStep
-                    ? "bg-blue-50 border-navy text-navy-dark"
-                    : "bg-white border-gray-200 text-gray-400"
+                    : attention
+                      ? "bg-amber-50 border-amber-300 text-amber-800"
+                      : isActive
+                        ? "bg-blue-50 border-navy text-navy-dark"
+                        : "bg-white border-gray-200 text-gray-400"
                 }`}
               >
-                <span className="shrink-0">
-                  {isDoneStep ? "✓" : isActiveStep ? "⚙" : "○"}
+                <span className="shrink-0 w-4 text-center">
+                  {isDone ? "✓" : attention ? "!" : isActive ? "⚙" : "○"}
                 </span>
-                <span className="font-medium">{step.label}</span>
-                {isActiveStep && (
+                <span className="font-medium">{label}</span>
+                {isActive && !attention && (
                   <span className="ml-auto text-xs animate-pulse">…</span>
                 )}
               </div>
@@ -473,8 +303,23 @@ export default function GenerateClient({
           })}
         </div>
 
-        {/* Actions */}
-        {isDone && (
+        {/* Update panel — shown when a build has hit an issue */}
+        {view.settling && view.notice && (
+          <div className="border border-amber-200 bg-amber-50 rounded-2xl p-5 mb-8">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Latest update
+              </span>
+              {view.noticeAt && (
+                <span className="text-xs text-amber-600">{fmtWhen(view.noticeAt)}</span>
+              )}
+            </div>
+            <p className="text-sm text-amber-900 leading-relaxed">{view.notice}</p>
+          </div>
+        )}
+
+        {/* Done */}
+        {view.done && (
           <div className="text-center space-y-4">
             {deployUrl && (
               <a
@@ -497,57 +342,22 @@ export default function GenerateClient({
           </div>
         )}
 
-        {isDeploying && (
-          <div className="text-center">
-            <p className="text-xs text-gray-400">
-              {stalled
-                ? "This is taking longer than usual to report back. Your app has most likely finished — the live link is in your email (check spam/junk too), and it's in your dashboard."
-                : "Your app is building on Vercel. You can safely leave this page — we'll email you when it's live (check your spam folder if it doesn't arrive)."}
+        {/* In progress footer */}
+        {!view.done && (
+          <div className="text-center space-y-3">
+            <p className="text-xs text-gray-400 max-w-sm mx-auto">
+              {view.settling
+                ? "You can close this page — this screen and your email will both be updated as things move."
+                : longRunning
+                  ? "You can safely close this page. We'll email you as soon as your app is ready — check your spam or junk folder too."
+                  : "This can take a few minutes. You can leave this page — we'll email you when your app is live."}
             </p>
             <Link
               href="/dashboard"
-              className="inline-block mt-3 text-navy-dark font-medium underline text-sm"
+              className="inline-block text-navy-dark font-medium underline text-sm"
             >
               Go to Dashboard
             </Link>
-          </div>
-        )}
-
-        {isFailed && (
-          <div className="text-center space-y-3">
-            {infraFailure ? (
-              <>
-                <p className="text-sm text-gray-600 max-w-md mx-auto">
-                  Nothing to redo — we&apos;ll email you the moment your app is building again.
-                </p>
-                <Link
-                  href="/dashboard"
-                  className="inline-block bg-navy-dark text-white font-semibold px-8 py-3 rounded-xl hover:bg-navy transition-colors"
-                >
-                  Go to Dashboard
-                </Link>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => {
-                    hasStarted.current = false;
-                    setInfraFailure(false);
-                    startGeneration(appId);
-                  }}
-                  className="inline-block bg-red-600 text-white font-semibold px-8 py-3 rounded-xl hover:bg-red-700 transition-colors"
-                >
-                  Try Again
-                </button>
-                <p className="text-xs text-gray-400">
-                  Or{" "}
-                  <Link href="/dashboard" className="text-navy underline">
-                    go to your dashboard
-                  </Link>{" "}
-                  and generate a new app.
-                </p>
-              </>
-            )}
           </div>
         )}
       </main>
