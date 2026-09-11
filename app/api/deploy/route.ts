@@ -12,7 +12,7 @@ import { applyBaseTemplate } from "@/lib/apps/baseTemplate";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
-import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
+import { classifyBuildError, operatorAlertTitle, type BuildFailureReason } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -1311,10 +1311,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.error("[api/deploy]", err);
-    const reason =
-      err instanceof BuildError || err instanceof PreflightError
-        ? "build_error"
-        : classifyBuildError((err as Error).message);
+    // BuildError/PreflightError used to always tag "build_error" regardless
+    // of cause — but their .message is just a generic label ("Build ERROR"),
+    // while the actual reason (timeout, rate limit, overload) often only
+    // shows up in the captured build logs. That masked real timeouts as
+    // generic build errors, undercounting them on /admin's failure-reason
+    // ranking (confirmed live: a portal canary that genuinely hit Vercel's
+    // "Task timed out after 800 seconds" was recorded as plain
+    // "build_error"). Classify off the logs first; only fall back to the
+    // generic label when nothing more specific matches.
+    let reason: BuildFailureReason;
+    if (err instanceof BuildError) {
+      reason = classifyBuildError(`${err.message}\n${err.logs}`);
+      if (reason === "generation") reason = "build_error";
+    } else if (err instanceof PreflightError) {
+      reason = classifyBuildError(`${err.message}\n${err.log}`);
+      if (reason === "generation") reason = "build_error";
+    } else {
+      reason = classifyBuildError((err as Error).message);
+    }
     try {
       // Drop the in-progress build. generated_code (last deployed version) is
       // never touched here. Post the customer-facing notice — but if the
