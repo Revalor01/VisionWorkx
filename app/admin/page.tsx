@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { ADMIN_SSO_COOKIE, ADMIN_EMAIL, verifySessionCookie } from "@/lib/adminSso";
+import type { StabilityAnalysis, StabilityFinding } from "@/lib/apps/stabilityAnalysisTypes";
 import AdminDashboard from "./AdminDashboard";
 
 export default async function AdminPage() {
@@ -33,6 +34,7 @@ export default async function AdminPage() {
     { data: aiUsage },
     { count: guidedSessionsCount },
     { data: canaryRuns },
+    { data: stabilityAnalyses },
   ] = await Promise.all([
     service
       .from("apps")
@@ -93,6 +95,11 @@ export default async function AdminPage() {
       .select("intake_key, status, failure_reason, duration_sec, created_at")
       .order("created_at", { ascending: false })
       .limit(300),
+    service
+      .from("stability_analyses")
+      .select("id, created_at, band, completion_rate_pct, issues, recommendations, model, cost_usd")
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const oldestUndeliveredAt = oldestUndeliveredRows?.[0]?.created_at ?? null;
@@ -177,6 +184,18 @@ export default async function AdminPage() {
       aiUsage={aiUsage ?? []}
       guidedSessions={guidedSessionsCount ?? 0}
       canaryRuns={canaryRuns ?? []}
+      stabilityAnalyses={(stabilityAnalyses ?? []).map(
+        (a): StabilityAnalysis => ({
+          id: a.id,
+          created_at: a.created_at,
+          band: a.band as StabilityAnalysis["band"],
+          completion_rate_pct: a.completion_rate_pct,
+          issues: (a.issues as StabilityFinding[]) ?? [],
+          recommendations: (a.recommendations as StabilityFinding[]) ?? [],
+          model: a.model,
+          cost_usd: a.cost_usd,
+        }),
+      )}
     />
 
   );
