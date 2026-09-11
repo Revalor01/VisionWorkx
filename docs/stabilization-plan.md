@@ -469,18 +469,70 @@ surface area.
 
 ## Tier 3 — make the gate mean something
 
-_Ongoing._
+_Started 2026-09-11._
 
-- [ ] **T3.1** Canary becomes a **merge-blocking CI check** on changes to
-      `app/api/generate/route.ts`, `lib/apps/repairGenerated.ts`,
+- [x] **T3.1a — the fast gate is real.** `.github/workflows/ci.yml` (already
+      existed, tsc + vitest + `next build` on every push/PR) was running but
+      **not enforced** — no branch protection, so a red CI never blocked a
+      merge. Also added a `templates/base` drift check (regenerates
+      `baseTemplate.generated.ts` and diffs it against the committed version —
+      catches editing `templates/base/**` without `npm run gen:base`).
+      **Needs a one-time manual step** (blocked for the agent, same class as
+      the Vercel env write): make the `check` job a required status check on
+      `main`. Run once, by you:
+      ```
+      gh api -X PUT repos/Revalor01/VisionWorkx/branches/main/protection \
+        -H "Accept: application/vnd.github+json" \
+        -f 'required_status_checks[strict]=true' \
+        -f 'required_status_checks[contexts][]=check' \
+        -F 'enforce_admins=false' \
+        -F 'required_pull_request_reviews=null' \
+        -F 'restrictions=null' \
+        -F 'allow_force_pushes=false' \
+        -F 'allow_deletions=false'
+      ```
+- [x] **T3.1b — the slow/expensive gate, packaged and operator-triggered.**
+      `scripts/run-golden-canary.mjs` fires a fresh golden batch against
+      whatever's currently deployed and polls to a clear pass/fail — the same
+      thing done by hand during the `BUILD_PREFLIGHT` incident, now a
+      reusable command. Wired as `.github/workflows/golden-canary.yml`
+      (`workflow_dispatch`, manual — a full cycle is 15–45 min and costs real
+      AI + compute, so it's not on every push). Needs repo secrets
+      `CRON_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` added for the
+      Action to use it (the script also runs from `.env.local` locally with no
+      setup). Run it after any change to a risk-surface file before trusting
+      it: `app/api/generate/route.ts`, `lib/apps/repairGenerated.ts`,
       `lib/apps/validateGenerated.ts`, `app/api/deploy/route.ts`,
-      `templates/base/**`. Red canary → cannot merge.
-- [ ] **T3.2** Every production failure becomes a permanent canary intake. The
-      7 rows in the failure table above are the starting backlog.
-- [ ] **T3.3** `tsc --noEmit` on generated output runs in-pipeline (free once
-      T1 lands).
+      `lib/apps/baseTemplate.ts`, `templates/base/**`.
+- [x] **T3.2 — regression tests from this session's real incidents.**
+      `lib/apps/baseTemplate.test.ts` (new): platform-owned paths get
+      discarded and replaced, `qrcode` is allowlisted (the actual bug found
+      while proving Tier 2), a random package is correctly flagged, local/
+      relative/framework imports are never flagged. `validateGenerated.test.ts`
+      fixtures updated for the Tier 2 contract. 95 tests total, all green.
+- [x] **T3.3 — `tsc --noEmit` in-pipeline.** Already true via CI (every push)
+      and now also inside `preflightBuild()` itself: each sandbox attempt runs
+      `tsc --noEmit` before the full `next build` — a fraction of the cost,
+      and type errors are the dominant failure class, so this fails fast and
+      leaves more of the wall-clock budget for repair. **Recalibrated the
+      budget on real measured data** while testing this: a single
+      `repairGenerated()` call has its own internal 2-round retry and can take
+      up to ~4 min end to end (measured), not the ~1 min assumed when Tier 1
+      shipped. Default `maxWallClockMs` raised 3→4 min, default
+      `maxIterations` lowered 4→2 (redundant on top of repairGenerated's own
+      2 rounds; tightens the worst case instead of chasing a diminishing
+      return). Still fails open (`ok:"skipped"`, never a false failure) if the
+      budget runs out.
 - [ ] **T3.4** Canary asserts the running app (redirect loop, Next-15 marker
-      leak, 5xx) — already partly done in `smokeCheck`; extend per new failure.
+      leak, 5xx) — already partly done in `smokeCheck`; extend per new
+      failure. Not touched this pass.
+- [x] **Bonus: `/admin` "Build Outcomes" panel.** Real (non-canary) apps now
+      have a 7d/30d/all-time table — total, deployed, failed, deploy-failed,
+      in-progress, and **% complete** (deployed ÷ terminal-state apps, so a
+      still-building app isn't penalized) — plus a ranked **"top failure
+      reasons"** bar list combining real-app and canary failures, tagged by
+      source. This is the "where do I focus next" view; the per-category
+      canary grid also gained a 7d figure alongside the existing 30d one.
 
 ---
 
