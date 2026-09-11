@@ -254,6 +254,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      stability_analyses: {
+        Row: {
+          id: string;
+          created_at: string;
+          band: string;
+          completion_rate_pct: number | null;
+          input_summary: Record<string, unknown>;
+          issues: unknown;
+          recommendations: unknown;
+          model: string;
+          input_tokens: number;
+          output_tokens: number;
+          cost_usd: number | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          band: string;
+          completion_rate_pct?: number | null;
+          input_summary: Record<string, unknown>;
+          issues?: unknown;
+          recommendations?: unknown;
+          model: string;
+          input_tokens?: number;
+          output_tokens?: number;
+          cost_usd?: number | null;
+        };
+        Update: never;
+        Relationships: [];
+      };
       apps: {
         Row: {
           id: string;

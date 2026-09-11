@@ -25,7 +25,8 @@ export type AiUsageSource =
   | "mobile_sms"
   | "content_engine_source"
   | "outreach_group_post"
-  | "try_recommend";
+  | "try_recommend"
+  | "stability_analysis";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a
 // serverless function can be frozen/killed right after it returns, so a
