@@ -341,6 +341,31 @@ end-to-end against a real generated app (see T1.2). Ships **off by default**
 
 Removes failure classes 1 and 2 outright and most of the repair whack-a-mole.
 
+### Incident: `BUILD_PREFLIGHT=build` go-live (2026-09-11)
+
+Setting `BUILD_PREFLIGHT=build` in prod surfaced two things, both now fixed:
+
+1. **Migrations `076` and `078` were never actually applied**, despite an
+   earlier confirmation — verified directly against the DB and applied both
+   live. Until then, `runDeploy`'s first query (selecting
+   `pending_generated_code`) crashed immediately, so **every generated-app
+   deploy had been failing outright** since Tier 0/1 (#25) went live, and
+   `/admin` silently showed "0 apps" (its `build_notice` select 400ing).
+2. Triggering a fresh canary run to prove the fix live: 4/5 deployed clean,
+   `invoicing` sat in `ready` for ~20 min and was reaped as `failed (timeout)`.
+   Traced via Vercel runtime logs (not guessed) to a **pre-existing gap**: the
+   generate→deploy handoff is a bare un-awaited `fetch(...).catch(...)` fired
+   right before the response finishes, which can be silently dropped when the
+   execution context tears down. Fixed (PR #28) by moving all three internal
+   fire-and-forget triggers (generate→deploy, generate auto-retry,
+   deploy repair-redeploy) onto `after()`; `reap-stuck-builds` now also sets
+   `build_notice` when it force-fails a stuck row; `preflightBuild()` gained a
+   3-minute wall-clock cap as defense in depth (not the cause here, but a real
+   latent risk once preflight runs before "deploying" is set).
+
+**Lesson:** don't trust an unverified "columns are there" — check the DB
+directly before treating a migration as applied.
+
 ---
 
 ## Client exposure to the build process

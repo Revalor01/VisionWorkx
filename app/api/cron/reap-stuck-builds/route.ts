@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { operatorAlertTitle } from "@/lib/apps/buildFailure";
+import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -43,7 +44,17 @@ export async function GET(req: NextRequest) {
   for (const a of stuck) {
     await service
       .from("apps")
-      .update({ status: "failed", failure_reason: "timeout" })
+      // A build reaped here never ran its own catch block, so it never got
+      // the customer-facing build_notice either — without this it'd sit at
+      // "failed" with the client-status panel showing no update at all,
+      // silently breaking the "we'll update you here" promise.
+      .update({
+        status: "failed",
+        failure_reason: "timeout",
+        pending_generated_code: null,
+        build_notice: DEFAULT_BUILD_NOTICE,
+        build_notice_at: new Date().toISOString(),
+      })
       .eq("id", a.id)
       .in("status", ["generating", "ready", "deploying"]); // guard against a race
     await notifyBuildFailure({
