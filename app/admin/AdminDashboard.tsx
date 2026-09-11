@@ -2730,7 +2730,7 @@ function CollapsibleSection({
   title,
   subtitle,
   actions,
-  defaultOpen = true,
+  defaultOpen = false,
   padded = true,
   children,
 }: {
