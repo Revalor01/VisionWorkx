@@ -48,6 +48,14 @@ const PLAN_MRR: Record<string, number> = {
   pro: 199,
 };
 
+// Date + time (not just the date) for anything build-related — "created
+// 9/11" doesn't tell you if that was 12:01am or 11:59pm, which matters when
+// you're chasing down a specific failed build.
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 const CATEGORY_ICONS: Record<AppCategory, string> = {
   booking: "📅",
   crm: "👥",
@@ -730,6 +738,38 @@ export default function AdminDashboard({
     };
   }, [apps, canaryRuns]);
 
+  // ── Overall product stability verdict — the one bold headline number.
+  // Green requires ALL of: the canary has actually proven the plan's
+  // 10-consecutive-clean-run gate, the 30d canary pass rate hasn't slipped
+  // under it, and — when there's enough real-app volume to mean anything —
+  // real builds are completing at the same bar. Any miss is red, with the
+  // specific reason shown so it's never a black box.
+  const productStability = useMemo(() => {
+    const reasons: string[] = [];
+    if (canaryStats.gradedBatchCount === 0) {
+      reasons.push("No canary runs graded yet");
+    } else {
+      if (canaryStats.streak < canaryStats.streakGoal) {
+        reasons.push(
+          `Canary streak ${canaryStats.streak}/${canaryStats.streakGoal} consecutive clean runs`,
+        );
+      }
+      if (canaryStats.rate30 != null && canaryStats.rate30 < 0.9) {
+        reasons.push(`30-day canary pass rate ${Math.round(canaryStats.rate30 * 100)}%`);
+      }
+    }
+    if (
+      buildOutcomes.d30.terminal >= 3 &&
+      buildOutcomes.d30.pctComplete != null &&
+      buildOutcomes.d30.pctComplete < 0.9
+    ) {
+      reasons.push(
+        `Real-app 30-day completion rate ${Math.round(buildOutcomes.d30.pctComplete * 100)}% (${buildOutcomes.d30.deployed}/${buildOutcomes.d30.terminal})`,
+      );
+    }
+    return { stable: reasons.length === 0, reasons };
+  }, [canaryStats, buildOutcomes]);
+
   // ── Cost per build (actual AI + infra estimate) ────────────────
   const buildCost = useMemo(() => {
     const perBuild = new Map<string, number>();
@@ -1121,6 +1161,37 @@ export default function AdminDashboard({
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-zinc-900">Vision Workx Management Dashboard</h1>
           <p className="text-zinc-500 text-sm mt-1">All customers, apps, and deployments across Vision Workx</p>
+        </div>
+
+        {/* Product Stability — the one bold verdict, based on all build data
+            (canary streak/rate + real-app completion rate). See
+            docs/stabilization-plan.md for the gate this reflects. */}
+        <div
+          className={`mb-6 rounded-2xl border-2 p-5 ${
+            productStability.stable
+              ? "border-green-500 bg-green-50"
+              : "border-red-500 bg-red-50"
+          }`}
+        >
+          <p
+            className={`text-xl font-extrabold tracking-tight ${
+              productStability.stable ? "text-green-700" : "text-red-700"
+            }`}
+          >
+            Product Stability: {productStability.stable ? "STABLE" : "NOT STABLE"}
+          </p>
+          {productStability.stable ? (
+            <p className="text-sm text-green-800 mt-1">
+              All build-data checks pass: canary streak, 30-day canary pass rate, and real-app
+              completion rate.
+            </p>
+          ) : (
+            <ul className="text-sm text-red-800 mt-1 list-disc list-inside space-y-0.5">
+              {productStability.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Tabs */}
@@ -2979,7 +3050,7 @@ function AppTable({
                     )}
                   </td>
                   <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
-                    {new Date(app.created_at).toLocaleDateString()}
+                    {fmtDateTime(app.created_at)}
                   </td>
                   <td className="px-4 py-3">
                     {app.deploy_url ? (
