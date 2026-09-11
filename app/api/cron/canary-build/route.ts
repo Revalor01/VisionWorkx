@@ -333,10 +333,32 @@ export async function GET(req: NextRequest) {
     .eq("status", "pending");
 
   // 3. Fire a fresh set.
+  //
+  // Step 2 is best-effort: if a schema drop couldn't be verified (e.g. a
+  // transient Management API blip survived even the mgmtFetch retries),
+  // that canary's old row is deliberately kept for retry rather than
+  // deleted. apps_preview_email_unclaimed_idx means firing straight into
+  // that is a guaranteed, self-inflicted "could not start" — a teardown
+  // lag, not a real generate/deploy failure. Skip it cleanly instead of
+  // recording a hard fail: the next cron tick's step 2 will pick the old
+  // row up again and retry the teardown.
+  const skipped: string[] = [];
   const fired: string[] = [];
   for (const g of GOLDEN) {
+    const email = canaryEmail(g.key);
+    const { data: stale } = await service
+      .from("apps")
+      .select("id")
+      .eq("preview_email", email)
+      .is("claimed_at", null)
+      .maybeSingle();
+    if (stale) {
+      console.warn(`[canary] ${g.key} still torn down from a previous cycle (app ${stale.id}) — skipping this fire, not a build failure`);
+      skipped.push(g.key);
+      continue;
+    }
     try {
-      const { id } = await createPreviewApp(canaryEmail(g.key), g.intake, { skipDedup: true });
+      const { id } = await createPreviewApp(email, g.intake, { skipDedup: true });
       await service.from("build_canary_runs").insert({
         intake_key: g.key,
         app_id: id,
@@ -364,5 +386,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ graded, fired });
+  return NextResponse.json({ graded, fired, skipped });
 }

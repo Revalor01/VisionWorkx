@@ -27,20 +27,59 @@ export function tenantSchemaName(appId: string): string {
 
 class MgmtError extends Error {}
 
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+const MGMT_RETRY_ATTEMPTS = 3;
+const MGMT_RETRY_BASE_MS = 350;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// A single canary teardown cycle fires up to ~4 Management API calls per
+// app (GET/PATCH postgrest config, drop-schema query, exists check) back
+// to back for all 5 golden intakes with no delay between them — a burst
+// that's a plausible way to trip Supabase's Management API rate limit or
+// hit a transient 5xx. Previously a single such blip made
+// unexposeSchemaInPostgREST() throw, which made removeTenantSchema() bail
+// out (correctly — see its docstring), which left tenantSchemaExists()
+// truthfully reporting the schema was never removed, which meant the
+// apps row was correctly kept for retry... which then collided with
+// apps_preview_email_unclaimed_idx the moment the SAME cron invocation
+// tried to fire a fresh build under that canary's email a few lines
+// later. Retrying transient failures here is what actually closes that
+// loop, instead of every other layer doing the right, safe thing with
+// wrong (avoidably stale) information.
 async function mgmtFetch(path: string, init?: RequestInit): Promise<Response> {
   if (!MGMT_TOKEN) throw new MgmtError("SUPABASE_MANAGEMENT_TOKEN is not set");
-  const res = await fetch(`${MGMT_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${MGMT_TOKEN}`,
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    throw new MgmtError(`${init?.method ?? "GET"} ${path} -> ${res.status} ${(await res.text().catch(() => "")).slice(0, 300)}`);
+  for (let attempt = 1; attempt <= MGMT_RETRY_ATTEMPTS; attempt++) {
+    const lastAttempt = attempt === MGMT_RETRY_ATTEMPTS;
+    let res: Response;
+    try {
+      res = await fetch(`${MGMT_BASE}${path}`, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${MGMT_TOKEN}`,
+          "Content-Type": "application/json",
+          ...(init?.headers ?? {}),
+        },
+      });
+    } catch (err) {
+      // Network-level failure (DNS, timeout, connection reset) — always
+      // worth a retry, same as a 5xx.
+      if (lastAttempt) throw err instanceof Error ? err : new MgmtError(String(err));
+      await sleep(MGMT_RETRY_BASE_MS * 2 ** (attempt - 1));
+      continue;
+    }
+    if (res.ok) return res;
+    if (!RETRYABLE_STATUS.has(res.status) || lastAttempt) {
+      throw new MgmtError(
+        `${init?.method ?? "GET"} ${path} -> ${res.status} ${(await res.text().catch(() => "")).slice(0, 300)}`,
+      );
+    }
+    await sleep(MGMT_RETRY_BASE_MS * 2 ** (attempt - 1));
   }
-  return res;
+  // Unreachable — the loop always returns or throws — but keeps TypeScript happy.
+  throw new MgmtError("mgmtFetch: exhausted retries");
 }
 
 /** Run SQL against the project DB (bypasses PostgREST). Throws on error. */
