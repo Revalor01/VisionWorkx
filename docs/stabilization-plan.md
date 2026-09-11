@@ -392,24 +392,44 @@ into an issue") with a live update panel, never the raw word "failed"._
 
 ## Tier 2 — shrink what the LLM writes
 
-_The durable fix. Estimate: 1–2 weeks._
+_The durable fix. Code done 2026-09-10; needs cross-category proving (below)._
 
 The reason Replit / Bolt / Lovable are stable: a fixed, CI-tested scaffold; the
-model only fills ~10 domain files. VisionWorkx has the model emit the *entire*
-app — `package.json`, tsconfig, auth middleware, the reporting views — so every
-config file is a failure surface.
+model only fills ~10 domain files. VisionWorkx had the model emit the *entire*
+app — `package.json`, tsconfig, config, the Supabase clients — so every config
+file was a failure surface.
 
-- [ ] **T2.1** Extract `templates/base/` — Next 14 scaffold, Supabase client +
-      auth middleware, RLS helpers, `vw_metrics_daily` / `vw_automation_due`,
-      deploy config, `package.json`, `tsconfig.json`. Version-controlled,
-      covered by the repo's own CI.
-- [ ] **T2.2** Generator emits **only**: schema tables, pages, components, and
-      business-logic API routes. It cannot write or overwrite anything in the
-      base.
-- [ ] **T2.3** Deploy = `cp -r templates/base` + drop in the generated domain
-      files + install. The Next-14 clamp, the null-filter fixer, and half of
-      `validateGenerated` become unnecessary because the model can't get those
-      files wrong.
+- [x] **T2.1 — `templates/base/`** (10 real, reviewable files): `package.json`
+      (canonical deps, Next 14 pinned), `tsconfig.json`, `next.config.mjs`
+      (`eslint.ignoreDuringBuilds` — lint nits no longer fail a customer build;
+      `next build` still type-checks), `tailwind.config.ts` (the theme-token
+      map), `postcss.config.js`, `next-env.d.ts`, `.gitignore`,
+      `.env.local.example`, `lib/supabase.ts`, `lib/supabase-server.ts`.
+      `scripts/gen-base-template.mjs` (`npm run gen:base`) bakes them into
+      `lib/apps/baseTemplate.generated.ts` so the deploy function needs no
+      runtime FS access. `templates/` excluded from the platform tsconfig.
+- [x] **T2.2 — generator emits domain files only.** SYSTEM_PROMPT rewritten:
+      the 10 base paths are listed as platform-provided ("anything you write
+      there is discarded"); the two big Supabase-client code blocks and the
+      "pin next to ^14.2.0" instruction are gone. **Package allowlist:** only
+      `next react react-dom @supabase/ssr @supabase/supabase-js lucide-react`
+      are installed. `validateGenerated` flags a disallowed `import` and flags
+      any emitted platform-owned path (so the repair pass stops working on it).
+- [x] **T2.3 — deploy assembles from the base.** `patchFiles()` now opens with
+      `applyBaseTemplate()` — drop any platform-owned path the model emitted,
+      lay the base under the domain files. Deleted from `patchFiles`: the
+      inline `next.config` / `tailwind.config` / `tsconfig` / `package.json`
+      injection blocks **and the entire Next-14 clamp block**. Kept: the
+      wrong-import rewrite, hex-colour fixer, null-filter fixer, `.env.production`
+      strip, truncation fallbacks (remove once the canary is trusted). Preflight
+      + `scripts/test-preflight.mjs` both build from the same assembled set.
+- **Proving (before trusting it):** run
+      `node --import tsx scripts/test-preflight.mjs <app>` for **each** golden
+      category — booking, booking+crm, invoicing, portal, storefront — and get
+      `ok:true`. Only `booking` (Sunny Day Spa) is verified so far
+      (build → repair → green, unchanged from pre-Tier-2). There is no feature
+      flag; this is live on merge, so the canary is the safety net — keep the
+      build freeze until it's green 10 nights.
 
 Kills failure class 1 permanently; shrinks class 2; removes most of class 7's
 surface area.

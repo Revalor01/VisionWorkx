@@ -31,6 +31,7 @@ process.env.BUILD_PREFLIGHT = "build";
 const { preflightBuild } = await import("../lib/apps/sandboxBuild.ts");
 const { repairGenerated } = await import("../lib/apps/repairGenerated.ts");
 const { parseFileMap } = await import("../lib/apps/fileMap.ts");
+const { applyBaseTemplateToMap } = await import("../lib/apps/baseTemplate.ts");
 
 const arg = process.argv[2];
 let blob;
@@ -61,32 +62,9 @@ if (!arg && existsSync(new URL("../sunny-day-spa-generated.txt", import.meta.url
   process.exit(1);
 }
 
-const files = parseFileMap(blob);
-
-// Minimal slice of patchFiles(): the deploy route injects these when the AI
-// omits them, and without tsconfig the "@/*" alias doesn't resolve.
-if (!files["tsconfig.json"]) {
-  files["tsconfig.json"] = JSON.stringify(
-    {
-      compilerOptions: {
-        target: "ES2017", lib: ["dom", "dom.iterable", "esnext"], allowJs: true,
-        skipLibCheck: true, strict: true, noEmit: true, esModuleInterop: true,
-        module: "esnext", moduleResolution: "bundler", resolveJsonModule: true,
-        isolatedModules: true, jsx: "preserve", incremental: true,
-        plugins: [{ name: "next" }], paths: { "@/*": ["./*"] },
-      },
-      include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-      exclude: ["node_modules"],
-    },
-    null, 2,
-  );
-}
-if (!files["next.config.mjs"] && !files["next.config.js"]) {
-  files["next.config.mjs"] = "const nextConfig = { typescript: { ignoreBuildErrors: false } };\nexport default nextConfig;\n";
-}
-if (!files["next-env.d.ts"]) {
-  files["next-env.d.ts"] = '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n';
-}
+// Lay the platform base template under the generated domain files — the same
+// step patchFiles() runs before deploy (Tier 2).
+const files = applyBaseTemplateToMap(parseFileMap(blob));
 
 console.log(`app: ${appName} (${category}) — ${Object.keys(files).length} files\n`);
 

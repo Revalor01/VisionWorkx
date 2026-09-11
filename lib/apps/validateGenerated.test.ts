@@ -4,12 +4,12 @@ import { validateGenerated, validateRawOutput } from "./validateGenerated";
 import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 
 // A minimally-complete generated app that should pass every check.
+// Note (Tier 2): package.json / tsconfig / configs / lib/supabase*.ts are
+// platform-provided — a generation that emits them is now flagged, so the
+// fixture must NOT include them.
 const OK_MAP: FileMap = {
   "app/layout.tsx": "export default function L({ children }: { children: React.ReactNode }) { return <html><body>{children}</body></html>; }",
   "app/page.tsx": "export default function P() { return <main>home</main>; }",
-  ".env.local.example": "NEXT_PUBLIC_SUPABASE_URL=",
-  "lib/supabase.ts": "export function createClient() {}",
-  "lib/supabase-server.ts": "export function createServerSupabaseClient() {}",
   "supabase/migrations/001_init.sql":
     "create table bookings (id uuid primary key default gen_random_uuid(), customer_email text);\n" +
     "create view vw_metrics_daily as select now()::date as day, 'bookings_created'::text as metric_key, 0::numeric as value;\n" +

@@ -41,21 +41,29 @@ Output ONLY code files — no explanations, no preamble, no text outside the fil
 [/FILENAME]
 
 Tech stack:
-- Next.js 14 App Router, TypeScript throughout. In package.json pin "next" to "^14.2.0" and "eslint-config-next" to "^14.2.0" (with react/react-dom "^18") — this codebase's Supabase server client uses the synchronous cookies() API, which Next 15+ made async; an unpinned "next" drifts to 15/16 and breaks server-side auth.
+- Next.js 14 App Router, TypeScript throughout.
 - Supabase for auth + postgres database (@supabase/supabase-js, @supabase/ssr)
 - Tailwind CSS for all styling — no external UI component libraries
 - next/font/google for the font
 
-Files to generate (minimum):
+The platform PROVIDES these files — do NOT emit them, do NOT reference your own
+version, anything you write to these paths is discarded:
+  package.json, tsconfig.json, next.config.mjs, tailwind.config.ts,
+  postcss.config.js, next-env.d.ts, .gitignore, .env.local.example,
+  lib/supabase.ts, lib/supabase-server.ts
+The ONLY npm packages available are: next, react, react-dom, @supabase/ssr,
+@supabase/supabase-js, lucide-react. Do NOT import any other package — there is
+no package.json for you to add one to, and the build will fail.
+
+Files to generate:
 - app/layout.tsx
 - app/page.tsx  (auth-protected main view)
 - app/login/page.tsx
+- app/globals.css  (@tailwind base/components/utilities + your theme)
 - All feature pages for the requested category
 - components/ (reusable UI)
-- lib/supabase.ts (browser + server clients using @supabase/ssr)
+- any domain-only helpers under lib/ (NOT lib/supabase.ts / lib/supabase-server.ts)
 - supabase/migrations/001_init.sql (schema + RLS policies — use gen_random_uuid() not uuid_generate_v4())
-- .env.local.example
-- README.md (setup instructions for a non-technical user)
 
 Rules:
 1. Every page that shows user data must call supabase.auth.getUser() and redirect to /login if unauthenticated
@@ -67,53 +75,10 @@ Rules:
 7. The app must be simple enough for a non-technical small business owner to manage
 8. Use the provided primary color for buttons, headings, and accents
 9. Use the provided font throughout (import from next/font/google)
-10. CRITICAL — the browser and server Supabase clients MUST live in TWO SEPARATE files, not one. Mixing them in one file breaks the build, because \`next/headers\` (server-only) can't be imported into any file a Client Component also imports from:
-
-\`\`\`typescript
-// lib/supabase.ts — browser client ONLY, exact pattern required
-import { createBrowserClient } from '@supabase/ssr'
-
-const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public'
-
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { db: { schema: SCHEMA } }
-  )
-}
-\`\`\`
-
-\`\`\`typescript
-// lib/supabase-server.ts — server client ONLY, exact pattern required
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public'
-
-export function createServerSupabaseClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      db: { schema: SCHEMA },
-      cookies: {
-        get(name) { return cookieStore.get(name)?.value },
-        set(name, value, options) { try { cookieStore.set({ name, value, ...options }) } catch {} },
-        remove(name, options) { try { cookieStore.set({ name, value: '', ...options }) } catch {} },
-      },
-    }
-  )
-}
-\`\`\`
-
-Every Server Component, layout, or route handler that needs the server client MUST import \`createServerSupabaseClient\` from \`@/lib/supabase-server\` — NEVER from \`@/lib/supabase\`. Only Client Components ("use client") import \`createClient\` from \`@/lib/supabase\`.
-
-The .env.local.example MUST include:
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_SUPABASE_SCHEMA=public
+10. The Supabase clients already exist (platform-provided) — do NOT write them.
+    - Client Components ("use client"): \`import { createClient } from '@/lib/supabase'\`
+    - Server Components / layouts / route handlers: \`import { createServerSupabaseClient } from '@/lib/supabase-server'\` (NEVER from '@/lib/supabase' — its \`next/headers\` import breaks any Client Component bundle). A privileged server client is also exported: \`createServiceRoleClient\` from the same file.
+    Both use \`cookies()\` synchronously (Next 14) and read the tenant schema from \`NEXT_PUBLIC_SUPABASE_SCHEMA\` — you never pass a schema yourself.
 
 11. CRITICAL — NEVER write a trigger, function, or any DDL that touches \`auth.users\` or the \`public\` schema in the migration SQL. This app's database is a multi-tenant Postgres project — \`auth.users\` and \`public\` are shared across every tenant, and a trigger like \`on_auth_user_created ON auth.users\` will silently overwrite the platform's own trigger and break signups for every other tenant. This means:
     - Do NOT create a "profile auto-creation" trigger on auth.users. Instead, insert the profile row directly from application code, right after \`supabase.auth.signUp()\` succeeds in the signup page/handler:
