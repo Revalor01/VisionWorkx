@@ -32,7 +32,6 @@ const APP_URL = env.APP_URL || env.NEXT_PUBLIC_APP_URL || "https://vision-workx.
 const CRON_SECRET = env.CRON_SECRET;
 const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
-const GOLDEN_KEYS = ["booking", "booking_crm", "invoicing", "portal", "storefront"];
 const POLL_MS = 30_000;
 const MAX_WAIT_MS = 40 * 60_000; // leave headroom under the Action's 50 min timeout
 
@@ -60,9 +59,27 @@ console.log(`Triggering golden canary against ${APP_URL} ...`);
 const since = new Date().toISOString();
 const trig = await triggerCanary();
 console.log("Trigger response:", JSON.stringify(trig));
-if (trig.skipped) {
-  console.log(`A set was already in flight (${trig.skipped}) — nothing new fired this run.`);
+
+// `skipped` means two different things depending on shape, and only the
+// first one means nothing happened this run:
+//  - a STRING ("set in flight"): the whole batch was still mid-build from
+//    last time — `fired` is always [] in this case, nothing to poll.
+//  - an ARRAY (some intake keys): those specific canaries' old rows were
+//    still being torn down (see the canary-teardown-retry fix) and were
+//    skipped individually — everything else in `fired` still went out.
+// The one condition that actually means "nothing to do" is an empty
+// `fired`, regardless of why.
+const firedKeys = trig.fired ?? [];
+if (firedKeys.length === 0) {
+  console.log(
+    typeof trig.skipped === "string"
+      ? `A set was already in flight — nothing new fired this run.`
+      : `Nothing fired this run (all intakes skipped: ${(trig.skipped ?? []).join(", ") || "none"}).`,
+  );
   process.exit(2);
+}
+if (Array.isArray(trig.skipped) && trig.skipped.length > 0) {
+  console.log(`Note: ${trig.skipped.join(", ")} skipped this cycle (still tearing down from last run) — not a failure, just not graded this time.`);
 }
 
 // The rows exist immediately (status:"pending"); app_id is set right away too.
@@ -71,7 +88,7 @@ const runs = await rest(
   `build_canary_runs?created_at=gte.${encodeURIComponent(since)}&select=intake_key,app_id`,
 );
 const appIdByKey = Object.fromEntries(runs.map((r) => [r.intake_key, r.app_id]));
-const missingKeys = GOLDEN_KEYS.filter((k) => !appIdByKey[k]);
+const missingKeys = firedKeys.filter((k) => !appIdByKey[k]);
 if (missingKeys.length) {
   console.error(`Some intakes never got an app_id (couldn't start?): ${missingKeys.join(", ")}`);
 }
@@ -86,14 +103,14 @@ while (Date.now() < deadline) {
     ? await rest(`apps?id=in.(${ids.join(",")})&select=id,status,failure_reason`)
     : [];
   appsByKey = Object.fromEntries(
-    GOLDEN_KEYS.map((k) => [k, rows.find((r) => r.id === appIdByKey[k])]),
+    firedKeys.map((k) => [k, rows.find((r) => r.id === appIdByKey[k])]),
   );
-  const line = GOLDEN_KEYS.map((k) => {
+  const line = firedKeys.map((k) => {
     const a = appsByKey[k];
     return `${k.padEnd(12)} ${a ? a.status + (a.failure_reason ? ` (${a.failure_reason})` : "") : "did not start"}`;
   }).join("\n  ");
   console.log(`[${new Date().toISOString().slice(11, 19)}]\n  ${line}`);
-  const allDone = GOLDEN_KEYS.every((k) => !appIdByKey[k] || TERMINAL.has(appsByKey[k]?.status));
+  const allDone = firedKeys.every((k) => !appIdByKey[k] || TERMINAL.has(appsByKey[k]?.status));
   if (allDone) break;
   await new Promise((r) => setTimeout(r, POLL_MS));
 }
@@ -105,7 +122,7 @@ console.log("\nGrading this batch and advancing the pipeline ...");
 const graded = await triggerCanary();
 console.log("Grade response:", JSON.stringify(graded));
 
-const results = GOLDEN_KEYS.map((k) => ({
+const results = firedKeys.map((k) => ({
   key: k,
   graded: graded.graded?.[k] ?? null,
   appStatus: appsByKey[k]?.status ?? "did not start",
@@ -116,8 +133,11 @@ console.log(`\n${"=".repeat(60)}\nSUMMARY\n${"=".repeat(60)}`);
 for (const r of results) {
   console.log(`  ${r.key.padEnd(12)} ${(r.graded ?? r.appStatus)}${r.failureReason ? ` — ${r.failureReason}` : ""}`);
 }
+if (Array.isArray(trig.skipped) && trig.skipped.length > 0) {
+  console.log(`  (${trig.skipped.join(", ")} skipped this cycle — still tearing down, not graded)`);
+}
 const pass = results.filter((r) => r.graded === "pass").length;
 const fail = results.filter((r) => r.graded === "fail" || (!r.graded && r.appStatus !== "deployed")).length;
-console.log(`\n${pass}/5 pass, ${fail}/5 fail`);
+console.log(`\n${pass}/${firedKeys.length} pass, ${fail}/${firedKeys.length} fail`);
 
-process.exit(fail === 0 && pass === 5 ? 0 : 1);
+process.exit(fail === 0 && pass === firedKeys.length ? 0 : 1);
