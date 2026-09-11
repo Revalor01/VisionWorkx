@@ -1,7 +1,12 @@
 // Tier 3 (T3.1) — the manual "prove it before merging" step this session did
 // by hand, packaged as a reusable command. Fires a fresh golden-intake batch
-// against the LIVE deployed pipeline (production) and polls until every
-// intake is graded, then exits non-zero if any failed.
+// against the LIVE deployed pipeline (production), polls the underlying apps
+// (not build_canary_runs.status — that only updates when something re-invokes
+// the grading step, which won't happen until the next scheduled/manual
+// trigger) until every intake reaches a terminal state, then calls the
+// endpoint once more to grade this batch for real (updating
+// build_canary_runs / the /admin streak) and fires the next batch — exactly
+// what the nightly cron does, just run once, now.
 //
 // Local:
 //   node scripts/run-golden-canary.mjs
@@ -10,12 +15,6 @@
 //
 // Needs: APP_URL (default https://vision-workx.vercel.app), CRON_SECRET,
 // NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
-//
-// Note: this exercises whatever is currently DEPLOYED, not the PR's branch —
-// there's no preview-deploy wiring for the generate/deploy pipeline. Run it
-// after a risk-surface change has been deployed (or is about to be), not
-// as a pre-merge gate on every PR — a full cycle is ~15-45 min and costs
-// real AI + compute.
 import { readFileSync, existsSync } from "fs";
 
 const env = { ...process.env };
@@ -35,13 +34,13 @@ const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = env.SUPABASE_SERVICE_ROLE_KEY;
 const GOLDEN_KEYS = ["booking", "booking_crm", "invoicing", "portal", "storefront"];
 const POLL_MS = 30_000;
-const MAX_WAIT_MS = 45 * 60_000;
+const MAX_WAIT_MS = 40 * 60_000; // leave headroom under the Action's 50 min timeout
 
 for (const [name, v] of Object.entries({ CRON_SECRET, SUPABASE_URL, SERVICE_KEY })) {
   if (!v) { console.error(`Missing ${name} (env var or .env.local)`); process.exit(2); }
 }
 
-async function restQuery(path) {
+async function rest(path) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
   });
@@ -49,47 +48,76 @@ async function restQuery(path) {
   return res.json();
 }
 
+async function triggerCanary() {
+  const res = await fetch(`${APP_URL}/api/cron/canary-build`, {
+    headers: { Authorization: `Bearer ${CRON_SECRET}` },
+  });
+  if (!res.ok) throw new Error(`Trigger failed: ${res.status} ${(await res.text()).slice(0, 500)}`);
+  return res.json();
+}
+
 console.log(`Triggering golden canary against ${APP_URL} ...`);
 const since = new Date().toISOString();
-const trigRes = await fetch(`${APP_URL}/api/cron/canary-build`, {
-  headers: { Authorization: `Bearer ${CRON_SECRET}` },
-});
-if (!trigRes.ok) {
-  console.error(`Trigger failed: ${trigRes.status} ${(await trigRes.text()).slice(0, 500)}`);
-  process.exit(2);
-}
-const trig = await trigRes.json();
+const trig = await triggerCanary();
 console.log("Trigger response:", JSON.stringify(trig));
 if (trig.skipped) {
   console.log(`A set was already in flight (${trig.skipped}) — nothing new fired this run.`);
+  process.exit(2);
 }
 
-console.log(`Polling build_canary_runs created after ${since} ...`);
+// The rows exist immediately (status:"pending"); app_id is set right away too.
+await new Promise((r) => setTimeout(r, 5_000));
+const runs = await rest(
+  `build_canary_runs?created_at=gte.${encodeURIComponent(since)}&select=intake_key,app_id`,
+);
+const appIdByKey = Object.fromEntries(runs.map((r) => [r.intake_key, r.app_id]));
+const missingKeys = GOLDEN_KEYS.filter((k) => !appIdByKey[k]);
+if (missingKeys.length) {
+  console.error(`Some intakes never got an app_id (couldn't start?): ${missingKeys.join(", ")}`);
+}
+
+console.log(`Polling apps for a terminal status ...`);
+const TERMINAL = new Set(["deployed", "failed", "deploy_failed"]);
 const deadline = Date.now() + MAX_WAIT_MS;
-let rows = [];
+let appsByKey = {};
 while (Date.now() < deadline) {
-  rows = await restQuery(
-    `build_canary_runs?created_at=gte.${encodeURIComponent(since)}&select=intake_key,status,failure_reason,duration_sec&order=intake_key`,
+  const ids = Object.values(appIdByKey).filter(Boolean);
+  const rows = ids.length
+    ? await rest(`apps?id=in.(${ids.join(",")})&select=id,status,failure_reason`)
+    : [];
+  appsByKey = Object.fromEntries(
+    GOLDEN_KEYS.map((k) => [k, rows.find((r) => r.id === appIdByKey[k])]),
   );
-  const pending = rows.filter((r) => r.status === "pending");
   const line = GOLDEN_KEYS.map((k) => {
-    const r = rows.find((x) => x.intake_key === k);
-    return `${k.padEnd(12)} ${r ? r.status + (r.failure_reason ? ` (${r.failure_reason})` : "") : "not fired yet"}`;
+    const a = appsByKey[k];
+    return `${k.padEnd(12)} ${a ? a.status + (a.failure_reason ? ` (${a.failure_reason})` : "") : "did not start"}`;
   }).join("\n  ");
   console.log(`[${new Date().toISOString().slice(11, 19)}]\n  ${line}`);
-  if (rows.length >= GOLDEN_KEYS.length && pending.length === 0) break;
+  const allDone = GOLDEN_KEYS.every((k) => !appIdByKey[k] || TERMINAL.has(appsByKey[k]?.status));
+  if (allDone) break;
   await new Promise((r) => setTimeout(r, POLL_MS));
 }
 
-const byKey = Object.fromEntries(GOLDEN_KEYS.map((k) => [k, rows.find((r) => r.intake_key === k)]));
-const missing = GOLDEN_KEYS.filter((k) => !byKey[k] || byKey[k].status === "pending");
-const failed = GOLDEN_KEYS.filter((k) => byKey[k]?.status === "fail");
-const passed = GOLDEN_KEYS.filter((k) => byKey[k]?.status === "pass");
+// Grade this batch for real (updates build_canary_runs + the /admin streak)
+// and advance the pipeline — this is exactly what the next scheduled tick
+// would do; running it now just does it immediately instead of waiting.
+console.log("\nGrading this batch and advancing the pipeline ...");
+const graded = await triggerCanary();
+console.log("Grade response:", JSON.stringify(graded));
 
-console.log(`\n${"=".repeat(60)}\nSUMMARY: ${passed.length}/5 pass, ${failed.length}/5 fail, ${missing.length}/5 never graded\n${"=".repeat(60)}`);
-for (const k of GOLDEN_KEYS) {
-  const r = byKey[k];
-  console.log(`  ${k.padEnd(12)} ${r ? r.status : "TIMEOUT"}${r?.failure_reason ? ` — ${r.failure_reason}` : ""}`);
+const results = GOLDEN_KEYS.map((k) => ({
+  key: k,
+  graded: graded.graded?.[k] ?? null,
+  appStatus: appsByKey[k]?.status ?? "did not start",
+  failureReason: appsByKey[k]?.failure_reason ?? null,
+}));
+
+console.log(`\n${"=".repeat(60)}\nSUMMARY\n${"=".repeat(60)}`);
+for (const r of results) {
+  console.log(`  ${r.key.padEnd(12)} ${(r.graded ?? r.appStatus)}${r.failureReason ? ` — ${r.failureReason}` : ""}`);
 }
+const pass = results.filter((r) => r.graded === "pass").length;
+const fail = results.filter((r) => r.graded === "fail" || (!r.graded && r.appStatus !== "deployed")).length;
+console.log(`\n${pass}/5 pass, ${fail}/5 fail`);
 
-process.exit(failed.length === 0 && missing.length === 0 ? 0 : 1);
+process.exit(fail === 0 && pass === 5 ? 0 : 1);
