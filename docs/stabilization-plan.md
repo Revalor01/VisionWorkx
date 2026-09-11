@@ -423,13 +423,19 @@ file was a failure surface.
       wrong-import rewrite, hex-colour fixer, null-filter fixer, `.env.production`
       strip, truncation fallbacks (remove once the canary is trusted). Preflight
       + `scripts/test-preflight.mjs` both build from the same assembled set.
-- **Proving (before trusting it):** run
-      `node --import tsx scripts/test-preflight.mjs <app>` for **each** golden
-      category — booking, booking+crm, invoicing, portal, storefront — and get
-      `ok:true`. Only `booking` (Sunny Day Spa) is verified so far
-      (build → repair → green, unchanged from pre-Tier-2). There is no feature
-      flag; this is live on merge, so the canary is the safety net — keep the
-      build freeze until it's green 10 nights.
+- [x] **Proving — all 5 golden categories.** `booking` via
+      `scripts/test-preflight.mjs` (Sunny Day Spa, saved blob) and
+      `booking_crm` / `invoicing` / `portal` / `storefront` via the new
+      `scripts/gen-and-preflight.mjs` (a real generation each — plan → implement
+      → validate/repair → base-template assembly → sandbox preflight, no DB
+      writes). Found and fixed one real gap along the way: the "QR code"
+      intake feature imports `qrcode`, which the allowlist rejected — added it
+      to `templates/base/package.json` + `ALLOWED_PACKAGES`. Result: **all 5
+      PASS**, each green on the first preflight attempt (`validateGenerated`'s
+      existing repair caught everything pre-sandbox). There is still no feature
+      flag on Tier 2 — this is live on merge. **Next:** set
+      `BUILD_PREFLIGHT=build` in Vercel; keep the build freeze until the canary
+      is green 10 nights.
 
 Kills failure class 1 permanently; shrinks class 2; removes most of class 7's
 surface area.
