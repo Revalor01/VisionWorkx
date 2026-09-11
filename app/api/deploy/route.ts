@@ -8,6 +8,7 @@ import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMa
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { validateRawOutput } from "@/lib/apps/validateGenerated";
 import { preflightBuild } from "@/lib/apps/sandboxBuild";
+import { applyBaseTemplate } from "@/lib/apps/baseTemplate";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
@@ -377,196 +378,14 @@ Generate a reasonable, functional implementation for each missing file (a form c
 
 function patchFiles(files: { path: string; content: string }[]) {
   const has = (p: string) => files.some((f) => f.path === p);
-  const out = files.map((f) => ({ ...f }));
 
-  const tsConf = out.find((f) => f.path === "next.config.ts");
-  if (tsConf) {
-    tsConf.path = "next.config.mjs";
-    tsConf.content = `/** @type {import('next').NextConfig} */\nconst nextConfig = {};\nexport default nextConfig;\n`;
-  }
-  if (!has("next.config.ts") && !has("next.config.mjs") && !has("next.config.js")) {
-    out.push({
-      path: "next.config.mjs",
-      content: `/** @type {import('next').NextConfig} */\nconst nextConfig = {};\nexport default nextConfig;\n`,
-    });
-  }
-
-  // tailwind.config.ts is platform-owned, like the Supabase client files
-  // below — always fully overwritten regardless of what the AI generated.
-  // It maps the `primary`/`background` Tailwind theme tokens to CSS
-  // variables that app/layout.tsx sets at runtime from site_settings (per
-  // SYSTEM_PROMPT rule 13), so this mapping can never be missing or wrong.
-  // rgb(var(--x) / <alpha-value>) is the shadcn/ui convention — it requires
-  // the CSS variable to hold space-separated RGB components, which is
-  // exactly what hexToRgbTriplet() produces for site_settings.*_color_rgb.
-  const TAILWIND_CONFIG_CONTENT = `import type { Config } from "tailwindcss";
-
-const config: Config = {
-  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
-  theme: {
-    extend: {
-      colors: {
-        primary: "rgb(var(--color-primary) / <alpha-value>)",
-        background: "rgb(var(--color-background) / <alpha-value>)",
-      },
-    },
-  },
-  plugins: [],
-};
-export default config;
-`;
-  const twIdx = out.findIndex((f) => /^tailwind\.config\.(ts|js|mjs|cjs)$/.test(f.path));
-  if (twIdx >= 0) {
-    out[twIdx] = { path: "tailwind.config.ts", content: TAILWIND_CONFIG_CONTENT };
-  } else {
-    out.push({ path: "tailwind.config.ts", content: TAILWIND_CONFIG_CONTENT });
-  }
-
-  if (!has("tsconfig.json")) {
-    out.push({
-      path: "tsconfig.json",
-      content: JSON.stringify(
-        {
-          compilerOptions: {
-            target: "ES2017",
-            lib: ["dom", "dom.iterable", "esnext"],
-            allowJs: true,
-            skipLibCheck: true,
-            strict: true,
-            noEmit: true,
-            esModuleInterop: true,
-            module: "esnext",
-            moduleResolution: "bundler",
-            resolveJsonModule: true,
-            isolatedModules: true,
-            jsx: "preserve",
-            incremental: true,
-            plugins: [{ name: "next" }],
-            paths: { "@/*": ["./*"] },
-          },
-          include: ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-          exclude: ["node_modules"],
-        },
-        null,
-        2
-      ),
-    });
-  }
-
-  // Same class of gap as missing local imports (findMissingLocalImports
-  // below) — the AI occasionally omits package.json entirely from its own
-  // output. Unlike a missing component file, this doesn't surface until the
-  // Vercel build itself fails at "npm install" with an ENOENT on
-  // package.json, so it's worth guaranteeing up front rather than relying on
-  // the AI to always emit one. Deps are additive with the lucide-react/
-  // tailwindcss patch below, which only runs once this file is guaranteed
-  // to exist.
-  if (!has("package.json")) {
-    out.push({
-      path: "package.json",
-      content: JSON.stringify(
-        {
-          name: "vision-workx-app",
-          version: "0.1.0",
-          private: true,
-          scripts: {
-            dev: "next dev",
-            build: "next build",
-            start: "next start",
-            lint: "next lint",
-          },
-          dependencies: {
-            "@supabase/ssr": "^0.3.0",
-            "@supabase/supabase-js": "^2.39.0",
-            // Pinned to the Next 14 line on purpose: the generated
-            // Supabase server client (below) uses the synchronous
-            // `cookies()` API, which Next 15+ made async — an unpinned
-            // `next` drifts to 15/16 and every protected route then
-            // redirects to /login (server can't read the auth cookie),
-            // fighting the client-side session => infinite redirect loop.
-            next: "^14.2.0",
-            react: "^18",
-            "react-dom": "^18",
-          },
-          devDependencies: {
-            "@types/node": "^20",
-            "@types/react": "^18",
-            "@types/react-dom": "^18",
-            autoprefixer: "^10.0.1",
-            eslint: "^8",
-            "eslint-config-next": "^14.2.0",
-            postcss: "^8",
-            typescript: "^5",
-          },
-        },
-        null,
-        2
-      ),
-    });
-  }
-
-  const browserClientContent = `import { createBrowserClient } from '@supabase/ssr';
-
-const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public';
-
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { db: { schema: SCHEMA } }
-  );
-}
-`;
-
-  const serverClientContent = `import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-
-const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public';
-
-export function createServerSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      db: { schema: SCHEMA },
-      cookies: {
-        get(name: string) { return cookieStore.get(name)?.value; },
-        set(name: string, value: string, options: Record<string, unknown>) {
-          try { cookieStore.set({ name, value, ...options as object }); } catch {}
-        },
-        remove(name: string, options: Record<string, unknown>) {
-          try { cookieStore.set({ name, value: '', ...options as object }); } catch {}
-        },
-      },
-    }
-  );
-}
-
-export function createServiceRoleClient() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      db: { schema: SCHEMA },
-      cookies: { get: () => undefined, set: () => {}, remove: () => {} },
-    }
-  );
-}
-
-export {
-  createServerSupabaseClient as createServerBaseClient,
-  createServerSupabaseClient as createClient,
-};
-`;
-
-  const mainFile = out.find((f) => f.path === "lib/supabase.ts");
-  if (mainFile) mainFile.content = browserClientContent;
-  else out.push({ path: "lib/supabase.ts", content: browserClientContent });
-
-  const serverFile = out.find((f) => f.path === "lib/supabase-server.ts");
-  if (serverFile) serverFile.content = serverClientContent;
-  else out.push({ path: "lib/supabase-server.ts", content: serverClientContent });
+  // Tier 2 — lay the platform-owned scaffold (package.json, tsconfig,
+  // next/tailwind/postcss config, the two Supabase clients, next-env,
+  // .env.local.example, .gitignore) UNDER the generated domain files.
+  // Anything the model emitted to one of those paths is discarded here, so
+  // config/dependency drift and the old Next-14 clamp are no longer failure
+  // surfaces. Source of truth: templates/base/**. See docs/stabilization-plan.md.
+  const out = applyBaseTemplate(files.map((f) => ({ ...f })));
 
   // Claude occasionally imports the server client from '@/lib/supabase' despite
   // the prompt instructing otherwise — correct the import path deterministically
@@ -736,50 +555,9 @@ export default function StaffManager({ staff: propStaff }: { staff?: any[] }) {
     });
   }
 
-  const pkgFile = out.find((f) => f.path === "package.json");
-  if (pkgFile) {
-    try {
-      const pkg = JSON.parse(pkgFile.content);
-      pkg.dependencies = pkg.dependencies || {};
-      if (!pkg.dependencies["lucide-react"])
-        pkg.dependencies["lucide-react"] = "^0.344.0";
-      // tailwind.config.ts's rgb(var(--x) / <alpha-value>) mapping requires
-      // Tailwind v3+ — nothing else in this pipeline pins it.
-      pkg.devDependencies = pkg.devDependencies || {};
-      if (!pkg.devDependencies["tailwindcss"])
-        pkg.devDependencies["tailwindcss"] = "^3.4.0";
-
-      // Clamp the framework to the Next 14 line. The generated Supabase
-      // server client uses the synchronous `cookies()` API; Next 15 made
-      // it async and Next 16 removed the sync fallback entirely. On 15/16
-      // the server never reads the auth cookie, so every protected route
-      // redirects to /login while the client (which still has a session)
-      // bounces back — an infinite /login<->/dashboard redirect loop.
-      // The AI's own package.json increasingly emits "next": "latest"/15/16;
-      // force it back to ^14.2.0 unless it already targets 14.
-      const isNext14 = (v: unknown) =>
-        typeof v === "string" && /^[\^~]?14(\.|$)/.test(v.trim());
-      const isReact18 = (v: unknown) =>
-        typeof v === "string" && /^[\^~]?18(\.|$)/.test(v.trim());
-      if (!isNext14(pkg.dependencies["next"]))
-        pkg.dependencies["next"] = "^14.2.0";
-      if (!isNext14(pkg.devDependencies["eslint-config-next"]))
-        pkg.devDependencies["eslint-config-next"] = "^14.2.0";
-      // Next 14 pairs with React 18 — a stray React 19 pin breaks the build.
-      if (!isReact18(pkg.dependencies["react"]))
-        pkg.dependencies["react"] = "^18";
-      if (!isReact18(pkg.dependencies["react-dom"]))
-        pkg.dependencies["react-dom"] = "^18";
-      if (pkg.devDependencies["@types/react"] &&
-          !isReact18(pkg.devDependencies["@types/react"]))
-        pkg.devDependencies["@types/react"] = "^18";
-      if (pkg.devDependencies["@types/react-dom"] &&
-          !isReact18(pkg.devDependencies["@types/react-dom"]))
-        pkg.devDependencies["@types/react-dom"] = "^18";
-
-      pkgFile.content = JSON.stringify(pkg, null, 2);
-    } catch { /* leave as-is */ }
-  }
+  // package.json / the Next-14 clamp / tailwind + lucide pins are all handled
+  // by the base template now (applyBaseTemplate above) — the model no longer
+  // emits package.json at all.
 
   const envProdIdx = out.findIndex((f) => f.path === ".env.production");
   if (envProdIdx !== -1) out.splice(envProdIdx, 1);

@@ -6,19 +6,21 @@
 import type { AppCategory } from "@/lib/database.types";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { TEAM_ACCESS_FEATURE } from "@/lib/features";
+import {
+  PLATFORM_OWNED,
+  disallowedPackages,
+  ALLOWED_PACKAGES,
+} from "@/lib/apps/baseTemplate";
 
 // Categories that CANNOT function without collecting money (unlike booking,
 // where a deposit is optional) — so a generated one that never references
 // the Checkout bridge is broken.
 const PAYMENTS_REQUIRED: readonly AppCategory[] = ["invoicing", "membership", "storefront"];
 
-const REQUIRED_FILES = ["app/layout.tsx", "app/page.tsx", ".env.local.example"];
-
-// One of each pair must exist (the generator has used both names historically).
-const REQUIRED_EITHER: [string, string][] = [
-  ["lib/supabase.ts", "lib/supabase-browser.ts"],
-  ["lib/supabase-server.ts", "lib/supabaseServer.ts"],
-];
+// package.json / tsconfig / configs / the Supabase clients are platform-owned
+// (Tier 2 — lib/apps/baseTemplate). The generator neither needs to emit them
+// nor can override them, so nothing here checks for or against them.
+const REQUIRED_FILES = ["app/layout.tsx", "app/page.tsx"];
 
 const IMPORT_RE = /from\s+["']@\/([^"']+)["']/g;
 const HEX_CLASS_RE = /\b(?:bg|text|border|ring|from|via|to|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]/;
@@ -98,36 +100,28 @@ export function validateGenerated(
   for (const f of REQUIRED_FILES) {
     if (!has(f)) problems.push(`Missing required file: ${f}`);
   }
-  for (const [a, b] of REQUIRED_EITHER) {
-    if (!has(a) && !has(b)) problems.push(`Missing required file: ${a}`);
-  }
   const hasMigration = [...paths].some((p) => /supabase\/migrations\/.*\.sql$/.test(p));
   if (!hasMigration) problems.push("Missing the schema file under supabase/migrations/.");
 
-  // package.json — the framework must stay on the Next 14 line. The
-  // generated Supabase server client uses the synchronous cookies() API;
-  // Next 15 made it async and Next 16 removed the sync fallback, which
-  // breaks every server-side auth check — the app then bounces between
-  // /login and its home route forever. An unpinned "next" (or "latest")
-  // drifts there on its own once a newer major is published.
-  const pkgRaw = map["package.json"];
-  if (pkgRaw) {
-    try {
-      const pkg = JSON.parse(pkgRaw);
-      const nextVer = pkg?.dependencies?.next ?? pkg?.devDependencies?.next;
-      if (nextVer && !/^[\^~]?14(\.|$)/.test(String(nextVer).trim())) {
-        problems.push(
-          `package.json pins "next" to "${nextVer}" — keep it on the Next 14 line ("^14.2.0"). Newer majors make cookies() async and break server-side auth.`,
-        );
-      }
-      const reactVer = pkg?.dependencies?.react;
-      if (reactVer && !/^[\^~]?18(\.|$)/.test(String(reactVer).trim())) {
-        problems.push(
-          `package.json pins "react" to "${reactVer}" — Next 14 pairs with React 18 ("^18").`,
-        );
-      }
-    } catch {
-      problems.push("package.json is present but not valid JSON — fix it.");
+  // Tier 2 — the model must not import a package that isn't in the base
+  // template's package.json (there's nothing for it to add one to, and the
+  // build fails at module resolution).
+  const bad = disallowedPackages(
+    Object.entries(map).map(([path, content]) => ({ path, content })),
+  );
+  if (bad.length > 0) {
+    problems.push(
+      `Imports npm package(s) that aren't available: ${bad.join(", ")}. Only these are installed: ${ALLOWED_PACKAGES.join(", ")}. Remove the import or rewrite that code to use only what's available.`,
+    );
+  }
+
+  // A file written to a platform-owned path is silently discarded at deploy —
+  // flag it so the repair pass stops wasting effort on it.
+  for (const p of Object.keys(map)) {
+    if (PLATFORM_OWNED.has(p)) {
+      problems.push(
+        `${p} is platform-provided and will be discarded — do not emit it. Move any real logic into a domain file.`,
+      );
     }
   }
 
