@@ -6,6 +6,9 @@ import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
 import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
+import { validateRawOutput } from "@/lib/apps/validateGenerated";
+import { preflightBuild } from "@/lib/apps/sandboxBuild";
+import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
@@ -82,6 +85,21 @@ class BuildError extends Error {
   ) {
     super(`Build ${state}`);
     this.name = "BuildError";
+  }
+}
+
+// Thrown when the Tier 1 sandbox preflight can't get the app to compile. The
+// repair budget is already spent inside preflightBuild, so — unlike BuildError
+// — this does NOT trigger the deploy route's own repair-and-redeploy pass; it
+// goes straight to a clean "failed" with the compiler output attached.
+class PreflightError extends Error {
+  constructor(
+    public readonly stage: string,
+    message: string,
+    public readonly log: string,
+  ) {
+    super(message);
+    this.name = "PreflightError";
   }
 }
 
@@ -944,11 +962,16 @@ async function runDeploy(appId: string, userEmail: string | null) {
 
   // 1. Fetch app record
   const appRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,status,intake_data,checkout_secret,category,preview_email`,
+    `${SUPABASE_URL}/rest/v1/apps?id=eq.${appId}&select=id,name,user_id,generated_code,pending_generated_code,status,intake_data,checkout_secret,category,secondary_categories,preview_email`,
     { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
   );
   const [app] = await appRes.json();
-  if (!app?.generated_code) throw new Error("No generated code");
+  // Build from the pending blob (a fresh generation or a repair pass) when one
+  // is set; it is promoted to generated_code only once this deploy fully
+  // succeeds (step 9). A failure clears it and leaves generated_code — the last
+  // version that actually deployed — intact. See docs/stabilization-plan.md T0.1.
+  const source: string = app?.pending_generated_code || app?.generated_code || "";
+  if (!source) throw new Error("No generated code");
 
   // 2. Create schema + platform-owned site_settings table, seeded with the
   // logo from intake data if present. Runs unconditionally (independent of
@@ -1041,7 +1064,7 @@ WHERE id = true;
   await exposeSchemaInPostgREST(SCHEMA);
 
   // 3. Run the AI's migration, if any
-  const migrationFile = parseGeneratedCode(app.generated_code).find(
+  const migrationFile = parseGeneratedCode(source).find(
     (f) => f.path.includes("migrations") && f.path.endsWith(".sql")
   );
 
@@ -1130,7 +1153,7 @@ CREATE TRIGGER emit_automation_event
 
   // 4. Parse + patch files
   const projectName = slugify(app.name, appId);
-  const rawFiles = parseGeneratedCode(app.generated_code);
+  const rawFiles = parseGeneratedCode(source);
   let files = patchFiles(rawFiles);
 
   const literalColorHits = findLiteralColorClasses(files);
@@ -1154,6 +1177,60 @@ CREATE TRIGGER emit_automation_event
     }
   }
 
+  // 4c. Preflight (Tier 1): build the app in an ephemeral Vercel Sandbox and
+  // repair it against the real `next build` output BEFORE a Vercel project is
+  // created. Only a green build (or an unavailable sandbox) gets past here.
+  const filesToMap = (fs: { path: string; content: string }[]): FileMap =>
+    Object.fromEntries(fs.map((f) => [f.path, f.content]));
+  const mapToFiles = (m: FileMap): { path: string; content: string }[] =>
+    Object.entries(m).map(([path, content]) => ({ path, content }));
+
+  const preCategories = [
+    app.category,
+    ...((app.secondary_categories ?? []) as AppCategory[]),
+  ] as AppCategory[];
+  const preflight = await preflightBuild(filesToMap(files), {
+    onLog: (l) => console.log(`[api/deploy:preflight ${appId.slice(0, 8)}] ${l}`),
+    repair: async (fm, errors) => {
+      const { map } = await repairGenerated(
+        fm,
+        [
+          "The production `next build` of this app FAILED. Fix exactly these errors and re-emit each affected file IN FULL. Do not change package.json's framework pins.\n\n" +
+            errors,
+        ],
+        {
+          appName: app.name,
+          category: app.category as AppCategory,
+          categories: preCategories,
+          features: ((app.intake_data as IntakeData | null)?.features ?? []),
+          appId,
+        },
+      );
+      return map;
+    },
+  });
+
+  if (preflight.ok === false) {
+    // Broken build, repair budget spent — do NOT create a Vercel project.
+    throw new PreflightError(
+      preflight.stage,
+      `sandbox ${preflight.stage} failed after ${preflight.iterations} attempt(s)`,
+      preflight.errors,
+    );
+  }
+  if (preflight.ok === true) {
+    files = mapToFiles(preflight.files);
+    if (preflight.repaired) {
+      // Persist the repaired source as the pending build so a later redeploy
+      // uses what actually compiled (promoted to generated_code on success).
+      await supabasePatch("apps", appId, {
+        pending_generated_code: serializeFileMap(preflight.files),
+      }).catch((e) => console.error("[api/deploy] persist repaired preflight source failed:", e));
+    }
+  } else {
+    console.warn(`[api/deploy] preflight skipped: ${preflight.reason} — relying on the Vercel build`);
+  }
+
   // 5. Mark deploying
   await supabasePatch("apps", appId, { status: "deploying" });
 
@@ -1162,13 +1239,22 @@ CREATE TRIGGER emit_automation_event
   // must be present at build time, so doing this first means a single
   // deployment's build already has them (no second rebuild needed).
   const vercelProjectId = await getOrCreateVercelProject(projectName);
-  await supabasePatch("apps", appId, { vercel_project_id: vercelProjectId }).catch(() => {});
+  // Record the project id immediately — delete-app / canary teardown target it
+  // by id, and a name guess is fragile. Don't abort the deploy if this write
+  // blips (step 9 writes it again atomically), but do log it. (T0.5)
+  await supabasePatch("apps", appId, { vercel_project_id: vercelProjectId }).catch((e) =>
+    console.error(`[api/deploy] failed to persist vercel_project_id for ${appId}:`, e),
+  );
   await setVercelEnvVars(vercelProjectId, SCHEMA, appId, app.checkout_secret ?? null);
   await fetch(vercelUrl(`/v9/projects/${vercelProjectId}`), {
     method: "PATCH",
     headers: vercelHeaders,
     body: JSON.stringify({ ssoProtection: null }),
   });
+
+  // The exact source we're about to deploy — may differ from `source` if the
+  // preflight repaired it. This is what step 9 promotes to generated_code.
+  const deployedSource = serializeFileMap(filesToMap(files));
 
   // 7. Create the single Vercel deployment
   const deployment = await vercelPost("/v13/deployments", {
@@ -1198,9 +1284,14 @@ CREATE TRIGGER emit_automation_event
     }
   }
 
-  // 9. Save URL + email
+  // 9. Save URL + email. Atomic promote: the blob that just built successfully
+  // becomes the canonical generated_code, and the pending build is cleared.
+  // This is the ONLY place generated_code is advanced by the pipeline.
   await supabasePatch("apps", appId, {
+    generated_code: deployedSource,
+    pending_generated_code: null,
     deploy_url: finalUrl,
+    vercel_project_id: vercelProjectId,
     status: "deployed",
     failure_reason: null,
   });
@@ -1346,10 +1437,11 @@ export async function POST(req: NextRequest) {
       try {
         const { data: srcRow } = await serviceClient
           .from("apps")
-          .select("generated_code")
+          .select("generated_code, pending_generated_code")
           .eq("id", appId)
           .single();
-        const current = parseFileMap(srcRow?.generated_code ?? "");
+        const srcBlob = srcRow?.pending_generated_code || srcRow?.generated_code || "";
+        const current = parseFileMap(srcBlob);
         if (Object.keys(current).length > 0) {
           // Prefer the real compiler output. Vercel sometimes returns an
           // empty build log though — still worth one repair pass keyed on
@@ -1368,7 +1460,7 @@ export async function POST(req: NextRequest) {
             ];
           } else {
             const colorHits = findLiteralColorClasses(
-              patchFiles(parseGeneratedCode(srcRow?.generated_code ?? ""))
+              patchFiles(parseGeneratedCode(srcBlob))
             );
             instructions = [
               "The Vercel build of this app FAILED to compile and no build log was returned. Audit every file for what breaks a Next.js 16 production build and re-emit each fixed file IN FULL: undefined or unimported types, missing local imports, wrong prop shapes, unclosed JSX, `next/headers` or other server-only imports pulled into a Client Component, and calls to APIs that don't exist.",
@@ -1396,10 +1488,19 @@ export async function POST(req: NextRequest) {
             },
           );
           const fixedCode = serializeFileMap(fixed);
-          if (fixedCode !== serializeFileMap(current)) {
+          const repairProblems = validateRawOutput(fixedCode);
+          if (
+            fixedCode !== serializeFileMap(current) &&
+            fixedCode.length > 200 &&
+            repairProblems.length === 0
+          ) {
+            // Stage the repair in pending_generated_code — NOT generated_code.
+            // The redeploy below builds from it; only a successful build
+            // promotes it (step 9). A second failure leaves the last good
+            // generated_code untouched. See docs/stabilization-plan.md T0.1.
             await serviceClient
               .from("apps")
-              .update({ generated_code: fixedCode, status: "ready" })
+              .update({ pending_generated_code: fixedCode, status: "ready" })
               .eq("id", appId);
             const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
             void fetch(`${origin}/api/deploy`, {
@@ -1409,6 +1510,12 @@ export async function POST(req: NextRequest) {
             }).catch((e) => console.error("[api/deploy] repair redeploy trigger failed:", e));
             return NextResponse.json({ repaired: true, redeploying: true }, { status: 202 });
           }
+          if (repairProblems.length > 0) {
+            console.error(
+              "[api/deploy] repair output failed static checks, not persisting:",
+              repairProblems.join("; "),
+            );
+          }
         }
       } catch (repairErr) {
         console.error("[api/deploy] repair pass failed:", repairErr);
@@ -1416,11 +1523,16 @@ export async function POST(req: NextRequest) {
     }
 
     console.error("[api/deploy]", err);
-    const reason = err instanceof BuildError ? "build_error" : classifyBuildError((err as Error).message);
+    const reason =
+      err instanceof BuildError || err instanceof PreflightError
+        ? "build_error"
+        : classifyBuildError((err as Error).message);
     try {
       await serviceClient
         .from("apps")
-        .update({ status: "failed", failure_reason: reason })
+        // Drop the in-progress build. generated_code (last deployed version)
+        // is never touched on this path.
+        .update({ status: "failed", failure_reason: reason, pending_generated_code: null })
         .eq("id", appId);
     } catch { /* best-effort */ }
     await finalizeRevision(appId, "failed", { error: (err as Error).message });
@@ -1430,7 +1542,12 @@ export async function POST(req: NextRequest) {
       appName: appCheck?.name ?? null,
       customer: userEmail,
       error: (err as Error).message,
-      buildLog: err instanceof BuildError ? err.logs : null,
+      buildLog:
+        err instanceof BuildError
+          ? err.logs
+          : err instanceof PreflightError
+            ? err.log
+            : null,
       title: operatorAlertTitle(reason),
     });
     return NextResponse.json(

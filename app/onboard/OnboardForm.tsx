@@ -212,7 +212,9 @@ export default function OnboardForm({
       ? { ...DEFAULT_FORM, ...initialData, features: initialData.features ?? [] }
       : DEFAULT_FORM
   );
-  const [categorySelected, setCategorySelected] = useState(Boolean(initialData));
+  // Require a real stored category — if intake_data has none, the user must
+  // pick one rather than sailing past step 2 on the "booking" default.
+  const [categorySelected, setCategorySelected] = useState(Boolean(initialData?.category));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(
     initialData?.logoPath ? logoPathToUrl(initialData.logoPath) : null
@@ -297,7 +299,11 @@ export default function OnboardForm({
       router.push(`/generate?appId=${appId}`);
     } catch (err) {
       console.error("[onboard submit]", err);
-      setError("Something went wrong saving your details. Please try again.");
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Something went wrong saving your details. Please try again.",
+      );
       setLoading(false);
     }
   }

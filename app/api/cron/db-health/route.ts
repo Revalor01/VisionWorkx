@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const service = createServiceClient();
 
   let p = await probe();
-  let remediation: { removed: string[]; kept: number } | null = null;
+  let remediation: { removed: string[]; added: string[]; kept: number } | null = null;
   let remediationError: string | null = null;
 
   if (!p.ok && p.schemaCache) {
@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
   const detail = [
     p.detail,
     remediation?.removed.length ? `auto-removed stale db_schema entries: ${remediation.removed.join(", ")}` : "",
+    remediation?.added.length ? `auto-added missing db_schema entries: ${remediation.added.join(", ")}` : "",
     remediationError ? `remediation error: ${remediationError}` : "",
   ]
     .filter(Boolean)

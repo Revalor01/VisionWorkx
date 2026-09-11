@@ -121,20 +121,96 @@ export async function removeTenantSchema(appId: string): Promise<void> {
   }
 }
 
-/**
- * Self-heal PostgREST's `db_schema`: any `app_<hex8>` entry that no longer
- * exists as a real schema is a live outage (PGRST002 on every request).
- * Diff the exposure list against `pg_namespace` and PATCH out the strays.
- * Returns the names it removed. Safe to run any time; a no-op when clean.
- */
-export async function reconcilePostgrestSchemas(): Promise<{ removed: string[]; kept: number }> {
-  const exposed = await getDbSchemaList();
+// Tables every tenant schema has that carry configuration, not customer
+// records — a row here doesn't mean "this app is in use".
+const NON_DATA_TABLES = new Set([
+  "site_settings",
+  "store_settings",
+  "business_settings",
+  "admin_settings",
+  "settings",
+]);
+
+/** True if the tenant schema for this app id still exists in the database. */
+export async function tenantSchemaExists(appId: string): Promise<boolean> {
+  const schema = tenantSchemaName(appId);
+  if (!TENANT_SCHEMA_RE.test(schema)) return false;
   const rows = await mgmtQueryRows<{ nspname: string }>(
+    `select nspname from pg_namespace where nspname = '${schema}'`,
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Row counts for a tenant schema's *data* tables (everything except the
+ * settings tables above) that currently hold at least one row. Used to decide
+ * whether an app is safe to regenerate — regeneration re-runs a fresh AI
+ * migration against the existing schema and can drift or drop tables.
+ * Returns [] if the schema doesn't exist or the query fails.
+ */
+export async function tenantCustomerRowCounts(
+  appId: string,
+): Promise<{ table: string; rows: number }[]> {
+  const schema = tenantSchemaName(appId);
+  if (!TENANT_SCHEMA_RE.test(schema)) return [];
+  try {
+    const rows = await mgmtQueryRows<{ table_name: string; n: number }>(`
+      select t.table_name,
+             (xpath('/row/c/text()', query_to_xml(
+               format('select count(*) c from %I.%I', t.table_schema, t.table_name),
+               false, true, ''))
+             )[1]::text::int as n
+      from information_schema.tables t
+      where t.table_schema = '${schema}' and t.table_type = 'BASE TABLE'
+    `);
+    return rows
+      .filter((r) => !NON_DATA_TABLES.has(r.table_name) && Number(r.n) > 0)
+      .map((r) => ({ table: r.table_name, rows: Number(r.n) }))
+      .sort((a, b) => b.rows - a.rows);
+  } catch (err) {
+    console.error(`[tenantSchema] tenantCustomerRowCounts(${schema}) failed:`, err);
+    return [];
+  }
+}
+
+/**
+ * Reconcile PostgREST's `db_schema` exposure list against reality, both ways:
+ *
+ *  - **remove** any `app_<hex8>` entry whose schema no longer exists — a
+ *    dangling entry is a live outage (PGRST002 on every request);
+ *  - **add** any `app_<hex8>` schema that exists AND has a live `public.apps`
+ *    row but isn't currently exposed — that app's REST calls would 404.
+ *
+ * An orphan schema (exists, but no apps row — e.g. a parked legacy schema that
+ * was deliberately re-exposed) is left exactly as-is: not removed, not added.
+ * Safe to run any time; a no-op when already consistent. (T0.6)
+ */
+export async function reconcilePostgrestSchemas(): Promise<{
+  removed: string[];
+  added: string[];
+  kept: number;
+}> {
+  const exposed = await getDbSchemaList();
+  const schemaRows = await mgmtQueryRows<{ nspname: string }>(
     `select nspname from pg_namespace where nspname like 'app\\_%'`,
   );
-  const existing = new Set(rows.map((r) => r.nspname));
+  const existing = new Set(
+    schemaRows.map((r) => r.nspname).filter((n) => TENANT_SCHEMA_RE.test(n)),
+  );
+  const appRows = await mgmtQueryRows<{ p: string }>(
+    `select left(id::text, 8) as p from public.apps`,
+  );
+  const liveSchemas = new Set([...appRows].map((r) => `app_${r.p}`));
+
   const stale = exposed.filter((s) => TENANT_SCHEMA_RE.test(s) && !existing.has(s));
-  if (stale.length === 0) return { removed: [], kept: exposed.length };
-  await setDbSchemaList(exposed.filter((s) => !stale.includes(s)));
-  return { removed: stale, kept: exposed.length - stale.length };
+  const missing = [...existing].filter(
+    (s) => liveSchemas.has(s) && !exposed.includes(s),
+  );
+
+  if (stale.length === 0 && missing.length === 0) {
+    return { removed: [], added: [], kept: exposed.length };
+  }
+  const next = [...exposed.filter((s) => !stale.includes(s)), ...missing];
+  await setDbSchemaList(next);
+  return { removed: stale, added: missing, kept: next.length };
 }

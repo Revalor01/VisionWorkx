@@ -419,10 +419,38 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Save generated code — happens while HTTP response is still technically open
+      // An empty / truncated-to-nothing blob must never be persisted as
+      // status:"ready" — that's the "generated_code is NULL, status stuck"
+      // failure. Fail loud instead. (docs/stabilization-plan.md T0.1)
+      if (!codeToSave || codeToSave.length < 200) {
+        await serviceClient
+          .from("apps")
+          .update({ status: "failed", failure_reason: "generation" })
+          .eq("id", appId);
+        await notifyBuildFailure({
+          stage: "generate",
+          appId,
+          appName,
+          customer: app?.preview_email ?? (app?.user_id ? `user ${app.user_id}` : null),
+          error: "generation produced no usable code",
+          title: operatorAlertTitle("generation"),
+        });
+        return;
+      }
+
+      // Save generated code — happens while HTTP response is still technically
+      // open. First build → generated_code. A regeneration of an app that
+      // already has a last-good version → stage in pending_generated_code so a
+      // failed rebuild can't destroy the running app's source; a successful
+      // deploy promotes it (docs/stabilization-plan.md T0.1).
+      const isRegen = Boolean(app?.generated_code);
       await serviceClient
         .from("apps")
-        .update({ generated_code: codeToSave, status: "ready", failure_reason: null })
+        .update(
+          isRegen
+            ? { pending_generated_code: codeToSave, status: "ready", failure_reason: null }
+            : { generated_code: codeToSave, status: "ready", failure_reason: null },
+        )
         .eq("id", appId);
 
       // Open the app's revision history with this first build (snapshot is
