@@ -78,15 +78,18 @@ const STATUS_CONFIG: Record<
     cls: "bg-green-100 text-green-700",
     dot: "bg-green-400",
   },
+  // The customer never sees "failed" — a hard failure is shown as still
+  // finishing while the operator is alerted and closes the loop.
+  // (/admin reads app.status directly and shows the real state.)
   failed: {
-    label: "Failed",
-    cls: "bg-red-100 text-red-700",
-    dot: "bg-red-400",
+    label: "Finishing up",
+    cls: "bg-blue-100 text-blue-700",
+    dot: "bg-blue-400 animate-pulse",
   },
   deploy_failed: {
-    label: "Deploy Failed",
-    cls: "bg-red-100 text-red-700",
-    dot: "bg-red-400",
+    label: "Finishing up",
+    cls: "bg-blue-100 text-blue-700",
+    dot: "bg-blue-400 animate-pulse",
   },
   test_skipped: {
     label: "Test run",
@@ -412,21 +415,10 @@ function AppCard({
         </div>
       )}
 
-      {app.status === "deploy_failed" && (
-        <div className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">
-          Deployment failed. Please contact support or try again.
-        </div>
-      )}
-
-      {app.status === "failed" && (
-        <div className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 mb-4">
-          Generation failed.{" "}
-          <Link
-            href={`/generate?appId=${app.id}`}
-            className="font-semibold underline"
-          >
-            Try again →
-          </Link>
+      {(app.status === "failed" || app.status === "deploy_failed") && (
+        <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-xl px-3 py-2 mb-4">
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+          Putting the finishing touches on this — we&apos;ll email you when it&apos;s ready.
         </div>
       )}
 
@@ -475,6 +467,15 @@ function AppCard({
           <Link
             href={`/generate?appId=${app.id}`}
             className="flex-1 min-w-[90px] text-center text-xs font-medium text-amber-700 bg-amber-50 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
+          >
+            View Progress →
+          </Link>
+        )}
+
+        {(app.status === "failed" || app.status === "deploy_failed") && (
+          <Link
+            href={`/generate?appId=${app.id}`}
+            className="flex-1 min-w-[90px] text-center text-xs font-medium text-blue-600 bg-blue-50 py-2.5 rounded-xl hover:bg-blue-100 transition-colors"
           >
             View Progress →
           </Link>

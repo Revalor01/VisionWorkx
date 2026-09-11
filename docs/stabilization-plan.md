@@ -343,6 +343,39 @@ Removes failure classes 1 and 2 outright and most of the repair whack-a-mole.
 
 ---
 
+## Client exposure to the build process
+
+_Done 2026-09-10. The client sees coarse phases and outcomes — never code,
+compiler errors, repair counts, or the word "failed"._
+
+- [x] **Single source of truth: `lib/apps/clientStatus.ts`.** `clientBuildState()`
+      maps a DB status (+ optional live stream phase) to
+      `{ phase, headline, sub, done, settling }`. A hard failure
+      (`failed` / `deploy_failed`) resolves to `settling: true` — "Almost
+      there, we'll email you" — never to a failure message. `/admin` does not
+      import this and still shows the real status.
+- [x] **`/generate` is phased progress only, no code.** `/api/generate` stops
+      streaming generated code to the browser; it emits `[[PHASE:designing|
+      building|reviewing]]` markers and `[[TICK]]` heartbeats (every ~8s to
+      keep the connection warm). `GenerateClient.tsx` rewritten to a 5-step
+      stepper (Designing → Building → Reviewing → Publishing → Live), driven by
+      those markers then by polling `apps.status`. The `[Checking… N things to
+      fix]` / `[Planned the app structure…]` lines are gone. Preview/canary
+      path unchanged (never wrote to the stream).
+- [x] **Dashboard softens hard failures.** `failed` / `deploy_failed` render as
+      a blue "Finishing up" badge + "Putting the finishing touches on this —
+      we'll email you", no red, no client-facing retry (retry is operator-only
+      via `/admin`).
+- [x] **No automated "it failed" email to the customer.** The promised email
+      is the existing "your app is live!" one, sent when the operator's fix
+      deploys. `notifyBuildFailure` (operator alert, full detail) is unchanged.
+- **Accepted trade-off:** a `failed` app the operator never fixes leaves the
+  customer waiting on an email indefinitely. Mitigation: the operator alert is
+  loud; `/admin` shows the true `failed` state. _(Follow-up: make `/admin`
+  surface stuck failed builds more prominently.)_
+
+---
+
 ## Tier 2 — shrink what the LLM writes
 
 _The durable fix. Estimate: 1–2 weeks._
