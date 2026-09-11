@@ -435,19 +435,29 @@ export async function POST(req: NextRequest) {
       // the empty map). finalizeRevision in /api/deploy closes it out.
       await recordInitialRevision(appId);
 
-      // Kick off deploy pipeline (fire-and-forget via internal API route).
+      // Kick off deploy pipeline via an internal API route. Scheduled with
+      // after() rather than a bare un-awaited fetch: a plain "fire and
+      // forget" call here can get silently dropped when this function's
+      // execution context is torn down right after the streaming response to
+      // the browser closes (below, in `finally`) — the fetch never finishes
+      // being dispatched, /api/deploy is never invoked, and the app sits in
+      // "ready" with no error until the stuck-build reaper catches it 30
+      // minutes later. after() is the platform's guarantee that this runs to
+      // completion even though the response has already been sent.
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
       if (codeToSave) {
-        fetch(`${appUrl}/api/deploy`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({ appId, _internal: true }),
-        }).catch((err: unknown) =>
-          console.error("[api/generate] deploy trigger failed:", err)
+        after(() =>
+          fetch(`${appUrl}/api/deploy`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({ appId, _internal: true }),
+          }).catch((err: unknown) =>
+            console.error("[api/generate] deploy trigger failed:", err)
+          )
         );
       }
     } catch (err) {
@@ -467,14 +477,18 @@ export async function POST(req: NextRequest) {
         console.warn(`[/api/generate] auto-retrying once after ${reason}`);
         if (reason !== "generation") await new Promise((r) => setTimeout(r, 8000));
         const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
-        void fetch(`${origin}/api/generate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
-          },
-          body: JSON.stringify({ appId, _preview: isPreview, _autoRetry: true }),
-        }).catch((e) => console.error("[/api/generate] auto-retry trigger failed:", e));
+        // after(), not a bare fire-and-forget fetch — see the deploy-trigger
+        // comment above for why an un-awaited call here can silently vanish.
+        after(() =>
+          fetch(`${origin}/api/generate`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+            },
+            body: JSON.stringify({ appId, _preview: isPreview, _autoRetry: true }),
+          }).catch((e) => console.error("[/api/generate] auto-retry trigger failed:", e))
+        );
         return; // leave status as-is; the retry owns the outcome
       }
 

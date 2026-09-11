@@ -29,8 +29,21 @@ export interface PreflightOpts {
   repair: (files: FileMap, buildErrors: string) => Promise<FileMap>;
   /** Repair→rebuild attempts after the first build (default 4). */
   maxIterations?: number;
+  /**
+   * Hard wall-clock budget for this whole call, in ms (default 3 min).
+   * `runDeploy` calls this BEFORE marking the app "deploying", and the actual
+   * Vercel deploy+poll after it needs up to 9 more minutes inside the
+   * function's 800s ceiling — an unbounded repair loop (each round is a real
+   * Claude call) can silently starve that, leaving the app stuck in "ready"
+   * until the stuck-build reaper kills it with no clean failure. When the
+   * budget runs out mid-loop we return "skipped", never "false" — an
+   * unfinished repair attempt is not proof the app is broken.
+   */
+  maxWallClockMs?: number;
   onLog?: (line: string) => void;
 }
+
+const DEFAULT_WALL_CLOCK_MS = 3 * 60_000;
 
 // NEXT_PUBLIC_* must be defined at build time or `next build` throws while
 // evaluating the Supabase client module. Placeholders are fine — pages that
@@ -83,6 +96,8 @@ export async function preflightBuild(
 
   const log = opts.onLog ?? (() => {});
   const maxIter = opts.maxIterations ?? 4;
+  const deadline = Date.now() + (opts.maxWallClockMs ?? DEFAULT_WALL_CLOCK_MS);
+  const outOfTime = () => Date.now() >= deadline;
 
   let sandbox: Sandbox;
   try {
@@ -112,6 +127,10 @@ export async function preflightBuild(
 
     let repaired = false;
     for (let i = 1; i <= maxIter + 1; i++) {
+      if (outOfTime()) {
+        log(`preflight out of time before attempt ${i} — deferring to the normal deploy`);
+        return { ok: "skipped", reason: "wall-clock budget exceeded" };
+      }
       const build = await sandbox.runCommand({
         cmd: "npx",
         args: ["--yes", "next", "build"],
@@ -126,6 +145,10 @@ export async function preflightBuild(
       log(`preflight build attempt ${i} failed`);
       if (i > maxIter) {
         return { ok: false, stage: "build", errors, iterations: i, files };
+      }
+      if (outOfTime()) {
+        log(`preflight out of time before repairing attempt ${i} — deferring to the normal deploy`);
+        return { ok: "skipped", reason: "wall-clock budget exceeded" };
       }
 
       const before = files;

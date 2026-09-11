@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
@@ -1283,12 +1283,19 @@ export async function POST(req: NextRequest) {
               .from("apps")
               .update({ pending_generated_code: fixedCode, status: "ready" })
               .eq("id", appId);
+            // after(), not a bare fire-and-forget fetch — this response is
+            // about to return, and an un-awaited call started right before
+            // that can be silently dropped when the execution context tears
+            // down, leaving the app stuck in "ready" until the stuck-build
+            // reaper catches it 30 minutes later with no clean failure.
             const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
-            void fetch(`${origin}/api/deploy`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-              body: JSON.stringify({ appId, _internal: true, _repairAttempt: true }),
-            }).catch((e) => console.error("[api/deploy] repair redeploy trigger failed:", e));
+            after(() =>
+              fetch(`${origin}/api/deploy`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+                body: JSON.stringify({ appId, _internal: true, _repairAttempt: true }),
+              }).catch((e) => console.error("[api/deploy] repair redeploy trigger failed:", e))
+            );
             return NextResponse.json({ repaired: true, redeploying: true }, { status: 202 });
           }
           if (repairProblems.length > 0) {
