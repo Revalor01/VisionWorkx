@@ -1152,19 +1152,17 @@ export default function AdminDashboard({
             </div>
 
             {/* Status breakdown */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <h2 className="font-semibold text-zinc-900 mb-4">App Pipeline Status</h2>
+            <CollapsibleSection title="App Pipeline Status">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <PipelineStat label="Generating" count={stats.generating} color="amber" />
                 <PipelineStat label="Deploying" count={stats.deploying} color="blue" />
                 <PipelineStat label="Live" count={stats.liveApps} color="green" />
                 <PipelineStat label="Failed" count={stats.failed} color="red" />
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Client activity */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <h2 className="font-semibold text-zinc-900 mb-4">Client Activity</h2>
+            <CollapsibleSection title="Client Activity">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCard
                   label="Change requests"
@@ -1189,12 +1187,12 @@ export default function AdminDashboard({
                 <PipelineStat label="Deploy failed" count={stats.deployFailed} color="red" />
                 <PipelineStat label="Change failed" count={stats.changeReqsFailed} color="red" />
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* AI cost (Anthropic) */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-zinc-900">AI Cost (Anthropic)</h2>
+            <CollapsibleSection
+              title="AI Cost (Anthropic)"
+              actions={
                 <a
                   href="https://console.anthropic.com/settings/usage"
                   target="_blank"
@@ -1203,7 +1201,8 @@ export default function AdminDashboard({
                 >
                   Anthropic console →
                 </a>
-              </div>
+              }
+            >
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCard label="This month" value={`$${stats.aiSpendMonth.toFixed(2)}`} accent="blue" />
                 <StatCard label="Last 7 days" value={`$${stats.aiSpend7.toFixed(2)}`} />
@@ -1246,17 +1245,18 @@ export default function AdminDashboard({
                 Computed from logged token usage at Anthropic list prices. Does not reflect your
                 account credit balance — check the Anthropic console for that.
               </p>
-            </div>
+            </CollapsibleSection>
 
             {/* Build reliability */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="font-semibold text-zinc-900">Build Reliability</h2>
-                <span className="text-xs text-zinc-400">
+            <CollapsibleSection
+              title="Build Reliability"
+              actions={
+                <span className="text-xs text-zinc-400 whitespace-nowrap">
                   golden-intake canary · {canaryStats.total30} graded in 30d
                   {canaryStats.pending > 0 ? ` · ${canaryStats.pending} running` : ""}
                 </span>
-              </div>
+              }
+            >
               <p className="text-xs text-zinc-500 mb-4">
                 Synthetic first builds run daily through the real generate → deploy pipeline. This
                 is the number that says whether the product is stable.
@@ -1400,7 +1400,7 @@ export default function AdminDashboard({
                   </div>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
 
             {/* Build outcomes + failure reasons — where to focus fix effort */}
             <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
@@ -1491,12 +1491,10 @@ export default function AdminDashboard({
             </div>
 
             {/* Cost per build / unit economics */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <h2 className="font-semibold text-zinc-900 mb-1">Cost per Build</h2>
-              <p className="text-xs text-zinc-500 mb-4">
-                What it actually costs to produce one app. AI is measured; infra is an estimate;
-                ongoing hosting is not in here (see bottom). Use this to sanity-check plan pricing.
-              </p>
+            <CollapsibleSection
+              title="Cost per Build"
+              subtitle="What it actually costs to produce one app. AI is measured; infra is an estimate; ongoing hosting is not in here (see bottom). Use this to sanity-check plan pricing."
+            >
 
               {buildCost.n === 0 ? (
                 <p className="text-sm text-zinc-500">
@@ -1617,16 +1615,18 @@ export default function AdminDashboard({
                   </div>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
 
             {/* Recent apps */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] overflow-hidden">
-              <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-                <h2 className="font-semibold text-zinc-900">Recent Apps</h2>
+            <CollapsibleSection
+              title="Recent Apps"
+              padded={false}
+              actions={
                 <button onClick={() => setTab("apps")} className="text-xs text-blue-600 hover:underline">
                   View all →
                 </button>
-              </div>
+              }
+            >
               <AppTable
                 apps={apps.filter((a) => !deletedAppIds.has(a.id)).slice(0, 10)}
                 userEmails={userEmails}
@@ -1643,7 +1643,7 @@ export default function AdminDashboard({
                 onTogglePaymentsTest={handleTogglePaymentsTest}
                 aiCostByApp={buildCost.perBuild}
               />
-            </div>
+            </CollapsibleSection>
           </div>
         )}
 
@@ -2002,13 +2002,11 @@ export default function AdminDashboard({
             </div>
 
             {/* Per-app instrumentation status */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] overflow-hidden">
-              <div className="px-6 py-4 border-b border-zinc-100">
-                <h2 className="font-semibold text-zinc-900">App Instrumentation</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  Whether emit_automation_event is actually attached in each app&apos;s tenant schema
-                </p>
-              </div>
+            <CollapsibleSection
+              title="App Instrumentation"
+              subtitle="Whether emit_automation_event is actually attached in each app's tenant schema"
+              padded={false}
+            >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-zinc-100">
@@ -2055,14 +2053,14 @@ export default function AdminDashboard({
                   </tbody>
                 </table>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Recent events */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] overflow-hidden">
-              <div className="px-6 py-4 border-b border-zinc-100">
-                <h2 className="font-semibold text-zinc-900">Recent Events</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Last {automationEvents.length} events across all apps</p>
-              </div>
+            <CollapsibleSection
+              title="Recent Events"
+              subtitle={`Last ${automationEvents.length} events across all apps`}
+              padded={false}
+            >
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-zinc-100 sticky top-0">
@@ -2115,7 +2113,7 @@ export default function AdminDashboard({
                 onPrev={() => setEventsPage((p) => Math.max(1, p - 1))}
                 onNext={() => setEventsPage((p) => Math.min(eventsTotalPages, p + 1))}
               />
-            </div>
+            </CollapsibleSection>
           </div>
         )}
 
@@ -2123,9 +2121,10 @@ export default function AdminDashboard({
         {tab === "leads" && (
           <div className="space-y-6">
             {/* Search */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <h2 className="font-semibold text-zinc-900 mb-1">Find Leads</h2>
-              <p className="text-xs text-zinc-500 mb-4">Searches OpenStreetMap around a location and scores every business found.</p>
+            <CollapsibleSection
+              title="Find Leads"
+              subtitle="Searches OpenStreetMap around a location and scores every business found."
+            >
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
@@ -2153,7 +2152,7 @@ export default function AdminDashboard({
               </div>
               {leadSearchResult && <p className="text-xs text-green-600 mt-2">{leadSearchResult}</p>}
               {leadSearchError && <p className="text-xs text-red-600 mt-2">{leadSearchError}</p>}
-            </div>
+            </CollapsibleSection>
 
             {/* Stat cards */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
@@ -2795,6 +2794,54 @@ export default function AdminDashboard({
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function CollapsibleSection({
+  title,
+  subtitle,
+  actions,
+  defaultOpen = true,
+  padded = true,
+  children,
+}: {
+  title: string;
+  subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
+  defaultOpen?: boolean;
+  padded?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-white rounded-2xl border border-[#B8860B] overflow-hidden">
+      <div
+        className="flex items-center justify-between gap-3 px-6 py-4 cursor-pointer select-none"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <div className="min-w-0">
+          <h2 className="font-semibold text-zinc-900">{title}</h2>
+          {subtitle && <div className="text-xs text-zinc-500 mt-0.5">{subtitle}</div>}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {actions && <div onClick={(e) => e.stopPropagation()}>{actions}</div>}
+          <svg
+            className={`w-4 h-4 text-zinc-400 transition-transform ${open ? "" : "-rotate-90"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+      {open && (
+        <div className={`border-t border-zinc-100 ${padded ? "px-6 py-6" : ""}`}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StatCard({
   label,
