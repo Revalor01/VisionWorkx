@@ -28,13 +28,25 @@ export default function GenerateClient({
   const [streamPhase, setStreamPhase] = useState<StreamPhase | null>(null);
   const [dbStatus, setDbStatus] = useState<string | null>(null);
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [noticeAt, setNoticeAt] = useState<string | null>(null);
   const [longRunning, setLongRunning] = useState(false);
+  // A gentle crawl within the current phase so the bar is never frozen — it's
+  // reset whenever the phase advances.
+  const [drift, setDrift] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const hasStarted = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const view = clientBuildState(dbStatus, { streamPhase });
+  const view = clientBuildState(dbStatus, { streamPhase, notice, noticeAt });
+
+  useEffect(() => {
+    setDrift(0);
+    if (view.done) return;
+    const t = setInterval(() => setDrift((d) => Math.min(d + 0.5, 16)), 2500);
+    return () => clearInterval(t);
+  }, [view.phase, view.done]);
 
   // Poll the app row after the generate stream closes; `status` is the source
   // of truth. Uses the session-authenticated client (an anon read is blocked
@@ -49,7 +61,7 @@ export default function GenerateClient({
       try {
         const { data: row } = await supabase
           .from("apps")
-          .select("status, deploy_url")
+          .select("status, deploy_url, build_notice, build_notice_at")
           .eq("id", id)
           .maybeSingle();
 
@@ -57,22 +69,23 @@ export default function GenerateClient({
           setDbStatus(row.status);
           setStreamPhase(null);
         }
+        setNotice(row?.build_notice ?? null);
+        setNoticeAt(row?.build_notice_at ?? null);
+
         if (row?.status === "deployed") {
           setDeployUrl(row.deploy_url ?? null);
           clearInterval(pollRef.current!);
           pollRef.current = null;
           return;
         }
-        if (row?.status === "failed" || row?.status === "deploy_failed") {
-          // Do NOT surface this as a failure. clientBuildState() renders it as
-          // "almost there, we'll email you"; the operator is alerted server-side.
-          clearInterval(pollRef.current!);
-          pollRef.current = null;
-          return;
-        }
-        // ~14 min with no terminal state — stop polling and show the calm
-        // "we'll email you" note; the build has usually finished by then.
-        if (attempts >= 140) {
+        // failed / deploy_failed is NOT surfaced as a failure — clientBuildState()
+        // renders "We've run into an issue" + the build_notice update panel. We
+        // keep polling either way so an operator's follow-up update (and an
+        // eventual successful deploy) appear on this screen without a refresh.
+
+        // Long tail: after ~45 min stop polling. The update panel and the
+        // email carry it from here.
+        if (attempts >= 450) {
           clearInterval(pollRef.current!);
           pollRef.current = null;
           setLongRunning(true);
@@ -157,9 +170,11 @@ export default function GenerateClient({
         const supabase = createBrowserClient();
         const { data: row } = await supabase
           .from("apps")
-          .select("status, deploy_url")
+          .select("status, deploy_url, build_notice, build_notice_at")
           .eq("id", appId)
           .maybeSingle();
+        setNotice(row?.build_notice ?? null);
+        setNoticeAt(row?.build_notice_at ?? null);
         if (row?.status === "deployed") {
           setDbStatus("deployed");
           setDeployUrl(row.deploy_url ?? null);
@@ -210,7 +225,20 @@ export default function GenerateClient({
     );
   }
 
-  const pct = view.done ? 100 : Math.round((view.phase / BUILD_PHASES.length) * 100);
+  // phaseBase = start of the current phase's slice; + drift, capped just shy
+  // of the next phase so an advance always feels like forward motion.
+  const phaseBase = ((view.phase - 1) / BUILD_PHASES.length) * 100;
+  const phaseCeil = (view.phase / BUILD_PHASES.length) * 100 - 2;
+  const pct = view.done ? 100 : Math.round(Math.min(phaseBase + drift, phaseCeil));
+
+  const fmtWhen = (iso: string | null) => {
+    if (!iso) return "";
+    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.round(mins / 60);
+    return hrs < 24 ? `${hrs} hr ago` : new Date(iso).toLocaleString();
+  };
 
   return (
     <div className="min-h-screen bg-off-white flex flex-col">
@@ -222,6 +250,8 @@ export default function GenerateClient({
           <div className="flex items-center justify-center gap-2 mb-3">
             {view.done ? (
               <span className="text-green-500 text-lg">✓</span>
+            ) : view.settling ? (
+              <span className="text-amber-500 text-lg">!</span>
             ) : (
               <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             )}
@@ -235,7 +265,7 @@ export default function GenerateClient({
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className={`h-2 rounded-full transition-all duration-1000 ${
-                view.done ? "bg-green-500" : "bg-navy-dark"
+                view.done ? "bg-green-500" : view.settling ? "bg-amber-400" : "bg-navy-dark"
               }`}
               style={{ width: `${pct}%` }}
             />
@@ -243,32 +273,50 @@ export default function GenerateClient({
         </div>
 
         {/* Phase steps */}
-        <div className="space-y-2.5 mb-10">
+        <div className="space-y-2.5 mb-8">
           {BUILD_PHASES.map(({ n, label }) => {
             const isDone = view.done ? true : n < view.phase;
             const isActive = !view.done && n === view.phase;
+            const attention = isActive && view.settling;
             return (
               <div
                 key={n}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm border ${
                   isDone
                     ? "bg-green-50 border-green-200 text-green-700"
-                    : isActive
-                      ? "bg-blue-50 border-navy text-navy-dark"
-                      : "bg-white border-gray-200 text-gray-400"
+                    : attention
+                      ? "bg-amber-50 border-amber-300 text-amber-800"
+                      : isActive
+                        ? "bg-blue-50 border-navy text-navy-dark"
+                        : "bg-white border-gray-200 text-gray-400"
                 }`}
               >
                 <span className="shrink-0 w-4 text-center">
-                  {isDone ? "✓" : isActive ? "⚙" : "○"}
+                  {isDone ? "✓" : attention ? "!" : isActive ? "⚙" : "○"}
                 </span>
                 <span className="font-medium">{label}</span>
-                {isActive && (
+                {isActive && !attention && (
                   <span className="ml-auto text-xs animate-pulse">…</span>
                 )}
               </div>
             );
           })}
         </div>
+
+        {/* Update panel — shown when a build has hit an issue */}
+        {view.settling && view.notice && (
+          <div className="border border-amber-200 bg-amber-50 rounded-2xl p-5 mb-8">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Latest update
+              </span>
+              {view.noticeAt && (
+                <span className="text-xs text-amber-600">{fmtWhen(view.noticeAt)}</span>
+              )}
+            </div>
+            <p className="text-sm text-amber-900 leading-relaxed">{view.notice}</p>
+          </div>
+        )}
 
         {/* Done */}
         {view.done && (
@@ -294,13 +342,15 @@ export default function GenerateClient({
           </div>
         )}
 
-        {/* In progress (incl. the calm "settling" state) */}
+        {/* In progress footer */}
         {!view.done && (
           <div className="text-center space-y-3">
             <p className="text-xs text-gray-400 max-w-sm mx-auto">
-              {view.settling || longRunning
-                ? "You can safely close this page. We'll email you as soon as your app is ready — check your spam or junk folder too."
-                : "This can take a few minutes. You can leave this page — we'll email you when your app is live."}
+              {view.settling
+                ? "You can close this page — this screen and your email will both be updated as things move."
+                : longRunning
+                  ? "You can safely close this page. We'll email you as soon as your app is ready — check your spam or junk folder too."
+                  : "This can take a few minutes. You can leave this page — we'll email you when your app is live."}
             </p>
             <Link
               href="/dashboard"

@@ -10,6 +10,7 @@ import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { generatePlan } from "@/lib/apps/generatePlan";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
+import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import {
   LOCATION_FEATURE,
@@ -432,7 +433,12 @@ export async function POST(req: NextRequest) {
       if (!codeToSave || codeToSave.length < 200) {
         await serviceClient
           .from("apps")
-          .update({ status: "failed", failure_reason: "generation" })
+          .update({
+            status: "failed",
+            failure_reason: "generation",
+            build_notice: DEFAULT_BUILD_NOTICE,
+            build_notice_at: new Date().toISOString(),
+          })
           .eq("id", appId);
         await notifyBuildFailure({
           stage: "generate",
@@ -510,7 +516,12 @@ export async function POST(req: NextRequest) {
       try {
         await serviceClient
           .from("apps")
-          .update({ status: "failed", failure_reason: reason })
+          .update({
+            status: "failed",
+            failure_reason: reason,
+            build_notice: DEFAULT_BUILD_NOTICE,
+            build_notice_at: new Date().toISOString(),
+          })
           .eq("id", appId);
       } catch (saveErr) {
         console.error("[/api/generate] failed to update status:", saveErr);

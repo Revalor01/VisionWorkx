@@ -2,8 +2,10 @@
 //
 // Two rules from docs/stabilization-plan.md (client-exposure work):
 //   1. The client sees coarse phases and outcomes — never code, never
-//      compiler errors, never repair counts, never "failed".
-//   2. A hard failure renders as "almost there, we'll email you" ("settling").
+//      compiler errors, never repair counts, never the raw word "failed".
+//   2. A hard failure is acknowledged, not hidden: the client is told
+//      "we've run into an issue and are resolving it" and shown an update
+//      panel (apps.build_notice, auto-written on failure, operator-editable).
 //      The operator still gets the real status + failure_reason + alert; the
 //      /admin dashboard reads app.status directly and must NOT use this module.
 
@@ -29,11 +31,19 @@ export interface ClientBuildState {
   /** Phase 5 reached — app is live. */
   done: boolean;
   /**
-   * The build failed under the hood. Shown as a calm "still finishing up";
-   * the operator has been alerted and closes the loop by hand or by fix.
+   * The build hit a hard failure. The client is TOLD (headline "We've run into
+   * an issue"), shown `notice` in an update panel, and told updates will land
+   * there + by email. The operator has been alerted and closes the loop.
    */
   settling: boolean;
+  /** Latest customer-facing update (apps.build_notice), when settling. */
+  notice: string | null;
+  noticeAt: string | null;
 }
+
+/** Default auto-notice written by the pipeline on a hard failure. */
+export const DEFAULT_BUILD_NOTICE =
+  "We've run into an issue finishing your app. Our team was notified automatically and is working to resolve it — we'll post updates here and email you the moment it's ready.";
 
 const PHASE_COPY: Record<BuildPhase, { headline: string; sub: string }> = {
   1: {
@@ -59,8 +69,8 @@ const PHASE_COPY: Record<BuildPhase, { headline: string; sub: string }> = {
 };
 
 const SETTLING = {
-  headline: "Almost there",
-  sub: "This one's taking a little longer than expected to finish. We've been notified and will email you the moment it's ready.",
+  headline: "We've run into an issue",
+  sub: "Our team is on it. Updates will show below and we'll email you the moment your app is ready.",
 };
 
 /**
@@ -69,28 +79,39 @@ const SETTLING = {
  */
 export function clientBuildState(
   status: AppStatus | string | null | undefined,
-  opts?: { streamPhase?: StreamPhase | null },
+  opts?: {
+    streamPhase?: StreamPhase | null;
+    notice?: string | null;
+    noticeAt?: string | null;
+  },
 ): ClientBuildState {
+  const base = { done: false, settling: false, notice: null, noticeAt: null };
   const sp = opts?.streamPhase;
   if (sp) {
     const phase: BuildPhase = sp === "designing" ? 1 : sp === "building" ? 2 : 3;
-    return { phase, ...PHASE_COPY[phase], done: false, settling: false };
+    return { phase, ...PHASE_COPY[phase], ...base };
   }
 
   switch (status) {
     case "deployed":
-      return { phase: 5, ...PHASE_COPY[5], done: true, settling: false };
+      return { phase: 5, ...PHASE_COPY[5], ...base, done: true };
     case "ready":
     case "deploying":
-      return { phase: 4, ...PHASE_COPY[4], done: false, settling: false };
+      return { phase: 4, ...PHASE_COPY[4], ...base };
     case "generating":
-      return { phase: 3, ...PHASE_COPY[3], done: false, settling: false };
+      return { phase: 3, ...PHASE_COPY[3], ...base };
     case "failed":
     case "deploy_failed":
-      // Never say "failed" to the customer.
-      return { phase: 4, ...SETTLING, done: false, settling: true };
+      // Acknowledged, not hidden — and never the raw word "failed".
+      return {
+        phase: 4,
+        ...SETTLING,
+        ...base,
+        settling: true,
+        notice: opts?.notice ?? DEFAULT_BUILD_NOTICE,
+        noticeAt: opts?.noticeAt ?? null,
+      };
     default:
-      // Unknown / pre-start — treat as the earliest phase.
-      return { phase: 1, ...PHASE_COPY[1], done: false, settling: false };
+      return { phase: 1, ...PHASE_COPY[1], ...base };
   }
 }

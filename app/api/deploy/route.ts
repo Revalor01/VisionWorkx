@@ -8,6 +8,7 @@ import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMa
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { validateRawOutput } from "@/lib/apps/validateGenerated";
 import { preflightBuild } from "@/lib/apps/sandboxBuild";
+import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
@@ -1294,6 +1295,8 @@ CREATE TRIGGER emit_automation_event
     vercel_project_id: vercelProjectId,
     status: "deployed",
     failure_reason: null,
+    build_notice: null,
+    build_notice_at: null,
   });
 
   // Close out this build's revision row (no-op for apps with no open one).
@@ -1390,7 +1393,7 @@ export async function POST(req: NextRequest) {
 
   const { data: appCheck } = await serviceClient
     .from("apps")
-    .select("id, status, name, category, secondary_categories, intake_data")
+    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at")
     .eq("id", appId)
     .single();
 
@@ -1528,11 +1531,24 @@ export async function POST(req: NextRequest) {
         ? "build_error"
         : classifyBuildError((err as Error).message);
     try {
+      // Drop the in-progress build. generated_code (last deployed version) is
+      // never touched here. Post the customer-facing notice — but if the
+      // operator has replaced it with their own progress update, leave that be.
+      const operatorNotice =
+        appCheck?.build_notice && appCheck.build_notice !== DEFAULT_BUILD_NOTICE;
       await serviceClient
         .from("apps")
-        // Drop the in-progress build. generated_code (last deployed version)
-        // is never touched on this path.
-        .update({ status: "failed", failure_reason: reason, pending_generated_code: null })
+        .update({
+          status: "failed",
+          failure_reason: reason,
+          pending_generated_code: null,
+          ...(operatorNotice
+            ? {}
+            : {
+                build_notice: DEFAULT_BUILD_NOTICE,
+                build_notice_at: new Date().toISOString(),
+              }),
+        })
         .eq("id", appId);
     } catch { /* best-effort */ }
     await finalizeRevision(appId, "failed", { error: (err as Error).message });

@@ -267,6 +267,8 @@ export type Database = {
           pending_generated_code: string | null;
           deploy_url: string | null;
           pending_deploy_url: string | null;
+          build_notice: string | null;
+          build_notice_at: string | null;
           stripe_connect_account_id: string | null;
           payments_status: PaymentsStatus;
           payments_test_mode: boolean;
@@ -292,6 +294,8 @@ export type Database = {
           pending_generated_code?: string | null;
           deploy_url?: string | null;
           pending_deploy_url?: string | null;
+          build_notice?: string | null;
+          build_notice_at?: string | null;
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
           payments_test_mode?: boolean;
@@ -315,6 +319,8 @@ export type Database = {
           pending_generated_code?: string | null;
           deploy_url?: string | null;
           pending_deploy_url?: string | null;
+          build_notice?: string | null;
+          build_notice_at?: string | null;
           user_id?: string | null;
           stripe_connect_account_id?: string | null;
           payments_status?: PaymentsStatus;
