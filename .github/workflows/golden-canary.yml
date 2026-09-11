@@ -1,0 +1,37 @@
+name: Golden Canary
+
+# Manual trigger: run scripts/run-golden-canary.mjs against whatever is
+# currently deployed. Use this before/after merging a change to a
+# risk-surface file (app/api/generate, lib/apps/repairGenerated,
+# lib/apps/validateGenerated, app/api/deploy, lib/apps/baseTemplate,
+# templates/base/**) to confirm the real pipeline is still green, rather than
+# trusting tsc + unit tests alone for those files.
+#
+# Not wired to run automatically on every push — a full cycle is 15-45 min
+# and costs real AI + compute, so it's deliberately operator-triggered.
+#
+# Needs repo secrets: CRON_SECRET, SUPABASE_URL (NEXT_PUBLIC_SUPABASE_URL),
+# SUPABASE_SERVICE_ROLE_KEY. Optional: APP_URL (defaults to production).
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "App URL to test against (defaults to production)"
+        required: false
+        default: "https://vision-workx.vercel.app"
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/run-golden-canary.mjs
+        env:
+          APP_URL: ${{ inputs.app_url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

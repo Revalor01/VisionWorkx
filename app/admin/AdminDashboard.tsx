@@ -17,7 +17,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AdminDashboardProps {
-  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at">[];
+  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at" | "failure_reason">[];
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
   subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
@@ -593,16 +593,86 @@ export default function AdminDashboard({
       byKey[r.intake_key].total += 1;
       if (r.status === "pass") byKey[r.intake_key].pass += 1;
     }
+    // Per-category rate at both windows — the 30d-only byKey above doesn't
+    // tell you whether a category is trending up or down.
+    const byKeyWindow = (days: number) => {
+      const out: Record<string, { pass: number; total: number }> = {};
+      for (const r of graded.filter((x) => now - new Date(x.created_at).getTime() < days * 86400000)) {
+        out[r.intake_key] = out[r.intake_key] ?? { pass: 0, total: 0 };
+        out[r.intake_key].total += 1;
+        if (r.status === "pass") out[r.intake_key].pass += 1;
+      }
+      return out;
+    };
     return {
       rate7: rate(7),
       rate30: rate(30),
       avgMin: avgSec != null ? Math.round(avgSec / 60) : null,
       pending: canaryRuns.filter((r) => r.status === "pending").length,
       byKey,
+      byKey7: byKeyWindow(7),
       recent: canaryRuns.slice(0, 12),
       total30: graded.filter((r) => now - new Date(r.created_at).getTime() < 30 * 86400000).length,
     };
   }, [canaryRuns]);
+
+  // ── Build outcomes across REAL apps (not the synthetic canary) ──
+  // "% complete" and the failure-reason ranking below are the two numbers
+  // that say where to spend fix effort next.
+  const buildOutcomes = useMemo(() => {
+    const now = Date.now();
+    const windowed = (days: number | null) =>
+      days == null ? apps : apps.filter((a) => now - new Date(a.created_at).getTime() < days * 86400000);
+    const summarize = (rows: typeof apps) => {
+      const deployed = rows.filter((a) => a.status === "deployed").length;
+      const failed = rows.filter((a) => a.status === "failed").length;
+      const deployFailed = rows.filter((a) => a.status === "deploy_failed").length;
+      const inProgress = rows.filter((a) =>
+        ["generating", "ready", "deploying"].includes(a.status),
+      ).length;
+      const terminal = deployed + failed + deployFailed;
+      return {
+        total: rows.length,
+        deployed,
+        failed,
+        deployFailed,
+        inProgress,
+        terminal,
+        pctComplete: terminal > 0 ? deployed / terminal : null,
+      };
+    };
+    // Ranked failure reasons across BOTH real apps and canary runs, tagged by
+    // source, so you know whether to chase a customer-facing bug or a
+    // canary/infra quirk first.
+    const reasonCounts = new Map<string, { count: number; real: number; canary: number }>();
+    for (const a of apps) {
+      if (a.status !== "failed" && a.status !== "deploy_failed") continue;
+      const reason = a.failure_reason ?? "(unknown)";
+      const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
+      e.count += 1;
+      e.real += 1;
+      reasonCounts.set(reason, e);
+    }
+    for (const r of canaryRuns) {
+      if (r.status !== "fail") continue;
+      const reason = r.failure_reason ?? "(unknown)";
+      const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
+      e.count += 1;
+      e.canary += 1;
+      reasonCounts.set(reason, e);
+    }
+    const totalFailures = [...reasonCounts.values()].reduce((s, v) => s + v.count, 0);
+    const topReasons = [...reasonCounts.entries()]
+      .map(([reason, v]) => ({ reason, ...v, pct: totalFailures > 0 ? v.count / totalFailures : 0 }))
+      .sort((a, b) => b.count - a.count);
+    return {
+      all: summarize(windowed(null)),
+      d30: summarize(windowed(30)),
+      d7: summarize(windowed(7)),
+      topReasons,
+      totalFailures,
+    };
+  }, [apps, canaryRuns]);
 
   // ── Cost per build (actual AI + infra estimate) ────────────────
   const buildCost = useMemo(() => {
@@ -1161,18 +1231,27 @@ export default function AdminDashboard({
                     />
                   </div>
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {Object.entries(canaryStats.byKey).map(([k, v]) => (
-                      <div key={k} className="rounded-xl border border-zinc-200 p-3">
-                        <p className="text-xs text-zinc-500">{k}</p>
-                        <p
-                          className={`text-lg font-bold ${
-                            v.pass === v.total ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {v.pass}/{v.total}
-                        </p>
-                      </div>
-                    ))}
+                    {Object.entries(canaryStats.byKey).map(([k, v]) => {
+                      const w7 = canaryStats.byKey7[k];
+                      return (
+                        <div key={k} className="rounded-xl border border-zinc-200 p-3">
+                          <p className="text-xs text-zinc-500">{k}</p>
+                          <p
+                            className={`text-lg font-bold ${
+                              v.pass === v.total ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {v.pass}/{v.total}
+                            <span className="text-xs font-normal text-zinc-400 ml-1">30d</span>
+                          </p>
+                          {w7 && (
+                            <p className="text-xs text-zinc-400">
+                              {w7.pass}/{w7.total} last 7d
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full text-xs">
@@ -1218,6 +1297,89 @@ export default function AdminDashboard({
                     </table>
                   </div>
                 </>
+              )}
+            </div>
+
+            {/* Build outcomes + failure reasons — where to focus fix effort */}
+            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
+              <h2 className="font-semibold text-zinc-900 mb-1">Build Outcomes</h2>
+              <p className="text-xs text-zinc-500 mb-4">
+                Every real app that&apos;s ever been built (not the synthetic canary). % complete
+                only counts apps that reached a terminal state — still-building apps aren&apos;t
+                penalized while they&apos;re in flight.
+              </p>
+              <div className="overflow-x-auto mb-5">
+                <table className="w-full text-sm">
+                  <thead className="text-zinc-400">
+                    <tr>
+                      <th className="text-left font-medium py-1"></th>
+                      <th className="text-right font-medium py-1">Total</th>
+                      <th className="text-right font-medium py-1">Deployed</th>
+                      <th className="text-right font-medium py-1">Failed</th>
+                      <th className="text-right font-medium py-1">Deploy failed</th>
+                      <th className="text-right font-medium py-1">In progress</th>
+                      <th className="text-right font-medium py-1">% complete</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {(
+                      [
+                        ["Last 7 days", buildOutcomes.d7],
+                        ["Last 30 days", buildOutcomes.d30],
+                        ["All time", buildOutcomes.all],
+                      ] as const
+                    ).map(([label, s]) => (
+                      <tr key={label}>
+                        <td className="py-1.5 text-zinc-600 font-medium whitespace-nowrap">{label}</td>
+                        <td className="py-1.5 text-right text-zinc-700">{s.total}</td>
+                        <td className="py-1.5 text-right text-green-600 font-medium">{s.deployed}</td>
+                        <td className="py-1.5 text-right text-red-600">{s.failed}</td>
+                        <td className="py-1.5 text-right text-red-600">{s.deployFailed}</td>
+                        <td className="py-1.5 text-right text-amber-600">{s.inProgress}</td>
+                        <td className="py-1.5 text-right font-semibold">
+                          {s.pctComplete == null ? (
+                            <span className="text-zinc-300">—</span>
+                          ) : (
+                            <span className={s.pctComplete >= 0.9 ? "text-green-600" : "text-red-600"}>
+                              {Math.round(s.pctComplete * 100)}%
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="text-xs font-semibold text-zinc-600 mb-2">
+                Top failure reasons — fix the biggest one first
+              </p>
+              {buildOutcomes.topReasons.length === 0 ? (
+                <p className="text-sm text-zinc-500">No failures recorded. 🎉</p>
+              ) : (
+                <div className="space-y-2">
+                  {buildOutcomes.topReasons.slice(0, 8).map((r) => (
+                    <div key={r.reason} className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-600 w-36 shrink-0 truncate" title={r.reason}>
+                        {r.reason}
+                      </span>
+                      <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-2 bg-red-400 rounded-full"
+                          style={{ width: `${Math.max(4, Math.round(r.pct * 100))}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-zinc-500 w-10 text-right shrink-0">
+                        {Math.round(r.pct * 100)}%
+                      </span>
+                      <span className="text-xs text-zinc-400 w-28 text-right shrink-0">
+                        {r.real > 0 && `${r.real} real`}
+                        {r.real > 0 && r.canary > 0 && " · "}
+                        {r.canary > 0 && `${r.canary} canary`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 

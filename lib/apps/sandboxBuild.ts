@@ -25,25 +25,34 @@ export type PreflightOutcome =
   | { ok: "skipped"; reason: string };
 
 export interface PreflightOpts {
-  /** Given the current files + the raw build error text, return repaired files. */
+  /**
+   * Given the current files + the raw build error text, return repaired
+   * files. NOTE: the repair() this is normally wired to (repairGenerated)
+   * has its OWN internal 2-round retry loop — one call to this callback can
+   * itself take 2 Claude round-trips (measured: up to ~4 min combined), not
+   * one. Budget accordingly; this is why maxIterations defaults low.
+   */
   repair: (files: FileMap, buildErrors: string) => Promise<FileMap>;
-  /** Repair→rebuild attempts after the first build (default 4). */
+  /** Repair→rebuild attempts after the first build (default 2 — see the
+   * repair() note above for why more than that rarely fits the budget). */
   maxIterations?: number;
   /**
-   * Hard wall-clock budget for this whole call, in ms (default 3 min).
+   * Hard wall-clock budget for this whole call, in ms (default 4 min).
    * `runDeploy` calls this BEFORE marking the app "deploying", and the actual
    * Vercel deploy+poll after it needs up to 9 more minutes inside the
-   * function's 800s ceiling — an unbounded repair loop (each round is a real
-   * Claude call) can silently starve that, leaving the app stuck in "ready"
-   * until the stuck-build reaper kills it with no clean failure. When the
-   * budget runs out mid-loop we return "skipped", never "false" — an
-   * unfinished repair attempt is not proof the app is broken.
+   * function's 800s ceiling — an unbounded repair loop can silently starve
+   * that, leaving the app stuck in "ready" until the stuck-build reaper kills
+   * it with no clean failure. Calibrated against a real measured run: sandbox
+   * create + install + typecheck + one repair() call (its 2 internal rounds)
+   * took ~356s end to end. When the budget runs out mid-loop we return
+   * "skipped", never "false" — an unfinished repair attempt is not proof the
+   * app is broken.
    */
   maxWallClockMs?: number;
   onLog?: (line: string) => void;
 }
 
-const DEFAULT_WALL_CLOCK_MS = 3 * 60_000;
+const DEFAULT_WALL_CLOCK_MS = 4 * 60_000;
 
 // NEXT_PUBLIC_* must be defined at build time or `next build` throws while
 // evaluating the Supabase client module. Placeholders are fine — pages that
@@ -95,7 +104,7 @@ export async function preflightBuild(
   if (mode() === "off") return { ok: "skipped", reason: "BUILD_PREFLIGHT=off" };
 
   const log = opts.onLog ?? (() => {});
-  const maxIter = opts.maxIterations ?? 4;
+  const maxIter = opts.maxIterations ?? 2;
   const deadline = Date.now() + (opts.maxWallClockMs ?? DEFAULT_WALL_CLOCK_MS);
   const outOfTime = () => Date.now() >= deadline;
 
@@ -131,18 +140,35 @@ export async function preflightBuild(
         log(`preflight out of time before attempt ${i} — deferring to the normal deploy`);
         return { ok: "skipped", reason: "wall-clock budget exceeded" };
       }
-      const build = await sandbox.runCommand({
+
+      // Tier 3 (T3.3): tsc alone is a fraction of a full `next build` (no
+      // bundling, no static generation) and type errors are the dominant
+      // failure class — fail fast on those before paying for a full build,
+      // which leaves more of the wall-clock budget for repair rounds.
+      const typecheck = await sandbox.runCommand({
         cmd: "npx",
-        args: ["--yes", "next", "build"],
+        args: ["--yes", "tsc", "--noEmit", "--pretty", "false"],
         env: BUILD_ENV,
       });
+      let build: Awaited<ReturnType<typeof sandbox.runCommand>>;
+      if (typecheck.exitCode !== 0) {
+        build = typecheck; // reuse the branch below uniformly
+      } else {
+        build = await sandbox.runCommand({
+          cmd: "npx",
+          args: ["--yes", "next", "build"],
+          env: BUILD_ENV,
+        });
+      }
       if (build.exitCode === 0) {
         log(`preflight green on attempt ${i}${repaired ? " (after repair)" : ""}`);
         return { ok: true, files, iterations: i, repaired };
       }
 
       const errors = extractBuildErrors(await build.output("both"));
-      log(`preflight build attempt ${i} failed`);
+      log(
+        `preflight ${typecheck.exitCode !== 0 ? "typecheck" : "build"} attempt ${i} failed`,
+      );
       if (i > maxIter) {
         return { ok: false, stage: "build", errors, iterations: i, files };
       }
