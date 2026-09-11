@@ -604,6 +604,46 @@ export default function AdminDashboard({
       }
       return out;
     };
+    // Consecutive-clean-run streak toward the stabilization plan's "10 green
+    // nights" gate. A "run" = one batch of golden intakes fired together
+    // (created_at within 5 min of each other) — this counts every trigger,
+    // scheduled (0 5 * * * UTC) or manual (workflow_dispatch / by hand), not
+    // just calendar nights, so a manual proving run also has to stay clean to
+    // keep the streak alive. Only fully-graded batches count; a batch still
+    // mid-flight (any row pending) is excluded rather than breaking the streak.
+    const BATCH_GAP_MS = 5 * 60_000;
+    const byTime = [...canaryRuns].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    const batches: { at: string; rows: typeof canaryRuns }[] = [];
+    for (const r of byTime) {
+      const last = batches[batches.length - 1];
+      if (last && new Date(r.created_at).getTime() - new Date(last.at).getTime() <= BATCH_GAP_MS) {
+        last.rows.push(r);
+        last.at = r.created_at;
+      } else {
+        batches.push({ at: r.created_at, rows: [r] });
+      }
+    }
+    const gradedBatches = batches
+      .filter((b) => b.rows.every((r) => r.status === "pass" || r.status === "fail"))
+      .map((b) => ({
+        at: b.at,
+        clean: b.rows.every((r) => r.status === "pass"),
+        n: b.rows.length,
+      }));
+    let streak = 0;
+    for (let i = gradedBatches.length - 1; i >= 0; i--) {
+      if (gradedBatches[i].clean) streak += 1;
+      else break;
+    }
+    let longestStreak = 0;
+    let running = 0;
+    for (const b of gradedBatches) {
+      running = b.clean ? running + 1 : 0;
+      longestStreak = Math.max(longestStreak, running);
+    }
+
     return {
       rate7: rate(7),
       rate30: rate(30),
@@ -613,6 +653,10 @@ export default function AdminDashboard({
       byKey7: byKeyWindow(7),
       recent: canaryRuns.slice(0, 12),
       total30: graded.filter((r) => now - new Date(r.created_at).getTime() < 30 * 86400000).length,
+      streak,
+      longestStreak,
+      gradedBatchCount: gradedBatches.length,
+      streakGoal: 10,
     };
   }, [canaryRuns]);
 
@@ -643,34 +687,46 @@ export default function AdminDashboard({
     };
     // Ranked failure reasons across BOTH real apps and canary runs, tagged by
     // source, so you know whether to chase a customer-facing bug or a
-    // canary/infra quirk first.
-    const reasonCounts = new Map<string, { count: number; real: number; canary: number }>();
-    for (const a of apps) {
-      if (a.status !== "failed" && a.status !== "deploy_failed") continue;
-      const reason = a.failure_reason ?? "(unknown)";
-      const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
-      e.count += 1;
-      e.real += 1;
-      reasonCounts.set(reason, e);
-    }
-    for (const r of canaryRuns) {
-      if (r.status !== "fail") continue;
-      const reason = r.failure_reason ?? "(unknown)";
-      const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
-      e.count += 1;
-      e.canary += 1;
-      reasonCounts.set(reason, e);
-    }
-    const totalFailures = [...reasonCounts.values()].reduce((s, v) => s + v.count, 0);
-    const topReasons = [...reasonCounts.entries()]
-      .map(([reason, v]) => ({ reason, ...v, pct: totalFailures > 0 ? v.count / totalFailures : 0 }))
-      .sort((a, b) => b.count - a.count);
+    // canary/infra quirk first. Scoped by window — "this month" (30d) is the
+    // one to act on; all-time is there for context.
+    const countReasons = (days: number | null) => {
+      const cutoff = days == null ? null : now - days * 86400000;
+      const inWindow = (iso: string) => cutoff == null || new Date(iso).getTime() >= cutoff;
+      const reasonCounts = new Map<string, { count: number; real: number; canary: number }>();
+      for (const a of apps) {
+        if (a.status !== "failed" && a.status !== "deploy_failed") continue;
+        if (!inWindow(a.created_at)) continue;
+        const reason = a.failure_reason ?? "(unknown)";
+        const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
+        e.count += 1;
+        e.real += 1;
+        reasonCounts.set(reason, e);
+      }
+      for (const r of canaryRuns) {
+        if (r.status !== "fail") continue;
+        if (!inWindow(r.created_at)) continue;
+        const reason = r.failure_reason ?? "(unknown)";
+        const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
+        e.count += 1;
+        e.canary += 1;
+        reasonCounts.set(reason, e);
+      }
+      const total = [...reasonCounts.values()].reduce((s, v) => s + v.count, 0);
+      const ranked = [...reasonCounts.entries()]
+        .map(([reason, v]) => ({ reason, ...v, pct: total > 0 ? v.count / total : 0 }))
+        .sort((a, b) => b.count - a.count);
+      return { ranked, total };
+    };
+    const reasons30 = countReasons(30);
+    const reasonsAll = countReasons(null);
     return {
       all: summarize(windowed(null)),
       d30: summarize(windowed(30)),
       d7: summarize(windowed(7)),
-      topReasons,
-      totalFailures,
+      topReasons: reasons30.ranked,
+      totalFailures: reasons30.total,
+      topReasonsAll: reasonsAll.ranked,
+      totalFailuresAll: reasonsAll.total,
     };
   }, [apps, canaryRuns]);
 
@@ -1205,6 +1261,52 @@ export default function AdminDashboard({
                 Synthetic first builds run daily through the real generate → deploy pipeline. This
                 is the number that says whether the product is stable.
               </p>
+
+              {/* Streak toward the stabilization plan's "10 green nights" gate.
+                  Counts every fully-graded run (scheduled or manual) where all
+                  5 golden categories passed, consecutively from the most
+                  recent. Breaks on the first red run. */}
+              <div
+                className={`mb-5 rounded-xl border p-4 ${
+                  canaryStats.streak >= canaryStats.streakGoal
+                    ? "border-green-300 bg-green-50"
+                    : "border-amber-300 bg-amber-50"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-zinc-800">
+                    Green-run streak:{" "}
+                    <span
+                      className={
+                        canaryStats.streak >= canaryStats.streakGoal
+                          ? "text-green-700"
+                          : "text-amber-700"
+                      }
+                    >
+                      {canaryStats.streak} / {canaryStats.streakGoal}
+                    </span>
+                  </p>
+                  <span className="text-xs text-zinc-500">
+                    longest so far: {canaryStats.longestStreak} · {canaryStats.gradedBatchCount} graded runs total
+                  </span>
+                </div>
+                <div className="w-full bg-white rounded-full h-2 overflow-hidden border border-zinc-200">
+                  <div
+                    className={`h-2 rounded-full ${
+                      canaryStats.streak >= canaryStats.streakGoal ? "bg-green-500" : "bg-amber-400"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.round((canaryStats.streak / canaryStats.streakGoal) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-zinc-500 mt-2">
+                  {canaryStats.streak >= canaryStats.streakGoal
+                    ? "Threshold met — this is the plan's gate to lift the build freeze (see docs/stabilization-plan.md)."
+                    : "One red run resets this to 0. Counts every trigger — scheduled and manual."}
+                </p>
+              </div>
+
               {canaryStats.total30 === 0 ? (
                 <p className="text-sm text-zinc-500">No runs graded yet — first results land after tonight&apos;s cron.</p>
               ) : (
@@ -1351,11 +1453,16 @@ export default function AdminDashboard({
                 </table>
               </div>
 
-              <p className="text-xs font-semibold text-zinc-600 mb-2">
-                Top failure reasons — fix the biggest one first
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-zinc-600">
+                  Top failure reasons this month — fix the biggest one first
+                </p>
+                <span className="text-xs text-zinc-400">
+                  {buildOutcomes.totalFailures} this month · {buildOutcomes.totalFailuresAll} all-time
+                </span>
+              </div>
               {buildOutcomes.topReasons.length === 0 ? (
-                <p className="text-sm text-zinc-500">No failures recorded. 🎉</p>
+                <p className="text-sm text-zinc-500">No failures this month. 🎉</p>
               ) : (
                 <div className="space-y-2">
                   {buildOutcomes.topReasons.slice(0, 8).map((r) => (
