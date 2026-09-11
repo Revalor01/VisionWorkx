@@ -30,6 +30,7 @@ export const ALLOWED_PACKAGES: readonly string[] = [
   "@supabase/ssr",
   "@supabase/supabase-js",
   "lucide-react",
+  "qrcode", // used by the optional "QR code" intake feature
 ];
 
 /** True for `@/...` (local alias), `./` and `../` (relative), and Node built-ins. */

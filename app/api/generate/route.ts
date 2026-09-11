@@ -32,7 +32,7 @@ export const maxDuration = 900;
 // ---------------------------------------------------------------
 // System prompt
 // ---------------------------------------------------------------
-const SYSTEM_PROMPT = `You are an expert Next.js 14 and Supabase developer. Generate a complete, production-ready web application based on the business requirements provided.
+export const SYSTEM_PROMPT = `You are an expert Next.js 14 and Supabase developer. Generate a complete, production-ready web application based on the business requirements provided.
 
 Output ONLY code files — no explanations, no preamble, no text outside the file blocks. Use this exact format:
 
@@ -543,7 +543,7 @@ const CATEGORY_DESCRIPTIONS: Record<AppCategory, string> = {
   storefront: "online store — product catalogue, cart, checkout, and orders",
 };
 
-function buildUserPrompt(intake: IntakeData): string {
+export function buildUserPrompt(intake: IntakeData): string {
   const secondary = (intake.secondaryCategories ?? []).filter(
     (c) => c !== intake.category,
   );
