@@ -1474,13 +1474,10 @@ export default function AdminDashboard({
             </CollapsibleSection>
 
             {/* Build outcomes + failure reasons — where to focus fix effort */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <h2 className="font-semibold text-zinc-900 mb-1">Build Outcomes</h2>
-              <p className="text-xs text-zinc-500 mb-4">
-                Every real app that&apos;s ever been built (not the synthetic canary). % complete
-                only counts apps that reached a terminal state — still-building apps aren&apos;t
-                penalized while they&apos;re in flight.
-              </p>
+            <CollapsibleSection
+              title="Build Outcomes"
+              subtitle="Every real app that's ever been built (not the synthetic canary). % complete only counts apps that reached a terminal state — still-building apps aren't penalized while they're in flight."
+            >
               <div className="overflow-x-auto mb-5">
                 <table className="w-full text-sm">
                   <thead className="text-zinc-400">
@@ -1559,7 +1556,7 @@ export default function AdminDashboard({
                   ))}
                 </div>
               )}
-            </div>
+            </CollapsibleSection>
 
             {/* Cost per build / unit economics */}
             <CollapsibleSection
