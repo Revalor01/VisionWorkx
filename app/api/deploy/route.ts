@@ -736,7 +736,11 @@ async function getOrCreateVercelProject(name: string): Promise<string> {
   );
 }
 
-async function runDeploy(appId: string, userEmail: string | null) {
+async function runDeploy(
+  appId: string,
+  userEmail: string | null,
+  opts: { skipPreflight?: boolean } = {},
+): Promise<string | { handedOff: true }> {
   const SCHEMA = `app_${appId.slice(0, 8)}`;
 
   // 1. Fetch app record
@@ -964,50 +968,90 @@ CREATE TRIGGER emit_automation_event
   const mapToFiles = (m: FileMap): { path: string; content: string }[] =>
     Object.entries(m).map(([path, content]) => ({ path, content }));
 
-  const preCategories = [
-    app.category,
-    ...((app.secondary_categories ?? []) as AppCategory[]),
-  ] as AppCategory[];
-  const preflight = await preflightBuild(filesToMap(files), {
-    onLog: (l) => console.log(`[api/deploy:preflight ${appId.slice(0, 8)}] ${l}`),
-    repair: async (fm, errors) => {
-      const { map } = await repairGenerated(
-        fm,
-        [
-          "The production `next build` of this app FAILED. Fix exactly these errors and re-emit each affected file IN FULL. Do not change package.json's framework pins.\n\n" +
-            errors,
-        ],
-        {
-          appName: app.name,
-          category: app.category as AppCategory,
-          categories: preCategories,
-          features: ((app.intake_data as IntakeData | null)?.features ?? []),
-          appId,
-        },
-      );
-      return map;
-    },
-  });
+  if (!opts.skipPreflight) {
+    const preCategories = [
+      app.category,
+      ...((app.secondary_categories ?? []) as AppCategory[]),
+    ] as AppCategory[];
+    const preflightStartedAt = Date.now();
+    const preflight = await preflightBuild(filesToMap(files), {
+      onLog: (l) => console.log(`[api/deploy:preflight ${appId.slice(0, 8)}] ${l}`),
+      repair: async (fm, errors) => {
+        const { map } = await repairGenerated(
+          fm,
+          [
+            "The production `next build` of this app FAILED. Fix exactly these errors and re-emit each affected file IN FULL. Do not change package.json's framework pins.\n\n" +
+              errors,
+          ],
+          {
+            appName: app.name,
+            category: app.category as AppCategory,
+            categories: preCategories,
+            features: ((app.intake_data as IntakeData | null)?.features ?? []),
+            appId,
+          },
+        );
+        return map;
+      },
+    });
+    const preflightElapsedMs = Date.now() - preflightStartedAt;
 
-  if (preflight.ok === false) {
-    // Broken build, repair budget spent — do NOT create a Vercel project.
-    throw new PreflightError(
-      preflight.stage,
-      `sandbox ${preflight.stage} failed after ${preflight.iterations} attempt(s)`,
-      preflight.errors,
-    );
-  }
-  if (preflight.ok === true) {
-    files = mapToFiles(preflight.files);
-    if (preflight.repaired) {
-      // Persist the repaired source as the pending build so a later redeploy
-      // uses what actually compiled (promoted to generated_code on success).
-      await supabasePatch("apps", appId, {
-        pending_generated_code: serializeFileMap(preflight.files),
-      }).catch((e) => console.error("[api/deploy] persist repaired preflight source failed:", e));
+    if (preflight.ok === false) {
+      // Broken build, repair budget spent — do NOT create a Vercel project.
+      throw new PreflightError(
+        preflight.stage,
+        `sandbox ${preflight.stage} failed after ${preflight.iterations} attempt(s)`,
+        preflight.errors,
+      );
     }
-  } else {
-    console.warn(`[api/deploy] preflight skipped: ${preflight.reason} — relying on the Vercel build`);
+    if (preflight.ok === true) {
+      files = mapToFiles(preflight.files);
+      if (preflight.repaired) {
+        // Persist the repaired source as the pending build so a later redeploy
+        // uses what actually compiled (promoted to generated_code on success).
+        await supabasePatch("apps", appId, {
+          pending_generated_code: serializeFileMap(preflight.files),
+        }).catch((e) => console.error("[api/deploy] persist repaired preflight source failed:", e));
+      }
+    } else {
+      console.warn(`[api/deploy] preflight skipped: ${preflight.reason} — relying on the Vercel build`);
+    }
+
+    // Hand off to a fresh invocation once preflight has meaningfully eaten
+    // into this call's 800s clock. sandboxBuild.ts's own budget comment
+    // documents the arithmetic problem this closes: a real preflight repair
+    // can take up to ~356s, and the real Vercel deploy+poll after it can
+    // need up to 9 more minutes (540s) — 356+540=896s, already over the
+    // 800s ceiling in the worst case, with ZERO margin even in the typical
+    // case (240s preflight budget + 540s deploy = 780s, a 20s margin).
+    // Confirmed live 2026-09-11 (portal, booking_crm canaries, same day):
+    // preflight ran out of its own budget mid-repair and deferred straight
+    // to the real Vercel build sharing what was left of this invocation's
+    // clock, and separately, a real deploy attempt hit the outer function's
+    // own 800s ceiling directly ("Vercel Runtime Timeout Error: Task timed
+    // out after 800 seconds"). Both are the same underlying budget being
+    // split too thin across preflight + the real deploy in one invocation;
+    // this doesn't prove one exact causal chain, but splitting the two
+    // phases into separately-budgeted invocations removes the shared-clock
+    // risk either way. Below ~90s, preflight was a fast pass/fail check (no
+    // repair loop ran) and there's no reason to split off a fresh
+    // invocation just to do the deploy immediately after in the same call.
+    const PREFLIGHT_HANDOFF_THRESHOLD_MS = 90_000;
+    if (preflightElapsedMs >= PREFLIGHT_HANDOFF_THRESHOLD_MS) {
+      console.log(
+        `[api/deploy] preflight took ${Math.round(preflightElapsedMs / 1000)}s — handing the real deploy off to a fresh invocation with a full clean budget instead of racing what's left of this one`,
+      );
+      await supabasePatch("apps", appId, { status: "ready" });
+      const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
+      after(() =>
+        fetch(`${origin}/api/deploy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({ appId, _internal: true, _skipPreflight: true }),
+        }).catch((e) => console.error("[api/deploy] post-preflight handoff trigger failed:", e))
+      );
+      return { handedOff: true };
+    }
   }
 
   // 5. Mark deploying
@@ -1124,7 +1168,7 @@ CREATE TRIGGER emit_automation_event
 
 // ── POST /api/deploy ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean };
+  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean; _skipPreflight?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -1202,8 +1246,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const url = await runDeploy(appId, userEmail);
-    return NextResponse.json({ url });
+    const result = await runDeploy(appId, userEmail, { skipPreflight: body._skipPreflight === true });
+    if (typeof result === "object") {
+      // Preflight ran long — the real deploy was handed off to a fresh
+      // invocation with its own full clean budget (see runDeploy).
+      return NextResponse.json({ handedOff: true, redeploying: true }, { status: 202 });
+    }
+    return NextResponse.json({ url: result });
   } catch (err) {
     // The customer app failed to BUILD (not a pipeline error). If this
     // isn't already a repair attempt, run one repair pass over its source
