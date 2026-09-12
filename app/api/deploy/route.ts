@@ -1047,11 +1047,24 @@ CREATE TRIGGER emit_automation_event
     // own 800s ceiling directly ("Vercel Runtime Timeout Error: Task timed
     // out after 800 seconds"). Both are the same underlying budget being
     // split too thin across preflight + the real deploy in one invocation;
-    // this doesn't prove one exact causal chain, but splitting the two
-    // phases into separately-budgeted invocations removes the shared-clock
-    // risk either way. Below ~90s, preflight was a fast pass/fail check (no
-    // repair loop ran) and there's no reason to split off a fresh
-    // invocation just to do the deploy immediately after in the same call.
+    // splitting the two phases into separately-budgeted invocations removes
+    // the shared-clock risk either way. Below ~90s, preflight was a fast
+    // pass/fail check (no repair loop ran) and there's no reason to split
+    // off a fresh invocation just to do the deploy immediately after in the
+    // same call.
+    //
+    // This handoff itself then had its own silent-failure gap, confirmed
+    // live 2026-09-12: the dispatching fetch() below used to have to hold
+    // its connection open for the ENTIRE handed-off deploy (routinely
+    // 25-40+ min), but Node's fetch client's own header-wait timeout is far
+    // shorter, so it threw HeadersTimeoutError well before the deploy could
+    // finish — and if Vercel cancelled the still-running handoff invocation
+    // when that connection dropped, the app was orphaned at status="ready"
+    // with no further trace until the stuck-build reaper force-failed it
+    // 35-40 minutes later. Closed by POST acking internal calls immediately
+    // and running the real deploy in ITS OWN after() task (see the
+    // isInternal branch in POST) — so this dispatching fetch now resolves
+    // in milliseconds regardless of how long the handed-off deploy takes.
     const PREFLIGHT_HANDOFF_THRESHOLD_MS = 90_000;
     if (preflightElapsedMs >= PREFLIGHT_HANDOFF_THRESHOLD_MS) {
       console.log(
@@ -1065,12 +1078,15 @@ CREATE TRIGGER emit_automation_event
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
           body: JSON.stringify({ appId, _internal: true, _skipPreflight: true }),
         })
-          // This resolves only once the handed-off invocation's ENTIRE
-          // runDeploy() finishes (it doesn't respond earlier) — so a
-          // success log here fires late, but confirms the full chain
-          // actually completed. Silence with neither this nor the .catch
-          // below is the actual signature of the confirmed bug: the fetch
-          // dispatch itself never producing an outcome either way.
+          // POST now acks internal calls immediately (202) and runs the
+          // actual deploy in ITS OWN after() background task — see the
+          // isInternal branch there for why. So this resolves almost
+          // instantly regardless of how long the handed-off deploy itself
+          // takes; it confirms only that the handoff was accepted, not that
+          // the deploy finished (or even started). Previously this fetch
+          // blocked on the full runDeploy() before responding, which caused
+          // confirmed silent handoff failures (HeadersTimeoutError logged
+          // live 2026-09-12) — that's the bug this two-sided fix closes.
           .then((res) => console.log(`[api/deploy] post-preflight handoff for ${appId.slice(0, 8)} resolved with status ${res.status}`))
           .catch((e) => console.error(`[api/deploy] post-preflight handoff for ${appId.slice(0, 8)} trigger failed:`, e))
       );
@@ -1190,85 +1206,25 @@ CREATE TRIGGER emit_automation_event
   return finalUrl;
 }
 
-// ── POST /api/deploy ──────────────────────────────────────────────────────────
-export async function POST(req: NextRequest) {
-  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean; _skipPreflight?: boolean };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const appId = body.appId ?? "";
-  if (!appId) {
-    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
-  }
-
-  const serviceClient = createServiceClient();
-  let userEmail: string | null = null;
-
-  // Internal calls from /api/generate use service role key authorization
-  const authHeader = req.headers.get("authorization") ?? "";
-  const isInternal = body._internal === true && authHeader === `Bearer ${SERVICE_KEY}`;
-
-  if (!isInternal) {
-    // Browser-initiated deploy: verify session
-    const supabase = await createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: app } = await serviceClient
-      .from("apps")
-      .select("id, status")
-      .eq("id", appId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!app) {
-      return NextResponse.json({ error: "App not found" }, { status: 404 });
-    }
-
-    userEmail = user.email ?? null;
-  }
-
-  const { data: appCheck } = await serviceClient
-    .from("apps")
-    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at")
-    .eq("id", appId)
-    .single();
-
-  if (!appCheck) {
-    return NextResponse.json({ error: "App not found" }, { status: 404 });
-  }
-  if (appCheck.status === "deployed") {
-    return NextResponse.json({ error: "Already deployed" }, { status: 409 });
-  }
-
-  // Fetch user email if not already set (internal call path) — email lives on
-  // auth.users, not profiles, so it must come through the Admin API.
-  if (!userEmail) {
-    const { data: appData } = await serviceClient
-      .from("apps")
-      .select("user_id, preview_email")
-      .eq("id", appId)
-      .single();
-    if (appData?.user_id) {
-      const { data: userData } = await serviceClient.auth.admin.getUserById(
-        appData.user_id
-      );
-      userEmail = userData?.user?.email ?? null;
-    } else if (appData?.preview_email) {
-      // No account yet (Phase 5b preview) — notify the visitor who started it.
-      userEmail = appData.preview_email;
-    }
-  }
-
+// Runs the actual deploy attempt (including the build-failure repair-retry
+// path) and produces the HTTP response for it. Extracted out of POST so it
+// can run either awaited in the foreground (browser-initiated calls, which
+// need a real response) or fire-and-forget inside after() (internal calls —
+// see the isInternal branch in POST below, and the comment there for why).
+async function performDeploy(
+  appId: string,
+  userEmail: string | null,
+  body: { _repairAttempt?: boolean; _skipPreflight?: boolean },
+  appCheck: {
+    name: string;
+    category: AppCategory;
+    secondary_categories: unknown;
+    intake_data: unknown;
+    build_notice: string | null;
+    build_notice_at: string | null;
+  },
+  serviceClient: ReturnType<typeof createServiceClient>,
+): Promise<NextResponse> {
   try {
     const result = await runDeploy(appId, userEmail, { skipPreflight: body._skipPreflight === true });
     if (typeof result === "object") {
@@ -1356,6 +1312,10 @@ export async function POST(req: NextRequest) {
               .from("apps")
               .update({ pending_generated_code: fixedCode, status: "ready" })
               .eq("id", appId);
+            // Dispatched as another internal call — POST will see isInternal
+            // and ack immediately, running the actual redeploy in its own
+            // after() background task (see the fix note in POST below), so
+            // this dispatching fetch never has to wait out the redeploy.
             // after(), not a bare fire-and-forget fetch — this response is
             // about to return, and an un-awaited call started right before
             // that can be silently dropped when the execution context tears
@@ -1444,4 +1404,115 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// ── POST /api/deploy ──────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean; _skipPreflight?: boolean };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const appId = body.appId ?? "";
+  if (!appId) {
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
+  }
+
+  const serviceClient = createServiceClient();
+  let userEmail: string | null = null;
+
+  // Internal calls from /api/generate use service role key authorization
+  const authHeader = req.headers.get("authorization") ?? "";
+  const isInternal = body._internal === true && authHeader === `Bearer ${SERVICE_KEY}`;
+
+  if (!isInternal) {
+    // Browser-initiated deploy: verify session
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: app } = await serviceClient
+      .from("apps")
+      .select("id, status")
+      .eq("id", appId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!app) {
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
+    }
+
+    userEmail = user.email ?? null;
+  }
+
+  const { data: appCheck } = await serviceClient
+    .from("apps")
+    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at")
+    .eq("id", appId)
+    .single();
+
+  if (!appCheck) {
+    return NextResponse.json({ error: "App not found" }, { status: 404 });
+  }
+  if (appCheck.status === "deployed") {
+    return NextResponse.json({ error: "Already deployed" }, { status: 409 });
+  }
+
+  // Fetch user email if not already set (internal call path) — email lives on
+  // auth.users, not profiles, so it must come through the Admin API.
+  if (!userEmail) {
+    const { data: appData } = await serviceClient
+      .from("apps")
+      .select("user_id, preview_email")
+      .eq("id", appId)
+      .single();
+    if (appData?.user_id) {
+      const { data: userData } = await serviceClient.auth.admin.getUserById(
+        appData.user_id
+      );
+      userEmail = userData?.user?.email ?? null;
+    } else if (appData?.preview_email) {
+      // No account yet (Phase 5b preview) — notify the visitor who started it.
+      userEmail = appData.preview_email;
+    }
+  }
+
+  // Internal dispatches — the initial post-generation trigger, the
+  // post-preflight handoff, and the post-repair redeploy above — are all
+  // fire-and-forget from the dispatching side: every one of those callers
+  // only logs the outcome (or nothing at all) and never reads or acts on
+  // this response's body. This function used to `await performDeploy(...)`
+  // before responding even for these, which meant the dispatcher's fetch()
+  // had to hold its connection open for this invocation's ENTIRE run — up
+  // to the full 800s budget a real deploy can take. Node's own fetch client
+  // has a much shorter header-wait timeout than that, so it throws
+  // HeadersTimeoutError well before a long deploy finishes — confirmed live
+  // via two such errors in Vercel logs on 2026-09-12, both on post-preflight
+  // handoff dispatches. If Vercel cancels this invocation when that
+  // connection drops (plausible under Fluid Compute's request-cancellation
+  // support), the app is orphaned at whatever status runDeploy() last
+  // wrote, surfacing only 35-40 minutes later as a stuck-build-reaper
+  // "timeout" with no further trace — the confirmed root cause behind the
+  // repeated PR #41 handoff silent-failures that PR #44 added diagnostic
+  // logging for. Fix: ack internal dispatches immediately and run the real
+  // work in this invocation's own after() background task, decoupling the
+  // dispatcher's connection lifetime from the deploy's actual duration.
+  if (isInternal) {
+    after(() =>
+      performDeploy(appId, userEmail, body, appCheck, serviceClient).catch((e) =>
+        console.error(`[api/deploy] background deploy for ${appId.slice(0, 8)} threw:`, e)
+      )
+    );
+    return NextResponse.json({ accepted: true }, { status: 202 });
+  }
+
+  return await performDeploy(appId, userEmail, body, appCheck, serviceClient);
 }
