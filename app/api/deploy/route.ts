@@ -741,6 +741,22 @@ async function runDeploy(
   userEmail: string | null,
   opts: { skipPreflight?: boolean } = {},
 ): Promise<string | { handedOff: true }> {
+  // Confirms this invocation actually started running — the one thing
+  // missing when investigating the two confirmed cases (2026-09-12,
+  // booking_crm app cdefe79d and portal app e201080e) where a
+  // _skipPreflight handoff logged "handing the real deploy off" and then
+  // left ZERO further trace for ~40 min before the stuck-build reaper
+  // force-failed it as "timeout". Corroborating evidence in both cases:
+  // the app's status stayed "ready" (never advanced to "deploying", the
+  // very first write after this point) for 15+ minutes, suggesting the
+  // handed-off invocation's fetch dispatch itself never resulted in a
+  // running invocation — not a slow/stuck deploy further downstream. This
+  // log line, plus the success-side log on the handoff fetch below, turns
+  // the next occurrence from "total silence" into "did this invocation
+  // even start" being immediately answerable from logs.
+  if (opts.skipPreflight) {
+    console.log(`[api/deploy] ${appId.slice(0, 8)} started with _skipPreflight — proceeding straight to the real deploy`);
+  }
   const SCHEMA = `app_${appId.slice(0, 8)}`;
 
   // 1. Fetch app record
@@ -1048,7 +1064,15 @@ CREATE TRIGGER emit_automation_event
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
           body: JSON.stringify({ appId, _internal: true, _skipPreflight: true }),
-        }).catch((e) => console.error("[api/deploy] post-preflight handoff trigger failed:", e))
+        })
+          // This resolves only once the handed-off invocation's ENTIRE
+          // runDeploy() finishes (it doesn't respond earlier) — so a
+          // success log here fires late, but confirms the full chain
+          // actually completed. Silence with neither this nor the .catch
+          // below is the actual signature of the confirmed bug: the fetch
+          // dispatch itself never producing an outcome either way.
+          .then((res) => console.log(`[api/deploy] post-preflight handoff for ${appId.slice(0, 8)} resolved with status ${res.status}`))
+          .catch((e) => console.error(`[api/deploy] post-preflight handoff for ${appId.slice(0, 8)} trigger failed:`, e))
       );
       return { handedOff: true };
     }
