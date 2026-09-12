@@ -218,7 +218,11 @@ Rules:
       by Revalor
     </p>
     \`\`\`
-    Do not remove it, hide it, or route it through \`site_settings\`. It is not configurable. Keep it visually quiet (small, muted) but present and legible on light and dark backgrounds.`;
+    Do not remove it, hide it, or route it through \`site_settings\`. It is not configurable. Keep it visually quiet (small, muted) but present and legible on light and dark backgrounds.
+
+16. Two TypeScript build-error patterns that have actually broken production builds — check for both before emitting a file:
+    - A Supabase \`.select()\` that embeds a related table (e.g. \`.select('id, title, clients(full_name)')\`) can come back typed as an ARRAY even when the relationship is logically one-to-one (a single \`client_id\` foreign key). Never assume it's a single object — either type the embedded field as an array and read \`row.clients[0]\`, or defensively normalize it: \`const client = Array.isArray(row.clients) ? row.clients[0] : row.clients\`. Do not write an interface like \`{ clients: { full_name: string } }\` and then assign an array-shaped query result to it.
+    - Never render a value typed (or inferred) as \`unknown\` directly in JSX (e.g. from \`JSON.parse()\`, a \`catch\` block, or an untyped \`jsonb\` column). \`unknown\` is not assignable to \`ReactNode\` and fails the build. Cast or validate it to a concrete type first (\`String(value)\`, a type guard, or a proper interface for the parsed shape) before it ever appears inside \`{}\` in JSX.`;
 
 // ---------------------------------------------------------------
 // POST /api/generate
