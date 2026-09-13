@@ -8,6 +8,7 @@ import { parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { validateGenerated } from "@/lib/apps/validateGenerated";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { generatePlan } from "@/lib/apps/generatePlan";
+import { modelForApp } from "@/lib/apps/canaryApps";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
@@ -292,6 +293,10 @@ export async function POST(req: NextRequest) {
     ...((app.secondary_categories ?? []) as AppCategory[]),
   ];
   const appName = app.name;
+  // Cost lever (2026-09-13): canary generations use a cheaper model —
+  // canary validates pipeline mechanics, not code quality, and it's
+  // never seen by a real customer. See lib/apps/canaryApps.ts.
+  const model = modelForApp(app.preview_email);
 
   // Tee pattern: stream to client while accumulating for Supabase
   const encoder = new TextEncoder();
@@ -347,7 +352,7 @@ export async function POST(req: NextRequest) {
       // Pass 2: implement.
       await phase("building");
       const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-6",
+        model,
         // A real multi-page app runs past 32k output tokens; 64k is the
         // Sonnet ceiling. maxDuration below allows the longer stream.
         max_tokens: 64000,
@@ -389,7 +394,7 @@ export async function POST(req: NextRequest) {
       );
       await logAiUsage({
         source: "app_generate",
-        model: "claude-sonnet-4-6",
+        model,
         inputTokens: finalMessage.usage.input_tokens,
         outputTokens: finalMessage.usage.output_tokens,
         appId,
@@ -423,6 +428,7 @@ export async function POST(req: NextRequest) {
             plannedFiles: planFiles,
             features: intake.features ?? [],
             appId,
+            model,
           },
         );
         codeToSave = serializeFileMap(repaired);

@@ -6,6 +6,7 @@ import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
 import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
+import { modelForApp } from "@/lib/apps/canaryApps";
 import { validateRawOutput } from "@/lib/apps/validateGenerated";
 import { preflightBuild } from "@/lib/apps/sandboxBuild";
 import { applyBaseTemplate } from "@/lib/apps/baseTemplate";
@@ -1005,6 +1006,7 @@ CREATE TRIGGER emit_automation_event
             categories: preCategories,
             features: ((app.intake_data as IntakeData | null)?.features ?? []),
             appId,
+            model: modelForApp(app.preview_email),
           },
         );
         return map;
@@ -1222,6 +1224,7 @@ async function performDeploy(
     intake_data: unknown;
     build_notice: string | null;
     build_notice_at: string | null;
+    preview_email: string | null;
   },
   serviceClient: ReturnType<typeof createServiceClient>,
 ): Promise<NextResponse> {
@@ -1295,6 +1298,7 @@ async function performDeploy(
               features:
                 ((appCheck.intake_data as IntakeData | null)?.features ?? []),
               appId,
+              model: modelForApp(appCheck.preview_email),
             },
           );
           const fixedCode = serializeFileMap(fixed);
@@ -1470,7 +1474,7 @@ export async function POST(req: NextRequest) {
 
   const { data: appCheck } = await serviceClient
     .from("apps")
-    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at")
+    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at, preview_email")
     .eq("id", appId)
     .single();
 
