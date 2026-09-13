@@ -209,6 +209,20 @@ export async function GET(req: NextRequest) {
   if ((req.headers.get("authorization") ?? "") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Cost kill-switch (added 2026-09-13, zero real customers yet, canary
+  // was ~$230/mo of Anthropic spend). Set CANARY_DISABLED=true in Vercel's
+  // env vars to stop the nightly cron from grading or firing anything —
+  // costs nothing further either way, since this returns before any
+  // Claude call. Unset (or any value other than "true") keeps the
+  // existing behavior, so this is a no-op until someone opts in. New env
+  // vars need a fresh deploy to take effect (Vercel doesn't apply them to
+  // an already-built deployment). Currently-pending runs are just left as
+  // "pending" — nothing is lost, the next enabled run grades them.
+  if (process.env.CANARY_DISABLED === "true") {
+    return NextResponse.json({ disabled: true, message: "Canary is paused (CANARY_DISABLED=true) — grading and firing both skipped." });
+  }
+
   const service = createServiceClient();
 
   // 1. Grade every still-pending run.
