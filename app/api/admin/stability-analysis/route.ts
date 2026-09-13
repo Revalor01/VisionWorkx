@@ -69,7 +69,7 @@ export async function POST() {
       .gte("created_at", since45),
     service
       .from("apps")
-      .select("status, failure_reason, created_at")
+      .select("status, failure_reason, created_at, preview_email")
       .gte("created_at", since30),
   ]);
 
