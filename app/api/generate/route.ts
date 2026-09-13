@@ -309,6 +309,24 @@ export async function POST(req: NextRequest) {
     const phase = async (name: "designing" | "building" | "reviewing") => {
       if (!isPreview) await writer.write(encoder.encode(`[[PHASE:${name}]]\n`));
     };
+    // Diagnostic-only (no behavior change) — confirmed live 2026-09-13,
+    // three times, all on the storefront category: generated_code and
+    // pending_generated_code both stay NULL, zero log trace anywhere
+    // (not the stream-error catch below, not the reaper, which only ever
+    // writes failure_reason='timeout' — confirmed by reading its code),
+    // eventually reaped as a generic stuck-build timeout at ~30min.
+    // Working theory: a genuinely hard-killed invocation (maxDuration=900s
+    // ceiling, or the platform's own resource limit) never runs its own
+    // catch block, so nothing gets logged either way — storefront being
+    // the most content-heavy category (closest to the 64k output-token
+    // ceiling) makes it the most likely to actually hit that ceiling.
+    // This log line, paired with the existing [[TICK]] heartbeat, is
+    // meant to leave a trace of exactly how far a generation got before
+    // being killed, the next time this happens — confirming or ruling out
+    // the hard-timeout theory with real evidence instead of guessing at a
+    // fix now.
+    const genStartedAt = Date.now();
+    console.log(`[/api/generate] starting ${appId.slice(0, 8)} (${appCategory}, autoRetry=${body._autoRetry === true})`);
     try {
       await phase("designing");
 
@@ -340,6 +358,11 @@ export async function POST(req: NextRequest) {
       // Emit a heartbeat every ~8s so the connection (and any proxy in front
       // of it) stays warm and the client can show liveness.
       let lastTick = Date.now();
+      // Diagnostic-only, coarser than the client tick (~60s) — see the
+      // note above streamAndSave(). If this route ever gets hard-killed
+      // mid-stream again, the last of these lines is the only trace of
+      // how far it actually got.
+      let lastServerLog = Date.now();
       for await (const chunk of stream) {
         if (
           chunk.type === "content_block_delta" &&
@@ -350,10 +373,19 @@ export async function POST(req: NextRequest) {
             await writer.write(encoder.encode("[[TICK]]\n"));
             lastTick = Date.now();
           }
+          if (Date.now() - lastServerLog > 60000) {
+            console.log(
+              `[/api/generate] ${appId.slice(0, 8)} still streaming — ${Math.round((Date.now() - genStartedAt) / 1000)}s elapsed, ${fullText.length} chars so far`,
+            );
+            lastServerLog = Date.now();
+          }
         }
       }
 
       const finalMessage = await stream.finalMessage();
+      console.log(
+        `[/api/generate] ${appId.slice(0, 8)} stream complete — ${Math.round((Date.now() - genStartedAt) / 1000)}s elapsed, ${fullText.length} chars, ${finalMessage.usage.output_tokens} output tokens`,
+      );
       await logAiUsage({
         source: "app_generate",
         model: "claude-sonnet-4-6",
