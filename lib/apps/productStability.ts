@@ -5,6 +5,8 @@
 // needs it to build Claude's input without duplicating — and drifting
 // from — what the dashboard itself shows).
 
+import { isCanaryPreviewEmail } from "./canaryApps";
+
 export type CanaryRunLite = {
   intake_key: string;
   status: string;
@@ -32,10 +34,12 @@ export type AppLite = {
 // timeout was silently dragging down what's meant to be a pure
 // customer-health signal. Filtered out at the source here so both
 // call sites (AdminDashboard.tsx and app/api/admin/stability-analysis)
-// get it right without duplicating the check.
-const CANARY_EMAIL_SUFFIX = "@visionworkx.internal";
+// get it right without duplicating the check. The actual detection lives
+// in lib/apps/canaryApps.ts now — it used to be a second, independent
+// copy of this same suffix check, which is exactly the kind of drift
+// that let the bug through in the first place.
 function isCanaryApp(app: AppLite): boolean {
-  return app.preview_email != null && app.preview_email.endsWith(CANARY_EMAIL_SUFFIX);
+  return isCanaryPreviewEmail(app.preview_email);
 }
 
 export type CanaryStats = {
