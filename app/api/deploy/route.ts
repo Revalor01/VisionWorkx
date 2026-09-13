@@ -991,7 +991,20 @@ CREATE TRIGGER emit_automation_event
       ...((app.secondary_categories ?? []) as AppCategory[]),
     ] as AppCategory[];
     const preflightStartedAt = Date.now();
+    // Cost lever added 2026-09-13: preflight's own repair() callback
+    // (repairGenerated) has its OWN internal 2-round retry loop — one
+    // preflight iteration can already cost up to 2 Claude repair calls.
+    // At the default maxIterations of 2, a single failing build could
+    // compound to up to 4 nested repair calls before ever reaching a real
+    // Vercel deploy. Capped to 1 here: still gets one full repair attempt
+    // (itself up to 2 rounds) in the fast, cheap sandbox before falling
+    // back to the real Vercel build — which remains the backstop either
+    // way (preflightBuild's own docs: "ok: false ... the Vercel build is
+    // still the backstop"). Trades a slightly higher rate of deferring to
+    // the slower real-deploy path for meaningfully less worst-case repair
+    // volume — explicitly acceptable while cost matters more than speed.
     const preflight = await preflightBuild(filesToMap(files), {
+      maxIterations: 1,
       onLog: (l) => console.log(`[api/deploy:preflight ${appId.slice(0, 8)}] ${l}`),
       repair: async (fm, errors) => {
         const { map } = await repairGenerated(
