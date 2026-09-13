@@ -17,7 +17,26 @@ export type AppLite = {
   status: string;
   failure_reason: string | null;
   created_at: string;
+  // Canary-generated rows use a fixed canary+<key>@visionworkx.internal
+  // preview_email (see app/api/cron/canary-build/route.ts's
+  // CANARY_EMAIL_LIKE) — the only reliable way to identify and exclude
+  // them here. Real users (including pre-signup "Phase 5b preview" apps)
+  // always have a real email domain, so this can't false-exclude them.
+  preview_email?: string | null;
 };
+
+// Confirmed live 2026-09-13: canary-generated app rows (e.g. "Canary
+// Candles Online Store") were being counted in the "real-app" completion
+// rate despite the dashboard's own label ("not the synthetic canary") —
+// apps/page.tsx's query has no filter excluding them. A single canary
+// timeout was silently dragging down what's meant to be a pure
+// customer-health signal. Filtered out at the source here so both
+// call sites (AdminDashboard.tsx and app/api/admin/stability-analysis)
+// get it right without duplicating the check.
+const CANARY_EMAIL_SUFFIX = "@visionworkx.internal";
+function isCanaryApp(app: AppLite): boolean {
+  return app.preview_email != null && app.preview_email.endsWith(CANARY_EMAIL_SUFFIX);
+}
 
 export type CanaryStats = {
   rate7: number | null;
@@ -135,7 +154,8 @@ export type BuildOutcomes = {
   totalFailuresAll: number;
 };
 
-export function computeBuildOutcomes(apps: AppLite[], canaryRuns: CanaryRunLite[]): BuildOutcomes {
+export function computeBuildOutcomes(allApps: AppLite[], canaryRuns: CanaryRunLite[]): BuildOutcomes {
+  const apps = allApps.filter((a) => !isCanaryApp(a));
   const now = Date.now();
   const windowed = (days: number | null) =>
     days == null ? apps : apps.filter((a) => now - new Date(a.created_at).getTime() < days * 86400000);

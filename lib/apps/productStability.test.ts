@@ -81,6 +81,27 @@ describe("computeBuildOutcomes", () => {
     expect(top.real).toBe(2);
     expect(top.canary).toBe(1);
   });
+
+  it("excludes canary-generated app rows from the real-app completion rate", () => {
+    // Confirmed live 2026-09-13: a canary intake's own `apps` row (fixed
+    // preview_email canary+<key>@visionworkx.internal — see
+    // app/api/cron/canary-build/route.ts's CANARY_EMAIL_LIKE) was being
+    // counted here despite this metric's explicit "not the synthetic
+    // canary" label, letting a canary timeout drag down what's meant to
+    // be a pure customer-health number.
+    const apps: AppLite[] = [
+      { status: "deployed", failure_reason: null, created_at: daysAgo(2), preview_email: "real.customer@gmail.com" },
+      {
+        status: "failed",
+        failure_reason: "timeout",
+        created_at: daysAgo(1),
+        preview_email: "canary+storefront@visionworkx.internal",
+      },
+    ];
+    const outcomes = computeBuildOutcomes(apps, []);
+    expect(outcomes.d30.total).toBe(1);
+    expect(outcomes.d30.pctComplete).toBe(1);
+  });
 });
 
 describe("computeProductStability", () => {

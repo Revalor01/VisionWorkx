@@ -24,7 +24,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AdminDashboardProps {
-  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at" | "failure_reason">[];
+  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at" | "failure_reason" | "preview_email">[];
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
   subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
