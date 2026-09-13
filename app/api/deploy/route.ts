@@ -1321,12 +1321,27 @@ async function performDeploy(
             // that can be silently dropped when the execution context tears
             // down, leaving the app stuck in "ready" until the stuck-build
             // reaper catches it 30 minutes later with no clean failure.
+            //
+            // _skipPreflight: true here too — confirmed live 2026-09-13,
+            // twice (portal, storefront; two different underlying build
+            // errors triggering the repair, same failure): without it, this
+            // redeploy re-runs the full sandboxed preflight check on
+            // already-repaired code, and if THAT preflight also runs long
+            // (>=90s), it attempts its own handoff — a second chained
+            // handoff — which Vercel's platform rejects outright with a 508
+            // Loop Detected instead of accepting it, orphaning the app at
+            // status="ready" exactly like the original PR #41 gap. Skipping
+            // preflight here removes the second handoff entirely: this
+            // repaired code is going straight to the real Vercel build
+            // regardless (the same path a first-handoff target already
+            // takes), so preflight was only ever a redundant early check on
+            // code that's already been fixed against a real compiler error.
             const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
             after(() =>
               fetch(`${origin}/api/deploy`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-                body: JSON.stringify({ appId, _internal: true, _repairAttempt: true }),
+                body: JSON.stringify({ appId, _internal: true, _repairAttempt: true, _skipPreflight: true }),
               }).catch((e) => console.error("[api/deploy] repair redeploy trigger failed:", e))
             );
             return NextResponse.json({ repaired: true, redeploying: true }, { status: 202 });
