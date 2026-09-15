@@ -72,6 +72,7 @@ export async function POST(
     result = await editApp(current, revision.request_text ?? "", {
       appName: app.name,
       category: app.category as AppCategory,
+      appId: app.id,
     });
   } catch (err) {
     if (err instanceof EditNoOpError) {
