@@ -1,11 +1,10 @@
 // Shared Media/Operations nav bar for VisionWorkx's growth-tool admin pages,
 // mirroring revalor-admin's app/AdminNavBar.tsx (same categories, same pill
 // style) so the two repos' bars read as one system even though nothing can
-// actually be imported across separate deployments. /admin/ops and
-// /admin/dev-activity look product-specific by name but are genuinely
-// company-wide (Supabase/Vercel project state, the cross-machine dev-activity
-// log) — revalor-admin's own /ops and /dev-activity are ports of the same
-// data, so both copies are cross-linked as Operations, not Media.
+// actually be imported across separate deployments. Ops and Dev Activity
+// point straight at revalor-admin now - this repo's own /admin/ops and
+// /admin/dev-activity are just redirects to there, so there's no local
+// version left to link to separately.
 type NavCategory = "media" | "operations";
 
 type NavLink = { key: string; label: string; href: string };
@@ -25,11 +24,9 @@ const MEDIA_LINKS: NavLink[] = [
 ];
 
 const OPERATIONS_LINKS: NavLink[] = [
-  { key: "vw-ops", label: "Ops", href: "/admin/ops" },
-  { key: "vw-dev-activity", label: "Dev Activity", href: "/admin/dev-activity" },
-  { key: "ops", label: "Ops (Revalor Admin)", href: `${REVALOR_ADMIN}/ops` },
+  { key: "ops", label: "Ops", href: `${REVALOR_ADMIN}/ops` },
   { key: "ai-usage", label: "AI Usage", href: `${REVALOR_ADMIN}/ai-usage` },
-  { key: "dev-activity", label: "Dev Activity (Revalor Admin)", href: `${REVALOR_ADMIN}/dev-activity` },
+  { key: "dev-activity", label: "Dev Activity", href: `${REVALOR_ADMIN}/dev-activity` },
   { key: "system-scan", label: "System Scan", href: `${REVALOR_ADMIN}/system-scan` },
   { key: "maintenance", label: "Maintenance", href: `${REVALOR_ADMIN}/maintenance` },
   { key: "supabase-costs", label: "Supabase Costs", href: `${REVALOR_ADMIN}/supabase-costs` },
