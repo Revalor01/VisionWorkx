@@ -5,6 +5,14 @@ import { createServiceClient } from "@/lib/supabase";
 // this table later, so a future price change doesn't rewrite history.
 const RATES: Record<string, { input: number; output: number }> = {
   "claude-sonnet-4-6": { input: 3 / 1_000_000, output: 15 / 1_000_000 },
+  // UNVERIFIED ESTIMATE (2026-09-13) — sized off the Haiku tier's typical
+  // discount vs Sonnet (roughly 3-4x cheaper on input, 3x on output), not
+  // a confirmed live price. Check the actual number on Anthropic's
+  // pricing page / console before trusting the canary cost figures this
+  // feeds, and correct this constant if it's off — canary generation and
+  // repair now use this model (see lib/apps/canaryApps.ts) specifically
+  // to cut cost, so an accurate rate here is what proves that out.
+  "claude-haiku-4-5-20251001": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
 };
 
 // One tag per direct-Anthropic-call site across the ecosystem — see each
@@ -25,7 +33,8 @@ export type AiUsageSource =
   | "mobile_sms"
   | "content_engine_source"
   | "outreach_group_post"
-  | "try_recommend";
+  | "try_recommend"
+  | "stability_analysis";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a
 // serverless function can be frozen/killed right after it returns, so a

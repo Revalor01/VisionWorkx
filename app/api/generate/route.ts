@@ -8,6 +8,7 @@ import { parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { validateGenerated } from "@/lib/apps/validateGenerated";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { generatePlan } from "@/lib/apps/generatePlan";
+import { modelForApp } from "@/lib/apps/canaryApps";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
@@ -90,6 +91,8 @@ Rules:
       \`\`\`
     - Foreign keys like \`references auth.users(id)\` are fine and expected — only CREATE/ALTER/DROP statements targeting auth.* or public.* are forbidden
     - All tables you create must live implicitly in the tenant's own schema (the migration runs with search_path already scoped to it) — never schema-qualify a CREATE/ALTER/DROP with \`public.\` or \`auth.\`
+    - CRITICAL — when a migration seeds demo/sample rows (INSERT statements for realistic starter data), NEVER insert a row whose foreign key references a fabricated/placeholder \`auth.users(id)\` value (e.g. a made-up UUID like \`00000000-0000-0000-0000-000000000001\`) — that user does not exist yet, and the insert will fail the foreign key constraint the moment the migration runs, breaking the entire build. If a table's seed data would need such a reference (e.g. sample customers/orders "owned by" the business), either make that foreign key column nullable and leave it \`null\` in the seed data, or omit the FK-bearing seed rows entirely and let the app create them naturally once a real user exists. Never make the column NOT NULL and then insert NULL into it — pick one and be consistent within the same migration.
+    - CRITICAL — in any query, view, or function body that joins two or more tables, ALWAYS schema/table-qualify a column name that more than one of the joined tables has (e.g. \`created_at\`, \`id\`, \`user_id\`, \`status\`). \`select created_at from a join b on ...\` fails with "column reference \"created_at\" is ambiguous" the moment Postgres can't tell which table's column you mean, breaking the whole migration. Write \`a.created_at\` (or an explicit alias) instead — every single time a column appears after a join, not just when you think it might collide.
 
 12. CRITICAL — a \`site_settings\` table already exists in your schema before your migration ever runs (the platform creates it, not you). It holds the business's logo, social media links, and brand colors, which the business owner can update at any time from their VisionWorkx dashboard WITHOUT redeploying this app. Because of that:
     - NEVER create a table named \`site_settings\` yourself, and NEVER INSERT/UPDATE/DELETE it — it is READ-ONLY from your generated code, SELECT only.
@@ -217,7 +220,12 @@ Rules:
       by Revalor
     </p>
     \`\`\`
-    Do not remove it, hide it, or route it through \`site_settings\`. It is not configurable. Keep it visually quiet (small, muted) but present and legible on light and dark backgrounds.`;
+    Do not remove it, hide it, or route it through \`site_settings\`. It is not configurable. Keep it visually quiet (small, muted) but present and legible on light and dark backgrounds.
+
+16. Two TypeScript build-error patterns that have actually broken production builds — check for both before emitting a file:
+    - A Supabase \`.select()\` that embeds a related table (e.g. \`.select('id, title, clients(full_name)')\`) can come back typed as an ARRAY even when the relationship is logically one-to-one (a single \`client_id\` foreign key). Never assume it's a single object — either type the embedded field as an array and read \`row.clients[0]\`, or defensively normalize it: \`const client = Array.isArray(row.clients) ? row.clients[0] : row.clients\`. Do not write an interface like \`{ clients: { full_name: string } }\` and then assign an array-shaped query result to it.
+    - Never render a value typed (or inferred) as \`unknown\` directly in JSX (e.g. from \`JSON.parse()\`, a \`catch\` block, or an untyped \`jsonb\` column). \`unknown\` is not assignable to \`ReactNode\` and fails the build. Cast or validate it to a concrete type first (\`String(value)\`, a type guard, or a proper interface for the parsed shape) before it ever appears inside \`{}\` in JSX.
+17. CRITICAL — every \`CREATE POLICY\` in your migration must be preceded by a matching \`DROP POLICY IF EXISTS "<same name>" ON <same table>;\` on its own line immediately before it. Postgres has no \`CREATE POLICY IF NOT EXISTS\`, and a bare \`CREATE POLICY\` throws \`42710: policy "..." already exists\` — a real, repeated production failure (confirmed live 2026-09-13, twice, on \`storage.objects\` policies for a file-upload feature) — whenever a policy of that name is already present (a Supabase storage bucket you create can already carry default policies; a retried/repaired migration can also be re-running against a schema its own earlier attempt partially applied). This applies to every policy you write, not just \`storage.objects\`.`;
 
 // ---------------------------------------------------------------
 // POST /api/generate
@@ -285,6 +293,10 @@ export async function POST(req: NextRequest) {
     ...((app.secondary_categories ?? []) as AppCategory[]),
   ];
   const appName = app.name;
+  // Cost lever (2026-09-13): canary generations use a cheaper model —
+  // canary validates pipeline mechanics, not code quality, and it's
+  // never seen by a real customer. See lib/apps/canaryApps.ts.
+  const model = modelForApp(app.preview_email);
 
   // Tee pattern: stream to client while accumulating for Supabase
   const encoder = new TextEncoder();
@@ -303,6 +315,24 @@ export async function POST(req: NextRequest) {
     const phase = async (name: "designing" | "building" | "reviewing") => {
       if (!isPreview) await writer.write(encoder.encode(`[[PHASE:${name}]]\n`));
     };
+    // Diagnostic-only (no behavior change) — confirmed live 2026-09-13,
+    // three times, all on the storefront category: generated_code and
+    // pending_generated_code both stay NULL, zero log trace anywhere
+    // (not the stream-error catch below, not the reaper, which only ever
+    // writes failure_reason='timeout' — confirmed by reading its code),
+    // eventually reaped as a generic stuck-build timeout at ~30min.
+    // Working theory: a genuinely hard-killed invocation (maxDuration=900s
+    // ceiling, or the platform's own resource limit) never runs its own
+    // catch block, so nothing gets logged either way — storefront being
+    // the most content-heavy category (closest to the 64k output-token
+    // ceiling) makes it the most likely to actually hit that ceiling.
+    // This log line, paired with the existing [[TICK]] heartbeat, is
+    // meant to leave a trace of exactly how far a generation got before
+    // being killed, the next time this happens — confirming or ruling out
+    // the hard-timeout theory with real evidence instead of guessing at a
+    // fix now.
+    const genStartedAt = Date.now();
+    console.log(`[/api/generate] starting ${appId.slice(0, 8)} (${appCategory}, autoRetry=${body._autoRetry === true})`);
     try {
       await phase("designing");
 
@@ -322,7 +352,7 @@ export async function POST(req: NextRequest) {
       // Pass 2: implement.
       await phase("building");
       const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-6",
+        model,
         // A real multi-page app runs past 32k output tokens; 64k is the
         // Sonnet ceiling. maxDuration below allows the longer stream.
         max_tokens: 64000,
@@ -334,6 +364,11 @@ export async function POST(req: NextRequest) {
       // Emit a heartbeat every ~8s so the connection (and any proxy in front
       // of it) stays warm and the client can show liveness.
       let lastTick = Date.now();
+      // Diagnostic-only, coarser than the client tick (~60s) — see the
+      // note above streamAndSave(). If this route ever gets hard-killed
+      // mid-stream again, the last of these lines is the only trace of
+      // how far it actually got.
+      let lastServerLog = Date.now();
       for await (const chunk of stream) {
         if (
           chunk.type === "content_block_delta" &&
@@ -344,13 +379,22 @@ export async function POST(req: NextRequest) {
             await writer.write(encoder.encode("[[TICK]]\n"));
             lastTick = Date.now();
           }
+          if (Date.now() - lastServerLog > 60000) {
+            console.log(
+              `[/api/generate] ${appId.slice(0, 8)} still streaming — ${Math.round((Date.now() - genStartedAt) / 1000)}s elapsed, ${fullText.length} chars so far`,
+            );
+            lastServerLog = Date.now();
+          }
         }
       }
 
       const finalMessage = await stream.finalMessage();
+      console.log(
+        `[/api/generate] ${appId.slice(0, 8)} stream complete — ${Math.round((Date.now() - genStartedAt) / 1000)}s elapsed, ${fullText.length} chars, ${finalMessage.usage.output_tokens} output tokens`,
+      );
       await logAiUsage({
         source: "app_generate",
-        model: "claude-sonnet-4-6",
+        model,
         inputTokens: finalMessage.usage.input_tokens,
         outputTokens: finalMessage.usage.output_tokens,
         appId,
@@ -384,6 +428,7 @@ export async function POST(req: NextRequest) {
             plannedFiles: planFiles,
             features: intake.features ?? [],
             appId,
+            model,
           },
         );
         codeToSave = serializeFileMap(repaired);

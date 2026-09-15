@@ -14,7 +14,7 @@ import {
 import { validateGenerated } from "@/lib/apps/validateGenerated";
 import type { AppCategory } from "@/lib/database.types";
 
-const MODEL = "claude-sonnet-4-6";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 32000;
 const MAX_ROUNDS = 2;
 
@@ -83,6 +83,13 @@ export async function repairGenerated(
     features?: readonly string[];
     /** Attributes the repair's AI cost to this app. */
     appId?: string | null;
+    /**
+     * Cost lever added 2026-09-13: canary calls pass canaryApps.ts's
+     * CANARY_MODEL here (cheaper/faster — repair volume was over half of
+     * all app-building spend at ~$127/mo with 0 paying customers). Real
+     * customer repairs omit this and get the default Sonnet model.
+     */
+    model?: string;
   },
 ): Promise<RepairResult> {
   let map = initial;
@@ -91,6 +98,7 @@ export async function repairGenerated(
 
   if (problems.length === 0) return { map, rounds, remaining: [] };
 
+  const model = ctx.model ?? DEFAULT_MODEL;
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   while (problems.length > 0 && rounds < MAX_ROUNDS) {
@@ -101,7 +109,7 @@ export async function repairGenerated(
       // Must stream: the SDK rejects a non-streaming request whose
       // max_tokens implies it could run past 10 minutes.
       const stream = anthropic.messages.stream({
-        model: MODEL,
+        model,
         max_tokens: MAX_TOKENS,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildUserPrompt(map, problems, ctx) }],
@@ -118,7 +126,7 @@ export async function repairGenerated(
 
     await logAiUsage({
       source: "app_deploy_repair",
-      model: MODEL,
+      model,
       inputTokens: message.usage.input_tokens,
       outputTokens: message.usage.output_tokens,
       appId: ctx.appId ?? null,

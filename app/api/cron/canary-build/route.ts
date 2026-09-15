@@ -7,6 +7,7 @@ import {
   reconcilePostgrestSchemas,
 } from "@/lib/apps/tenantSchema";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
+import { CANARY_EMAIL_SUFFIX } from "@/lib/apps/canaryApps";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -19,11 +20,14 @@ export const maxDuration = 120;
 // the pipeline is broken for real customers too.
 // One email per intake — `apps` has a partial unique index on
 // preview_email for unclaimed rows, so all four canaries can't share one.
-const canaryEmail = (key: string) => `canary+${key}@visionworkx.internal`;
+const canaryEmail = (key: string) => `canary+${key}${CANARY_EMAIL_SUFFIX}`;
 // No "+" in the pattern: PostgREST decodes "+" in a query string to a
 // space, so `.like("...canary+%...")` silently matches nothing. The
 // ".internal" TLD is canary-only (real test users are @visionworkx.dev).
-const CANARY_EMAIL_LIKE = "%@visionworkx.internal";
+// Derived from the shared suffix (lib/apps/canaryApps.ts) so this can't
+// drift from the same check used to exclude canary rows from /admin's
+// real-app stats and to pick the canary-cheap model.
+const CANARY_EMAIL_LIKE = `%${CANARY_EMAIL_SUFFIX}`;
 
 function intake(over: Partial<IntakeData> & { category: AppCategory }): IntakeData {
   return {
@@ -89,6 +93,27 @@ const GOLDEN: { key: string; intake: IntakeData }[] = [
     }),
   },
 ];
+
+// Cost lever added 2026-09-13: firing all 5 categories every cron tick
+// was the single biggest volume driver behind ~$230/mo of canary spend
+// with 0 paying customers. Rotate through a subset instead — 1/night by
+// default cycles all 5 categories over 5 nights (still real coverage,
+// just spread out) instead of testing everything every night. The
+// rotation index is derived from days-since-epoch (stable across a
+// whole UTC day, no persisted state needed) so it advances predictably
+// regardless of how many times this route happens to run in one day.
+// CANARY_CATEGORIES_PER_NIGHT overrides the count if a faster streak
+// matters more than cost at some point — set back to GOLDEN.length for
+// the original "test everything nightly" behavior.
+function todaysGolden(): typeof GOLDEN {
+  const perNight = Math.max(
+    1,
+    Math.min(GOLDEN.length, Number(process.env.CANARY_CATEGORIES_PER_NIGHT) || 1),
+  );
+  const dayIndex = Math.floor(Date.now() / 86_400_000);
+  const start = dayIndex % GOLDEN.length;
+  return Array.from({ length: perNight }, (_, i) => GOLDEN[(start + i) % GOLDEN.length]);
+}
 
 // A build can reach "deployed" and still be broken at runtime. Two checks
 // against the live app root:
@@ -209,7 +234,48 @@ export async function GET(req: NextRequest) {
   if ((req.headers.get("authorization") ?? "") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Cost kill-switch (added 2026-09-13, zero real customers yet, canary
+  // was ~$230/mo of Anthropic spend). Set CANARY_DISABLED=true in Vercel's
+  // env vars to stop the nightly cron from grading or firing anything —
+  // costs nothing further either way, since this returns before any
+  // Claude call. Unset (or any value other than "true") keeps the
+  // existing behavior, so this is a no-op until someone opts in. New env
+  // vars need a fresh deploy to take effect (Vercel doesn't apply them to
+  // an already-built deployment). Currently-pending runs are just left as
+  // "pending" — nothing is lost, the next enabled run grades them.
+  if (process.env.CANARY_DISABLED === "true") {
+    return NextResponse.json({ disabled: true, message: "Canary is paused (CANARY_DISABLED=true) — grading and firing both skipped." });
+  }
+
   const service = createServiceClient();
+
+  // Cost auto-pause (added 2026-09-13, alongside CANARY_DISABLED above): a
+  // safety net that doesn't depend on anyone remembering to flip the
+  // manual switch. Sums this calendar month's app-building spend
+  // (app_generate + app_generate_plan + app_deploy_repair) against a
+  // configurable budget. Not perfectly canary-only — ai_usage_log doesn't
+  // tag canary vs. real builds, and canary apps get torn down after each
+  // cycle so a historical join back to apps.preview_email isn't reliable
+  // — but real-customer volume is ~0/month right now, so total spend is a
+  // fair proxy in practice, and this only ever pauses THIS cron, never a
+  // real customer's own /api/generate call. Over budget: still grade
+  // whatever's already pending (free — just a status check, no Claude
+  // call) but skip firing anything new. Resets naturally each month.
+  const CANARY_MONTHLY_BUDGET_USD = Number(process.env.CANARY_MONTHLY_BUDGET_USD) || 50;
+  const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+  const { data: usageRows } = await service
+    .from("ai_usage_log")
+    .select("cost_usd")
+    .in("source", ["app_generate", "app_generate_plan", "app_deploy_repair"])
+    .gte("created_at", monthStart);
+  const monthSpend = (usageRows ?? []).reduce((s, r) => s + Number(r.cost_usd ?? 0), 0);
+  const budgetExceeded = monthSpend >= CANARY_MONTHLY_BUDGET_USD;
+  if (budgetExceeded) {
+    console.warn(
+      `[canary] this month's app-building spend $${monthSpend.toFixed(2)} has crossed the $${CANARY_MONTHLY_BUDGET_USD} budget — skipping this cycle's fire (grading still runs)`,
+    );
+  }
 
   // 1. Grade every still-pending run.
   const { data: pending } = await service
@@ -333,10 +399,32 @@ export async function GET(req: NextRequest) {
     .eq("status", "pending");
 
   // 3. Fire a fresh set.
+  //
+  // Step 2 is best-effort: if a schema drop couldn't be verified (e.g. a
+  // transient Management API blip survived even the mgmtFetch retries),
+  // that canary's old row is deliberately kept for retry rather than
+  // deleted. apps_preview_email_unclaimed_idx means firing straight into
+  // that is a guaranteed, self-inflicted "could not start" — a teardown
+  // lag, not a real generate/deploy failure. Skip it cleanly instead of
+  // recording a hard fail: the next cron tick's step 2 will pick the old
+  // row up again and retry the teardown.
+  const skipped: string[] = [];
   const fired: string[] = [];
-  for (const g of GOLDEN) {
+  for (const g of budgetExceeded ? [] : todaysGolden()) {
+    const email = canaryEmail(g.key);
+    const { data: stale } = await service
+      .from("apps")
+      .select("id")
+      .eq("preview_email", email)
+      .is("claimed_at", null)
+      .maybeSingle();
+    if (stale) {
+      console.warn(`[canary] ${g.key} still torn down from a previous cycle (app ${stale.id}) — skipping this fire, not a build failure`);
+      skipped.push(g.key);
+      continue;
+    }
     try {
-      const { id } = await createPreviewApp(canaryEmail(g.key), g.intake, { skipDedup: true });
+      const { id } = await createPreviewApp(email, g.intake, { skipDedup: true });
       await service.from("build_canary_runs").insert({
         intake_key: g.key,
         app_id: id,
@@ -364,5 +452,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ graded, fired });
+  return NextResponse.json({
+    graded,
+    fired,
+    skipped,
+    budgetExceeded,
+    monthSpendUsd: Number(monthSpend.toFixed(2)),
+  });
 }

@@ -9,6 +9,13 @@ import type { PaymentRow } from "@/app/api/admin/payments/route";
 import { semanticEventLabel } from "@/lib/automationEventLabel";
 import { scoreBucket } from "@/lib/leadScoring";
 import {
+  computeBuildOutcomes,
+  computeCanaryStats,
+  computeProductStability,
+} from "@/lib/apps/productStability";
+import type { StabilityAnalysis } from "@/lib/apps/stabilityAnalysisTypes";
+import { StabilityTab } from "./StabilityTab";
+import {
   BUILD_COST_ESTIMATES,
   estimatedBuildInfraUsd,
   UNMODELED_COSTS,
@@ -17,7 +24,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AdminDashboardProps {
-  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at" | "failure_reason">[];
+  apps: Pick<App, "id" | "user_id" | "name" | "category" | "status" | "deploy_url" | "created_at" | "intake_data" | "payments_test_mode" | "build_notice" | "build_notice_at" | "failure_reason" | "preview_email">[];
   profiles: Pick<Profile, "id" | "full_name" | "company_name" | "plan" | "created_at">[];
   subscriptions: Pick<Subscription, "user_id" | "plan" | "status" | "current_period_end" | "stripe_subscription_id">[];
   userEmails: Record<string, string>;
@@ -38,6 +45,7 @@ interface AdminDashboardProps {
     duration_sec: number | null;
     created_at: string;
   }[];
+  stabilityAnalyses: StabilityAnalysis[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -47,6 +55,14 @@ const PLAN_MRR: Record<string, number> = {
   growth: 99,
   pro: 199,
 };
+
+// Date + time (not just the date) for anything build-related — "created
+// 9/11" doesn't tell you if that was 12:01am or 11:59pm, which matters when
+// you're chasing down a specific failed build.
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
 
 const CATEGORY_ICONS: Record<AppCategory, string> = {
   booking: "📅",
@@ -94,7 +110,7 @@ const PARTNER_REFERRAL_STATUS_STYLE: Record<PartnerReferralStatus, { label: stri
   declined:  { label: "Declined",  cls: "bg-red-100 text-red-700" },
 };
 
-type Tab = "overview" | "apps" | "users" | "payments" | "automations" | "leads" | "partners" | "referrals";
+type Tab = "overview" | "stability" | "apps" | "users" | "payments" | "automations" | "leads" | "partners" | "referrals";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -114,6 +130,7 @@ export default function AdminDashboard({
   aiUsage,
   guidedSessions,
   canaryRuns,
+  stabilityAnalyses,
 }: AdminDashboardProps) {
   const router = useRouter();
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -573,162 +590,27 @@ export default function AdminDashboard({
   }, [apps, profiles, subscriptions, revisions, aiUsage]);
 
   // ── Build reliability (golden-intake canary) ────────────────────
-  const canaryStats = useMemo(() => {
-    const now = Date.now();
-    const graded = canaryRuns.filter((r) => r.status === "pass" || r.status === "fail");
-    const rate = (days: number) => {
-      const inWin = graded.filter((r) => now - new Date(r.created_at).getTime() < days * 86400000);
-      if (inWin.length === 0) return null;
-      return inWin.filter((r) => r.status === "pass").length / inWin.length;
-    };
-    const durations = graded
-      .filter((r) => r.status === "pass" && r.duration_sec)
-      .map((r) => r.duration_sec as number);
-    const avgSec = durations.length
-      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-      : null;
-    const byKey: Record<string, { pass: number; total: number }> = {};
-    for (const r of graded.filter((x) => now - new Date(x.created_at).getTime() < 30 * 86400000)) {
-      byKey[r.intake_key] = byKey[r.intake_key] ?? { pass: 0, total: 0 };
-      byKey[r.intake_key].total += 1;
-      if (r.status === "pass") byKey[r.intake_key].pass += 1;
-    }
-    // Per-category rate at both windows — the 30d-only byKey above doesn't
-    // tell you whether a category is trending up or down.
-    const byKeyWindow = (days: number) => {
-      const out: Record<string, { pass: number; total: number }> = {};
-      for (const r of graded.filter((x) => now - new Date(x.created_at).getTime() < days * 86400000)) {
-        out[r.intake_key] = out[r.intake_key] ?? { pass: 0, total: 0 };
-        out[r.intake_key].total += 1;
-        if (r.status === "pass") out[r.intake_key].pass += 1;
-      }
-      return out;
-    };
-    // Consecutive-clean-run streak toward the stabilization plan's "10 green
-    // nights" gate. A "run" = one batch of golden intakes fired together
-    // (created_at within 5 min of each other) — this counts every trigger,
-    // scheduled (0 5 * * * UTC) or manual (workflow_dispatch / by hand), not
-    // just calendar nights, so a manual proving run also has to stay clean to
-    // keep the streak alive. Only fully-graded batches count; a batch still
-    // mid-flight (any row pending) is excluded rather than breaking the streak.
-    const BATCH_GAP_MS = 5 * 60_000;
-    const byTime = [...canaryRuns].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-    const batches: { at: string; rows: typeof canaryRuns }[] = [];
-    for (const r of byTime) {
-      const last = batches[batches.length - 1];
-      if (last && new Date(r.created_at).getTime() - new Date(last.at).getTime() <= BATCH_GAP_MS) {
-        last.rows.push(r);
-        last.at = r.created_at;
-      } else {
-        batches.push({ at: r.created_at, rows: [r] });
-      }
-    }
-    const gradedBatches = batches
-      .filter((b) => b.rows.every((r) => r.status === "pass" || r.status === "fail"))
-      .map((b) => ({
-        at: b.at,
-        clean: b.rows.every((r) => r.status === "pass"),
-        n: b.rows.length,
-      }));
-    let streak = 0;
-    for (let i = gradedBatches.length - 1; i >= 0; i--) {
-      if (gradedBatches[i].clean) streak += 1;
-      else break;
-    }
-    let longestStreak = 0;
-    let running = 0;
-    for (const b of gradedBatches) {
-      running = b.clean ? running + 1 : 0;
-      longestStreak = Math.max(longestStreak, running);
-    }
-
-    return {
-      rate7: rate(7),
-      rate30: rate(30),
-      avgMin: avgSec != null ? Math.round(avgSec / 60) : null,
-      pending: canaryRuns.filter((r) => r.status === "pending").length,
-      byKey,
-      byKey7: byKeyWindow(7),
-      recent: canaryRuns.slice(0, 12),
-      total30: graded.filter((r) => now - new Date(r.created_at).getTime() < 30 * 86400000).length,
-      streak,
-      longestStreak,
-      gradedBatchCount: gradedBatches.length,
-      streakGoal: 10,
-    };
-  }, [canaryRuns]);
+  // Logic lives in lib/apps/productStability.ts — shared with
+  // app/api/admin/stability-analysis, which needs the exact same
+  // calculation server-side to build Claude's input without drifting
+  // from what this dashboard shows.
+  const canaryStats = useMemo(() => computeCanaryStats(canaryRuns), [canaryRuns]);
 
   // ── Build outcomes across REAL apps (not the synthetic canary) ──
   // "% complete" and the failure-reason ranking below are the two numbers
   // that say where to spend fix effort next.
-  const buildOutcomes = useMemo(() => {
-    const now = Date.now();
-    const windowed = (days: number | null) =>
-      days == null ? apps : apps.filter((a) => now - new Date(a.created_at).getTime() < days * 86400000);
-    const summarize = (rows: typeof apps) => {
-      const deployed = rows.filter((a) => a.status === "deployed").length;
-      const failed = rows.filter((a) => a.status === "failed").length;
-      const deployFailed = rows.filter((a) => a.status === "deploy_failed").length;
-      const inProgress = rows.filter((a) =>
-        ["generating", "ready", "deploying"].includes(a.status),
-      ).length;
-      const terminal = deployed + failed + deployFailed;
-      return {
-        total: rows.length,
-        deployed,
-        failed,
-        deployFailed,
-        inProgress,
-        terminal,
-        pctComplete: terminal > 0 ? deployed / terminal : null,
-      };
-    };
-    // Ranked failure reasons across BOTH real apps and canary runs, tagged by
-    // source, so you know whether to chase a customer-facing bug or a
-    // canary/infra quirk first. Scoped by window — "this month" (30d) is the
-    // one to act on; all-time is there for context.
-    const countReasons = (days: number | null) => {
-      const cutoff = days == null ? null : now - days * 86400000;
-      const inWindow = (iso: string) => cutoff == null || new Date(iso).getTime() >= cutoff;
-      const reasonCounts = new Map<string, { count: number; real: number; canary: number }>();
-      for (const a of apps) {
-        if (a.status !== "failed" && a.status !== "deploy_failed") continue;
-        if (!inWindow(a.created_at)) continue;
-        const reason = a.failure_reason ?? "(unknown)";
-        const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
-        e.count += 1;
-        e.real += 1;
-        reasonCounts.set(reason, e);
-      }
-      for (const r of canaryRuns) {
-        if (r.status !== "fail") continue;
-        if (!inWindow(r.created_at)) continue;
-        const reason = r.failure_reason ?? "(unknown)";
-        const e = reasonCounts.get(reason) ?? { count: 0, real: 0, canary: 0 };
-        e.count += 1;
-        e.canary += 1;
-        reasonCounts.set(reason, e);
-      }
-      const total = [...reasonCounts.values()].reduce((s, v) => s + v.count, 0);
-      const ranked = [...reasonCounts.entries()]
-        .map(([reason, v]) => ({ reason, ...v, pct: total > 0 ? v.count / total : 0 }))
-        .sort((a, b) => b.count - a.count);
-      return { ranked, total };
-    };
-    const reasons30 = countReasons(30);
-    const reasonsAll = countReasons(null);
-    return {
-      all: summarize(windowed(null)),
-      d30: summarize(windowed(30)),
-      d7: summarize(windowed(7)),
-      topReasons: reasons30.ranked,
-      totalFailures: reasons30.total,
-      topReasonsAll: reasonsAll.ranked,
-      totalFailuresAll: reasonsAll.total,
-    };
-  }, [apps, canaryRuns]);
+  const buildOutcomes = useMemo(() => computeBuildOutcomes(apps, canaryRuns), [apps, canaryRuns]);
+
+  // ── Overall product stability verdict — the one bold headline number.
+  // Green requires ALL of: the canary has actually proven the plan's
+  // 10-consecutive-clean-run gate, the 30d canary pass rate hasn't slipped
+  // under it, and — when there's enough real-app volume to mean anything —
+  // real builds are completing at the same bar. Any miss is red, with the
+  // specific reason shown so it's never a black box.
+  const productStability = useMemo(
+    () => computeProductStability(canaryStats, buildOutcomes),
+    [canaryStats, buildOutcomes],
+  );
 
   // ── Cost per build (actual AI + infra estimate) ────────────────
   const buildCost = useMemo(() => {
@@ -1129,9 +1011,52 @@ export default function AdminDashboard({
           <p className="text-zinc-500 text-sm mt-1">All customers, apps, and deployments across Vision Workx</p>
         </div>
 
+        {/* Product Stability — the one bold verdict, based on all build data
+            (canary streak/rate + real-app completion rate). See
+            docs/stabilization-plan.md for the gate this reflects. */}
+        <div
+          className={`mb-6 rounded-2xl border-2 p-5 ${
+            productStability.stable
+              ? "border-green-500 bg-green-50"
+              : "border-red-500 bg-red-50"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p
+                className={`text-xl font-extrabold tracking-tight ${
+                  productStability.stable ? "text-green-700" : "text-red-700"
+                }`}
+              >
+                Product Stability: {productStability.stable ? "STABLE" : "NOT STABLE"}
+              </p>
+              {productStability.stable ? (
+                <p className="text-sm text-green-800 mt-1">
+                  All build-data checks pass: canary streak, 30-day canary pass rate, and real-app
+                  completion rate.
+                </p>
+              ) : (
+                <ul className="text-sm text-red-800 mt-1 list-disc list-inside space-y-0.5">
+                  {productStability.reasons.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {!productStability.stable && (
+              <button
+                onClick={() => setTab("stability")}
+                className="shrink-0 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+              >
+                See what to fix →
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white border border-[#B8860B] rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
-          {(["overview", "apps", "users", "payments", "automations", "leads", "partners", "referrals"] as Tab[]).map((t) => (
+          {(["overview", "stability", "apps", "users", "payments", "automations", "leads", "partners", "referrals"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -1409,13 +1334,10 @@ export default function AdminDashboard({
             </CollapsibleSection>
 
             {/* Build outcomes + failure reasons — where to focus fix effort */}
-            <div className="bg-white rounded-2xl border border-[#B8860B] p-6">
-              <h2 className="font-semibold text-zinc-900 mb-1">Build Outcomes</h2>
-              <p className="text-xs text-zinc-500 mb-4">
-                Every real app that&apos;s ever been built (not the synthetic canary). % complete
-                only counts apps that reached a terminal state — still-building apps aren&apos;t
-                penalized while they&apos;re in flight.
-              </p>
+            <CollapsibleSection
+              title="Build Outcomes"
+              subtitle="Every real app that's ever been built (not the synthetic canary). % complete only counts apps that reached a terminal state — still-building apps aren't penalized while they're in flight."
+            >
               <div className="overflow-x-auto mb-5">
                 <table className="w-full text-sm">
                   <thead className="text-zinc-400">
@@ -1494,7 +1416,7 @@ export default function AdminDashboard({
                   ))}
                 </div>
               )}
-            </div>
+            </CollapsibleSection>
 
             {/* Cost per build / unit economics */}
             <CollapsibleSection
@@ -1651,6 +1573,15 @@ export default function AdminDashboard({
               />
             </CollapsibleSection>
           </div>
+        )}
+
+        {/* ── Stability ── */}
+        {tab === "stability" && (
+          <StabilityTab
+            buildOutcomes={buildOutcomes}
+            productStability={productStability}
+            initialAnalyses={stabilityAnalyses}
+          />
         )}
 
         {/* ── Apps ── */}
@@ -2805,7 +2736,7 @@ function CollapsibleSection({
   title,
   subtitle,
   actions,
-  defaultOpen = true,
+  defaultOpen = false,
   padded = true,
   children,
 }: {
@@ -3032,7 +2963,7 @@ function AppTable({
                     )}
                   </td>
                   <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
-                    {new Date(app.created_at).toLocaleDateString()}
+                    {fmtDateTime(app.created_at)}
                   </td>
                   <td className="px-4 py-3">
                     {app.deploy_url ? (

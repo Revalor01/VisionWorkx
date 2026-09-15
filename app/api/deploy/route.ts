@@ -6,13 +6,14 @@ import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
 import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
+import { modelForApp } from "@/lib/apps/canaryApps";
 import { validateRawOutput } from "@/lib/apps/validateGenerated";
 import { preflightBuild } from "@/lib/apps/sandboxBuild";
 import { applyBaseTemplate } from "@/lib/apps/baseTemplate";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
-import { classifyBuildError, operatorAlertTitle } from "@/lib/apps/buildFailure";
+import { classifyBuildError, operatorAlertTitle, type BuildFailureReason } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
 // Storage path shape written by uploadLogo() ("<userId>/<timestamp>.<ext>") —
@@ -736,7 +737,27 @@ async function getOrCreateVercelProject(name: string): Promise<string> {
   );
 }
 
-async function runDeploy(appId: string, userEmail: string | null) {
+async function runDeploy(
+  appId: string,
+  userEmail: string | null,
+  opts: { skipPreflight?: boolean } = {},
+): Promise<string | { handedOff: true }> {
+  // Confirms this invocation actually started running — the one thing
+  // missing when investigating the two confirmed cases (2026-09-12,
+  // booking_crm app cdefe79d and portal app e201080e) where a
+  // _skipPreflight handoff logged "handing the real deploy off" and then
+  // left ZERO further trace for ~40 min before the stuck-build reaper
+  // force-failed it as "timeout". Corroborating evidence in both cases:
+  // the app's status stayed "ready" (never advanced to "deploying", the
+  // very first write after this point) for 15+ minutes, suggesting the
+  // handed-off invocation's fetch dispatch itself never resulted in a
+  // running invocation — not a slow/stuck deploy further downstream. This
+  // log line, plus the success-side log on the handoff fetch below, turns
+  // the next occurrence from "total silence" into "did this invocation
+  // even start" being immediately answerable from logs.
+  if (opts.skipPreflight) {
+    console.log(`[api/deploy] ${appId.slice(0, 8)} started with _skipPreflight — proceeding straight to the real deploy`);
+  }
   const SCHEMA = `app_${appId.slice(0, 8)}`;
 
   // 1. Fetch app record
@@ -964,50 +985,128 @@ CREATE TRIGGER emit_automation_event
   const mapToFiles = (m: FileMap): { path: string; content: string }[] =>
     Object.entries(m).map(([path, content]) => ({ path, content }));
 
-  const preCategories = [
-    app.category,
-    ...((app.secondary_categories ?? []) as AppCategory[]),
-  ] as AppCategory[];
-  const preflight = await preflightBuild(filesToMap(files), {
-    onLog: (l) => console.log(`[api/deploy:preflight ${appId.slice(0, 8)}] ${l}`),
-    repair: async (fm, errors) => {
-      const { map } = await repairGenerated(
-        fm,
-        [
-          "The production `next build` of this app FAILED. Fix exactly these errors and re-emit each affected file IN FULL. Do not change package.json's framework pins.\n\n" +
-            errors,
-        ],
-        {
-          appName: app.name,
-          category: app.category as AppCategory,
-          categories: preCategories,
-          features: ((app.intake_data as IntakeData | null)?.features ?? []),
-          appId,
-        },
-      );
-      return map;
-    },
-  });
+  if (!opts.skipPreflight) {
+    const preCategories = [
+      app.category,
+      ...((app.secondary_categories ?? []) as AppCategory[]),
+    ] as AppCategory[];
+    const preflightStartedAt = Date.now();
+    // Cost lever added 2026-09-13: preflight's own repair() callback
+    // (repairGenerated) has its OWN internal 2-round retry loop — one
+    // preflight iteration can already cost up to 2 Claude repair calls.
+    // At the default maxIterations of 2, a single failing build could
+    // compound to up to 4 nested repair calls before ever reaching a real
+    // Vercel deploy. Capped to 1 here: still gets one full repair attempt
+    // (itself up to 2 rounds) in the fast, cheap sandbox before falling
+    // back to the real Vercel build — which remains the backstop either
+    // way (preflightBuild's own docs: "ok: false ... the Vercel build is
+    // still the backstop"). Trades a slightly higher rate of deferring to
+    // the slower real-deploy path for meaningfully less worst-case repair
+    // volume — explicitly acceptable while cost matters more than speed.
+    const preflight = await preflightBuild(filesToMap(files), {
+      maxIterations: 1,
+      onLog: (l) => console.log(`[api/deploy:preflight ${appId.slice(0, 8)}] ${l}`),
+      repair: async (fm, errors) => {
+        const { map } = await repairGenerated(
+          fm,
+          [
+            "The production `next build` of this app FAILED. Fix exactly these errors and re-emit each affected file IN FULL. Do not change package.json's framework pins.\n\n" +
+              errors,
+          ],
+          {
+            appName: app.name,
+            category: app.category as AppCategory,
+            categories: preCategories,
+            features: ((app.intake_data as IntakeData | null)?.features ?? []),
+            appId,
+            model: modelForApp(app.preview_email),
+          },
+        );
+        return map;
+      },
+    });
+    const preflightElapsedMs = Date.now() - preflightStartedAt;
 
-  if (preflight.ok === false) {
-    // Broken build, repair budget spent — do NOT create a Vercel project.
-    throw new PreflightError(
-      preflight.stage,
-      `sandbox ${preflight.stage} failed after ${preflight.iterations} attempt(s)`,
-      preflight.errors,
-    );
-  }
-  if (preflight.ok === true) {
-    files = mapToFiles(preflight.files);
-    if (preflight.repaired) {
-      // Persist the repaired source as the pending build so a later redeploy
-      // uses what actually compiled (promoted to generated_code on success).
-      await supabasePatch("apps", appId, {
-        pending_generated_code: serializeFileMap(preflight.files),
-      }).catch((e) => console.error("[api/deploy] persist repaired preflight source failed:", e));
+    if (preflight.ok === false) {
+      // Broken build, repair budget spent — do NOT create a Vercel project.
+      throw new PreflightError(
+        preflight.stage,
+        `sandbox ${preflight.stage} failed after ${preflight.iterations} attempt(s)`,
+        preflight.errors,
+      );
     }
-  } else {
-    console.warn(`[api/deploy] preflight skipped: ${preflight.reason} — relying on the Vercel build`);
+    if (preflight.ok === true) {
+      files = mapToFiles(preflight.files);
+      if (preflight.repaired) {
+        // Persist the repaired source as the pending build so a later redeploy
+        // uses what actually compiled (promoted to generated_code on success).
+        await supabasePatch("apps", appId, {
+          pending_generated_code: serializeFileMap(preflight.files),
+        }).catch((e) => console.error("[api/deploy] persist repaired preflight source failed:", e));
+      }
+    } else {
+      console.warn(`[api/deploy] preflight skipped: ${preflight.reason} — relying on the Vercel build`);
+    }
+
+    // Hand off to a fresh invocation once preflight has meaningfully eaten
+    // into this call's 800s clock. sandboxBuild.ts's own budget comment
+    // documents the arithmetic problem this closes: a real preflight repair
+    // can take up to ~356s, and the real Vercel deploy+poll after it can
+    // need up to 9 more minutes (540s) — 356+540=896s, already over the
+    // 800s ceiling in the worst case, with ZERO margin even in the typical
+    // case (240s preflight budget + 540s deploy = 780s, a 20s margin).
+    // Confirmed live 2026-09-11 (portal, booking_crm canaries, same day):
+    // preflight ran out of its own budget mid-repair and deferred straight
+    // to the real Vercel build sharing what was left of this invocation's
+    // clock, and separately, a real deploy attempt hit the outer function's
+    // own 800s ceiling directly ("Vercel Runtime Timeout Error: Task timed
+    // out after 800 seconds"). Both are the same underlying budget being
+    // split too thin across preflight + the real deploy in one invocation;
+    // splitting the two phases into separately-budgeted invocations removes
+    // the shared-clock risk either way. Below ~90s, preflight was a fast
+    // pass/fail check (no repair loop ran) and there's no reason to split
+    // off a fresh invocation just to do the deploy immediately after in the
+    // same call.
+    //
+    // This handoff itself then had its own silent-failure gap, confirmed
+    // live 2026-09-12: the dispatching fetch() below used to have to hold
+    // its connection open for the ENTIRE handed-off deploy (routinely
+    // 25-40+ min), but Node's fetch client's own header-wait timeout is far
+    // shorter, so it threw HeadersTimeoutError well before the deploy could
+    // finish — and if Vercel cancelled the still-running handoff invocation
+    // when that connection dropped, the app was orphaned at status="ready"
+    // with no further trace until the stuck-build reaper force-failed it
+    // 35-40 minutes later. Closed by POST acking internal calls immediately
+    // and running the real deploy in ITS OWN after() task (see the
+    // isInternal branch in POST) — so this dispatching fetch now resolves
+    // in milliseconds regardless of how long the handed-off deploy takes.
+    const PREFLIGHT_HANDOFF_THRESHOLD_MS = 90_000;
+    if (preflightElapsedMs >= PREFLIGHT_HANDOFF_THRESHOLD_MS) {
+      console.log(
+        `[api/deploy] preflight took ${Math.round(preflightElapsedMs / 1000)}s — handing the real deploy off to a fresh invocation with a full clean budget instead of racing what's left of this one`,
+      );
+      await supabasePatch("apps", appId, { status: "ready" });
+      const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
+      after(() =>
+        fetch(`${origin}/api/deploy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({ appId, _internal: true, _skipPreflight: true }),
+        })
+          // POST now acks internal calls immediately (202) and runs the
+          // actual deploy in ITS OWN after() background task — see the
+          // isInternal branch there for why. So this resolves almost
+          // instantly regardless of how long the handed-off deploy itself
+          // takes; it confirms only that the handoff was accepted, not that
+          // the deploy finished (or even started). Previously this fetch
+          // blocked on the full runDeploy() before responding, which caused
+          // confirmed silent handoff failures (HeadersTimeoutError logged
+          // live 2026-09-12) — that's the bug this two-sided fix closes.
+          .then((res) => console.log(`[api/deploy] post-preflight handoff for ${appId.slice(0, 8)} resolved with status ${res.status}`))
+          .catch((e) => console.error(`[api/deploy] post-preflight handoff for ${appId.slice(0, 8)} trigger failed:`, e))
+      );
+      return { handedOff: true };
+    }
   }
 
   // 5. Mark deploying
@@ -1122,88 +1221,34 @@ CREATE TRIGGER emit_automation_event
   return finalUrl;
 }
 
-// ── POST /api/deploy ──────────────────────────────────────────────────────────
-export async function POST(req: NextRequest) {
-  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean };
+// Runs the actual deploy attempt (including the build-failure repair-retry
+// path) and produces the HTTP response for it. Extracted out of POST so it
+// can run either awaited in the foreground (browser-initiated calls, which
+// need a real response) or fire-and-forget inside after() (internal calls —
+// see the isInternal branch in POST below, and the comment there for why).
+async function performDeploy(
+  appId: string,
+  userEmail: string | null,
+  body: { _repairAttempt?: boolean; _skipPreflight?: boolean },
+  appCheck: {
+    name: string;
+    category: AppCategory;
+    secondary_categories: unknown;
+    intake_data: unknown;
+    build_notice: string | null;
+    build_notice_at: string | null;
+    preview_email: string | null;
+  },
+  serviceClient: ReturnType<typeof createServiceClient>,
+): Promise<NextResponse> {
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const appId = body.appId ?? "";
-  if (!appId) {
-    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
-  }
-
-  const serviceClient = createServiceClient();
-  let userEmail: string | null = null;
-
-  // Internal calls from /api/generate use service role key authorization
-  const authHeader = req.headers.get("authorization") ?? "";
-  const isInternal = body._internal === true && authHeader === `Bearer ${SERVICE_KEY}`;
-
-  if (!isInternal) {
-    // Browser-initiated deploy: verify session
-    const supabase = await createServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const result = await runDeploy(appId, userEmail, { skipPreflight: body._skipPreflight === true });
+    if (typeof result === "object") {
+      // Preflight ran long — the real deploy was handed off to a fresh
+      // invocation with its own full clean budget (see runDeploy).
+      return NextResponse.json({ handedOff: true, redeploying: true }, { status: 202 });
     }
-
-    const { data: app } = await serviceClient
-      .from("apps")
-      .select("id, status")
-      .eq("id", appId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!app) {
-      return NextResponse.json({ error: "App not found" }, { status: 404 });
-    }
-
-    userEmail = user.email ?? null;
-  }
-
-  const { data: appCheck } = await serviceClient
-    .from("apps")
-    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at")
-    .eq("id", appId)
-    .single();
-
-  if (!appCheck) {
-    return NextResponse.json({ error: "App not found" }, { status: 404 });
-  }
-  if (appCheck.status === "deployed") {
-    return NextResponse.json({ error: "Already deployed" }, { status: 409 });
-  }
-
-  // Fetch user email if not already set (internal call path) — email lives on
-  // auth.users, not profiles, so it must come through the Admin API.
-  if (!userEmail) {
-    const { data: appData } = await serviceClient
-      .from("apps")
-      .select("user_id, preview_email")
-      .eq("id", appId)
-      .single();
-    if (appData?.user_id) {
-      const { data: userData } = await serviceClient.auth.admin.getUserById(
-        appData.user_id
-      );
-      userEmail = userData?.user?.email ?? null;
-    } else if (appData?.preview_email) {
-      // No account yet (Phase 5b preview) — notify the visitor who started it.
-      userEmail = appData.preview_email;
-    }
-  }
-
-  try {
-    const url = await runDeploy(appId, userEmail);
-    return NextResponse.json({ url });
+    return NextResponse.json({ url: result });
   } catch (err) {
     // The customer app failed to BUILD (not a pipeline error). If this
     // isn't already a repair attempt, run one repair pass over its source
@@ -1266,6 +1311,7 @@ export async function POST(req: NextRequest) {
               features:
                 ((appCheck.intake_data as IntakeData | null)?.features ?? []),
               appId,
+              model: modelForApp(appCheck.preview_email),
             },
           );
           const fixedCode = serializeFileMap(fixed);
@@ -1283,17 +1329,36 @@ export async function POST(req: NextRequest) {
               .from("apps")
               .update({ pending_generated_code: fixedCode, status: "ready" })
               .eq("id", appId);
+            // Dispatched as another internal call — POST will see isInternal
+            // and ack immediately, running the actual redeploy in its own
+            // after() background task (see the fix note in POST below), so
+            // this dispatching fetch never has to wait out the redeploy.
             // after(), not a bare fire-and-forget fetch — this response is
             // about to return, and an un-awaited call started right before
             // that can be silently dropped when the execution context tears
             // down, leaving the app stuck in "ready" until the stuck-build
             // reaper catches it 30 minutes later with no clean failure.
+            //
+            // _skipPreflight: true here too — confirmed live 2026-09-13,
+            // twice (portal, storefront; two different underlying build
+            // errors triggering the repair, same failure): without it, this
+            // redeploy re-runs the full sandboxed preflight check on
+            // already-repaired code, and if THAT preflight also runs long
+            // (>=90s), it attempts its own handoff — a second chained
+            // handoff — which Vercel's platform rejects outright with a 508
+            // Loop Detected instead of accepting it, orphaning the app at
+            // status="ready" exactly like the original PR #41 gap. Skipping
+            // preflight here removes the second handoff entirely: this
+            // repaired code is going straight to the real Vercel build
+            // regardless (the same path a first-handoff target already
+            // takes), so preflight was only ever a redundant early check on
+            // code that's already been fixed against a real compiler error.
             const origin = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
             after(() =>
               fetch(`${origin}/api/deploy`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
-                body: JSON.stringify({ appId, _internal: true, _repairAttempt: true }),
+                body: JSON.stringify({ appId, _internal: true, _repairAttempt: true, _skipPreflight: true }),
               }).catch((e) => console.error("[api/deploy] repair redeploy trigger failed:", e))
             );
             return NextResponse.json({ repaired: true, redeploying: true }, { status: 202 });
@@ -1311,10 +1376,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.error("[api/deploy]", err);
-    const reason =
-      err instanceof BuildError || err instanceof PreflightError
-        ? "build_error"
-        : classifyBuildError((err as Error).message);
+    // BuildError/PreflightError used to always tag "build_error" regardless
+    // of cause — but their .message is just a generic label ("Build ERROR"),
+    // while the actual reason (timeout, rate limit, overload) often only
+    // shows up in the captured build logs. That masked real timeouts as
+    // generic build errors, undercounting them on /admin's failure-reason
+    // ranking (confirmed live: a portal canary that genuinely hit Vercel's
+    // "Task timed out after 800 seconds" was recorded as plain
+    // "build_error"). Classify off the logs first; only fall back to the
+    // generic label when nothing more specific matches.
+    let reason: BuildFailureReason;
+    if (err instanceof BuildError) {
+      reason = classifyBuildError(`${err.message}\n${err.logs}`);
+      if (reason === "generation") reason = "build_error";
+    } else if (err instanceof PreflightError) {
+      reason = classifyBuildError(`${err.message}\n${err.log}`);
+      if (reason === "generation") reason = "build_error";
+    } else {
+      reason = classifyBuildError((err as Error).message);
+    }
     try {
       // Drop the in-progress build. generated_code (last deployed version) is
       // never touched here. Post the customer-facing notice — but if the
@@ -1356,4 +1436,115 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// ── POST /api/deploy ──────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  let body: { appId?: string; _internal?: boolean; _repairAttempt?: boolean; _skipPreflight?: boolean };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const appId = body.appId ?? "";
+  if (!appId) {
+    return NextResponse.json({ error: "Missing appId" }, { status: 400 });
+  }
+
+  const serviceClient = createServiceClient();
+  let userEmail: string | null = null;
+
+  // Internal calls from /api/generate use service role key authorization
+  const authHeader = req.headers.get("authorization") ?? "";
+  const isInternal = body._internal === true && authHeader === `Bearer ${SERVICE_KEY}`;
+
+  if (!isInternal) {
+    // Browser-initiated deploy: verify session
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: app } = await serviceClient
+      .from("apps")
+      .select("id, status")
+      .eq("id", appId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!app) {
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
+    }
+
+    userEmail = user.email ?? null;
+  }
+
+  const { data: appCheck } = await serviceClient
+    .from("apps")
+    .select("id, status, name, category, secondary_categories, intake_data, build_notice, build_notice_at, preview_email")
+    .eq("id", appId)
+    .single();
+
+  if (!appCheck) {
+    return NextResponse.json({ error: "App not found" }, { status: 404 });
+  }
+  if (appCheck.status === "deployed") {
+    return NextResponse.json({ error: "Already deployed" }, { status: 409 });
+  }
+
+  // Fetch user email if not already set (internal call path) — email lives on
+  // auth.users, not profiles, so it must come through the Admin API.
+  if (!userEmail) {
+    const { data: appData } = await serviceClient
+      .from("apps")
+      .select("user_id, preview_email")
+      .eq("id", appId)
+      .single();
+    if (appData?.user_id) {
+      const { data: userData } = await serviceClient.auth.admin.getUserById(
+        appData.user_id
+      );
+      userEmail = userData?.user?.email ?? null;
+    } else if (appData?.preview_email) {
+      // No account yet (Phase 5b preview) — notify the visitor who started it.
+      userEmail = appData.preview_email;
+    }
+  }
+
+  // Internal dispatches — the initial post-generation trigger, the
+  // post-preflight handoff, and the post-repair redeploy above — are all
+  // fire-and-forget from the dispatching side: every one of those callers
+  // only logs the outcome (or nothing at all) and never reads or acts on
+  // this response's body. This function used to `await performDeploy(...)`
+  // before responding even for these, which meant the dispatcher's fetch()
+  // had to hold its connection open for this invocation's ENTIRE run — up
+  // to the full 800s budget a real deploy can take. Node's own fetch client
+  // has a much shorter header-wait timeout than that, so it throws
+  // HeadersTimeoutError well before a long deploy finishes — confirmed live
+  // via two such errors in Vercel logs on 2026-09-12, both on post-preflight
+  // handoff dispatches. If Vercel cancels this invocation when that
+  // connection drops (plausible under Fluid Compute's request-cancellation
+  // support), the app is orphaned at whatever status runDeploy() last
+  // wrote, surfacing only 35-40 minutes later as a stuck-build-reaper
+  // "timeout" with no further trace — the confirmed root cause behind the
+  // repeated PR #41 handoff silent-failures that PR #44 added diagnostic
+  // logging for. Fix: ack internal dispatches immediately and run the real
+  // work in this invocation's own after() background task, decoupling the
+  // dispatcher's connection lifetime from the deploy's actual duration.
+  if (isInternal) {
+    after(() =>
+      performDeploy(appId, userEmail, body, appCheck, serviceClient).catch((e) =>
+        console.error(`[api/deploy] background deploy for ${appId.slice(0, 8)} threw:`, e)
+      )
+    );
+    return NextResponse.json({ accepted: true }, { status: 202 });
+  }
+
+  return await performDeploy(appId, userEmail, body, appCheck, serviceClient);
 }

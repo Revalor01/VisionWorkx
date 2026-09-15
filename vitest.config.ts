@@ -15,8 +15,12 @@ export default defineConfig({
     environment: "node",
     // adminSso.ts reads ADMIN_SSO_SECRET into a module-level const at
     // import time, so this must be set before any test file imports it.
+    // tenantSchema.ts does the same with these two for the Management API
+    // base URL/project ref.
     env: {
       ADMIN_SSO_SECRET: "test-secret-do-not-use-in-prod",
+      SUPABASE_MANAGEMENT_TOKEN: "test-mgmt-token-do-not-use-in-prod",
+      NEXT_PUBLIC_SUPABASE_URL: "https://test-project.supabase.co",
     },
   },
 });
