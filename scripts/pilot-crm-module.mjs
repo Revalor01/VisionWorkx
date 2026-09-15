@@ -396,9 +396,18 @@ async function main() {
       record.steps.generate = { startedAt: new Date(genStart).toISOString(), endedAt: new Date(genEnd).toISOString(), durationSec: secs(genEnd - genStart), status: "failed" };
       record.costs = await costsForApp(appId);
       record.totalCostUsd = record.costs.reduce((s, c) => s + c.costUsd, 0);
-      const blocked = /usage limit/i.test(err.message);
+      // apps.failure_reason is a generic category ("generation"), not the
+      // real error text — the actual Anthropic error (e.g. an account-
+      // level usage-limit block) only shows up in Vercel's runtime logs,
+      // which this script doesn't fetch. Zero cost + a near-instant
+      // failure is what an external pre-flight block looks like from data
+      // already on hand; a genuine pipeline bug either burns real tokens
+      // first or takes meaningfully longer to fail. Not proof by itself —
+      // cross-check Vercel logs for the exact request when in doubt.
+      const genDurationSec = secs(genEnd - genStart);
+      const blocked = record.totalCostUsd === 0 && genDurationSec < 30;
       finish(blocked ? "blocked" : "core_failed", err.message);
-      console.error(`\n${blocked ? "BLOCKED" : "FAIL"}: ${err.message}`);
+      console.error(`\n${blocked ? "BLOCKED (likely external API limit, unconfirmed — check Vercel logs)" : "FAIL"}: ${err.message}`);
       process.exit(blocked ? 0 : 1);
     }
     const genEnd = now();
