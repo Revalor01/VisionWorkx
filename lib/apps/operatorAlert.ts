@@ -5,7 +5,6 @@
 
 const RESEND_KEY = process.env.RESEND_API_KEY;
 const OPERATOR_EMAIL = process.env.OPERATOR_EMAIL || "info@revalorllc.com";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -49,7 +48,7 @@ export async function notifyBuildFailure(opts: {
     <h2 style="color:#b91c1c;margin:0 0 12px">${heading}</h2>
     <table style="font-size:14px;border-collapse:collapse">${table}</table>
     ${logBlock}
-    <p style="margin-top:20px"><a href="${APP_URL}/admin/ops" style="color:#1A3A5C;font-weight:600">Open the Ops dashboard &rarr;</a></p>
+    <p style="margin-top:20px"><a href="https://revalor-admin.vercel.app/ops" style="color:#1A3A5C;font-weight:600">Open the Ops dashboard &rarr;</a></p>
     <p style="color:#999;font-size:12px;margin-top:16px">Vision Workx &middot; automated alert</p>
   </div>`;
 

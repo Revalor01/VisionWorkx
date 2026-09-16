@@ -942,12 +942,18 @@ export default function AdminDashboard({
           <Link href="/admin/content" className="text-xs text-white/70 hover:text-white transition-colors">
             Content →
           </Link>
-          <Link href="/admin/ops" className="text-xs text-white/70 hover:text-white transition-colors">
+          <a
+            href="https://revalor-admin.vercel.app/ops"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
             Ops →
-          </Link>
-          <Link href="/admin/dev-activity" className="text-xs text-white/70 hover:text-white transition-colors">
+          </a>
+          <a
+            href="https://revalor-admin.vercel.app/dev-activity"
+            className="text-xs text-white/70 hover:text-white transition-colors"
+          >
             Dev Activity →
-          </Link>
+          </a>
           <span className="hidden sm:inline text-white/20">|</span>
           <Link href="/dashboard" className="text-xs text-white/70 hover:text-white transition-colors">
             ← Back to Dashboard

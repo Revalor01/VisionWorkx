@@ -47,6 +47,8 @@ RULES
 export interface EditContext {
   appName: string;
   category: AppCategory;
+  /** Attributes the edit's AI cost to this app. */
+  appId?: string | null;
 }
 
 export interface EditResult {
@@ -112,6 +114,7 @@ export async function editApp(
     model: MODEL,
     inputTokens: message.usage.input_tokens,
     outputTokens: message.usage.output_tokens,
+    appId: ctx.appId ?? null,
   });
 
   const text = message.content
