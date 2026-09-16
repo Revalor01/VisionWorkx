@@ -67,7 +67,7 @@ export type SocialRiskLevel = "low" | "medium" | "high";
 export type SocialContentGeneratedBy = "manual" | "autonomous" | "content_engine";
 export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation" | "needs_media";
 export type LinkedInPostStatus = "draft" | "approved" | "posted";
-export type LinkedInProduct = "visionworkx" | "proactive";
+export type LinkedInProduct = "visionworkx" | "proactive" | "revalor";
 
 export interface LeadSignal {
   tier: 1 | 2 | 3 | 4;
