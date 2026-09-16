@@ -260,6 +260,38 @@ function appendHistory(record) {
   appendFileSync(HISTORY_PATH, JSON.stringify(record) + "\n");
 }
 
+// Mirrors the local JSONL record into module_pilot_runs (see migration
+// 20240101000080) so /admin/module-pilot can show real averages — a
+// deployed dashboard can't read a file on whichever machine ran this
+// script, only the database.
+async function syncRecordToDb(record) {
+  await sb("module_pilot_runs", {
+    method: "POST",
+    body: JSON.stringify({
+      pilot_name: "booking_crm_module",
+      app_id: record.appId,
+      outcome: record.outcome,
+      outcome_detail: record.outcomeDetail,
+      generate_started_at: record.steps.generate?.startedAt ?? null,
+      generate_ended_at: record.steps.generate?.endedAt ?? null,
+      generate_duration_sec: record.steps.generate?.durationSec ?? null,
+      generate_status: record.steps.generate?.status ?? null,
+      edit_started_at: record.steps.edit?.startedAt ?? null,
+      edit_ended_at: record.steps.edit?.endedAt ?? null,
+      edit_duration_sec: record.steps.edit?.durationSec ?? null,
+      edit_status: record.steps.edit?.status ?? null,
+      regression_started_at: record.steps.regression?.startedAt ?? null,
+      regression_ended_at: record.steps.regression?.endedAt ?? null,
+      regression_duration_sec: record.steps.regression?.durationSec ?? null,
+      regression_status: record.steps.regression?.status ?? null,
+      costs: record.costs,
+      total_cost_usd: record.totalCostUsd,
+      total_duration_ms: record.totalDurationMs,
+      run_at: record.runAt,
+    }),
+  });
+}
+
 function loadHistory() {
   if (!existsSync(HISTORY_PATH)) return [];
   return readFileSync(HISTORY_PATH, "utf8")
@@ -333,12 +365,21 @@ async function main() {
     totalDurationMs: 0,
   };
 
-  function finish(outcome, detail) {
+  async function finish(outcome, detail) {
     record.outcome = outcome;
     record.outcomeDetail = detail;
     record.totalDurationMs = now() - runStarted;
     appendHistory(record);
     console.log(`\nRecorded to ${HISTORY_PATH}`);
+    try {
+      await syncRecordToDb(record);
+      console.log(`Recorded to module_pilot_runs (Supabase) — feeds /admin/module-pilot`);
+    } catch (err) {
+      // The local JSONL line above already has the full record — a DB
+      // write failure here shouldn't be treated as the pilot run itself
+      // failing, just surfaced so it can be backfilled by hand if needed.
+      console.error(`Warning: could not write to module_pilot_runs: ${err.message}`);
+    }
   }
 
   let appId;
@@ -406,7 +447,7 @@ async function main() {
       // cross-check Vercel logs for the exact request when in doubt.
       const genDurationSec = secs(genEnd - genStart);
       const blocked = record.totalCostUsd === 0 && genDurationSec < 30;
-      finish(blocked ? "blocked" : "core_failed", err.message);
+      await finish(blocked ? "blocked" : "core_failed", err.message);
       console.error(`\n${blocked ? "BLOCKED (likely external API limit, unconfirmed — check Vercel logs)" : "FAIL"}: ${err.message}`);
       process.exit(blocked ? 0 : 1);
     }
@@ -418,7 +459,7 @@ async function main() {
     if (!coreSmoke.ok) {
       record.costs = await costsForApp(appId);
       record.totalCostUsd = record.costs.reduce((s, c) => s + c.costUsd, 0);
-      finish("core_failed", `smoke check failed before the module was applied — ${coreSmoke.reason}`);
+      await finish("core_failed", `smoke check failed before the module was applied — ${coreSmoke.reason}`);
       console.error(`FAIL: core smoke check failed — ${coreSmoke.reason}`);
       console.log(`App left in place for inspection: ${appId}`);
       process.exit(1);
@@ -454,7 +495,7 @@ async function main() {
       record.steps.edit = { startedAt: new Date(editStart).toISOString(), endedAt: new Date(editEnd).toISOString(), durationSec: secs(editEnd - editStart), status: "failed" };
       record.costs = await costsForApp(appId);
       record.totalCostUsd = record.costs.reduce((s, c) => s + c.costUsd, 0);
-      finish("module_failed", err.message);
+      await finish("module_failed", err.message);
       console.error(`\nFAIL: ${err.message}`);
       console.log(`App left in place for inspection: ${appId}`);
       process.exit(1);
@@ -475,14 +516,14 @@ async function main() {
     record.totalCostUsd = record.costs.reduce((s, c) => s + c.costUsd, 0);
 
     if (!finalSmoke.ok) {
-      finish("regression_failed", finalSmoke.reason);
+      await finish("regression_failed", finalSmoke.reason);
       console.error(`FAIL: app broke after the module was applied — ${finalSmoke.reason}`);
       console.log(`App left in place for inspection: ${appId} (${after.deploy_url})`);
       process.exit(1);
     }
 
     console.log("Final smoke check: OK — app still serves without a 5xx or a redirect loop.");
-    finish("pass", `changelog: ${doneRevision.changelog}`);
+    await finish("pass", `changelog: ${doneRevision.changelog}`);
 
     console.log(`\nPASS: booking core survived the CRM module install.`);
     console.log(`App:      ${appId}`);
@@ -502,7 +543,7 @@ async function main() {
       record.costs = await costsForApp(appId).catch(() => []);
       record.totalCostUsd = record.costs.reduce((s, c) => s + c.costUsd, 0);
     }
-    finish("error", err.message);
+    await finish("error", err.message);
     throw err;
   }
 }

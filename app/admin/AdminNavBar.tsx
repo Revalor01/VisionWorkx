@@ -27,6 +27,7 @@ const MEDIA_LINKS: NavLink[] = [
 const OPERATIONS_LINKS: NavLink[] = [
   { key: "vw-ops", label: "Ops", href: "/admin/ops" },
   { key: "vw-dev-activity", label: "Dev Activity", href: "/admin/dev-activity" },
+  { key: "module-pilot", label: "Module Pilot", href: "/admin/module-pilot" },
   { key: "ops", label: "Ops (Revalor Admin)", href: `${REVALOR_ADMIN}/ops` },
   { key: "ai-usage", label: "AI Usage", href: `${REVALOR_ADMIN}/ai-usage` },
   { key: "dev-activity", label: "Dev Activity (Revalor Admin)", href: `${REVALOR_ADMIN}/dev-activity` },
