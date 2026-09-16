@@ -3,7 +3,7 @@ import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta
 import { publishInstagramPost, publishTikTokPost, publishYouTubePost, uploadMediaForTikTok } from "@/lib/social/socialApi";
 import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
 import { getOrCreateShortLink, withUtm } from "@/lib/social/shortLinks";
-import type { SocialContent } from "@/lib/database.types";
+import type { SocialContent, SocialPlatform } from "@/lib/database.types";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
 // "Post now" button (app/api/social/content/[id]/publish-now) — one place
@@ -12,6 +12,14 @@ import type { SocialContent } from "@/lib/database.types";
 const VIDEO_BUCKET = "social-video-assets";
 const IMAGE_BUCKET = "social-content-images";
 const SIGNED_URL_TTL_SECONDS = 3600; // long enough for Meta's servers to fetch the media during processing
+
+// Platforms whose branch below requires post.image_path or
+// post.video_asset_id to be set — Facebook is the only platform that can
+// publish text-only. Image/video generation are both manual per-post
+// dashboard actions (generate-image / generate-video), not part of the
+// autonomous generate cron, so app/api/cron/social-generate checks this
+// list before auto-scheduling a post, instead of letting it fail here.
+export const PLATFORMS_REQUIRING_MEDIA: SocialPlatform[] = ["instagram", "tiktok", "youtube"];
 
 export async function publishPost(
   service: ReturnType<typeof createServiceClient>,

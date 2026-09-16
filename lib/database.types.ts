@@ -65,7 +65,7 @@ export type SocialInboxStatus = "open" | "resolved";
 export type SocialAutonomyMode = "manual" | "semi_autonomous" | "fully_autonomous";
 export type SocialRiskLevel = "low" | "medium" | "high";
 export type SocialContentGeneratedBy = "manual" | "autonomous" | "content_engine";
-export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation";
+export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation" | "needs_media";
 export type LinkedInPostStatus = "draft" | "approved" | "posted";
 export type LinkedInProduct = "visionworkx" | "proactive";
 

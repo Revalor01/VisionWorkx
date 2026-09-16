@@ -4,6 +4,7 @@ import { generateContentCalendar } from "@/lib/social/contentGenerator";
 import { getTodaysTopics } from "@/lib/social/topicSeeds";
 import { evaluateApproval } from "@/lib/social/riskEvaluator";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
+import { PLATFORMS_REQUIRING_MEDIA } from "@/lib/social/publishPost";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
@@ -73,6 +74,18 @@ export async function GET(req: NextRequest) {
         break; // pause takes effect immediately — stop generating more for this brand this run
       }
 
+      // Auto-approved but missing a media step this cron can't do itself:
+      // publishPost.ts requires an image/video for these platforms and
+      // there's no automatic way to generate one here (see
+      // PLATFORMS_REQUIRING_MEDIA's comment) — scheduling it anyway would
+      // just fail at publish time and pause the whole brand's autonomy,
+      // which is exactly what kept happening to Revalor LLC's Instagram
+      // posts. Route to draft instead: no pause, no break — the rest of
+      // this brand's batch (e.g. a Facebook post, which doesn't need
+      // media) still gets evaluated normally.
+      const needsMedia = status === "auto" && PLATFORMS_REQUIRING_MEDIA.includes(post.platform);
+      const finalStatus = needsMedia ? "draft" : status === "auto" ? "scheduled" : "draft";
+
       const { data: inserted } = await service
         .from("social_content")
         .insert({
@@ -83,14 +96,26 @@ export async function GET(req: NextRequest) {
           hashtags: post.hashtags,
           risk_level: post.riskLevel,
           generated_by: "autonomous",
-          status: status === "auto" ? "scheduled" : "draft",
-          scheduled_at: status === "auto" ? slots[i] : null,
+          status: finalStatus,
+          scheduled_at: finalStatus === "scheduled" ? slots[i] : null,
         })
         .select("id")
         .maybeSingle();
 
-      if (status === "auto") {
+      if (finalStatus === "scheduled") {
         autoCount++;
+      } else if (needsMedia) {
+        reviewCount++;
+        await raiseAutonomyFlag(service, {
+          brandId: brand.id,
+          brandName: brand.name,
+          contentId: inserted?.id,
+          kind: "needs_media",
+          detail: `Autonomous ${post.platform} post needs an image or video before it can publish — add one from the dashboard, then publish it manually or let the next slot pick it up.`,
+          pauseBrand: false,
+        });
+        // no break — this isn't a risk/policy problem, just a routine
+        // manual step, so the rest of this brand's batch still runs
       } else {
         reviewCount++;
         await raiseAutonomyFlag(service, {
