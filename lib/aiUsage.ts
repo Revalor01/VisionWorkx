@@ -22,7 +22,6 @@ export type AiUsageSource =
   | "app_generate_plan"
   | "app_edit"
   | "app_deploy_repair"
-  | "promote_copy"
   | "blog_content"
   | "social_classify_inbound"
   | "social_content_generate"

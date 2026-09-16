@@ -110,7 +110,6 @@ Both created in Workbench → Webhooks, payload style **Snapshot**:
 | Name | Scope ("Events from") | URL | Events |
 |---|---|---|---|
 | `visionworkx-connect` (live + sandbox) | **Connected accounts** (`@accounts`) | `/api/webhooks/stripe` | `account.updated`, `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` |
-| `visionworkx-promote` (live) | **Your account** (`@self`) | `/api/webhooks/stripe-promote` | `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` |
 
 `account.updated` for a connected account is a **Connect-scoped** event — it
 must be on the `@accounts` destination or `payments_status` never flips to
@@ -123,11 +122,11 @@ must be on the `@accounts` destination or `payments_status` never flips to
 2. Settings → Connect → enable as a **Platform**, **Standard** accounts,
    **direct charges**; fill the platform profile.
 3. Enable **Accounts v1 support** (live + sandbox).
-4. Create the two webhooks above; copy each signing secret.
+4. Create the webhook above; copy its signing secret.
 5. Set the env vars below in Vercel (production) and redeploy — new prod env
    vars need a fresh deploy to take effect.
-6. Recreate the platform's own Products/Prices (Promote tiers; and the
-   Starter/Growth/Pro subscription prices when that ships).
+6. Recreate the platform's own Products/Prices (the Starter/Growth/Pro
+   subscription prices when that ships).
 
 ---
 
@@ -141,8 +140,6 @@ must be on the `@accounts` destination or `payments_status` never flips to
 | `STRIPE_TEST_SECRET_KEY` | Sandbox secret key — used for any app with `payments_test_mode = true`. |
 | `STRIPE_TEST_WEBHOOK_SECRET` | Signing secret of the **sandbox** `visionworkx-connect` webhook. |
 | `PLATFORM_FEE_PERCENT` | Platform's cut of each direct charge, as a percent. `1` = 1%. Unset / 0 = no fee. |
-| `STRIPE_PROMOTE_STARTER_PRICE_ID` / `_GROWTH_` / `_PRO_` | Price IDs for the Promote add-on ($19 / $49 / $99 mo) on the platform account. |
-| `STRIPE_PROMOTE_WEBHOOK_SECRET` | Signing secret of the `visionworkx-promote` webhook. |
 | `STRIPE_STARTER_PRICE_ID` / `_GROWTH_` / `_PRO_` (+ `_ANNUAL_`) | VisionWorkx's own subscription prices. **Still point at the old account** — recreate on the new one when subscription billing ships (PR #24). |
 | `STRIPE_GUIDED_SESSION_PRICE_ID` | Optional $10 Guided Build Session price. Unset → `/api/guided` uses an inline $10 price (fine). |
 
@@ -177,4 +174,3 @@ one production URL serves both live and sandbox events.
 | Card stays on **"Finish payment setup"** after onboarding | Connected account has outstanding `requirements` — usually `person…id_number` (needs full SSN, not last-4) or `verification.document`, or address still `pending_verification`. Check with `stripe get /v1/accounts/<acct> --api-key <key>`. In test mode the doc requirement auto-clears in ~1–2 min. |
 | `payments_status` never becomes `active` | The `visionworkx-connect` webhook is missing, disabled, or **not `@accounts`-scoped**. Check Workbench → Webhooks → recent deliveries are 200. |
 | Webhook deliveries are **400** | Signature mismatch — the endpoint's signing secret doesn't match `STRIPE_WEBHOOK_SECRET` / `STRIPE_TEST_WEBHOOK_SECRET` in prod. Re-copy and redeploy. |
-| Promote checkout fails with `No such price` | `STRIPE_PROMOTE_*_PRICE_ID` point at a different Stripe account than `STRIPE_SECRET_KEY`. Recreate the prices on the current account. |

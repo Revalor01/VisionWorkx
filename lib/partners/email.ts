@@ -1,5 +1,5 @@
 // Reuses the raw-fetch Resend pattern already used across the repo
-// (e.g. lib/promote/email.ts, app/api/admin/leads/email/route.ts).
+// (e.g. app/api/admin/leads/email/route.ts).
 // Sends from notify.revalorllc.com, a verified Resend sending domain
 // kept separate from revalorllc.com's real mailboxes (support@,
 // info@, admin@, etc. — hosted on SiteGround) to avoid any collision
