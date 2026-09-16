@@ -41,7 +41,7 @@ export default function TermsPage() {
             Vision Workx lets you describe your business and generates a working web application for it using
             AI, which we then host on your behalf. The Service includes the app-generation tool, the hosted
             application itself, the settings/dashboard used to manage it, and any related products we offer
-            (including Vision Workx Promote and the Partner Program).
+            (including the Partner Program).
           </p>
           <p>
             AI-generated output can be wrong, incomplete, or not exactly what you asked for. You&apos;re

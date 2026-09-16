@@ -1,6 +1,6 @@
 // Reuses the raw-fetch Resend pattern already used in app/api/deploy/route.ts
-// and lib/promote/email.ts — staying consistent with the existing pattern
-// rather than introducing a second way to send mail.
+// — staying consistent with the existing pattern rather than introducing a
+// second way to send mail.
 
 const RESEND_KEY = process.env.RESEND_API_KEY;
 const ALERT_TO = "sawilliams721@gmail.com";
