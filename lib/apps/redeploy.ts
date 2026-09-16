@@ -16,6 +16,7 @@
 // that guard for a redeploy. Lifting the guard properly (and moving the
 // pipeline into this file) is Phase 1 work, tracked there.
 
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import type { AppRevisionKind } from "@/lib/database.types";
 import {
@@ -30,22 +31,65 @@ function appOrigin(): string {
 }
 
 /**
- * Fire the internal deploy pipeline for `appId`. Fire-and-forget: the route
- * runs for minutes and updates apps.status / app_revisions itself. Mirrors
- * the trigger in app/api/generate/route.ts.
+ * Fire the internal deploy pipeline for `appId`. The route itself runs for
+ * minutes and updates apps.status / app_revisions on its own — but getting
+ * that route INVOKED at all has two separate failure modes this guards
+ * against:
+ *
+ * 1. A bare, un-awaited "fire and forget" fetch can get silently dropped
+ *    when this function's execution context is torn down right after the
+ *    response is sent — the fetch never finishes being dispatched, /api/
+ *    deploy is never invoked, and the app sits in "ready" with no error.
+ *    after() (same fix already applied in app/api/generate/route.ts) is
+ *    the platform's guarantee that this runs to completion regardless.
+ * 2. Even correctly dispatched, the request can still fail outright —
+ *    confirmed live 2026-09-16 via the pilot script: a `write ETIMEDOUT`
+ *    on this exact fetch, after an unusually long-running edit call. One
+ *    retry after a short delay, then — if that also fails — mark the
+ *    failure visibly (deploy_failed / the revision itself) instead of only
+ *    a console.error, so the app/revision doesn't rot silently in "ready"/
+ *    "building" forever with nothing to catch it.
  */
-export function triggerDeploy(appId: string): void {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  void fetch(`${appOrigin()}/api/deploy`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceKey}`,
-    },
-    body: JSON.stringify({ appId, _internal: true }),
-  }).catch((err: unknown) =>
-    console.error("[apps/redeploy] deploy trigger failed:", err),
-  );
+export function triggerDeploy(appId: string, revisionId?: string): void {
+  after(async () => {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+    const attempt = () =>
+      fetch(`${appOrigin()}/api/deploy`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ appId, _internal: true }),
+      });
+
+    try {
+      await attempt();
+      return;
+    } catch (err) {
+      console.error("[apps/redeploy] deploy trigger failed, retrying once:", err);
+    }
+
+    await new Promise((r) => setTimeout(r, 3000));
+
+    try {
+      await attempt();
+    } catch (err) {
+      console.error("[apps/redeploy] deploy trigger failed on retry, giving up:", err);
+      const message = `Could not start the deploy: ${err instanceof Error ? err.message : String(err)}`;
+      const service = createServiceClient();
+      await service
+        .from("apps")
+        .update({ status: "deploy_failed", failure_reason: message.slice(0, 500) })
+        .eq("id", appId);
+      if (revisionId) {
+        await service
+          .from("app_revisions")
+          .update({ status: "failed", error: message.slice(0, 2000) })
+          .eq("id", revisionId);
+      }
+    }
+  });
 }
 
 /**
@@ -162,7 +206,7 @@ export async function deployFileMap(
     })
     .eq("id", appId);
 
-  triggerDeploy(appId);
+  triggerDeploy(appId, revision.id);
   return revision.id;
 }
 
@@ -203,7 +247,7 @@ export async function shipRevisionEdit(params: {
     })
     .eq("id", params.appId);
 
-  triggerDeploy(params.appId);
+  triggerDeploy(params.appId, params.revisionId);
 }
 
 /** Mark a revision failed with a reason (the edit engine declined, etc.). */
