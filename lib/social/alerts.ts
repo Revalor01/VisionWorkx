@@ -11,6 +11,7 @@ const KIND_LABELS: Record<string, string> = {
   high_risk: "High-risk content flagged",
   publish_failure: "Publish failed",
   inbox_escalation: "Message needs a human reply",
+  needs_media: "Needs an image or video before it can publish",
 };
 
 // Fire-and-forget by design — an email failure must never block the
