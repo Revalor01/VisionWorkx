@@ -35,3 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 supabase/.temp/
+
+# pilot script run data — local history, not source (see scripts/pilot-crm-module.mjs)
+scripts/pilot-crm-module-history.jsonl
