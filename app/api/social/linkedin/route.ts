@@ -7,7 +7,7 @@ import type { LinkedInProduct } from "@/lib/database.types";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const VALID_PRODUCTS: LinkedInProduct[] = ["visionworkx", "proactive"];
+const VALID_PRODUCTS: LinkedInProduct[] = ["visionworkx", "proactive", "revalor"];
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();

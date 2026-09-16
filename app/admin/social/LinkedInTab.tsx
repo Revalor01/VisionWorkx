@@ -12,6 +12,7 @@ const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
 const PRODUCT_LABEL: Record<LinkedInProduct, string> = {
   visionworkx: "VisionWorkx",
   proactive: "Proactive",
+  revalor: "Revalor (company-wide)",
 };
 
 export default function LinkedInTab({
@@ -73,6 +74,7 @@ export default function LinkedInTab({
           >
             <option value="visionworkx">VisionWorkx</option>
             <option value="proactive">Proactive</option>
+            <option value="revalor">Revalor (company-wide)</option>
           </select>
           <input
             value={topic}
