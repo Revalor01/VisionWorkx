@@ -18,6 +18,7 @@
 
 import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import type { AppRevisionKind } from "@/lib/database.types";
 import {
   diffFileMaps,
@@ -88,6 +89,26 @@ export function triggerDeploy(appId: string, revisionId?: string): void {
           .update({ status: "failed", error: message.slice(0, 2000) })
           .eq("id", revisionId);
       }
+
+      // Same alert the sibling failure path (editApp() itself failing, in
+      // revisions/process/route.ts) already sends — this path was silently
+      // missing it, so a stuck deploy was only ever visible to someone who
+      // happened to check /admin, unlike every other build-failure stage.
+      const { data: app } = await service
+        .from("apps")
+        .select("name, user_id")
+        .eq("id", appId)
+        .single();
+      const owner = app?.user_id
+        ? ((await service.auth.admin.getUserById(app.user_id)).data.user?.email ?? `user ${app.user_id}`)
+        : null;
+      await notifyBuildFailure({
+        stage: "deploy",
+        appId,
+        appName: app?.name,
+        customer: owner,
+        error: message,
+      });
     }
   });
 }
