@@ -1147,6 +1147,7 @@ export type Database = {
           notes: string | null;
           created_at: string;
           updated_at: string;
+          do_not_email: boolean;
         };
         Insert: {
           id?: string;
@@ -1179,6 +1180,7 @@ export type Database = {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          do_not_email?: boolean;
         };
         Update: {
           business_type?: string | null;
@@ -1202,6 +1204,7 @@ export type Database = {
           last_contacted_at?: string | null;
           notes?: string | null;
           updated_at?: string;
+          do_not_email?: boolean;
         };
         Relationships: [];
       };
