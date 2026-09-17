@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import type { SocialBrand, SocialVideoAsset, SocialVideoStatus, SocialVideoProduct } from "@/lib/database.types";
 
 const STATUS_LABEL: Record<SocialVideoStatus, string> = {
@@ -101,6 +102,19 @@ export default function StudioTab({
     setOutroApp(PRODUCT_TO_OUTRO_APP[next] ?? "none");
   }
 
+  const supabase = useMemo(() => createBrowserClient(), []);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const [importBrandId, setImportBrandId] = useState(brands[0]?.id ?? "");
+  const [importProduct, setImportProduct] = useState<SocialVideoProduct>("visionworkx");
+  const [importOutroApp, setImportOutroApp] = useState<string>(PRODUCT_TO_OUTRO_APP.visionworkx ?? "none");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+
+  function handleImportProductChange(next: SocialVideoProduct) {
+    setImportProduct(next);
+    setImportOutroApp(PRODUCT_TO_OUTRO_APP[next] ?? "none");
+  }
+
   async function suggestContent() {
     setSuggesting(true);
     setSuggestError("");
@@ -169,6 +183,46 @@ export default function StudioTab({
       setError((err as Error).message);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleImport(file: File) {
+    if (!importBrandId) {
+      setImportError("Pick a brand first");
+      return;
+    }
+    setImporting(true);
+    setImportError("");
+    try {
+      const res = await fetch("/api/social/video-assets/studio-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandId: importBrandId, product: importProduct, outroApp: importOutroApp, filename: file.name }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+
+      const { error: uploadError } = await supabase.storage
+        .from("social-video-assets")
+        .uploadToSignedUrl(body.path, body.uploadToken, file);
+      if (uploadError) throw new Error(uploadError.message);
+
+      setVideoAssets((prev) => [body.asset, ...prev]);
+
+      const applyRes = await fetch(`/api/social/video-assets/${body.asset.id}/apply-outro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const applyBody = await applyRes.json();
+      if (!applyRes.ok) throw new Error(applyBody.error ?? `HTTP ${applyRes.status}`);
+
+      await pollVideoAsset(body.asset.id);
+    } catch (err) {
+      setImportError((err as Error).message);
+    } finally {
+      setImporting(false);
+      if (importFileInputRef.current) importFileInputRef.current.value = "";
     }
   }
 
@@ -302,6 +356,80 @@ export default function StudioTab({
         </button>
       </div>
 
+      <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
+        <h2 className="text-lg font-semibold text-[#1A3A5C] mb-1">Import video</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Already have a high-quality video from another platform? Upload it here — pick the product it's about and
+          the app whose logo should close it out, and it gets the same fade-in/fade-out brand outro as videos
+          generated above, then shows up right below alongside them.
+        </p>
+        {importError && (
+          <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{importError}</div>
+        )}
+
+        <div className="flex flex-wrap gap-4 mb-3">
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it's about)</label>
+            <select
+              value={importProduct}
+              onChange={(e) => handleImportProductChange(e.target.value as SocialVideoProduct)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            >
+              {PRODUCT_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.products.map((p) => (
+                    <option key={p} value={p}>{PRODUCT_LABEL[p]}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Brand identity (voice/tone)</label>
+            <select
+              value={importBrandId}
+              onChange={(e) => setImportBrandId(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            >
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Outro app</label>
+            <select
+              value={importOutroApp}
+              onChange={(e) => setImportOutroApp(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="none">None</option>
+              {OUTRO_APPS.map((app) => (
+                <option key={app} value={app}>{app}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 mt-1">Logo end-card, appended to the clip</p>
+          </div>
+
+          <div>
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept="video/*"
+              disabled={importing}
+              onChange={(e) => e.target.files?.[0] && handleImport(e.target.files[0])}
+              className="block text-sm"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              {importing ? "Uploading and branding… this can take a minute" : "MP4 or MOV from your other platform"}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {studioVideos.map((asset) => (
           <div key={asset.id} className="bg-white border border-green-600 rounded-xl p-4">
@@ -314,9 +442,11 @@ export default function StudioTab({
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mb-2">Brand: {brandName(asset.brand_id)}</p>
-            <p className="text-xs text-slate-600 mb-2 line-clamp-3">{asset.studio_prompt}</p>
+            <p className="text-xs text-slate-600 mb-2 line-clamp-3">
+              {asset.studio_prompt || "Imported from another platform"}
+            </p>
             <p className="text-[11px] text-slate-400 mb-2">
-              {asset.studio_duration_seconds}s
+              {asset.studio_duration_seconds ? `${asset.studio_duration_seconds}s` : "Imported"}
               {asset.studio_outro_app && asset.studio_outro_app !== "none" ? ` · ${asset.studio_outro_app} outro` : ""}
             </p>
             {asset.status === "failed" && asset.notes && (
