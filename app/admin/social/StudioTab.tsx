@@ -93,10 +93,31 @@ export default function StudioTab({
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(10);
   const [outroApp, setOutroApp] = useState<string>(PRODUCT_TO_OUTRO_APP.visionworkx ?? "none");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState("");
 
   function handleProductChange(next: SocialVideoProduct) {
     setProduct(next);
     setOutroApp(PRODUCT_TO_OUTRO_APP[next] ?? "none");
+  }
+
+  async function suggestContent() {
+    setSuggesting(true);
+    setSuggestError("");
+    try {
+      const res = await fetch("/api/social/video-assets/studio-suggest-subject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setPrompt(body.subject);
+    } catch (err) {
+      setSuggestError((err as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
   }
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
@@ -217,14 +238,30 @@ export default function StudioTab({
           </div>
         </div>
 
-        <label className="block text-xs font-medium text-slate-500 mb-1">Describe what the video should show</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-xs font-medium text-slate-500">Describe what the video should show</label>
+          {product !== "revalor" && (
+            <button
+              onClick={suggestContent}
+              disabled={suggesting}
+              className="text-xs font-medium text-purple-600 hover:underline disabled:opacity-50"
+            >
+              {suggesting ? "Thinking…" : "Suggest content ✨"}
+            </button>
+          )}
+        </div>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={4}
           placeholder="e.g. A founder at a laptop reviewing a dashboard, confident and focused, warm morning light..."
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3"
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-1"
         />
+        {suggestError && <p className="text-xs text-red-600 mb-3">{suggestError}</p>}
+        <p className="text-[11px] text-slate-400 mb-3">
+          &quot;Suggest content&quot; pulls a fresh, on-topic idea from {PRODUCT_LABEL[product]}&apos;s real feature set —
+          edit it before generating, or write your own from scratch.
+        </p>
 
         <div className="flex flex-wrap gap-4 mb-4">
           <div>
