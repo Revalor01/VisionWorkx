@@ -9,9 +9,19 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const BUCKET = "social-video-assets";
-const OUTRO_APPS = ["VisionWorkx", "Revalor Kids", "Revalor Wellness", "Revalor LLC"];
+// Every key in videoOutro.ts's BRAND_LOGOS — every identity in the product
+// matrix now has a logo file to build an outro card from.
+const OUTRO_APPS = [
+  "VisionWorkx", "Revalor Kids", "Revalor Wellness", "Revalor LLC",
+  "Chorebit", "FeelFlow", "MindBit", "Sanctum", "Proactive", "Revalor Consulting",
+];
+// The real brand/product matrix: Revalor Business (brand) -> visionworkx,
+// proactive, revalor_consulting; Revalor Kids (brand) -> chorebit,
+// feelflow, mindbit; Revalor Wellness (brand) -> sanctum. "revalor" is a
+// company-wide/no-specific-product option, same pattern as
+// linkedin_posts.product.
 const PRODUCTS: SocialVideoProduct[] = [
-  "visionworkx", "proactive", "sanctum", "chorebit", "feelflow", "mindbit", "christian_friends_hub", "revalor",
+  "visionworkx", "proactive", "revalor_consulting", "chorebit", "feelflow", "mindbit", "sanctum", "revalor",
 ];
 const MIN_DURATION = 3;
 const MAX_DURATION = 15;

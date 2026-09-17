@@ -14,6 +14,18 @@ const BRAND_LOGOS: Record<string, string> = {
   "Revalor Kids": "/revalor-kids-logo.png",
   "Revalor LLC": "/revalor-logo.png",
   "Revalor Wellness": "/revalor-wellness-logo.png",
+  // Individual product logos — Media Studio's product matrix (brand
+  // "Revalor Kids" -> chorebit/feelflow/mindbit, "Revalor Wellness" ->
+  // sanctum, "Revalor Business" -> visionworkx/proactive/revalor_consulting)
+  // made per-product outros useful, so every product in that matrix now has
+  // one. sanctum-logo.png was also swapped from an old placeholder icon to
+  // match the gold-winged "Prime" family the rest of these already use.
+  Chorebit: "/chorebit-logo.png",
+  FeelFlow: "/feelflow-logo.png",
+  MindBit: "/mindbit-logo.png",
+  Sanctum: "/sanctum-logo.png",
+  Proactive: "/proactive-logo.png",
+  "Revalor Consulting": "/revalor-consulting-logo.png",
 };
 
 const REVALOR_LLC_BRAND_NAME = "Revalor LLC";

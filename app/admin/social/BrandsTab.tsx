@@ -10,6 +10,14 @@ const BRAND_LOGOS: Record<string, string> = {
   "Revalor Kids": "/revalor-kids-logo.png",
   "Revalor LLC": "/revalor-logo.png",
   "Revalor Wellness": "/revalor-wellness-logo.png",
+  // Mirrors lib/social/videoOutro.ts's BRAND_LOGOS — see that file's
+  // comment for why these were added (Media Studio's product matrix).
+  Chorebit: "/chorebit-logo.png",
+  FeelFlow: "/feelflow-logo.png",
+  MindBit: "/mindbit-logo.png",
+  Sanctum: "/sanctum-logo.png",
+  Proactive: "/proactive-logo.png",
+  "Revalor Consulting": "/revalor-consulting-logo.png",
 };
 
 // Purely informational "covers" badge on VisionWorkx's card — the listed

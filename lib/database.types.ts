@@ -62,11 +62,11 @@ export type SocialVideoOrigin = "manual" | "post_ai" | "studio";
 export type SocialVideoProduct =
   | "visionworkx"
   | "proactive"
-  | "sanctum"
+  | "revalor_consulting"
   | "chorebit"
   | "feelflow"
   | "mindbit"
-  | "christian_friends_hub"
+  | "sanctum"
   | "revalor";
 export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" | "failed";
 export type SocialInboxSourceType = "dm" | "comment";

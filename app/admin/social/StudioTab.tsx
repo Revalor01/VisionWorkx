@@ -21,26 +21,57 @@ const STATUS_STYLE: Record<SocialVideoStatus, string> = {
   failed: "bg-red-100 text-red-700",
 };
 
-// Matches lib/social/videoOutro.ts's BRAND_LOGOS keys — the only identities
-// that currently have a logo file to build an outro card from. Proactive and
-// Christian Friends Hub can be added to both places once a logo exists.
-const OUTRO_APPS = ["VisionWorkx", "Revalor Kids", "Revalor Wellness", "Revalor LLC"];
+// Matches lib/social/videoOutro.ts's BRAND_LOGOS keys — every identity in
+// the product matrix now has a logo file to build an outro card from.
+const OUTRO_APPS = [
+  "VisionWorkx", "Revalor Kids", "Revalor Wellness", "Revalor LLC",
+  "Chorebit", "FeelFlow", "MindBit", "Sanctum", "Proactive", "Revalor Consulting",
+];
 
 // Which product the video is actually promoting — distinct from the brand
 // select above, which is the account/voice identity it's generated under
 // (e.g. brand "Revalor LLC" can still be a video about the VisionWorkx
 // product specifically). Mirrors LinkedInTab.tsx's PRODUCT_LABEL/product.
+//
+// The real brand/product matrix:
+//   Revalor Business (brand) -> visionworkx, proactive, revalor_consulting
+//   Revalor Kids (brand)     -> chorebit, feelflow, mindbit
+//   Revalor Wellness (brand) -> sanctum
+// "revalor" is a company-wide/no-specific-product option.
 const PRODUCT_LABEL: Record<SocialVideoProduct, string> = {
   visionworkx: "VisionWorkx",
   proactive: "Proactive",
-  sanctum: "Sanctum",
+  revalor_consulting: "Revalor Consulting",
   chorebit: "Chorebit",
   feelflow: "FeelFlow",
   mindbit: "MindBit",
-  christian_friends_hub: "Christian Friends Hub",
+  sanctum: "Sanctum",
   revalor: "Revalor (company-wide)",
 };
-const PRODUCTS = Object.keys(PRODUCT_LABEL) as SocialVideoProduct[];
+
+// Groups drive the <optgroup> layout in the product select below — purely
+// visual, not tied to the actual brand_id select (whose options come from
+// the real social_brands rows, which don't necessarily use these same
+// names — see BrandsTab.tsx's BRAND_LOGOS keys for what those rows are
+// really called).
+const PRODUCT_GROUPS: { label: string; products: SocialVideoProduct[] }[] = [
+  { label: "Revalor Business", products: ["visionworkx", "proactive", "revalor_consulting"] },
+  { label: "Revalor Kids", products: ["chorebit", "feelflow", "mindbit"] },
+  { label: "Revalor Wellness", products: ["sanctum"] },
+  { label: "Other", products: ["revalor"] },
+];
+
+// A product auto-selects its matching outro app when one exists (same
+// name, same logo) — still overridable via the Outro app select below.
+const PRODUCT_TO_OUTRO_APP: Partial<Record<SocialVideoProduct, string>> = {
+  visionworkx: "VisionWorkx",
+  proactive: "Proactive",
+  revalor_consulting: "Revalor Consulting",
+  chorebit: "Chorebit",
+  feelflow: "FeelFlow",
+  mindbit: "MindBit",
+  sanctum: "Sanctum",
+};
 
 const MIN_DURATION = 3;
 const MAX_DURATION = 15;
@@ -61,7 +92,12 @@ export default function StudioTab({
   const [product, setProduct] = useState<SocialVideoProduct>("visionworkx");
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(10);
-  const [outroApp, setOutroApp] = useState<string>("none");
+  const [outroApp, setOutroApp] = useState<string>(PRODUCT_TO_OUTRO_APP.visionworkx ?? "none");
+
+  function handleProductChange(next: SocialVideoProduct) {
+    setProduct(next);
+    setOutroApp(PRODUCT_TO_OUTRO_APP[next] ?? "none");
+  }
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
@@ -155,11 +191,15 @@ export default function StudioTab({
             <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it's about)</label>
             <select
               value={product}
-              onChange={(e) => setProduct(e.target.value as SocialVideoProduct)}
+              onChange={(e) => handleProductChange(e.target.value as SocialVideoProduct)}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
             >
-              {PRODUCTS.map((p) => (
-                <option key={p} value={p}>{PRODUCT_LABEL[p]}</option>
+              {PRODUCT_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.products.map((p) => (
+                    <option key={p} value={p}>{PRODUCT_LABEL[p]}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
