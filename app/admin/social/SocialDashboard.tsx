@@ -74,7 +74,7 @@ export default function SocialDashboard({
 
         <div className="mb-6">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-[#1A3A5C]">Revalor Social Media Manager</h1>
+            <h1 className="text-2xl font-bold text-[#1A3A5C]">Revalor Video and Social Media Manager</h1>
             <div className="flex items-center gap-1.5">
               <FacebookIcon />
               <InstagramIcon uid="header" />
