@@ -289,7 +289,7 @@ export async function GET(req: NextRequest) {
     if (!run.app_id) continue;
     const { data: app } = await service
       .from("apps")
-      .select("status, failure_reason, deploy_url")
+      .select("status, failure_reason, deploy_url, build_error_log")
       .eq("id", run.app_id)
       .maybeSingle();
     const ageMin = (Date.now() - new Date(run.created_at).getTime()) / 60000;
@@ -318,6 +318,11 @@ export async function GET(req: NextRequest) {
         status: pass ? "pass" : "fail",
         failure_reason: failReason,
         deploy_url: app?.deploy_url ?? null,
+        // Copied off `apps` here, before step 2 below tears the app (and
+        // its Vercel project — the only other place this ever lived) down
+        // — otherwise a failing canary is permanently undiagnosable past
+        // this point. See migration 20240101000085.
+        build_log: pass ? null : app?.build_error_log ?? null,
         // Only a lie otherwise: if we didn't grade within ~45 min of
         // creation we don't know the real build time.
         duration_sec: ageMin <= 45 ? Math.round(ageMin * 60) : null,
