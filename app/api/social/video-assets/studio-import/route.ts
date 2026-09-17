@@ -64,7 +64,10 @@ export async function POST(req: NextRequest) {
       brand_id: brandId,
       raw_path: path,
       status: "raw",
-      notes: "Media Studio — imported",
+      // Prefixed so StudioTab/LinkedInTab can pull the original filename
+      // back out to label the video with — with two imports of the same
+      // product there's otherwise nothing distinguishing them by name.
+      notes: `Imported: ${filename}`,
       origin: "studio",
       studio_outro_app: outroApp,
       studio_product: validatedProduct,

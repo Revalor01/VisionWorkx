@@ -31,6 +31,19 @@ const VIDEO_PRODUCT_LABEL: Record<SocialVideoProduct, string> = {
   revalor: "Revalor (company-wide)",
 };
 
+const IMPORTED_FILENAME_PREFIX = "Imported: ";
+
+// Two imports (or two generations) of the same product otherwise look
+// identical in a dropdown - the uploaded filename (studio-import/route.ts
+// stashes it in notes, prefixed) plus a timestamp is enough to tell them
+// apart even for older rows made before that filename capture existed.
+function videoOptionLabel(v: SocialVideoAsset): string {
+  const product = v.studio_product ? VIDEO_PRODUCT_LABEL[v.studio_product] : "Video";
+  const filename = v.notes?.startsWith(IMPORTED_FILENAME_PREFIX) ? v.notes.slice(IMPORTED_FILENAME_PREFIX.length) : null;
+  const when = new Date(v.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return filename ? `${filename} — ${product} (${when})` : `${product} — ${when}`;
+}
+
 export default function LinkedInTab({
   brands,
   posts,
@@ -323,9 +336,7 @@ function PostCard({
         >
           <option value="">— none —</option>
           {readyVideos.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.studio_product ? VIDEO_PRODUCT_LABEL[v.studio_product] : "Video"} — {v.id.slice(0, 8)}
-            </option>
+            <option key={v.id} value={v.id}>{videoOptionLabel(v)}</option>
           ))}
         </select>
         {post.video_asset_id && (

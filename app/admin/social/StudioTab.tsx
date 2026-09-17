@@ -78,6 +78,16 @@ const PRODUCT_TO_OUTRO_APP: Partial<Record<SocialVideoProduct, string>> = {
 const MIN_DURATION = 3;
 const MAX_DURATION = 15;
 
+const IMPORTED_FILENAME_PREFIX = "Imported: ";
+
+// studio-import/route.ts stashes the uploaded filename in notes, prefixed -
+// pulled back out here so two imports of the same product don't look
+// identical in this grid. Rows imported before that capture existed just
+// fall back to "Imported from another platform" below, as before.
+function importedFilename(asset: SocialVideoAsset): string | null {
+  return asset.notes?.startsWith(IMPORTED_FILENAME_PREFIX) ? asset.notes.slice(IMPORTED_FILENAME_PREFIX.length) : null;
+}
+
 const VIDEO_POLL_INTERVAL_MS = 4000;
 const VIDEO_POLL_MAX_ATTEMPTS = 90; // ~6 min ceiling, above the route's own 5 min budget
 
@@ -485,11 +495,13 @@ export default function StudioTab({
             </div>
             <p className="text-[11px] text-slate-400 mb-2">Brand: {brandName(asset.brand_id)}</p>
             <p className="text-xs text-slate-600 mb-2 line-clamp-3">
-              {asset.studio_prompt || "Imported from another platform"}
+              {asset.studio_prompt || importedFilename(asset) || "Imported from another platform"}
             </p>
             <p className="text-[11px] text-slate-400 mb-2">
               {asset.studio_duration_seconds ? `${asset.studio_duration_seconds}s` : "Imported"}
               {asset.studio_outro_app && asset.studio_outro_app !== "none" ? ` · ${asset.studio_outro_app} outro` : ""}
+              {" · "}
+              {new Date(asset.created_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
             </p>
             {asset.status === "failed" && asset.notes && (
               <p className="text-xs text-red-600 mb-2">{asset.notes}</p>
