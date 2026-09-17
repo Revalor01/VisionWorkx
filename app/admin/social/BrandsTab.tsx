@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { SocialBrand } from "@/lib/database.types";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
+import HelpButton, { HelpStep, HelpNote } from "./HelpButton";
 
 const BRAND_LOGOS: Record<string, string> = {
   VisionWorkx: "/VisionWorks.png",
@@ -311,7 +312,46 @@ function BrandsTabInner({
       {connectSession && <ConnectPicker sessionId={connectSession} setBrands={setBrands} />}
 
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-[#1A3A5C]">Brands</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-[#1A3A5C]">Brands</h2>
+          <HelpButton title="How to use Brands">
+            <HelpStep n={1}>
+              Click <strong className="text-[#1A3A5C]">+ Add Brand</strong> to create a new account identity (e.g.
+              VisionWorkx, Revalor Kids). A brand&apos;s name is linked to its real connected platform accounts —
+              avoid renaming an existing one, it can break the connection.
+            </HelpStep>
+            <HelpStep n={2}>
+              On each brand card, click <strong className="text-[#1A3A5C]">Connect</strong> under Facebook,
+              Instagram, TikTok, or YouTube to link that platform. Facebook walks you through picking a Page;
+              Instagram/TikTok/YouTube connect through SocialAPI.ai.
+            </HelpStep>
+            <HelpStep n={3}>
+              Facebook&apos;s <strong className="text-[#1A3A5C]">Connect DMs</strong> link (next to a connected Page)
+              is separate from posting — it wires that Page&apos;s DMs/comments into the Inbox tab so they can be
+              auto-triaged.
+            </HelpStep>
+            <HelpStep n={4}>
+              Expand <strong className="text-[#1A3A5C]">Settings &amp; voice</strong> to set the Website link
+              (appended to Facebook posts), Brand voice notes (tone the AI writes in), and the FAQ document (used to
+              auto-answer simple DMs in the Inbox).
+            </HelpStep>
+            <HelpStep n={5}>
+              Expand <strong className="text-[#1A3A5C]">Autonomous posting</strong> to set the Autonomy mode
+              (Manual/Semi-autonomous/Fully autonomous), Posts per day, evergreen Content topics fed to the
+              generator, and hard-blocked Banned words.
+            </HelpStep>
+            <HelpStep n={6}>
+              Use the toggle switch to turn a brand&apos;s autonomy on/off, or{" "}
+              <strong className="text-[#1A3A5C]">Pause all autonomy</strong> to immediately halt every brand at
+              once. Click <strong className="text-[#1A3A5C]">Save</strong> after editing any settings.
+            </HelpStep>
+            <HelpNote>
+              A red banner on a brand means autonomy paused itself and needs your input — read the reason, fix it,
+              then click <strong>Resume</strong>. Some brands (without their own TikTok) post through Revalor
+              LLC&apos;s shared TikTok connection instead — that&apos;s expected, not a bug.
+            </HelpNote>
+          </HelpButton>
+        </div>
         <div className="flex gap-2">
           {brands.some((b) => b.autonomy_enabled) && (
             <button

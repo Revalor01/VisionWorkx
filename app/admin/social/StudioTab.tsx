@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { SocialBrand, SocialVideoAsset, SocialVideoStatus, SocialVideoProduct } from "@/lib/database.types";
+import HelpButton, { HelpSection, HelpStep, HelpNote } from "./HelpButton";
 
 const STATUS_LABEL: Record<SocialVideoStatus, string> = {
   raw: "Raw",
@@ -253,7 +254,48 @@ export default function StudioTab({
   return (
     <div>
       <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
-        <h2 className="text-lg font-semibold text-[#1A3A5C] mb-1">Media Studio</h2>
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-[#1A3A5C]">Media Studio</h2>
+          <HelpButton title="How to use Media Studio">
+            <HelpNote>
+              Two ways to get a finished, branded video here — <strong>Generate</strong> (AI-made) and{" "}
+              <strong>Import</strong> (footage you already made elsewhere) — both end up in the same results grid
+              below and both get the same branded fade-in/fade-out end card automatically.
+            </HelpNote>
+            <HelpSection title="Generate">
+              <HelpStep n={1}>
+                Pick the <strong className="text-[#1A3A5C]">Product</strong> (what it&apos;s actually about) — this
+                also auto-picks a matching Outro app logo.
+              </HelpStep>
+              <HelpStep n={2}>
+                Pick the <strong className="text-[#1A3A5C]">Brand identity</strong> (voice/tone account it&apos;s
+                filed under — separate from Product).
+              </HelpStep>
+              <HelpStep n={3}>
+                Write a prompt describing the video, or click{" "}
+                <strong className="text-[#1A3A5C]">Suggest content ✨</strong> for an on-topic idea you can edit.
+              </HelpStep>
+              <HelpStep n={4}>
+                Set the <strong className="text-[#1A3A5C]">Length</strong> (3-15s) and{" "}
+                <strong className="text-[#1A3A5C]">Outro app</strong> (which logo closes the video, or None), then
+                click <strong className="text-[#1A3A5C]">Generate video</strong> — takes 2-4 minutes.
+              </HelpStep>
+            </HelpSection>
+            <HelpSection title="Import">
+              <HelpStep n={1}>
+                Pick the Product, Brand identity, and Outro app the same way as Generate.
+              </HelpStep>
+              <HelpStep n={2}>
+                Choose a video file you already made elsewhere — as soon as it uploads, it&apos;s automatically
+                branded with the fade-in/fade-out outro and appears below marked as imported.
+              </HelpStep>
+            </HelpSection>
+            <HelpNote>
+              Every video made here — generated or imported — also shows up in the Content and LinkedIn tabs&apos;
+              video pickers. Click <strong>Preview video</strong> on any Ready card to watch it first.
+            </HelpNote>
+          </HelpButton>
+        </div>
         <p className="text-sm text-slate-500 mb-4">
           Create a standalone video — you write the prompt and pick the length, no post required. Every video made
           here is tagged so it shows up in the Content and LinkedIn tabs&apos; video pickers, and any social process

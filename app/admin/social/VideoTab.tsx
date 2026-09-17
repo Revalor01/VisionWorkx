@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { SocialBrand, SocialVideoAsset, SocialVideoStatus } from "@/lib/database.types";
+import HelpButton, { HelpStep, HelpNote } from "./HelpButton";
 
 const STATUS_LABEL: Record<SocialVideoStatus, string> = {
   raw: "Raw",
@@ -140,7 +141,36 @@ export default function VideoTab({
   return (
     <div>
       <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
-        <h2 className="text-lg font-semibold text-[#1A3A5C] mb-3">Upload raw footage</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-lg font-semibold text-[#1A3A5C]">Upload raw footage</h2>
+          <HelpButton title="How to use Video">
+            <HelpNote>
+              This is the manual editing pipeline for footage a human still needs to cut. If you already have a
+              finished, ready-to-post video, use Media Studio&apos;s <strong>Import</strong> section instead — it
+              brands it automatically and skips these steps.
+            </HelpNote>
+            <HelpStep n={1}>
+              Pick a brand, then choose a raw video file (mp4/mov) to upload. It lands here with status{" "}
+              <strong className="text-[#1A3A5C]">Raw</strong>.
+            </HelpStep>
+            <HelpStep n={2}>
+              Click <strong className="text-[#1A3A5C]">Preview raw</strong> anytime to watch what was uploaded.
+            </HelpStep>
+            <HelpStep n={3}>
+              Once the footage has been edited (by you or an editor), use{" "}
+              <strong className="text-[#1A3A5C]">Upload finished edit</strong> to upload the final file — this
+              automatically marks the asset <strong className="text-[#1A3A5C]">Ready</strong>.
+            </HelpStep>
+            <HelpStep n={4}>
+              <strong className="text-[#1A3A5C]">Ready</strong> videos become available to link into Instagram
+              posts (Content tab — required for Instagram) and LinkedIn posts (LinkedIn tab).
+            </HelpStep>
+            <HelpStep n={5}>
+              You can also move an asset through statuses manually (Raw → In Editing → Ready → Posted) with the
+              dropdown, without uploading a new file each time.
+            </HelpStep>
+          </HelpButton>
+        </div>
         {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
         <div className="flex gap-3 items-center">
           <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm">

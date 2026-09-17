@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset } from "@/lib/database.types";
+import HelpButton, { HelpStep } from "./HelpButton";
 
 const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
@@ -59,7 +60,38 @@ export default function LinkedInTab({
   return (
     <div>
       <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
-        <h2 className="text-lg font-semibold text-[#1A3A5C] mb-1">LinkedIn — Revalor LLC</h2>
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-[#1A3A5C]">LinkedIn — Revalor LLC</h2>
+          <HelpButton title="How to use LinkedIn">
+            <HelpStep n={1}>
+              Pick a <strong className="text-[#1A3A5C]">Product</strong> (VisionWorkx / Proactive / Revalor
+              company-wide), optionally type a topic, and click{" "}
+              <strong className="text-[#1A3A5C]">Generate Post</strong> — Claude writes a draft hook, caption, and
+              hashtags.
+            </HelpStep>
+            <HelpStep n={2}>
+              Edit the Hook/Caption/Hashtags directly in the card, then click{" "}
+              <strong className="text-[#1A3A5C]">Save edits</strong>.
+            </HelpStep>
+            <HelpStep n={3}>
+              Optionally attach a video: pick one from the dropdown (only <strong>Ready</strong> videos tagged to
+              the Revalor LLC brand show up) or click{" "}
+              <strong className="text-[#1A3A5C]">Generate video</strong> to make a fresh one for this post.
+            </HelpStep>
+            <HelpStep n={4}>
+              Click <strong className="text-[#1A3A5C]">Approve</strong> once it&apos;s ready to post.
+            </HelpStep>
+            <HelpStep n={5}>
+              There&apos;s no LinkedIn API connection, so nothing here publishes automatically: log into LinkedIn
+              yourself, click <strong className="text-[#1A3A5C]">Copy caption + hashtags</strong>, paste it in,
+              upload the video manually if there is one, and post it there directly.
+            </HelpStep>
+            <HelpStep n={6}>
+              Come back and click <strong className="text-[#1A3A5C]">Mark as posted</strong> to keep this tracker in
+              sync with what actually went out.
+            </HelpStep>
+          </HelpButton>
+        </div>
         <p className="text-sm text-slate-500 mb-4">
           Manual-only. No LinkedIn API connection exists, so nothing here auto-publishes: generate a draft, review and
           edit it, generate a video if you want one, then log into LinkedIn yourself and ask Claude to post the
