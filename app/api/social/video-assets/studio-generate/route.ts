@@ -3,12 +3,16 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 import { generateStudioVideo } from "@/lib/social/videoGenerator";
 import { appendBrandOutro } from "@/lib/social/videoOutro";
+import type { SocialVideoProduct } from "@/lib/database.types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const BUCKET = "social-video-assets";
 const OUTRO_APPS = ["VisionWorkx", "Revalor Kids", "Revalor Wellness", "Revalor LLC"];
+const PRODUCTS: SocialVideoProduct[] = [
+  "visionworkx", "proactive", "sanctum", "chorebit", "feelflow", "mindbit", "christian_friends_hub", "revalor",
+];
 const MIN_DURATION = 3;
 const MAX_DURATION = 15;
 
@@ -32,6 +36,7 @@ export async function POST(req: NextRequest) {
   const prompt: string | undefined = body?.prompt?.trim();
   const durationSeconds: number | undefined = body?.durationSeconds;
   const outroApp: string = body?.outroApp || "none";
+  const product: string | undefined = body?.product;
 
   if (!brandId) return NextResponse.json({ error: "brandId is required" }, { status: 400 });
   if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
@@ -46,6 +51,10 @@ export async function POST(req: NextRequest) {
   if (outroApp !== "none" && !OUTRO_APPS.includes(outroApp)) {
     return NextResponse.json({ error: `outroApp must be one of: none, ${OUTRO_APPS.join(", ")}` }, { status: 400 });
   }
+  if (!product || !(PRODUCTS as string[]).includes(product)) {
+    return NextResponse.json({ error: `product must be one of: ${PRODUCTS.join(", ")}` }, { status: 400 });
+  }
+  const validatedProduct = product as SocialVideoProduct;
 
   const service = createServiceClient();
   const { data: brand } = await service.from("social_brands").select("id").eq("id", brandId).maybeSingle();
@@ -66,6 +75,7 @@ export async function POST(req: NextRequest) {
       studio_prompt: prompt,
       studio_duration_seconds: durationSeconds,
       studio_outro_app: outroApp,
+      studio_product: validatedProduct,
     })
     .select("*")
     .single();

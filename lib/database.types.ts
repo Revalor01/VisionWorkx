@@ -59,6 +59,15 @@ export type ContentDerivativeStatus = "pending" | "generated" | "pending_review"
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "youtube";
 export type SocialVideoStatus = "raw" | "in_editing" | "ready" | "posted" | "generating" | "failed";
 export type SocialVideoOrigin = "manual" | "post_ai" | "studio";
+export type SocialVideoProduct =
+  | "visionworkx"
+  | "proactive"
+  | "sanctum"
+  | "chorebit"
+  | "feelflow"
+  | "mindbit"
+  | "christian_friends_hub"
+  | "revalor";
 export type SocialContentStatus = "draft" | "approved" | "scheduled" | "posted" | "failed";
 export type SocialInboxSourceType = "dm" | "comment";
 export type SocialInboxClassification = "auto_answered" | "requires_human";
@@ -1381,6 +1390,7 @@ export type Database = {
           studio_prompt: string | null;
           studio_duration_seconds: number | null;
           studio_outro_app: string | null;
+          studio_product: SocialVideoProduct | null;
           created_at: string;
           updated_at: string;
         };
@@ -1396,6 +1406,7 @@ export type Database = {
           studio_prompt?: string | null;
           studio_duration_seconds?: number | null;
           studio_outro_app?: string | null;
+          studio_product?: SocialVideoProduct | null;
           created_at?: string;
           updated_at?: string;
         };

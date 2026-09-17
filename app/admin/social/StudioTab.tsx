@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SocialBrand, SocialVideoAsset, SocialVideoStatus } from "@/lib/database.types";
+import type { SocialBrand, SocialVideoAsset, SocialVideoStatus, SocialVideoProduct } from "@/lib/database.types";
 
 const STATUS_LABEL: Record<SocialVideoStatus, string> = {
   raw: "Raw",
@@ -25,6 +25,23 @@ const STATUS_STYLE: Record<SocialVideoStatus, string> = {
 // that currently have a logo file to build an outro card from. Proactive and
 // Christian Friends Hub can be added to both places once a logo exists.
 const OUTRO_APPS = ["VisionWorkx", "Revalor Kids", "Revalor Wellness", "Revalor LLC"];
+
+// Which product the video is actually promoting — distinct from the brand
+// select above, which is the account/voice identity it's generated under
+// (e.g. brand "Revalor LLC" can still be a video about the VisionWorkx
+// product specifically). Mirrors LinkedInTab.tsx's PRODUCT_LABEL/product.
+const PRODUCT_LABEL: Record<SocialVideoProduct, string> = {
+  visionworkx: "VisionWorkx",
+  proactive: "Proactive",
+  sanctum: "Sanctum",
+  chorebit: "Chorebit",
+  feelflow: "FeelFlow",
+  mindbit: "MindBit",
+  christian_friends_hub: "Christian Friends Hub",
+  revalor: "Revalor (company-wide)",
+};
+const PRODUCTS = Object.keys(PRODUCT_LABEL) as SocialVideoProduct[];
+
 const MIN_DURATION = 3;
 const MAX_DURATION = 15;
 
@@ -41,6 +58,7 @@ export default function StudioTab({
   setVideoAssets: React.Dispatch<React.SetStateAction<SocialVideoAsset[]>>;
 }) {
   const [brandId, setBrandId] = useState(brands[0]?.id ?? "");
+  const [product, setProduct] = useState<SocialVideoProduct>("visionworkx");
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(10);
   const [outroApp, setOutroApp] = useState<string>("none");
@@ -84,7 +102,7 @@ export default function StudioTab({
       const res = await fetch("/api/social/video-assets/studio-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandId, prompt: prompt.trim(), durationSeconds: duration, outroApp }),
+        body: JSON.stringify({ brandId, product, prompt: prompt.trim(), durationSeconds: duration, outroApp }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -132,16 +150,32 @@ export default function StudioTab({
         </p>
         {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
 
-        <label className="block text-xs font-medium text-slate-500 mb-1">Brand identity (voice/tone)</label>
-        <select
-          value={brandId}
-          onChange={(e) => setBrandId(e.target.value)}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3"
-        >
-          {brands.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+        <div className="flex flex-wrap gap-4 mb-3">
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it's about)</label>
+            <select
+              value={product}
+              onChange={(e) => setProduct(e.target.value as SocialVideoProduct)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            >
+              {PRODUCTS.map((p) => (
+                <option key={p} value={p}>{PRODUCT_LABEL[p]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Brand identity (voice/tone)</label>
+            <select
+              value={brandId}
+              onChange={(e) => setBrandId(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            >
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <label className="block text-xs font-medium text-slate-500 mb-1">Describe what the video should show</label>
         <textarea
@@ -194,12 +228,15 @@ export default function StudioTab({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {studioVideos.map((asset) => (
           <div key={asset.id} className="bg-white border border-green-600 rounded-xl p-4">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-xs font-medium text-slate-500">{brandName(asset.brand_id)}</span>
+            <div className="flex justify-between items-start mb-1">
+              <span className="text-sm font-semibold text-[#1A3A5C]">
+                {asset.studio_product ? PRODUCT_LABEL[asset.studio_product] : "—"}
+              </span>
               <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[asset.status]}`}>
                 {STATUS_LABEL[asset.status]}
               </span>
             </div>
+            <p className="text-[11px] text-slate-400 mb-2">Brand: {brandName(asset.brand_id)}</p>
             <p className="text-xs text-slate-600 mb-2 line-clamp-3">{asset.studio_prompt}</p>
             <p className="text-[11px] text-slate-400 mb-2">
               {asset.studio_duration_seconds}s
