@@ -131,6 +131,8 @@ function PostCard({
   const [generatingVideo, setGeneratingVideo] = useState(false);
   const [videoError, setVideoError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoPreviewLoading, setVideoPreviewLoading] = useState(false);
 
   const dirty = hook !== (post.hook ?? "") || caption !== post.caption || hashtags !== post.hashtags.join(", ");
 
@@ -174,6 +176,28 @@ function PostCard({
       setVideoError((err as Error).message);
     } finally {
       setGeneratingVideo(false);
+    }
+  }
+
+  async function toggleVideoPreview() {
+    if (videoPreviewUrl) {
+      setVideoPreviewUrl(null);
+      return;
+    }
+    if (!post.video_asset_id) return;
+    const selectedAsset = readyVideos.find((v) => v.id === post.video_asset_id);
+    const which = selectedAsset?.final_path ? "final" : "raw";
+    setVideoPreviewLoading(true);
+    setVideoError("");
+    try {
+      const res = await fetch(`/api/social/video-assets/${post.video_asset_id}/preview-url?which=${which}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setVideoPreviewUrl(body.url);
+    } catch (err) {
+      setVideoError((err as Error).message);
+    } finally {
+      setVideoPreviewLoading(false);
     }
   }
 
@@ -239,7 +263,10 @@ function PostCard({
         <label className="text-xs text-slate-500 mr-2">Video (optional):</label>
         <select
           value={post.video_asset_id ?? ""}
-          onChange={(e) => save({ videoAssetId: e.target.value || null })}
+          onChange={(e) => {
+            setVideoPreviewUrl(null);
+            save({ videoAssetId: e.target.value || null });
+          }}
           className="text-xs border border-slate-300 rounded-lg px-2 py-1"
         >
           <option value="">— none —</option>
@@ -247,6 +274,15 @@ function PostCard({
             <option key={v.id} value={v.id}>{v.id.slice(0, 8)} (ready)</option>
           ))}
         </select>
+        {post.video_asset_id && (
+          <button
+            onClick={toggleVideoPreview}
+            disabled={videoPreviewLoading}
+            className="ml-2 text-xs font-medium text-sky-600 hover:underline disabled:opacity-50"
+          >
+            {videoPreviewLoading ? "Loading…" : videoPreviewUrl ? "Hide preview" : "Preview video"}
+          </button>
+        )}
         <button
           onClick={generateVideo}
           disabled={generatingVideo}
@@ -255,6 +291,9 @@ function PostCard({
           {generatingVideo ? "Generating… (usually 2-4 min)" : "Generate video"}
         </button>
         {videoError && <p className="text-xs text-red-600 mt-1">{videoError}</p>}
+        {videoPreviewUrl && (
+          <video controls src={videoPreviewUrl} className="mt-2 w-full max-w-sm rounded-lg bg-black" />
+        )}
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
