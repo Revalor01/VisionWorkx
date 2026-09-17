@@ -29,7 +29,10 @@ const BRAND_LOGOS: Record<string, string> = {
 };
 
 const REVALOR_LLC_BRAND_NAME = "Revalor LLC";
-const OUTRO_SECONDS = 2;
+const OUTRO_SECONDS = 3;
+// How long each logo takes to fade in/out, at the start/end of the outro
+// card — leaves OUTRO_SECONDS - 2*FADE_SECONDS fully visible in between.
+const FADE_SECONDS = 0.6;
 
 function siteBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app").replace(/\/$/, "");
@@ -156,12 +159,18 @@ export async function appendBrandOutro(videoBytes: Buffer, brandName: string): P
     const { width, height, fps, hasAudio } = await probeVideo(inputPath);
 
     // Build the outro as: solid brand-navy background + centered logo(s),
-    // scaled to fit ~60% of frame width, held for OUTRO_SECONDS. Silent
-    // audio track added when the source has audio, so the concat filter
-    // (which requires matching stream counts) doesn't fail.
+    // scaled to fit ~60% of frame width, held for OUTRO_SECONDS. Each logo
+    // fades in over FADE_SECONDS and fades out over the final FADE_SECONDS
+    // (alpha ramp, not a hard cut) — format=rgba forces an alpha channel
+    // onto the scaled stream so the fade filter has something to ramp.
+    // Silent audio track added when the source has audio, so the concat
+    // filter (which requires matching stream counts) doesn't fail.
     const logoInputs = ["-loop", "1", "-i", brandLogoPath];
     if (revalorLogoBytes) logoInputs.push("-loop", "1", "-i", revalorLogoPath);
     const audioInput = hasAudio ? ["-f", "lavfi", "-i", `anullsrc=r=44100:cl=stereo`] : [];
+
+    const fadeOutStart = OUTRO_SECONDS - FADE_SECONDS;
+    const fadeChain = `format=rgba,fade=t=in:st=0:d=${FADE_SECONDS}:alpha=1,fade=t=out:st=${fadeOutStart}:d=${FADE_SECONDS}:alpha=1`;
 
     // Note: color=...[bg] is a filtergraph-internal generator, not a
     // numbered -i input - the real inputs (logo images, then anullsrc)
@@ -170,15 +179,15 @@ export async function appendBrandOutro(videoBytes: Buffer, brandName: string): P
     const filters: string[] = [`color=c=0x1A3A5C:s=${width}x${height}:d=${OUTRO_SECONDS}[bg]`];
     if (revalorLogoBytes) {
       filters.push(
-        `[0:v]scale=${maxLogoW}:-1:force_original_aspect_ratio=decrease[brandlogo]`,
-        `[1:v]scale=${Math.round(maxLogoW * 0.7)}:-1:force_original_aspect_ratio=decrease[revalorlogo]`,
-        `[bg][brandlogo]overlay=(W-w)/2:(H-h)/2-h*0.6:enable='between(t,0,${OUTRO_SECONDS})'[bg1]`,
-        `[bg1][revalorlogo]overlay=(W-w)/2:(H-h)/2+h*0.9:enable='between(t,0,${OUTRO_SECONDS})'[vout]`
+        `[0:v]scale=${maxLogoW}:-1:force_original_aspect_ratio=decrease,${fadeChain}[brandlogo]`,
+        `[1:v]scale=${Math.round(maxLogoW * 0.7)}:-1:force_original_aspect_ratio=decrease,${fadeChain}[revalorlogo]`,
+        `[bg][brandlogo]overlay=(W-w)/2:(H-h)/2-h*0.6[bg1]`,
+        `[bg1][revalorlogo]overlay=(W-w)/2:(H-h)/2+h*0.9[vout]`
       );
     } else {
       filters.push(
-        `[0:v]scale=${maxLogoW}:-1:force_original_aspect_ratio=decrease[brandlogo]`,
-        `[bg][brandlogo]overlay=(W-w)/2:(H-h)/2:enable='between(t,0,${OUTRO_SECONDS})'[vout]`
+        `[0:v]scale=${maxLogoW}:-1:force_original_aspect_ratio=decrease,${fadeChain}[brandlogo]`,
+        `[bg][brandlogo]overlay=(W-w)/2:(H-h)/2[vout]`
       );
     }
 
