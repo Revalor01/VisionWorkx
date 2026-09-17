@@ -206,9 +206,6 @@ export default function LandingPage() {
                 href="/"
                 className="flex items-center gap-2.5 hover:[text-shadow:0_0_10px_rgba(232,184,75,0.75)] transition-all"
               >
-                <span className="bg-white rounded-lg p-1.5 flex items-center justify-center shrink-0">
-                  <Image src="/VisionWorks.png" alt="Vision Workx" width={48} height={48} className="rounded-sm" />
-                </span>
                 <span className="text-xl font-bold tracking-tight text-promote-gold">Vision Workx</span>
               </Link>
               <a
@@ -256,13 +253,24 @@ export default function LandingPage() {
                 Powered by Claude AI · No Code Required
               </span>
 
-              <h1 className="text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight">
-                Describe it.
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-300">
-                  We build it.
+              <div className="flex items-start justify-center lg:justify-start gap-4">
+                <h1 className="text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight">
+                  Describe it.
+                  <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-300">
+                    We build it.
+                  </span>
+                </h1>
+                <span className="ml-4 bg-white rounded-lg p-2 flex items-center justify-center shrink-0">
+                  <Image
+                    src="/VisionWorks.png"
+                    alt="Vision Workx"
+                    width={509}
+                    height={512}
+                    className="h-[92px] md:h-[114px] w-auto object-contain"
+                  />
                 </span>
-              </h1>
+              </div>
 
               <p className="mt-6 text-lg md:text-xl text-blue-100/80 leading-relaxed max-w-lg mx-auto lg:mx-0">
                 Describe your business in plain English and get a working{" "}
