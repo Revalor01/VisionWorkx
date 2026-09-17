@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
+import { extractJson } from "@/lib/social/extractJson";
 
 export interface ClassificationResult {
   classification: "auto_answered" | "requires_human";
@@ -43,19 +44,14 @@ ${params.messageText}`;
   const block = message.content[0];
   const text = block?.type === "text" ? block.text : "";
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    // Fail safe toward human review rather than throwing and losing the message.
-    return { classification: "requires_human", replyText: null };
-  }
-
   try {
-    const parsed = JSON.parse(jsonMatch[0]) as ClassificationResult;
+    const parsed = extractJson<ClassificationResult>(text, /\{[\s\S]*\}/, "Inbound message classification");
     if (parsed.classification === "auto_answered" && parsed.replyText) {
       return { classification: "auto_answered", replyText: parsed.replyText };
     }
     return { classification: "requires_human", replyText: null };
   } catch {
+    // Fail safe toward human review rather than losing the message.
     return { classification: "requires_human", replyText: null };
   }
 }

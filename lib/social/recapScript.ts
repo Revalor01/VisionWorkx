@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
+import { extractJson } from "@/lib/social/extractJson";
 import type { WeeklyStats } from "./weeklyStats";
 
 export interface RecapScript {
@@ -41,10 +42,7 @@ export async function generateRecapScript(stats: WeeklyStats): Promise<RecapScri
   const block = message.content[0];
   const text = block?.type === "text" ? block.text : "";
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Recap script generation returned no parseable JSON");
-
-  const parsed = JSON.parse(jsonMatch[0]) as Partial<RecapScript>;
+  const parsed = extractJson<Partial<RecapScript>>(text, /\{[\s\S]*\}/, "Recap script generation");
   if (!parsed.script || !parsed.videoPrompt) throw new Error("Recap script generation returned an incomplete result");
 
   return { script: parsed.script, videoPrompt: parsed.videoPrompt };

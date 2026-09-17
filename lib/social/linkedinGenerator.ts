@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
+import { extractJson } from "@/lib/social/extractJson";
 import type { LinkedInProduct } from "@/lib/database.types";
 
 // Separate from lib/social/contentGenerator.ts on purpose: LinkedIn reads
@@ -67,10 +68,7 @@ export async function generateLinkedInPost(params: { topic?: string; product?: L
   const block = message.content[0];
   const text = block?.type === "text" ? block.text : "";
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("LinkedIn post generation returned no parseable JSON");
-
-  const parsed = JSON.parse(jsonMatch[0]) as GeneratedLinkedInPost;
+  const parsed = extractJson<GeneratedLinkedInPost>(text, /\{[\s\S]*\}/, "LinkedIn post generation");
   return {
     hook: String(parsed.hook ?? "").slice(0, 100),
     caption: String(parsed.caption ?? ""),

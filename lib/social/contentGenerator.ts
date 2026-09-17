@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
+import { extractJson } from "@/lib/social/extractJson";
 import type { SocialPlatform } from "@/lib/database.types";
 
 export interface GeneratedPost {
@@ -72,10 +73,7 @@ ${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Top
   const block = message.content[0];
   const text = block?.type === "text" ? block.text : "";
 
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error("Content generation returned no parseable JSON");
-
-  const parsed = JSON.parse(jsonMatch[0]) as GeneratedPost[];
+  const parsed = extractJson<GeneratedPost[]>(text, /\[[\s\S]*\]/, "Content generation");
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error("Content generation returned an empty result");
   }
