@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset } from "@/lib/database.types";
+import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset, SocialVideoProduct } from "@/lib/database.types";
 import HelpButton, { HelpStep } from "./HelpButton";
 
 const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
@@ -13,6 +13,21 @@ const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
 const PRODUCT_LABEL: Record<LinkedInProduct, string> = {
   visionworkx: "VisionWorkx",
   proactive: "Proactive",
+  revalor: "Revalor (company-wide)",
+};
+
+// Covers Media Studio's full product matrix (wider than LinkedInProduct
+// above, which only covers what a LinkedIn post itself can be about) -
+// used to label a video option by what it's actually of, since that's
+// unrelated to which brand identity it was generated/imported under.
+const VIDEO_PRODUCT_LABEL: Record<SocialVideoProduct, string> = {
+  visionworkx: "VisionWorkx",
+  proactive: "Proactive",
+  revalor_consulting: "Revalor Consulting",
+  chorebit: "Chorebit",
+  feelflow: "FeelFlow",
+  mindbit: "MindBit",
+  sanctum: "Sanctum",
   revalor: "Revalor (company-wide)",
 };
 
@@ -34,8 +49,13 @@ export default function LinkedInTab({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
-  const revalorLlcId = brands.find((b) => b.name === "Revalor LLC")?.id;
-  const readyVideos = videoAssets.filter((v) => v.brand_id === revalorLlcId && v.status === "ready");
+  // Any Media Studio video (generated or imported) is fair game here,
+  // regardless of which brand identity it was filed under - Studio's
+  // "Brand identity" is a voice/tone setting for AI generation, not a
+  // gate on which videos are usable for LinkedIn. What actually matters
+  // is studio_product, shown in the option label below so the right one
+  // is easy to pick.
+  const readyVideos = videoAssets.filter((v) => v.origin === "studio" && v.status === "ready");
 
   async function generatePost() {
     setGenerating(true);
@@ -74,8 +94,8 @@ export default function LinkedInTab({
               <strong className="text-[#1A3A5C]">Save edits</strong>.
             </HelpStep>
             <HelpStep n={3}>
-              Optionally attach a video: pick one from the dropdown (only <strong>Ready</strong> videos tagged to
-              the Revalor LLC brand show up) or click{" "}
+              Optionally attach a video: pick one from the dropdown (any <strong>Ready</strong> Media Studio
+              video — generated or imported, from any brand — shows up here, labeled by product) or click{" "}
               <strong className="text-[#1A3A5C]">Generate video</strong> to make a fresh one for this post.
             </HelpStep>
             <HelpStep n={4}>
@@ -303,7 +323,9 @@ function PostCard({
         >
           <option value="">— none —</option>
           {readyVideos.map((v) => (
-            <option key={v.id} value={v.id}>{v.id.slice(0, 8)} (ready)</option>
+            <option key={v.id} value={v.id}>
+              {v.studio_product ? VIDEO_PRODUCT_LABEL[v.studio_product] : "Video"} — {v.id.slice(0, 8)}
+            </option>
           ))}
         </select>
         {post.video_asset_id && (
