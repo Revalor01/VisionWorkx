@@ -9,10 +9,8 @@ const RESEND_KEY = process.env.RESEND_API_KEY;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
 
 // CAN-SPAM requires a valid physical postal address on every commercial
-// email. *** PLACEHOLDER — replace with Revalor LLC's real registered
-// mailing address before sending beyond a small test batch. *** No real
-// address was on file anywhere this could pull from automatically.
-const PHYSICAL_ADDRESS = "Revalor LLC — [mailing address needed]";
+// email.
+const PHYSICAL_ADDRESS = "Revalor LLC, 124 Hammersmith Way, Bear, DE 19701";
 
 // Sent as a base64 attachment on every lead outreach email, regardless of
 // mode — reused across sends rather than read from disk per-recipient.
