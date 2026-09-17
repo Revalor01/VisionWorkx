@@ -1395,6 +1395,15 @@ async function performDeploy(
     } else {
       reason = classifyBuildError((err as Error).message);
     }
+    // The real compiler/build output — only ever existed as a one-shot
+    // operator email before this (see notifyBuildFailure's buildLog below),
+    // never persisted anywhere queryable after the fact. Written here, same
+    // place failure_reason is set, so a canary run's grading step (which
+    // reads this off `apps` before teardown deletes the row/project) can
+    // copy it into build_canary_runs.build_log and it actually survives.
+    // Truncated — this is for a human reading a failure, not a full dump.
+    const rawLog =
+      err instanceof BuildError ? err.logs : err instanceof PreflightError ? err.log : null;
     try {
       // Drop the in-progress build. generated_code (last deployed version) is
       // never touched here. Post the customer-facing notice — but if the
@@ -1406,6 +1415,7 @@ async function performDeploy(
         .update({
           status: "failed",
           failure_reason: reason,
+          build_error_log: rawLog ? rawLog.slice(0, 8000) : null,
           pending_generated_code: null,
           ...(operatorNotice
             ? {}

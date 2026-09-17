@@ -216,6 +216,7 @@ export type Database = {
           app_id: string | null;
           status: string;
           failure_reason: string | null;
+          build_log: string | null;
           duration_sec: number | null;
           deploy_url: string | null;
           created_at: string;
@@ -227,6 +228,7 @@ export type Database = {
           app_id?: string | null;
           status: string;
           failure_reason?: string | null;
+          build_log?: string | null;
           duration_sec?: number | null;
           deploy_url?: string | null;
           created_at?: string;
@@ -236,6 +238,7 @@ export type Database = {
           app_id?: string | null;
           status?: string;
           failure_reason?: string | null;
+          build_log?: string | null;
           duration_sec?: number | null;
           deploy_url?: string | null;
           graded_at?: string | null;
@@ -291,6 +294,7 @@ export type Database = {
           payments_status: PaymentsStatus;
           payments_test_mode: boolean;
           failure_reason: string | null;
+          build_error_log: string | null;
           checkout_secret: string | null;
           vercel_project_id: string | null;
           custom_domain: string | null;
@@ -318,6 +322,7 @@ export type Database = {
           payments_status?: PaymentsStatus;
           payments_test_mode?: boolean;
           failure_reason?: string | null;
+          build_error_log?: string | null;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;
@@ -344,6 +349,7 @@ export type Database = {
           payments_status?: PaymentsStatus;
           payments_test_mode?: boolean;
           failure_reason?: string | null;
+          build_error_log?: string | null;
           checkout_secret?: string | null;
           vercel_project_id?: string | null;
           custom_domain?: string | null;
