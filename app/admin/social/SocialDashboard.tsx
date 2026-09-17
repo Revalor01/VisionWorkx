@@ -5,6 +5,7 @@ import type { SocialBrand, SocialContent, SocialVideoAsset, SocialInboxItem, Lin
 import BrandsTab from "./BrandsTab";
 import ContentTab from "./ContentTab";
 import VideoTab from "./VideoTab";
+import StudioTab from "./StudioTab";
 import InboxTab from "./InboxTab";
 import RecapTab from "./RecapTab";
 import PerformanceTab from "./PerformanceTab";
@@ -14,7 +15,7 @@ import LinkedInTab from "./LinkedInTab";
 import CalendarTab, { type BlogPostCalendarRow, type CampaignCalendarRow, type VideoJobCalendarRow } from "./CalendarTab";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon, LinkedInIcon } from "./PlatformIcons";
 
-type Tab = "brands" | "content" | "video" | "linkedin" | "inbox" | "calendar" | "performance" | "recap" | "help";
+type Tab = "brands" | "content" | "video" | "studio" | "linkedin" | "inbox" | "calendar" | "performance" | "recap" | "help";
 
 export default function SocialDashboard({
   isAdmin,
@@ -48,8 +49,8 @@ export default function SocialDashboard({
   const pausedBrandCount = brands.filter((b) => b.autonomy_paused_at).length;
 
   const TABS: Tab[] = isAdmin
-    ? ["brands", "content", "video", "linkedin", "inbox", "calendar", "performance", "recap", "help"]
-    : ["video"];
+    ? ["brands", "content", "video", "studio", "linkedin", "inbox", "calendar", "performance", "recap", "help"]
+    : ["video", "studio"];
 
   return (
     <div className="min-h-screen bg-blue-50">
@@ -123,6 +124,7 @@ export default function SocialDashboard({
           />
         )}
         {tab === "video" && <VideoTab brands={brands} videoAssets={videoAssets} setVideoAssets={setVideoAssets} />}
+        {tab === "studio" && <StudioTab brands={brands} videoAssets={videoAssets} setVideoAssets={setVideoAssets} />}
         {tab === "linkedin" && (
           <LinkedInTab
             brands={brands}
