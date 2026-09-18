@@ -44,9 +44,9 @@ const HOW_IT_WORKS = [
   {
     step: "03",
     icon: "🚀",
-    title: "Go Live Instantly",
-    body: "Your app deploys automatically with your branding — on your own custom domain when you're ready. Share it and start taking bookings and payments the same day.",
-    tag: "Minutes",
+    title: "Live Within the Hour",
+    body: "Your app deploys automatically with your branding — on your own custom domain when you're ready. Most apps are live and ready to share within the hour.",
+    tag: "Usually under an hour",
   },
   {
     step: "04",
