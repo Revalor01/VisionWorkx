@@ -35,6 +35,7 @@ export default async function AdminPage() {
     { count: guidedSessionsCount },
     { data: canaryRuns },
     { data: stabilityAnalyses },
+    { data: noSourceRows },
   ] = await Promise.all([
     service
       .from("apps")
@@ -100,6 +101,13 @@ export default async function AdminPage() {
       .select("id, created_at, band, completion_rate_pct, issues, recommendations, model, cost_usd")
       .order("created_at", { ascending: false })
       .limit(20),
+    // Flags a real gap found 2026-09-18: a handful of legacy apps (from
+    // before the Sept 10 pipeline fixes) are genuinely deployed/live —
+    // real Vercel project, real deploy_url — but never got their source
+    // persisted to generated_code, so there's nothing for Enhance/any
+    // edit to work against. Only ever need the ids, never the content
+    // itself, so this never pulls actual source code over the wire.
+    service.from("apps").select("id").is("generated_code", null),
   ]);
 
   const oldestUndeliveredAt = oldestUndeliveredRows?.[0]?.created_at ?? null;
@@ -177,6 +185,7 @@ export default async function AdminPage() {
       undeliveredCount={undeliveredCount ?? 0}
       oldestUndeliveredAt={oldestUndeliveredAt}
       instrumentedAppIds={instrumentedAppIds}
+      noSourceAppIds={(noSourceRows ?? []).map((r) => r.id)}
       initialLeads={leads ?? []}
       initialPartners={partners ?? []}
       initialReferrals={referrals ?? []}

@@ -32,6 +32,7 @@ interface AdminDashboardProps {
   undeliveredCount: number;
   oldestUndeliveredAt: string | null;
   instrumentedAppIds: string[];
+  noSourceAppIds: string[];
   initialLeads: Lead[];
   initialPartners: PartnerApplication[];
   initialReferrals: PartnerReferral[];
@@ -123,6 +124,7 @@ export default function AdminDashboard({
   undeliveredCount,
   oldestUndeliveredAt,
   instrumentedAppIds,
+  noSourceAppIds,
   initialLeads,
   initialPartners,
   initialReferrals,
@@ -646,6 +648,7 @@ export default function AdminDashboard({
 
   // ── Automations derived state ───────────────────────────────────
   const instrumentedSet = useMemo(() => new Set(instrumentedAppIds), [instrumentedAppIds]);
+  const noSourceSet = useMemo(() => new Set(noSourceAppIds), [noSourceAppIds]);
   const oldestPendingAgeMinutes = useMemo(() => {
     if (!oldestUndeliveredAt) return null;
     return Math.round((Date.now() - new Date(oldestUndeliveredAt).getTime()) / 60000);
@@ -1596,6 +1599,7 @@ export default function AdminDashboard({
                 enhancing={enhancing}
                 enhanceMessages={enhanceMessages}
                 onEnhance={handleEnhance}
+                noSourceSet={noSourceSet}
                 deletingApps={deletingApps}
                 appDeleteErrors={appDeleteErrors}
                 onDeleteApp={handleDeleteApp}
@@ -1652,6 +1656,7 @@ export default function AdminDashboard({
                 enhancing={enhancing}
                 enhanceMessages={enhanceMessages}
                 onEnhance={handleEnhance}
+                noSourceSet={noSourceSet}
                 deletingApps={deletingApps}
                 appDeleteErrors={appDeleteErrors}
                 onDeleteApp={handleDeleteApp}
@@ -2919,6 +2924,7 @@ function AppTable({
   enhancing,
   enhanceMessages,
   onEnhance,
+  noSourceSet,
   deletingApps,
   appDeleteErrors,
   onDeleteApp,
@@ -2937,6 +2943,7 @@ function AppTable({
   enhancing: Record<string, boolean>;
   enhanceMessages: Record<string, string>;
   onEnhance: (id: string, name: string) => void;
+  noSourceSet: Set<string>;
   deletingApps: Record<string, boolean>;
   appDeleteErrors: Record<string, string>;
   onDeleteApp: (id: string, name: string) => void;
@@ -3071,14 +3078,23 @@ function AppTable({
                         </span>
                       )}
                       {app.user_id && app.deploy_url && (
-                        <button
-                          onClick={() => onEnhance(app.id, app.name)}
-                          disabled={enhancing[app.id]}
-                          title="Master access — request a plain-English change or enhancement on this live site, same pipeline a customer's own change request uses"
-                          className="text-xs px-3 py-1 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
-                        >
-                          {enhancing[app.id] ? "Queuing…" : "Enhance"}
-                        </button>
+                        noSourceSet.has(app.id) ? (
+                          <span
+                            title="This app is live (real deploy) but has no source on file to edit — a legacy gap from before the Sept 10 pipeline fixes. Needs to be regenerated from scratch; Enhance can't work against it."
+                            className="text-xs px-3 py-1 rounded-lg border border-red-200 bg-red-50 text-red-600 whitespace-nowrap"
+                          >
+                            No source
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onEnhance(app.id, app.name)}
+                            disabled={enhancing[app.id]}
+                            title="Master access — request a plain-English change or enhancement on this live site, same pipeline a customer's own change request uses"
+                            className="text-xs px-3 py-1 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                          >
+                            {enhancing[app.id] ? "Queuing…" : "Enhance"}
+                          </button>
+                        )
                       )}
                       {enhanceMessages[app.id] && (
                         <span
