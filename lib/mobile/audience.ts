@@ -1,20 +1,20 @@
 import { createServiceClient } from "@/lib/supabase";
+import { runManagementQuery } from "@/lib/social/weeklyStats";
+import { getMarketingProduct } from "@/lib/marketing/products";
 import type { MarketingProduct } from "@/lib/database.types";
 
 // Project 04 orientation finding: no product persisted a push token or a
 // phone number for its own end users anywhere this admin could reach.
 // VisionWorkx now does for SMS — migration 48's sms_opt_ins, backing a
 // real opt-in flow at /notifications (RLS-gated, written by the end user
-// themselves; read here via the service client the same way every other
-// local-product query in this admin does). Push, and SMS for the other
-// four products, are still genuinely unreached: no push token store
-// exists anywhere, and Chorebit/FeelFlow/MindBit/Sanctum aren't
-// verifiable from here (no local repo, no live Management API access)
-// but nothing suggests they capture SMS consent either. Those keep
-// returning an empty audience with a TODO rather than querying a table
-// that doesn't exist — same reach pattern as lib/marketing/audience.ts
-// once they do: local products via this service client, remote via the
-// Management API.
+// themselves). Chorebit/FeelFlow/MindBit/Sanctum each got the same
+// /notifications + sms_opt_ins pattern in their own repos/Supabase
+// projects, read here the same way lib/marketing/audience.ts already
+// reads their email audiences: local via this service client, remote via
+// the Management API (lib/social/weeklyStats.ts's runManagementQuery),
+// using each product's audienceSource from lib/marketing/products.ts.
+// Push is still genuinely unreached — no product persists a push token
+// anywhere yet — see getPushAudience's own TODO below.
 
 export interface PushAudienceMember {
   id: string;
@@ -32,18 +32,32 @@ export async function getPushAudience(_product: MarketingProduct): Promise<PushA
   return [];
 }
 
-// TODO(mobile-sms-audience): wire the other 4 products once each captures
-// SMS consent somewhere this admin can reach — VisionWorkx is done
-// (migration 48, /notifications). Callers still run filterSmsOptOuts() on
-// the result, so a STOP reply is honored regardless of source.
+// Callers still run filterSmsOptOuts() on the result, so a STOP reply is
+// honored regardless of which product's sms_opt_ins the phone came from.
 export async function getSmsAudience(product: MarketingProduct): Promise<SmsAudienceMember[]> {
-  if (product !== "visionworkx") return [];
+  const { audienceSource } = getMarketingProduct(product);
 
-  const service = createServiceClient();
-  const { data, error } = await service.from("sms_opt_ins").select("user_id, phone");
-  if (error) throw error;
+  if (audienceSource.kind === "local") {
+    const service = createServiceClient();
+    const { data, error } = await service.from("sms_opt_ins").select("user_id, phone");
+    if (error) throw error;
+    return (data ?? []).map((r) => ({ id: r.user_id, phone: r.phone }));
+  }
 
-  return (data ?? []).map((r) => ({ id: r.user_id, phone: r.phone }));
+  // Rollout is staged per product (separate repo, separate PR, separate
+  // migration to apply) — a remote product's sms_opt_ins table may not
+  // exist yet. Treat that as "no audience yet" rather than letting one
+  // unmigrated product break every other product's audience count.
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await runManagementQuery(audienceSource.projectRef, "SELECT user_id, phone FROM sms_opt_ins");
+  } catch {
+    return [];
+  }
+
+  return rows
+    .filter((r): r is { user_id: string; phone: string } => typeof r.user_id === "string" && typeof r.phone === "string")
+    .map((r) => ({ id: r.user_id, phone: r.phone }));
 }
 
 async function getOptedOutPhones(): Promise<Set<string>> {
