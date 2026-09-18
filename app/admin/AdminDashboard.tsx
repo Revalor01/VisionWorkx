@@ -141,6 +141,8 @@ export default function AdminDashboard({
   const [redeploying, setRedeploying] = useState<Record<string, boolean>>({});
   const [redeployMessages, setRedeployMessages] = useState<Record<string, string>>({});
   const [noticeMessages, setNoticeMessages] = useState<Record<string, string>>({});
+  const [enhancing, setEnhancing] = useState<Record<string, boolean>>({});
+  const [enhanceMessages, setEnhanceMessages] = useState<Record<string, string>>({});
   const [deletingApps, setDeletingApps] = useState<Record<string, boolean>>({});
   const [deletedAppIds, setDeletedAppIds] = useState<Set<string>>(new Set());
   const [appDeleteErrors, setAppDeleteErrors] = useState<Record<string, string>>({});
@@ -752,6 +754,34 @@ export default function AdminDashboard({
       }));
     } catch {
       setNoticeMessages((m) => ({ ...m, [appId]: "Network error" }));
+    }
+  }
+
+  // ── Master access: request a plain-English enhancement on any live app ─
+  // Same edit+deploy pipeline a real customer's own change request uses
+  // (app/api/admin/enhance proxies straight into it) — no separate,
+  // unproven code path, just no per-customer ownership/quota gate.
+  async function handleEnhance(appId: string, name: string) {
+    const requestText = window.prompt(`Describe the change/enhancement to make to "${name}":`);
+    if (!requestText || !requestText.trim()) return;
+
+    setEnhancing((e) => ({ ...e, [appId]: true }));
+    setEnhanceMessages((m) => ({ ...m, [appId]: "Queuing…" }));
+    try {
+      const res = await fetch("/api/admin/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId, requestText }),
+      });
+      const data = await res.json();
+      setEnhanceMessages((m) => ({
+        ...m,
+        [appId]: res.ok ? "Change queued ✓" : data.error ?? "Failed",
+      }));
+    } catch {
+      setEnhanceMessages((m) => ({ ...m, [appId]: "Network error" }));
+    } finally {
+      setEnhancing((e) => ({ ...e, [appId]: false }));
     }
   }
 
@@ -1563,6 +1593,9 @@ export default function AdminDashboard({
                 onRedeploy={handleRedeploy}
                 noticeMessages={noticeMessages}
                 onPostNotice={handlePostNotice}
+                enhancing={enhancing}
+                enhanceMessages={enhanceMessages}
+                onEnhance={handleEnhance}
                 deletingApps={deletingApps}
                 appDeleteErrors={appDeleteErrors}
                 onDeleteApp={handleDeleteApp}
@@ -1616,6 +1649,9 @@ export default function AdminDashboard({
                 onRedeploy={handleRedeploy}
                 noticeMessages={noticeMessages}
                 onPostNotice={handlePostNotice}
+                enhancing={enhancing}
+                enhanceMessages={enhanceMessages}
+                onEnhance={handleEnhance}
                 deletingApps={deletingApps}
                 appDeleteErrors={appDeleteErrors}
                 onDeleteApp={handleDeleteApp}
@@ -2880,6 +2916,9 @@ function AppTable({
   onRedeploy,
   noticeMessages,
   onPostNotice,
+  enhancing,
+  enhanceMessages,
+  onEnhance,
   deletingApps,
   appDeleteErrors,
   onDeleteApp,
@@ -2895,6 +2934,9 @@ function AppTable({
   onRedeploy: (id: string) => void;
   noticeMessages: Record<string, string>;
   onPostNotice: (id: string, current: string | null) => void;
+  enhancing: Record<string, boolean>;
+  enhanceMessages: Record<string, string>;
+  onEnhance: (id: string, name: string) => void;
   deletingApps: Record<string, boolean>;
   appDeleteErrors: Record<string, string>;
   onDeleteApp: (id: string, name: string) => void;
@@ -3026,6 +3068,23 @@ function AppTable({
                           className={`text-xs ${noticeMessages[app.id].includes("✓") ? "text-green-600" : "text-red-600"}`}
                         >
                           {noticeMessages[app.id]}
+                        </span>
+                      )}
+                      {app.user_id && app.deploy_url && (
+                        <button
+                          onClick={() => onEnhance(app.id, app.name)}
+                          disabled={enhancing[app.id]}
+                          title="Master access — request a plain-English change or enhancement on this live site, same pipeline a customer's own change request uses"
+                          className="text-xs px-3 py-1 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                        >
+                          {enhancing[app.id] ? "Queuing…" : "Enhance"}
+                        </button>
+                      )}
+                      {enhanceMessages[app.id] && (
+                        <span
+                          className={`text-xs ${enhanceMessages[app.id].includes("✓") ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {enhanceMessages[app.id]}
                         </span>
                       )}
                       {msg && (
