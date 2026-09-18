@@ -126,8 +126,21 @@ export function validateGenerated(
   }
 
   // Unresolved local imports
-  const resolvable = (spec: string) =>
-    [spec, `${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`, `${spec}/index.tsx`].some(has);
+  //
+  // Root-caused 2026-09-18: this only ever checked the model's OWN map, with
+  // no knowledge of the platform-owned files (lib/supabase.ts,
+  // lib/supabase-server.ts) that rule 10 in app/api/generate/route.ts
+  // explicitly tells the model to import and NEVER generate itself. Every
+  // single one of those correct imports — and per rule 10 that's most
+  // files in the app, since almost every Server/Client Component needs a
+  // Supabase client — was flagged as "unresolved", inflating a typical
+  // build to 40+ false-positive "problems" and triggering the repair pass
+  // on essentially every build even when nothing was actually broken.
+  // PLATFORM_OWNED (already imported above for the sibling "wrote a
+  // platform file" check) is the same source of truth for what those
+  // files actually are.
+  const candidates = (spec: string) => [spec, `${spec}.ts`, `${spec}.tsx`, `${spec}/index.ts`, `${spec}/index.tsx`];
+  const resolvable = (spec: string) => candidates(spec).some((p) => has(p) || PLATFORM_OWNED.has(p));
   const missing = new Set<string>();
   for (const [p, content] of Object.entries(map)) {
     if (!isCode(p)) continue;
