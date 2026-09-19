@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
 
       const finalMessage = await stream.finalMessage();
       console.log(
-        `[/api/generate] ${appId.slice(0, 8)} stream complete — ${Math.round((Date.now() - genStartedAt) / 1000)}s elapsed, ${fullText.length} chars, ${finalMessage.usage.output_tokens} output tokens`,
+        `[/api/generate] ${appId.slice(0, 8)} stream complete — ${Math.round((Date.now() - genStartedAt) / 1000)}s elapsed, ${fullText.length} chars, ${finalMessage.usage.output_tokens} output tokens, stop_reason=${finalMessage.stop_reason}`,
       );
       await logAiUsage({
         source: "app_generate",
