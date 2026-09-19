@@ -70,6 +70,16 @@ export const MARKETING_PRODUCTS: MarketingProductConfig[] = [
     // on top of auth.users, not a replacement for it.
     audienceSource: { kind: "remote", projectRef: "qpbwnfvdjklmdrftbkcu" },
   },
+  {
+    slug: "proactive",
+    name: "Proactive",
+    channels: { email: true, push: true, sms: true },
+    // Project ref from revalor-admin/lib/lines.ts (supabaseRef for
+    // proactive). Standard Supabase Auth project like the others (its
+    // users_profile table layers on top of auth.users), so the same
+    // Management API auth.users query resolves its email audience.
+    audienceSource: { kind: "remote", projectRef: "opfkrmmjprrqqxpoiynx" },
+  },
 ];
 
 export const MARKETING_PRODUCT_SLUGS: MarketingProduct[] = MARKETING_PRODUCTS.map((p) => p.slug);
