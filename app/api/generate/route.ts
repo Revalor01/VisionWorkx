@@ -437,6 +437,14 @@ export async function POST(req: NextRequest) {
         console.log(
           `[/api/generate] repair: ${problems.length} problem(s), ${rounds} round(s), ${remaining.length} remaining`,
         );
+        // Temporary diagnostic (2026-09-18) — the count alone doesn't say
+        // WHAT's being caught, which is exactly the gap that let the
+        // false-positive import bug hide for this long. `remaining` is the
+        // more valuable half: whatever repairGenerated couldn't resolve in
+        // 2 rounds is either a hard problem or another checker bug like the
+        // one just fixed. Remove once the current problem mix is understood.
+        if (problems.length > 0) console.log(`[/api/generate] problems: ${JSON.stringify(problems.slice(0, 15))}`);
+        if (remaining.length > 0) console.log(`[/api/generate] remaining: ${JSON.stringify(remaining)}`);
       }
 
       // An empty / truncated-to-nothing blob must never be persisted as
