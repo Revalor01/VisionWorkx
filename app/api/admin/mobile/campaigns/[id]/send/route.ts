@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { isAdminRequest } from "@/lib/social/adminAuth";
 import { getPushAudience, getSmsAudience, filterSmsOptOuts } from "@/lib/mobile/audience";
 import { sendMobileCampaign } from "@/lib/mobile/sendCampaign";
+import { parsePhoneList } from "@/lib/mobile/phone";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -34,9 +35,23 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     // (see lib/mobile/audience.ts) until a product captures tokens/consent.
     const targets = body.targets?.filter((t) => t.trim()) ?? [];
     if (targets.length > 0) {
-      const cleaned = campaign.channel === "sms" ? await filterSmsOptOuts(targets) : targets;
-      const result = await sendMobileCampaign(campaign.id, cleaned);
-      return NextResponse.json({ ok: true, targeted: true, recipientCount: cleaned.length, ...result });
+      let recipients = targets;
+      let skipped = 0;
+      if (campaign.channel === "sms") {
+        // Normalise to E.164 first so the opt-out check (an exact string
+        // match) and Twilio both see the same format the STOP handler stored.
+        const { valid, invalid } = parsePhoneList(targets.join("\n"));
+        if (valid.length === 0) {
+          return NextResponse.json(
+            { error: `No valid phone number to text${invalid.length ? ` (couldn't read: ${invalid.join(", ")})` : ""}` },
+            { status: 400 }
+          );
+        }
+        recipients = await filterSmsOptOuts(valid);
+        skipped = valid.length - recipients.length + invalid.length;
+      }
+      const result = await sendMobileCampaign(campaign.id, recipients);
+      return NextResponse.json({ ok: true, targeted: true, recipientCount: recipients.length, skipped, ...result });
     }
 
     if (campaign.status === "sent" || campaign.status === "sending") {

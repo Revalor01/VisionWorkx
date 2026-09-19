@@ -36,7 +36,7 @@ export type BlogPostStatus = "draft" | "published";
 export type LeadStatus = "new" | "contacted" | "responded" | "qualified" | "converted" | "dead";
 export type LeadLanguage = "en" | "es";
 
-export type MarketingProduct = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum";
+export type MarketingProduct = "visionworkx" | "chorebit" | "feelflow" | "mindbit" | "sanctum" | "proactive";
 export type MarketingCampaignStatus =
   | "draft"
   | "scheduled"
