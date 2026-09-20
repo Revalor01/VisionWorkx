@@ -346,7 +346,14 @@ export async function POST(req: NextRequest) {
       try {
         const plan = await generatePlan(intake, appId);
         planFiles = plan.files;
-        planBlock = `\n\n## Agreed build plan — implement EXACTLY this, every file, nothing dropped\n${plan.text}\n`;
+        // Confirmed live 2026-09-19/20 via canary stop_reason logging: the
+        // model ends its turn (stop_reason "end_turn", well under the 64k
+        // token ceiling) after writing only a fraction of this plan's files
+        // — it isn't running out of room, it's deciding on its own that
+        // it's done. The checklist below is the last thing the model reads
+        // before generating, specifically to counter that premature
+        // self-termination.
+        planBlock = `\n\n## Agreed build plan — implement EXACTLY this, every file, nothing dropped\n${plan.text}\n\nCRITICAL — before you end your response, re-read the file list above one file at a time and confirm each one has both an opening [FILENAME: ...] and a closing [/FILENAME] block in what you wrote. You are NOT done while any file from this list is missing, no matter how much code you have already written or how complete it feels — keep generating until every single one is present. Stopping early with files still missing is a failure even if every file you did write is perfect.\n`;
       } catch (err) {
         console.error("[/api/generate] plan pass failed, continuing without it:", err);
       }
