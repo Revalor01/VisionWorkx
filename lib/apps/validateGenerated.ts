@@ -89,9 +89,24 @@ export function validateGenerated(
 
   // Two-pass: a file the plan committed to that never got emitted (and
   // isn't a config file the deploy pipeline fills in) is a silent drop.
+  //
+  // Root-caused 2026-09-20: generatePlan()'s own manifest routinely lists
+  // platform-owned files (lib/supabase.ts, lib/supabase-server.ts,
+  // tsconfig.json, .gitignore, ...) alongside the real ones. Before this,
+  // this loop had no PLATFORM_OWNED exclusion (only CONFIG, which doesn't
+  // cover those paths), so it told the repair model "you're missing
+  // lib/supabase.ts, create it" — the model complied, and the sibling
+  // "platform-provided, do not emit" check a few lines below immediately
+  // re-flagged the very file this loop just demanded. That contradiction
+  // meant repair could never fully converge: every round re-triggered the
+  // same violation instead of fixing the actually-missing domain files,
+  // confirmed live via 5 canary builds (booking/invoicing/portal x2,
+  // 2026-09-19/20) all leaving identical "is platform-provided" problems
+  // in `remaining` after MAX_ROUNDS. Same underlying gap as PR #71's
+  // unresolved-import fix, just in this checker instead.
   const CONFIG = /^(package\.json|next\.config\.[jt]s|postcss\.config\.js|tailwind\.config\.ts|README\.md|\.env\.local\.example)$/;
   for (const f of plannedFiles) {
-    if (!has(f) && !CONFIG.test(f) && /\.(tsx?|sql|css)$/.test(f)) {
+    if (!has(f) && !CONFIG.test(f) && !PLATFORM_OWNED.has(f) && /\.(tsx?|sql|css)$/.test(f)) {
       problems.push(`The build plan listed ${f} but it was not generated — create it.`);
     }
   }
