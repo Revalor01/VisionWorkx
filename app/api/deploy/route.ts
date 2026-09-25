@@ -1402,8 +1402,20 @@ async function performDeploy(
     // reads this off `apps` before teardown deletes the row/project) can
     // copy it into build_canary_runs.build_log and it actually survives.
     // Truncated — this is for a human reading a failure, not a full dump.
+    //
+    // Root-caused 2026-09-23: a plain Error (e.g. the "missing files even
+    // after repair attempt" throw above, which names the actual missing
+    // files) fell into neither BuildError nor PreflightError, so rawLog was
+    // always null for it — a real failure with zero diagnostic trail
+    // (confirmed live: a portal canary build_error row with build_log/
+    // build_error_log both null). Fall back to the plain error's own
+    // message so every failure leaves some trail.
     const rawLog =
-      err instanceof BuildError ? err.logs : err instanceof PreflightError ? err.log : null;
+      err instanceof BuildError
+        ? err.logs
+        : err instanceof PreflightError
+          ? err.log
+          : (err as Error).message || null;
     try {
       // Drop the in-progress build. generated_code (last deployed version) is
       // never touched here. Post the customer-facing notice — but if the
