@@ -247,10 +247,10 @@ export default function WebAppVsWebPagePage() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="/signup"
+              href="https://products.revalorllc.com/visionworkx/waitlist"
               className="bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
             >
-              Start Free Trial — 14 Days Free
+              Join the modules waitlist →
             </Link>
             <Link
               href="/#how-it-works"

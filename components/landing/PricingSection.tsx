@@ -218,14 +218,14 @@ export default function PricingSection() {
               </ul>
 
               <Link
-                href="/signup"
+                href="https://products.revalorllc.com/visionworkx/waitlist"
                 className={`text-center font-semibold py-3.5 rounded-xl transition-all text-sm ${
                   plan.highlight
                     ? "bg-navy hover:bg-blue-600 text-white"
                     : "border-2 border-navy text-navy hover:bg-navy hover:text-white"
                 }`}
               >
-                Start Free Trial — 14 Days Free
+                Join the modules waitlist →
               </Link>
             </div>
           ))}
@@ -237,8 +237,8 @@ export default function PricingSection() {
         </p>
         <p className="text-center text-sm text-gray-500 mt-2">
           Not ready to sign up?{" "}
-          <Link href="/try" className="font-semibold text-navy hover:underline">
-            Preview a real app first
+          <Link href="https://products.revalorllc.com/visionworkx/preview" className="font-semibold text-navy hover:underline">
+            See the new modules on a real website
           </Link>{" "}
           — free, no account.
         </p>
