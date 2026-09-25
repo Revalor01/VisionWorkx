@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { confirmGuidedSession } from "@/lib/apps/guidedSession";
+import { canUseFullAppGeneration, generationPausedResponse } from "@/lib/featureFlags";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user?.email) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  }
+  if (!canUseFullAppGeneration(user.email)) {
+    return generationPausedResponse();
   }
 
   let body: {

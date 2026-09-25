@@ -20,6 +20,7 @@ import {
   CALENDAR_EXPORT_FEATURE,
   TEAM_ACCESS_FEATURE,
 } from "@/lib/features";
+import { canUseFullAppGeneration, generationPausedResponse } from "@/lib/featureFlags";
 
 export const runtime = "nodejs";
 // A single streamed completion (up to 32000 output tokens) for a large,
@@ -248,6 +249,10 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Service-role (preview/canary) calls are gated at their own entry points.
+    if (!canUseFullAppGeneration(user.email)) {
+      return generationPausedResponse();
     }
     userId = user.id;
   }

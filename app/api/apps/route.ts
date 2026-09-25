@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import { tenantCustomerRowCounts } from "@/lib/apps/tenantSchema";
+import { canUseFullAppGeneration, generationPausedResponse } from "@/lib/featureFlags";
 
 const VALID_CATEGORIES: readonly AppCategory[] = [
   "booking",
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canUseFullAppGeneration(user.email)) {
+    return generationPausedResponse();
   }
 
   let intake: IntakeData;
@@ -89,6 +93,9 @@ export async function PATCH(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canUseFullAppGeneration(user.email)) {
+    return generationPausedResponse();
   }
 
   let body: {

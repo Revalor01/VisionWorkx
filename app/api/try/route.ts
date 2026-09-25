@@ -1,6 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { createPreviewApp, runPreviewGenerate } from "@/lib/apps/preview";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
+import { fullAppGenerationEnabled, generationPausedResponse } from "@/lib/featureFlags";
 
 export const runtime = "nodejs";
 // The response returns a token in ~1s, but `after()` keeps this function
@@ -43,6 +44,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That test link isn't valid." }, { status: 403 });
   }
   const testMode = testCode.length > 0;
+  // Anonymous, so no operator bypass here; test mode stops before the build.
+  if (!testMode && !fullAppGenerationEnabled()) {
+    return generationPausedResponse();
+  }
 
   const email = (body.email ?? "").trim().toLowerCase();
   if (!EMAIL_RE.test(email)) {

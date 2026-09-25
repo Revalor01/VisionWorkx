@@ -5,6 +5,7 @@ import {
   monthStartISO,
 } from "@/lib/apps/changeRequestLimits";
 import type { Plan } from "@/lib/database.types";
+import { canUseFullAppGeneration, generationPausedResponse } from "@/lib/featureFlags";
 
 export const runtime = "nodejs";
 
@@ -86,6 +87,9 @@ export async function POST(
   } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canUseFullAppGeneration(user.email)) {
+    return generationPausedResponse();
   }
 
   let body: { requestText?: string };
