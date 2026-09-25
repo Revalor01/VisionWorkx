@@ -60,6 +60,12 @@ Sanctum, Proactive, revalor-admin), and `app/api/admin/sso/consume` sets the coo
 without the user's explicit OK** — it would log out every Revalor admin app.
 (`lib/marketing/unsubscribeToken.ts` deliberately uses a separate secret; keep it separate.)
 
+## Full-app generation is frozen (A3, 2026-09-25)
+New full-app builds are blocked unless `FULL_APP_GENERATION=true` (default off; the operator can
+still build). Don't remove the gates in `lib/featureFlags.ts` callers or re-enable the builder
+without the user's OK. Details: `docs/full-app-generation-freeze.md`. The legacy sections below
+describe the frozen builder.
+
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
   adds or edits files in `supabase/migrations`) **migration-reviewer**. Don't open the PR on a
