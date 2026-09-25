@@ -9,6 +9,7 @@ import {
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
 import { CANARY_EMAIL_SUFFIX } from "@/lib/apps/canaryApps";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
+import { fullAppGenerationEnabled } from "@/lib/featureFlags";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -246,6 +247,11 @@ export async function GET(req: NextRequest) {
   // "pending" — nothing is lost, the next enabled run grades them.
   if (process.env.CANARY_DISABLED === "true") {
     return NextResponse.json({ disabled: true, message: "Canary is paused (CANARY_DISABLED=true) — grading and firing both skipped." });
+  }
+  // Full-app generation freeze (A3): the canary builds real apps, so it stops
+  // with the builder. Same behaviour as CANARY_DISABLED — nothing is lost.
+  if (!fullAppGenerationEnabled()) {
+    return NextResponse.json({ disabled: true, message: "Canary is paused — full-app generation is off (FULL_APP_GENERATION is not \"true\")." });
   }
 
   const service = createServiceClient();

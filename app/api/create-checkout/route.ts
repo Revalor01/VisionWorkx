@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
+import { canUseFullAppGeneration, generationPausedResponse } from "@/lib/featureFlags";
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
@@ -11,6 +12,10 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  // New plan checkouts are paused with the builder: the plans sell app builds.
+  if (!canUseFullAppGeneration(user.email)) {
+    return generationPausedResponse();
   }
 
   let body: { priceId?: string };

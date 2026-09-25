@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import OnboardForm from "./OnboardForm";
 import type { IntakeData } from "@/lib/database.types";
+import { canUseFullAppGeneration } from "@/lib/featureFlags";
+import GenerationPaused from "@/components/GenerationPaused";
 
 const PLAN_APP_LIMITS: Record<string, number> = {
   free: 1,
@@ -24,6 +26,8 @@ export default async function OnboardPage(
   } = await supabase.auth.getUser();
 
   if (error || !user) redirect("/login");
+
+  if (!canUseFullAppGeneration(user.email)) return <GenerationPaused />;
 
   const editAppId = searchParams.edit ?? null;
 

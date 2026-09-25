@@ -302,10 +302,10 @@ export default function LandingPage() {
                   <span className="shrink-0 text-blue-300 transition-colors group-hover:text-promote-gold">→</span>
                 </a>
                 <Link
-                  href="/try"
+                  href="https://products.revalorllc.com/visionworkx/preview"
                   className="text-sm font-medium text-blue-300 hover:text-white underline underline-offset-4 decoration-blue-500/50 hover:decoration-white transition-all"
                 >
-                  or see a real app built for a business like yours first →
+                  or see the new VisionWorkx modules on a real website →
                 </Link>
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-1 text-xs text-blue-300/80">
                   <span className="flex items-center gap-1">
@@ -533,15 +533,15 @@ export default function LandingPage() {
 
           <div className="mt-8">
             <Link
-              href="/guided"
+              href="https://products.revalorllc.com/visionworkx/waitlist"
               className="inline-block bg-promote-gold hover:brightness-110 text-navy-dark font-bold px-8 py-4 rounded-xl text-base transition-all shadow-lg shadow-promote-gold/30"
             >
-              Book your session — $10 →
+              Join the modules waitlist →
             </Link>
             <p className="mt-4 text-sm text-blue-400">
               Credited to your first month · already know what you want?{" "}
-              <Link href="/try" className="underline hover:text-white">
-                Use the free builder
+              <Link href="https://products.revalorllc.com/visionworkx/preview" className="underline hover:text-white">
+                See the new modules
               </Link>
             </p>
           </div>
@@ -599,10 +599,10 @@ export default function LandingPage() {
                     {cat.for}
                   </p>
                   <Link
-                    href="/signup"
+                    href="https://products.revalorllc.com/visionworkx/waitlist"
                     className="text-xs font-semibold text-navy hover:underline"
                   >
-                    Get this app →
+                    Join the waitlist →
                   </Link>
                 </div>
               </div>
@@ -816,10 +816,10 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="/signup"
+              href="https://products.revalorllc.com/visionworkx/waitlist"
               className="bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
             >
-              Start Free Trial — 14 Days Free
+              Join the modules waitlist →
             </Link>
             <Link
               href="#how-it-works"

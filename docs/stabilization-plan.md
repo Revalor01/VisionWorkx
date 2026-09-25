@@ -2,6 +2,8 @@
 
 _Started 2026-09-10. Owner: solo. Status: **build freeze in effect** — no new client builds until Tier 0 + Tier 1 land._
 
+> **2026-09-25 — superseded by the full-app generation freeze (A3).** VisionWorkx is moving to embeddable modules; new full-app builds are now blocked in code by `FULL_APP_GENERATION` (default off). See `docs/full-app-generation-freeze.md`. This plan is kept as the record of the pipeline work.
+
 ---
 
 ## Why this exists
