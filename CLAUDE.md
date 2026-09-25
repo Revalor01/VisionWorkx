@@ -1,3 +1,73 @@
+# Claude Code guardrails (Machine A) — read this first
+
+## What this repo is
+VisionWorkx (Next.js App Router + Supabase + Stripe + Resend, hosted on Vercel). Historically an
+AI app builder that generates and deploys full web apps for small businesses. It is being
+repositioned into embeddable modules (lead capture, booking, quote calculator, intake form,
+dashboard) that install on a business's existing website. This repo also hosts the Revalor
+internal admin area (`app/admin/*`), the shared admin SSO hub, and a Supabase project that
+several other Revalor apps share. The sections further down describe the legacy app builder
+and are still accurate for that code.
+
+## Machine and naming
+- Machine: **A (VisionWorkx)**. Machine B works on revalor-admin and the Needs Analyzer at the same time.
+- Branch prefix: `vw/`.
+- New Supabase tables and functions: prefix `vw_`.
+
+## Working rules
+- **Report first, then wait.** Read the code, report findings, give a numbered plan of every file,
+  Supabase change and GitHub action. Change nothing until the user replies "approved".
+- **Branches and PRs only.** Never push to `main`, never merge a PR. Small commits, clear messages.
+  Don't change repo settings, secrets, Actions workflows or branch protection without asking.
+- **Supabase changes only as migration files** in `supabase/migrations`, with the SQL shown to the
+  user before it's written.
+- **No `DROP`, `TRUNCATE` or `DELETE`, and no column removals or renames**, without explicit OK.
+- **Row Level Security on every new table**, with each policy explained in plain English.
+- **Never run SQL against production.** Test only against a local, dev or branch database.
+- **Never put the service-role key in client code** (anything under a `"use client"` file or
+  exposed via a `NEXT_PUBLIC_` variable).
+- **Never print or commit secrets.** Name the env vars needed and where (Vercel or Supabase); the
+  user adds them.
+- **No production deploys.** PR preview deploys are fine.
+- **When unsure, stop and ask.**
+- **Finish every task with a report:** what changed, migrations to apply (in order), env vars
+  needed, how to test, how to roll back.
+
+## Parallel work
+- Only change this repo. Never edit revalor-admin or needs-analyzer (Machine B owns them).
+- Tell the user before touching any table another app uses, new or existing.
+
+## Shared database — revalor-admin's tables live here
+revalor-admin has no Supabase project of its own; it reads and writes these tables in
+VisionWorkx's project (via its `VISIONWORKX_SUPABASE_*` service-role client and the Supabase
+Management API). **Never alter, rename or drop them, or change their RLS policies:**
+
+- Consulting: `consulting_clients`, `consulting_deliverables`
+- SEO/blog: `blog_posts`, `blog_keywords`, `blog_product_config`, `blog_run_log`, `blog_autonomy_flags`
+- Maintenance: `system_settings` (row `id = 1`: `maintenance_mode`, `maintenance_message`) and the
+  `profiles.blocked` / `profiles.block_reason` columns. `middleware.ts` reads `system_settings`
+  for the site-wide maintenance gate.
+- Usage / ops: `ai_usage_log`, `claude_code_usage`, `dev_activity_log`, `system_scan_runs`,
+  `system_scan_findings`, `video_config`, `video_jobs`
+- Any `rv_*` table (revalor-admin's prefix; its migrations live in the revalor-admin repo).
+
+## Shared admin sign-in (ADMIN_SSO_SECRET)
+This repo is the **hub** of the shared admin SSO used by every Revalor admin app:
+`lib/adminSso.ts` signs/verifies tickets and the session cookie, `app/api/admin/sso/issue`
+mints tickets and redirects to the allowlisted apps (VisionWorkx, Chorebit, FeelFlow, MindBit,
+Sanctum, Proactive, revalor-admin), and `app/api/admin/sso/consume` sets the cookie here.
+**Never change `ADMIN_SSO_SECRET`, the cookie name/format, the ticket format or its verification
+without the user's explicit OK** — it would log out every Revalor admin app.
+(`lib/marketing/unsubscribeToken.ts` deliberately uses a separate secret; keep it separate.)
+
+## Agents — use them
+- Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
+  adds or edits files in `supabase/migrations`) **migration-reviewer**. Don't open the PR on a
+  STOP; fix FIX items or explain why not.
+- At the end of every task: run **docs-keeper**.
+
+---
+
 # Vision Workx — Claude Code Project File
 > A Revalor Company · AI-Powered App Builder for Small Businesses
 > Drop this file in your project root. Claude Code reads it automatically every session.
