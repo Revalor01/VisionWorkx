@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import BillingClient from "./BillingClient";
 import AppNavbar from "@/components/nav/AppNavbar";
+import { canUseFullAppGeneration } from "@/lib/featureFlags";
+import GenerationPaused from "@/components/GenerationPaused";
 
 const TRIAL_DAYS = 14;
 
@@ -32,6 +34,8 @@ export default async function BillingPage() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) redirect("/login");
+  // Plan checkout is paused with the builder: the plans sell app builds.
+  if (!canUseFullAppGeneration(user.email)) return <GenerationPaused />;
 
   const [{ data: profile }, { data: subscription }, { count: appCount }] =
     await Promise.all([

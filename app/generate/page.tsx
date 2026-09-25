@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import GenerateClient from "./GenerateClient";
+import { canUseFullAppGeneration } from "@/lib/featureFlags";
+import GenerationPaused from "@/components/GenerationPaused";
 
 function GenerateSkeleton() {
   return (
@@ -25,6 +27,8 @@ export default async function GeneratePage() {
   } = await supabase.auth.getUser();
 
   if (error || !user) redirect("/login");
+
+  if (!canUseFullAppGeneration(user.email)) return <GenerationPaused />;
 
   const { data: profile } = await supabase
     .from("profiles")

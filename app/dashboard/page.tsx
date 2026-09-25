@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase";
 import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automationLimits";
 import DashboardClient from "./DashboardClient";
 import type { App, AutomationWorkflow, Plan } from "@/lib/database.types";
+import { canUseFullAppGeneration } from "@/lib/featureFlags";
 
 export default async function DashboardPage() {
   const supabase = await createServerClient();
@@ -53,6 +54,7 @@ export default async function DashboardPage() {
       initialApps={(apps ?? []) as App[]}
       initialWorkflows={(workflows ?? []) as AutomationWorkflow[]}
       automationUsage={{ sent: usage?.sent_count ?? 0, limit: AUTOMATION_SEND_LIMITS[plan] }}
+      canBuild={canUseFullAppGeneration(user.email)}
     />
   );
 }

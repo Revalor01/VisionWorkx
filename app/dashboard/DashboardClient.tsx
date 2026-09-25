@@ -112,6 +112,8 @@ interface DashboardClientProps {
   initialApps: App[];
   initialWorkflows: AutomationWorkflow[];
   automationUsage: { sent: number; limit: number };
+  /** False while full-app generation is frozen (lib/featureFlags.ts). */
+  canBuild?: boolean;
 }
 
 // ── Component ───────────────────────────────────────────────────
@@ -123,6 +125,7 @@ export default function DashboardClient({
   initialApps,
   initialWorkflows,
   automationUsage,
+  canBuild = true,
 }: DashboardClientProps) {
   const supabase = useMemo(() => createBrowserClient(), []);
   const [apps, setApps] = useState<App[]>(initialApps);
@@ -230,7 +233,14 @@ export default function DashboardClient({
             )}
           </div>
 
-          {atLimit ? (
+          {!canBuild ? (
+            <a
+              href="https://products.revalorllc.com/visionworkx/waitlist"
+              className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-100 transition-colors"
+            >
+              New app builds are paused · See VisionWorkx modules →
+            </a>
+          ) : atLimit ? (
             <Link
               href="/billing"
               className="inline-flex items-center gap-2 bg-navy text-white font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700 transition-colors"
@@ -342,13 +352,14 @@ export default function DashboardClient({
 
         {/* ── App grid / empty state ── */}
         {apps.length === 0 ? (
-          <EmptyState plan={profile.plan} atLimit={atLimit} />
+          <EmptyState plan={profile.plan} atLimit={atLimit} canBuild={canBuild} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {apps.map((app) => {
               const automation = AUTOMATION_BY_CATEGORY[app.category];
               return (
                 <AppCard
+                  canBuild={canBuild}
                   key={app.id}
                   app={app}
                   automation={automation}
@@ -385,7 +396,9 @@ function AppCard({
   automationEnabled,
   toggling,
   onToggleAutomation,
+  canBuild,
 }: {
+  canBuild: boolean;
   app: App;
   automation: { trigger: string; action: string; label: string } | undefined;
   automationEnabled: boolean;
@@ -527,12 +540,14 @@ function AppCard({
           </Link>
         )}
 
-        <Link
-          href={`/onboard?edit=${app.id}`}
-          className="flex-1 min-w-[90px] text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-        >
-          Edit
-        </Link>
+        {canBuild && (
+          <Link
+            href={`/onboard?edit=${app.id}`}
+            className="flex-1 min-w-[90px] text-center text-xs font-semibold border border-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            Edit
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -543,10 +558,30 @@ function AppCard({
 function EmptyState({
   plan,
   atLimit,
+  canBuild,
 }: {
   plan: Plan;
   atLimit: boolean;
+  canBuild: boolean;
 }) {
+  if (!canBuild) {
+    return (
+      <div className="text-center py-20 px-4">
+        <div className="text-6xl mb-5">🧩</div>
+        <h2 className="text-xl font-bold text-navy-dark mb-2">New app builds are paused</h2>
+        <p className="text-gray-500 text-sm max-w-sm mx-auto mb-8 leading-relaxed">
+          VisionWorkx is becoming a set of modules (booking, lead capture, quotes and more) that
+          install on the website you already have.
+        </p>
+        <a
+          href="https://products.revalorllc.com/visionworkx/waitlist"
+          className="inline-block bg-navy-dark text-white font-semibold px-8 py-3 rounded-xl hover:bg-navy transition-colors"
+        >
+          Join the modules waitlist →
+        </a>
+      </div>
+    );
+  }
   return (
     <div className="text-center py-20 px-4">
       <div className="text-6xl mb-5">🚀</div>
