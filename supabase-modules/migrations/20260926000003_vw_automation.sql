@@ -124,7 +124,7 @@ grant usage on schema public to vw_automation;
 grant select on public.vw_workspaces, public.vw_modules, public.vw_submissions, public.vw_email_templates to vw_automation;
 grant select, update (delivered_at) on public.vw_events to vw_automation;
 grant select, insert, update on public.vw_email_log, public.vw_email_usage, public.vw_scheduled_jobs to vw_automation;
-grant select, insert on public.vw_email_suppressions to vw_automation;
+grant select, insert, update on public.vw_email_suppressions to vw_automation;
 -- The role bypasses nothing: give it explicit RLS policies scoped to itself.
 alter role vw_automation set statement_timeout = '15s';
 create policy "automation reads workspaces" on public.vw_workspaces for select to vw_automation using (true);
