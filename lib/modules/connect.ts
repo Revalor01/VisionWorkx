@@ -10,14 +10,12 @@
 
 import Stripe from "stripe";
 import { modulesServiceClient } from "./supabase";
+import { EMBED_ORIGIN } from "./constants";
+import { submissionEmail } from "./submissionEmail";
 
 function platformStripe(testMode = false): Stripe {
   const key = testMode && process.env.STRIPE_TEST_SECRET_KEY ? process.env.STRIPE_TEST_SECRET_KEY : process.env.STRIPE_SECRET_KEY!;
   return new Stripe(key);
-}
-
-function appOrigin(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://vision-workx.vercel.app";
 }
 
 /** VisionWorkx's cut of a workspace's customer payments, as a percent. Same env var the app-builder platform fee uses. */
@@ -53,11 +51,13 @@ export async function startConnectOnboarding(workspaceId: string, slug: string, 
     await db.from("vw_workspaces").update({ stripe_connect_account_id: accountId, connect_payments_status: "pending" }).eq("id", workspaceId);
   }
 
-  const base = appOrigin();
-  const returnUrl = `${base}/workspace/${slug}/payments?connect=return`;
+  // Back to the Billing page (where the Connect card lives) on the workspace
+  // host, where the owner's sign-in cookie is -- not the app-builder origin.
+  const base = process.env.NEXT_PUBLIC_MODULES_EMBED_ORIGIN ?? EMBED_ORIGIN;
+  const returnUrl = `${base}/workspace/${slug}/billing?connect=return`;
   const link = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${base}/workspace/${slug}/payments?connect=refresh`,
+    refresh_url: `${base}/workspace/${slug}/billing?connect=refresh`,
     return_url: returnUrl,
     type: "account_onboarding",
   });
@@ -165,10 +165,58 @@ export async function confirmSubmissionPayment(sessionId: string): Promise<{ pai
 
   try {
     const paid = await checkoutSessionPaid(ws.stripe_connect_account_id, sessionId, !!ws.connect_payments_test_mode);
-    if (paid) await db.from("vw_submissions").update({ payment_status: "paid" }).eq("id", sub.id);
+    if (paid) await markSubmissionPaid(sub.id);
     return { paid };
   } catch (err) {
     console.error("[modules/connect] confirmSubmissionPayment failed:", err instanceof Error ? err.message : err);
     return { paid: false };
   }
+}
+
+/**
+ * Flip a submission to paid (once) and tell the business. Shared by the
+ * success pages and the webhook; whichever gets there first sends the email,
+ * the other finds the row already paid and does nothing.
+ */
+export async function markSubmissionPaid(submissionId: string): Promise<void> {
+  const db = modulesServiceClient();
+  const { data: rows, error } = await db
+    .from("vw_submissions")
+    .update({ payment_status: "paid" })
+    .eq("id", submissionId)
+    .neq("payment_status", "paid")
+    .select("id, workspace_id, module_id, data, payment_amount_cents");
+  if (error) {
+    console.error("[modules/connect] mark paid failed:", error.message);
+    return;
+  }
+  const sub = rows?.[0];
+  if (!sub) return; // already paid -- someone else sent the notice
+
+  const [{ data: ws }, { data: mod }] = await Promise.all([
+    db.from("vw_workspaces").select("name, slug, notification_email").eq("id", sub.workspace_id).single(),
+    db.from("vw_modules").select("name").eq("id", sub.module_id).maybeSingle(),
+  ]);
+  const key = process.env.RESEND_API_KEY;
+  if (!ws?.notification_email || !key) return;
+  const data = (sub.data ?? {}) as Record<string, unknown>;
+  const who = (typeof data.name === "string" && data.name.trim()) || submissionEmail(data) || "A customer";
+  const amount = sub.payment_amount_cents
+    ? (sub.payment_amount_cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })
+    : "A payment";
+  const origin = process.env.NEXT_PUBLIC_MODULES_EMBED_ORIGIN ?? EMBED_ORIGIN;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "VisionWorkx <notifications@notify.revalorllc.com>",
+      to: [ws.notification_email],
+      subject: `Payment received: ${amount} from ${String(who).slice(0, 80)}`,
+      text:
+        `${who} paid ${amount}${mod?.name ? ` through your ${mod.name} form` : ""}.\n\n` +
+        `See the submission: ${origin}/workspace/${ws.slug}\n\n` +
+        `The money goes to your own Stripe account; payouts follow your Stripe schedule.\n\n— VisionWorkx`,
+    }),
+  }).catch(() => null);
+  if (res && !res.ok) console.error("[modules/connect] payment email failed:", res.status);
 }

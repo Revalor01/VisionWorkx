@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { createWorkspaceCheckout } from "@/lib/modules/connect";
+import { submissionEmail } from "@/lib/modules/submissionEmail";
 
 export const runtime = "nodejs";
 
@@ -60,8 +61,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   if (!ws) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   if (sub.payment_status === "paid") return NextResponse.json({ error: "This submission is already paid." }, { status: 409 });
 
-  const data = (sub.data ?? {}) as Record<string, unknown>;
-  const email = typeof data.email === "string" ? data.email : null;
+  const email = submissionEmail((sub.data ?? {}) as Record<string, unknown>);
   if (!email) return NextResponse.json({ error: "This submission has no email address to send a payment link to." }, { status: 400 });
 
   const base = req.nextUrl.origin;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { submissionEmail } from "@/lib/modules/submissionEmail";
 import { modulesBrowserClient } from "@/lib/modules/supabase-browser";
 import { SUBMISSION_STATUSES, type SubmissionStatus } from "@/lib/modules/constants";
 
@@ -269,7 +270,7 @@ export default function SubmissionsBoard(props: {
                     {PAYMENT_LABEL[open.payment_status]}
                     {open.payment_amount_cents ? ` — ${fmtUsd(open.payment_amount_cents)}` : ""}
                   </p>
-                ) : str(open.data.email) ? (
+                ) : submissionEmail(open.data as Record<string, unknown>) ? (
                   <div className="mt-2 flex flex-wrap items-end gap-2">
                     <label className="text-xs font-medium text-gray-600" htmlFor="inv-label">
                       What for
