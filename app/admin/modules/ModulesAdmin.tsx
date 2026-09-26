@@ -9,6 +9,7 @@ import { AdminHeader, AdminProductPills } from "../AdminNavHeader";
 
 export interface AdminWorkspace {
   id: string; name: string; slug: string; domains: string[]; plan: string; created_at: string;
+  billing_status: string; self_serve: boolean; install_requested_at: string | null;
   modules: { id: string; public_id: string; type: string; name: string; status: string }[];
   memberCount: number; submissions30d: number;
 }
@@ -96,7 +97,10 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
       {initial.map((w) => (
         <section key={w.id} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-lg font-bold">{w.name} <span className="text-sm font-normal text-gray-500">/{w.slug} · {w.plan}</span></h2>
+            <h2 className="text-lg font-bold">{w.name} <span className="text-sm font-normal text-gray-500">/{w.slug} · {w.plan} · {w.billing_status}</span>
+              {w.self_serve && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Self-serve</span>}
+              {w.install_requested_at && <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Install requested</span>}
+            </h2>
             <span className="text-sm text-gray-500">{w.memberCount} logins · {w.submissions30d} submissions (30d)</span>
           </div>
           <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run({ action: "update_domains", workspace_id: w.id, domains: String(f.get("domains") ?? "").split(/[\s,]+/) }, "Domains saved."); }}>

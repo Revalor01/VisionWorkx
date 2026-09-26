@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/modules/workspace";
+import SetupChecklist from "@/components/modules/SetupChecklist";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "VisionWorkx workspace", robots: { index: false, follow: false } };
@@ -31,6 +32,7 @@ export default async function WorkspaceLayout(props: { children: React.ReactNode
           </nav>
         </div>
       </header>
+      <SetupChecklist workspaceId={workspace.id} slug={workspace.slug} isOwner={role === "owner"} />
       <main className="mx-auto max-w-6xl px-4 py-8">{props.children}</main>
     </div>
   );

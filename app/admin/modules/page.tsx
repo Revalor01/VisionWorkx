@@ -21,7 +21,7 @@ export default async function AdminModulesPage() {
   }
   const db = modulesServiceClient();
   const [{ data: ws }, { data: mods }, { data: members }, { data: subs }] = await Promise.all([
-    db.from("vw_workspaces").select("id, name, slug, domains, plan, created_at").order("created_at", { ascending: false }),
+    db.from("vw_workspaces").select("id, name, slug, domains, plan, billing_status, self_serve, install_requested_at, created_at").order("created_at", { ascending: false }),
     db.from("vw_modules").select("id, public_id, workspace_id, type, name, status"),
     db.from("vw_workspace_members").select("workspace_id, user_id, role"),
     db.from("vw_submissions").select("workspace_id").gte("created_at", new Date(Date.now() - 30 * 864e5).toISOString()),
