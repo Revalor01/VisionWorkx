@@ -1,9 +1,10 @@
 import { after, NextRequest } from "next/server";
 import { getModuleByPublicId } from "@/lib/modules/data";
-import { validateSubmission } from "@/lib/modules/config";
+import { validateSubmission, type FileValue } from "@/lib/modules/config";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
 import { corsHeaders, ipHash, json, originAllowed } from "@/lib/modules/http";
 import { sendWebhook } from "@/lib/modules/webhook";
+import { UPLOAD_BUCKET } from "@/lib/modules/constants";
 import { NextResponse } from "next/server";
 
 // Public: visitors on client websites submit module forms here.
@@ -63,8 +64,21 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     });
   }
 
-  const result = validateSubmission(mod.config, body.data);
+  const result = validateSubmission(mod.config, body.data, mod.id);
   if (!result.ok) return json(req, domains, { error: "Please fix the highlighted fields.", fields: result.errors }, 400);
+
+  // Each attached file must really exist in storage, under this module, with
+  // the size/type the visitor claimed (storage enforces the 10 MB / type limits too).
+  for (const f of mod.config.fields.filter((x) => x.type === "file")) {
+    const fv = result.values[f.id] as FileValue | undefined;
+    if (!fv) continue;
+    const { data: info, error: infoErr } = await db.storage.from(UPLOAD_BUCKET).info(fv.path);
+    if (infoErr || !info) {
+      return json(req, domains, { error: "Please fix the highlighted fields.", fields: { [f.id]: `${f.label}: the upload didn't finish — attach it again.` } }, 400);
+    }
+    const realSize = typeof info.size === "number" ? info.size : fv.size;
+    result.values[f.id] = { ...fv, size: realSize, type: info.contentType ?? fv.type };
+  }
 
   const sourceUrl =
     typeof body.source_url === "string" && /^https?:\/\//.test(body.source_url) ? body.source_url.slice(0, 500) : null;
@@ -83,8 +97,12 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     submission_id: sub.id,
     module: { id: mod.publicId, type: mod.type, name: mod.config.title },
     workspace: { id: mod.workspaceId, name: mod.workspaceName },
-    data: result.values,
-    fields: mod.config.fields.map((f) => ({ id: f.id, label: f.label })),
+    data: Object.fromEntries(
+      Object.entries(result.values).map(([k, v]) =>
+        typeof v === "string" ? [k, v] : [k, { file: true, name: v.name, size: v.size, type: v.type }],
+      ),
+    ),
+    fields: mod.config.fields.map((f) => ({ id: f.id, label: f.label, type: f.type })),
     created_at: sub.created_at,
   };
 

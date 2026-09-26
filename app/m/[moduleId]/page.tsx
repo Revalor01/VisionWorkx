@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getModuleByPublicId } from "@/lib/modules/data";
 import { modulesConfigured } from "@/lib/modules/supabase";
 import ModuleForm from "@/components/modules/ModuleForm";
+import { resolveBrand } from "@/lib/modules/config";
 
 // Rendered inside the embed iframe on client websites. Which sites may frame
 // it is enforced by a CSP frame-ancestors header set in middleware.
@@ -37,7 +38,7 @@ export default async function ModuleFramePage(props: {
       publicId={mod.publicId}
       businessName={mod.workspaceName}
       logoUrl={mod.logoUrl}
-      brand={mod.brand}
+      brand={resolveBrand(mod.brand, mod.config.style)}
       config={mod.config}
       sourceUrl={sourceUrl}
     />
