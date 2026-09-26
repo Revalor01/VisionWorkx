@@ -1,8 +1,7 @@
 import { requireWorkspace } from "@/lib/modules/workspace";
-import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automationLimits";
+import { currentPeriod as currentAutomationPeriod, limitsFor } from "@/lib/modules/plans";
 import { DEFAULT_EMAILS, EMAIL_KINDS } from "@/lib/modules/emailDefaults";
 import EmailSettings from "@/components/modules/EmailSettings";
-import type { Plan } from "@/lib/database.types";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   sent: { label: "Sent", cls: "bg-emerald-50 text-emerald-700" },
@@ -36,7 +35,7 @@ export default async function WorkspaceEmailsPage(props: { params: Promise<{ slu
       ? supabase.from("vw_email_templates").select("kind, subject, body, enabled, delay_hours").eq("workspace_id", workspace.id).is("module_id", null)
       : Promise.resolve({ data: [] as { kind: string; subject: string; body: string; enabled: boolean; delay_hours: number }[] }),
   ]);
-  const limit = AUTOMATION_SEND_LIMITS[(workspace.plan as Plan) ?? "free"] ?? AUTOMATION_SEND_LIMITS.free;
+  const limit = limitsFor(workspace.plan).emailsPerMonth;
   const sent = usage?.sent_count ?? 0;
   const pct = Math.min(100, Math.round((sent / limit) * 100));
   const fmt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: workspace.time_zone });
