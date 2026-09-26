@@ -35,6 +35,7 @@ Authorization: Bearer <MODULES_DIRECTORY_SECRET>
       "workspace_url": "https://modules.revalorllc.com/workspace/harbor-pine",
       "logins": { "owners": 1, "staff": 0 },
       "submissions_30d": 12,
+      "email_usage": { "period": "2026-09", "sent": 37, "limit": 100 },
       "last_submission_at": "… | null",
       "modules": [
         {
@@ -60,4 +61,4 @@ Counts only. If the admin ever needs more, ask Machine A (the user) — don't ad
 ## Rules
 - **Read-only.** There is no write endpoint for revalor-admin. Creating workspaces, inviting logins
   and switching modules live happens in VisionWorkx at `/admin/modules` (operator only).
-- A6 will add email usage per workspace (for "usage vs plan"); it'll be a new field here.
+- `email_usage` (added in A6) gives this month's automation emails vs the plan limit, for the admin's "usage vs plan" column.
