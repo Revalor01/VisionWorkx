@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { parseFormConfig } from "@/lib/modules/config";
+import { limitsFor, PLAN_PRICE, type ModulePlan } from "@/lib/modules/plans";
 
 // Owners create a new lead-capture form (saved as a draft). Module inserts
 // are server-only by design (RLS), so this route checks ownership, then
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
 
   const db = modulesServiceClient();
   const { count } = await db.from("vw_modules").select("id", { count: "exact", head: true }).eq("workspace_id", auth.workspace.id);
-  if ((count ?? 0) >= 25) return NextResponse.json({ error: "This workspace already has 25 modules." }, { status: 400 });
+  const cap = limitsFor(auth.workspace.plan).modules;
+  if ((count ?? 0) >= cap) {
+    const label = PLAN_PRICE[auth.workspace.plan as ModulePlan]?.label ?? auth.workspace.plan;
+    return NextResponse.json({ error: `Your ${label} plan includes ${cap} module${cap === 1 ? "" : "s"}. Upgrade on the Billing page to add more.` }, { status: 402 });
+  }
 
   const { data, error } = await db
     .from("vw_modules")

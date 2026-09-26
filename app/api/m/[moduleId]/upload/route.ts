@@ -5,6 +5,8 @@ import { FILE_MAX_BYTES, FILE_TYPES } from "@/lib/modules/config";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
 import { corsHeaders, ipHash, json, originAllowed } from "@/lib/modules/http";
 import { UPLOAD_BUCKET } from "@/lib/modules/constants";
+import { billingAllowsService, limitsFor } from "@/lib/modules/plans";
+import { storageBytes } from "@/lib/modules/usage";
 
 // Public: a visitor about to attach a file asks for a one-time signed upload
 // link. The file then goes straight to private storage (never through our
@@ -30,7 +32,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
   const { moduleId } = await props.params;
   if (!modulesConfigured()) return NextResponse.json({ error: "Not available." }, { status: 503 });
   const mod = await getModuleByPublicId(moduleId);
-  if (!mod || mod.status !== "live") return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
+  if (!mod || mod.status !== "live" || !billingAllowsService(mod.billingStatus)) {
+    return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
+  }
   if (!originAllowed(req, mod.domains)) return json(req, mod.domains, { error: "Not allowed from this website." }, 403);
 
   let body: { field?: unknown; name?: unknown; size?: unknown; type?: unknown };
@@ -46,6 +50,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
   if (size <= 0 || size > FILE_MAX_BYTES) return json(req, mod.domains, { error: "Files can be up to 10 MB." }, 400);
   if (!(FILE_TYPES as readonly string[]).includes(type)) {
     return json(req, mod.domains, { error: "Attach a photo (JPG, PNG, WebP, HEIC, GIF) or a PDF." }, 400);
+  }
+
+  if ((await storageBytes(mod.workspaceId)) + size > limitsFor(mod.plan).storageBytes) {
+    return json(req, mod.domains, { error: "This business can't accept more files right now. Please send your request without the attachment." }, 507);
   }
 
   const db = modulesServiceClient();

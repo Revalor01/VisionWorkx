@@ -5,6 +5,8 @@ import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase"
 import { corsHeaders, ipHash, json, originAllowed } from "@/lib/modules/http";
 import { sendWebhook } from "@/lib/modules/webhook";
 import { UPLOAD_BUCKET } from "@/lib/modules/constants";
+import { billingAllowsService, gateSubmission, limitsFor } from "@/lib/modules/plans";
+import { sendUsageAlert, submissionsThisMonth } from "@/lib/modules/usage";
 import { NextResponse } from "next/server";
 
 // Public: visitors on client websites submit module forms here.
@@ -40,8 +42,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
   }
 
   const mod = await getModuleByPublicId(moduleId);
-  if (!mod || mod.status !== "live") return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
+  if (!mod || mod.status !== "live" || !billingAllowsService(mod.billingStatus)) {
+    return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
+  }
   const domains = mod.domains;
+  const alertWs = { id: mod.workspaceId, name: mod.workspaceName, slug: mod.workspaceSlug, plan: mod.plan, notification_email: mod.notificationEmail };
 
   if (!originAllowed(req, domains)) {
     return json(req, domains, { error: "This form can't be used from this website." }, 403);
@@ -62,6 +67,13 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     return json(req, domains, { error: "Too many submissions — please try again in a few minutes." }, 429, {
       "Retry-After": "600",
     });
+  }
+
+  // Plan soft limit: warn at 80%/100%, keep saving to 150%, then pause the form.
+  const gate = gateSubmission(await submissionsThisMonth(mod.workspaceId), limitsFor(mod.plan).submissionsPerMonth);
+  if (!gate.allow) {
+    after(() => sendUsageAlert(alertWs, "submissions_150"));
+    return json(req, domains, { error: "This form is temporarily unavailable. Please contact the business directly." }, 503);
   }
 
   const result = validateSubmission(mod.config, body.data, mod.id);
@@ -115,6 +127,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     payload: eventPayload,
   });
   if (ev.error) console.error("[modules/submit] event insert failed:", ev.error.code);
+
+  if (gate.alert) after(() => sendUsageAlert(alertWs, gate.alert!));
 
   // Outgoing webhook, after the response so the visitor never waits on it.
   after(async () => {
