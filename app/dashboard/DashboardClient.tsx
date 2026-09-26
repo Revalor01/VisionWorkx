@@ -235,7 +235,7 @@ export default function DashboardClient({
 
           {!canBuild ? (
             <a
-              href="https://products.revalorllc.com/visionworkx/waitlist"
+              href="https://modules.revalorllc.com/start"
               className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 font-semibold px-5 py-2.5 rounded-xl text-sm hover:bg-amber-100 transition-colors"
             >
               New app builds are paused · See VisionWorkx modules →
@@ -574,10 +574,10 @@ function EmptyState({
           install on the website you already have.
         </p>
         <a
-          href="https://products.revalorllc.com/visionworkx/waitlist"
+          href="https://modules.revalorllc.com/start"
           className="inline-block bg-navy-dark text-white font-semibold px-8 py-3 rounded-xl hover:bg-navy transition-colors"
         >
-          Join the modules waitlist →
+          Try VisionWorkx modules free →
         </a>
       </div>
     );

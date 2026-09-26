@@ -14,11 +14,13 @@ import { ADMIN_EMAIL } from "@/lib/adminSso";
 // gated. The prompt-to-config code (recommendBuild, generatePlan) is kept for
 // configuring modules later.
 
-export const WAITLIST_URL = "https://products.revalorllc.com/visionworkx/waitlist";
+// Kept under its original name (API responses expose it as `waitlistUrl`);
+// now points at the modules free-trial signup.
+export const WAITLIST_URL = "https://modules.revalorllc.com/start";
 
 export const GENERATION_PAUSED_MESSAGE =
   "VisionWorkx is moving to website modules, so new app builds are paused. " +
-  `Join the waitlist to hear when modules launch: ${WAITLIST_URL}`;
+  `Try modules free for 14 days: ${WAITLIST_URL}`;
 
 export function fullAppGenerationEnabled(): boolean {
   return process.env.FULL_APP_GENERATION === "true";
