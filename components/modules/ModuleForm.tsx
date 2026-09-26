@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Brand, FormConfig } from "@/lib/modules/config";
+import { createClient } from "@supabase/supabase-js";
+import type { Brand, FieldDef, FileValue, FormConfig } from "@/lib/modules/config";
+import { FILE_MAX_BYTES, FILE_TYPES } from "@/lib/modules/config";
+import { UPLOAD_BUCKET } from "@/lib/modules/constants";
 
 // The visitor-facing form rendered inside the embed iframe. Talks to the
 // parent page only through postMessage (height + optional redirect), and to
-// the server only through /api/m/<id>/submit.
+// the server only through /api/m/<id>/{upload,submit}. Files go straight to
+// private storage via one-time signed upload links.
 
 const FONTS: Record<Brand["font"], string> = {
   modern: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -22,6 +26,23 @@ function inkFor(hex: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? "#141925" : "#ffffff";
 }
 
+function fmtSize(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+type Upload = { status: "uploading" } | { status: "done"; value: FileValue } | { status: "error"; message: string };
+
+let storageClient: ReturnType<typeof createClient> | null = null;
+function storage() {
+  // Anon client: signed upload links carry their own authorisation.
+  if (!storageClient) {
+    storageClient = createClient(process.env.NEXT_PUBLIC_MODULES_SUPABASE_URL!, process.env.NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+  }
+  return storageClient.storage.from(UPLOAD_BUCKET);
+}
+
 export default function ModuleForm(props: {
   publicId: string;
   businessName: string;
@@ -33,9 +54,11 @@ export default function ModuleForm(props: {
 }) {
   const { publicId, businessName, logoUrl, brand, config } = props;
   const rootRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [uploads, setUploads] = useState<Record<string, Upload>>({});
 
   // Tell the embed loader how tall we are, whenever that changes.
   useEffect(() => {
@@ -49,8 +72,68 @@ export default function ModuleForm(props: {
     return () => ro.disconnect();
   }, [publicId]);
 
+  useEffect(() => {
+    if (status === "error" && Object.keys(fieldErrors).length) summaryRef.current?.focus();
+  }, [status, fieldErrors]);
+
+  async function onFile(f: FieldDef, file: File | undefined) {
+    setFieldErrors((e) => ({ ...e, [f.id]: "" }));
+    if (!file) {
+      setUploads((u) => {
+        const next = { ...u };
+        delete next[f.id];
+        return next;
+      });
+      return;
+    }
+    if (file.size > FILE_MAX_BYTES) return setUploads((u) => ({ ...u, [f.id]: { status: "error", message: "That file is over 10 MB." } }));
+    if (!(FILE_TYPES as readonly string[]).includes(file.type)) {
+      return setUploads((u) => ({ ...u, [f.id]: { status: "error", message: "Attach a photo (JPG, PNG, WebP, HEIC) or a PDF." } }));
+    }
+    if (props.preview) {
+      return setUploads((u) => ({ ...u, [f.id]: { status: "done", value: { path: "", name: file.name, size: file.size, type: file.type } } }));
+    }
+    setUploads((u) => ({ ...u, [f.id]: { status: "uploading" } }));
+    try {
+      const res = await fetch(`/api/m/${publicId}/upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field: f.id, name: file.name, size: file.size, type: file.type }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Couldn't upload that file.");
+      const { error } = await storage().uploadToSignedUrl(body.path, body.token, file, { contentType: file.type });
+      if (error) throw new Error("The upload didn't finish — please try again.");
+      setUploads((u) => ({ ...u, [f.id]: { status: "done", value: { path: body.path, name: file.name, size: file.size, type: file.type } } }));
+    } catch (err) {
+      setUploads((u) => ({ ...u, [f.id]: { status: "error", message: err instanceof Error ? err.message : "Couldn't upload that file." } }));
+    }
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const data: Record<string, unknown> = {};
+    const local: Record<string, string> = {};
+    for (const f of config.fields) {
+      if (f.type === "file") {
+        const u = uploads[f.id];
+        if (u?.status === "uploading") local[f.id] = `${f.label}: still uploading — give it a moment.`;
+        else if (u?.status === "done") data[f.id] = u.value;
+        else if (f.required) local[f.id] = `${f.label} is required.`;
+      } else {
+        const v = String(fd.get(f.id) ?? "").trim();
+        data[f.id] = v;
+        if (!v && f.required) local[f.id] = `${f.label} is required.`;
+        else if (v && f.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) local[f.id] = "Enter a valid email address.";
+      }
+    }
+    if (Object.keys(local).length) {
+      setFieldErrors(local);
+      setStatus("error");
+      setMessage("Please fix the highlighted fields.");
+      return;
+    }
     if (props.preview) {
       setStatus("done");
       setMessage(config.successMessage);
@@ -58,9 +141,6 @@ export default function ModuleForm(props: {
     }
     setStatus("sending");
     setFieldErrors({});
-    const fd = new FormData(e.currentTarget);
-    const data: Record<string, string> = {};
-    config.fields.forEach((f) => (data[f.id] = String(fd.get(f.id) ?? "")));
     try {
       const res = await fetch(`/api/m/${publicId}/submit`, {
         method: "POST",
@@ -84,12 +164,11 @@ export default function ModuleForm(props: {
   }
 
   const ink = inkFor(brand.color);
-  const r = brand.radius;
   const vars = {
     "--vw-b": brand.color,
     "--vw-ink": ink,
     "--vw-soft": `${brand.color}1f`,
-    "--vw-r": `${r}px`,
+    "--vw-r": `${brand.radius}px`,
     "--vw-font": FONTS[brand.font],
   } as React.CSSProperties;
   const initials = businessName
@@ -99,6 +178,7 @@ export default function ModuleForm(props: {
     .map((w) => w[0])
     .join("")
     .toUpperCase();
+  const errorList = Object.entries(fieldErrors).filter(([, v]) => v);
 
   return (
     <div ref={rootRef} className="vwm" style={vars}>
@@ -118,34 +198,48 @@ export default function ModuleForm(props: {
         </header>
         <div className="vwm-body">
           {status === "done" ? (
-            <div className="vwm-done" role="status">
+            <div className="vwm-done" role="status" aria-live="polite">
               <div className="vwm-tick" aria-hidden="true">✓</div>
               <p>{message}</p>
             </div>
           ) : (
-            <form onSubmit={onSubmit} noValidate={false}>
+            <form onSubmit={onSubmit} noValidate>
               {config.intro && <p className="vwm-intro">{config.intro}</p>}
+              {status === "error" && errorList.length > 0 && (
+                <div className="vwm-summary" ref={summaryRef} tabIndex={-1} role="alert" aria-labelledby="vwm-summary-h">
+                  <p id="vwm-summary-h">Please fix {errorList.length === 1 ? "this" : `these ${errorList.length}`}:</p>
+                  <ul>
+                    {errorList.map(([id, msg]) => (
+                      <li key={id}>
+                        <a href={`#vwm-${id}`}>{msg}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="vwm-grid">
                 {config.fields.map((f) => {
                   const err = fieldErrors[f.id];
                   const id = `vwm-${f.id}`;
+                  const described = [err ? `${id}-err` : "", f.type === "file" ? `${id}-hint` : ""].filter(Boolean).join(" ") || undefined;
                   const common = {
                     id,
                     name: f.id,
                     required: f.required,
-                    maxLength: f.maxLength,
                     placeholder: f.placeholder,
                     "aria-invalid": err ? true : undefined,
-                    "aria-describedby": err ? `${id}-err` : undefined,
+                    "aria-describedby": described,
                   };
+                  const wide = f.type === "textarea" || f.type === "file";
+                  const up = uploads[f.id];
                   return (
-                    <div key={f.id} className={`vwm-field${f.type === "textarea" ? " vwm-full" : ""}`}>
+                    <div key={f.id} className={`vwm-field${wide ? " vwm-full" : ""}`}>
                       <label htmlFor={id}>
                         {f.label}
                         {f.required ? <span aria-hidden="true"> *</span> : <em> (optional)</em>}
                       </label>
                       {f.type === "textarea" ? (
-                        <textarea {...common} rows={4} />
+                        <textarea {...common} maxLength={f.maxLength} rows={4} />
                       ) : f.type === "select" ? (
                         <select {...common} defaultValue="">
                           <option value="" disabled>
@@ -155,11 +249,33 @@ export default function ModuleForm(props: {
                             <option key={o}>{o}</option>
                           ))}
                         </select>
+                      ) : f.type === "file" ? (
+                        <div className={`vwm-file${up?.status === "done" ? " has-file" : ""}`}>
+                          <input
+                            {...common}
+                            type="file"
+                            accept={FILE_TYPES.join(",")}
+                            onChange={(e) => onFile(f, e.target.files?.[0])}
+                            aria-busy={up?.status === "uploading" || undefined}
+                          />
+                          <span className="vwm-file-state" aria-live="polite">
+                            {up?.status === "uploading" && "Uploading…"}
+                            {up?.status === "done" && `✓ ${up.value.name} (${fmtSize(up.value.size)})`}
+                            {up?.status === "error" && <span className="vwm-err">{up.message}</span>}
+                          </span>
+                          <span className="vwm-hint" id={`${id}-hint`}>
+                            Photo or PDF, up to 10 MB.
+                          </span>
+                        </div>
                       ) : (
                         <input
                           {...common}
+                          maxLength={f.maxLength}
                           type={f.type === "phone" ? "tel" : f.type}
-                          autoComplete={f.type === "email" ? "email" : f.type === "phone" ? "tel" : f.id === "name" ? "name" : "on"}
+                          inputMode={f.type === "phone" ? "tel" : f.type === "email" ? "email" : undefined}
+                          autoComplete={
+                            f.type === "email" ? "email" : f.type === "phone" ? "tel" : f.id === "name" ? "name" : /address/.test(f.id) ? "street-address" : "on"
+                          }
                         />
                       )}
                       {err && (
@@ -180,7 +296,7 @@ export default function ModuleForm(props: {
               <button type="submit" className="vwm-btn" disabled={status === "sending"}>
                 {status === "sending" ? "Sending…" : config.submitLabel}
               </button>
-              {status === "error" && (
+              {status === "error" && errorList.length === 0 && (
                 <p className="vwm-error" role="alert">
                   {message}
                 </p>
@@ -201,30 +317,41 @@ html,body{background:transparent!important;margin:0}
 .vwm-card{background:#fff;border-radius:var(--vw-r);border:1px solid #e6e9ef;overflow:hidden}
 .vwm-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #eceef3}
 .vwm-head strong{display:block;font-size:16px;color:#141925;line-height:1.25}
-.vwm-head span{font-size:13px;color:#6a7285}
+.vwm-head span{font-size:13px;color:#5f6778}
 .vwm-logo{width:40px;height:40px;object-fit:contain}
 .vwm-initials{width:40px;height:40px;border-radius:calc(var(--vw-r)*.8);display:grid;place-items:center;background:var(--vw-b);color:var(--vw-ink);font-weight:700;font-size:15px;flex:none}
 .vwm-body{padding:20px}
 .vwm-intro{margin:0 0 14px;color:#4b5364;font-size:14.5px;line-height:1.5}
-.vwm-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
-.vwm-field{display:flex;flex-direction:column;gap:5px}
+.vwm-summary{border:1.5px solid #c23a3a;background:#fdf3f3;border-radius:calc(var(--vw-r)*.7);padding:12px 14px;margin:0 0 14px;outline:none}
+.vwm-summary:focus-visible{box-shadow:0 0 0 3px #f3c1c1}
+.vwm-summary p{margin:0 0 4px;font-weight:700;color:#8e2323;font-size:14px}
+.vwm-summary ul{margin:0;padding-left:18px}
+.vwm-summary a{color:#8e2323;font-size:13.5px}
+.vwm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.vwm-field{display:flex;flex-direction:column;gap:6px;min-width:0}
 .vwm-full{grid-column:1/-1}
-@media (max-width:480px){.vwm-grid{grid-template-columns:1fr}}
-.vwm-field label{font-size:13px;font-weight:600;color:#39404f}
-.vwm-field label em{font-weight:400;font-style:normal;color:#8a92a4}
-.vwm-field input,.vwm-field select,.vwm-field textarea{font:15px var(--vw-font);color:#1f2533;background:#fbfbfd;border:1px solid #d9dde6;border-radius:calc(var(--vw-r)*.7);padding:10px 12px;width:100%}
+@media (max-width:480px){.vwm-grid{grid-template-columns:1fr}.vwm-body{padding:16px}}
+.vwm-field label{font-size:14px;font-weight:600;color:#39404f}
+.vwm-field label em{font-weight:400;font-style:normal;color:#6f7789}
+.vwm-field input:not([type=file]),.vwm-field select,.vwm-field textarea{font:16px var(--vw-font);color:#1f2533;background:#fbfbfd;border:1px solid #cfd4de;border-radius:calc(var(--vw-r)*.7);padding:11px 12px;width:100%;min-height:44px}
 .vwm-field textarea{resize:vertical}
 .vwm-field input:focus,.vwm-field select:focus,.vwm-field textarea:focus{outline:none;border-color:var(--vw-b);box-shadow:0 0 0 3px var(--vw-soft)}
-.vwm-field [aria-invalid="true"]{border-color:#d64545}
-.vwm-err{font-size:12.5px;color:#c23a3a}
-.vwm-btn{margin-top:16px;width:100%;background:var(--vw-b);color:var(--vw-ink);border:0;border-radius:calc(var(--vw-r)*.8);padding:12px 18px;font:600 15px var(--vw-font);cursor:pointer}
-.vwm-btn:focus-visible{outline:2px solid var(--vw-b);outline-offset:2px}
+.vwm-field [aria-invalid="true"]{border-color:#c23a3a}
+.vwm-file{display:flex;flex-direction:column;gap:6px;border:1.5px dashed #cdd2dd;border-radius:calc(var(--vw-r)*.7);padding:12px;background:#fafbfc}
+.vwm-file.has-file{border-style:solid;border-color:var(--vw-b)}
+.vwm-file input[type=file]{font:14px var(--vw-font);max-width:100%}
+.vwm-file input[type=file]:focus-visible{outline:2px solid var(--vw-b);outline-offset:2px}
+.vwm-file-state{font-size:13.5px;color:#39404f}
+.vwm-hint{font-size:12.5px;color:#6f7789}
+.vwm-err{font-size:13px;color:#b02f2f}
+.vwm-btn{margin-top:18px;width:100%;min-height:48px;background:var(--vw-b);color:var(--vw-ink);border:0;border-radius:calc(var(--vw-r)*.8);padding:12px 18px;font:600 16px var(--vw-font);cursor:pointer}
+.vwm-btn:focus-visible{outline:2px solid var(--vw-b);outline-offset:3px}
 .vwm-btn:disabled{opacity:.7;cursor:progress}
-.vwm-error{color:#c23a3a;font-size:14px;margin:10px 0 0}
+.vwm-error{color:#b02f2f;font-size:14px;margin:10px 0 0}
 .vwm-done{text-align:center;padding:18px 6px}
 .vwm-done p{margin:0;color:#39404f;font-size:15px;line-height:1.5}
 .vwm-tick{width:48px;height:48px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:var(--vw-soft);color:var(--vw-b);font-size:22px;font-weight:700}
 .vwm-hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
-.vwm-foot{padding:9px 20px;background:#f8f9fb;border-top:1px solid #eceef3;font-size:11.5px;color:#8a92a4;text-align:right}
+.vwm-foot{padding:9px 20px;background:#f8f9fb;border-top:1px solid #eceef3;font-size:11.5px;color:#6f7789;text-align:right}
 @media (prefers-reduced-motion:reduce){.vwm *{transition:none!important}}
 `;

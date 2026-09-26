@@ -1,5 +1,6 @@
 import { requireWorkspace } from "@/lib/modules/workspace";
 import SubmissionsBoard, { type SubmissionRow } from "@/components/modules/SubmissionsBoard";
+import { parseFormConfig } from "@/lib/modules/config";
 
 export default async function WorkspaceSubmissionsPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;
@@ -12,11 +13,15 @@ export default async function WorkspaceSubmissionsPage(props: { params: Promise<
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false })
       .limit(500),
-    supabase.from("vw_modules").select("id, name, type").eq("workspace_id", workspace.id),
+    supabase.from("vw_modules").select("id, name, type, config").eq("workspace_id", workspace.id),
   ]);
 
   const moduleNames: Record<string, string> = {};
-  (mods ?? []).forEach((m) => (moduleNames[m.id] = m.name));
+  const fieldLabels: Record<string, Record<string, string>> = {};
+  (mods ?? []).forEach((m) => {
+    moduleNames[m.id] = m.name;
+    fieldLabels[m.id] = Object.fromEntries(parseFormConfig(m.config).fields.map((f) => [f.id, f.label]));
+  });
 
   return (
     <SubmissionsBoard
@@ -24,6 +29,7 @@ export default async function WorkspaceSubmissionsPage(props: { params: Promise<
       slug={workspace.slug}
       timeZone={workspace.time_zone}
       moduleNames={moduleNames}
+      fieldLabels={fieldLabels}
       initial={(subs ?? []) as SubmissionRow[]}
     />
   );

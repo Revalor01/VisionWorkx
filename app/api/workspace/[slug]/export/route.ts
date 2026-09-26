@@ -28,13 +28,15 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   const names: Record<string, string> = {};
   (mods ?? []).forEach((m) => (names[m.id] = m.name));
   const rows = subs ?? [];
-  const keys = [...new Set(rows.flatMap((r) => Object.keys((r.data ?? {}) as Record<string, string>)))];
+  const keys = [...new Set(rows.flatMap((r) => Object.keys((r.data ?? {}) as Record<string, unknown>)))];
   const header = ["received_at", "module", "status", ...keys, "notes", "page"];
   const body = toCsv(
     header,
     rows.map((r) => {
-      const d = (r.data ?? {}) as Record<string, string>;
-      return [r.created_at, names[r.module_id] ?? "", r.status, ...keys.map((k) => d[k] ?? ""), r.notes, r.source_url ?? ""];
+      const d = (r.data ?? {}) as Record<string, unknown>;
+      const cell = (v: unknown) =>
+        typeof v === "string" ? v : v && typeof v === "object" && "name" in v ? `[file] ${String((v as { name: unknown }).name)}` : "";
+      return [r.created_at, names[r.module_id] ?? "", r.status, ...keys.map((k) => cell(d[k])), r.notes, r.source_url ?? ""];
     }),
   );
   const date = new Date().toISOString().slice(0, 10);
