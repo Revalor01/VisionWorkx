@@ -35,7 +35,7 @@ const STEPS = [
 const MODULES = [
   {
     name: "Lead capture",
-    status: "First to launch",
+    status: "Available now",
     body: "Quote requests and contact forms with the questions you choose — including photo and document uploads up to 10 MB.",
   },
   {
@@ -45,7 +45,7 @@ const MODULES = [
   },
   {
     name: "Quote calculator",
-    status: "Coming soon",
+    status: "Available now",
     body: "Visitors see an instant price range from the prices you set, then send you their details for the exact quote.",
   },
   {
@@ -207,7 +207,7 @@ export default function HomePage() {
                   <h3 className="text-lg font-bold text-navy-dark">{m.name}</h3>
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      m.status === "First to launch" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"
+                      m.status === "Available now" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {m.status}
