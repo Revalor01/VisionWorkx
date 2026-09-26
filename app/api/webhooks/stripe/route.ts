@@ -6,6 +6,8 @@ import { confirmGuidedSession } from "@/lib/apps/guidedSession";
 import { sendBillingEmail, lookupUserEmails } from "@/lib/billing/notify";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
 import { syncWorkspaceSubscription } from "@/lib/modules/billing";
+import { syncConnectAccount as syncWorkspaceConnectAccount } from "@/lib/modules/connect";
+import { modulesServiceClient } from "@/lib/modules/supabase";
 
 // Stripe uses "canceled"; our schema uses "cancelled"
 const STRIPE_STATUS_MAP: Record<string, SubscriptionStatus> = {
@@ -76,6 +78,19 @@ export async function POST(req: NextRequest) {
         await syncWorkspaceSubscription(sub);
         return NextResponse.json({ received: true });
       }
+      // Module payment-on-submit / micro-invoicing (Connect direct charge on
+      // the workspace's own account). May not reach this endpoint if Connect
+      // event forwarding isn't configured for this event type -- the success
+      // pages also verify on-demand (same pattern as app/api/apps/[appId]/checkout).
+      if (session.metadata?.vw_submission_id && session.mode === "payment" && session.payment_status === "paid") {
+        const { error } = await modulesServiceClient()
+          .from("vw_submissions")
+          .update({ payment_status: "paid" })
+          .eq("id", session.metadata.vw_submission_id)
+          .neq("payment_status", "paid");
+        if (error) console.error("[stripe webhook] module payment sync failed:", error.message);
+        return NextResponse.json({ received: true });
+      }
     } else if (
       event.type === "customer.subscription.created" ||
       event.type === "customer.subscription.updated" ||
@@ -84,6 +99,12 @@ export async function POST(req: NextRequest) {
       const sub = event.data.object as Stripe.Subscription;
       if (sub.metadata?.vw_workspace_id) {
         await syncWorkspaceSubscription(sub);
+        return NextResponse.json({ received: true });
+      }
+    } else if (event.type === "account.updated") {
+      const account = event.data.object as Stripe.Account;
+      if (account.metadata?.vw_workspace_id) {
+        await syncWorkspaceConnectAccount(account);
         return NextResponse.json({ received: true });
       }
     }

@@ -7,6 +7,7 @@ import { sendWebhook } from "@/lib/modules/webhook";
 import { UPLOAD_BUCKET } from "@/lib/modules/constants";
 import { billingAllowsService, gateSubmission, limitsFor } from "@/lib/modules/plans";
 import { sendUsageAlert, submissionsThisMonth } from "@/lib/modules/usage";
+import { createWorkspaceCheckout } from "@/lib/modules/connect";
 import { NextResponse } from "next/server";
 
 // Public: visitors on client websites submit module forms here.
@@ -147,5 +148,31 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     });
   });
 
-  return json(req, domains, { ok: true, message: mod.config.successMessage, redirectUrl: mod.config.redirectUrl });
+  // Payment on submit (deposit / fixed fee): the submission is already
+  // saved either way, so a Connect problem falls back to the normal
+  // redirect/message rather than losing the lead.
+  let redirectUrl = mod.config.redirectUrl;
+  if (mod.config.payment?.enabled) {
+    try {
+      const checkout = await createWorkspaceCheckout(
+        { stripe_connect_account_id: mod.stripeConnectAccountId, connect_payments_status: mod.connectPaymentsStatus, connect_payments_test_mode: mod.connectPaymentsTestMode },
+        {
+          amountCents: mod.config.payment.amountCents,
+          productName: `${mod.config.payment.label} — ${mod.workspaceName}`,
+          successUrl: `${req.nextUrl.origin}/m/${mod.publicId}/paid?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${req.nextUrl.origin}/m/${mod.publicId}?src=${encodeURIComponent(sourceUrl ?? "")}`,
+          metadata: { vw_submission_id: sub.id, vw_workspace_id: mod.workspaceId },
+        },
+      );
+      await db
+        .from("vw_submissions")
+        .update({ payment_status: "pending", payment_amount_cents: mod.config.payment.amountCents, stripe_checkout_session_id: checkout.sessionId })
+        .eq("id", sub.id);
+      redirectUrl = checkout.url;
+    } catch (err) {
+      console.error("[modules/submit] checkout creation failed:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  return json(req, domains, { ok: true, message: mod.config.successMessage, redirectUrl });
 }

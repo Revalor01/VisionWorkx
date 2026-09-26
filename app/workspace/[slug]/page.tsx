@@ -9,7 +9,7 @@ export default async function WorkspaceSubmissionsPage(props: { params: Promise<
   const [{ data: subs }, { data: mods }] = await Promise.all([
     supabase
       .from("vw_submissions")
-      .select("id, module_id, data, status, notes, source_url, created_at")
+      .select("id, module_id, data, status, notes, source_url, created_at, payment_status, payment_amount_cents")
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false })
       .limit(500),

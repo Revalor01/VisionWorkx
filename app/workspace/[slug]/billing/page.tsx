@@ -2,7 +2,9 @@ import { requireWorkspace } from "@/lib/modules/workspace";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { currentPeriod, limitsFor, PLAN_PRICE, SUBMISSION_HARD_FACTOR, type ModulePlan } from "@/lib/modules/plans";
 import { storageBytes, submissionsThisMonth } from "@/lib/modules/usage";
+import { platformFeePercent } from "@/lib/modules/connect";
 import BillingActions from "@/components/modules/BillingActions";
+import ConnectPaymentsCard from "@/components/modules/ConnectPaymentsCard";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   none: { label: "No plan yet", cls: "bg-gray-100 text-gray-700" },
@@ -43,7 +45,7 @@ export default async function WorkspaceBillingPage(props: { params: Promise<{ sl
   const { workspace, role } = await requireWorkspace(slug);
   const db = modulesServiceClient();
   const [{ data: ws }, subs, bytes, { count: moduleCount }, { data: usage }] = await Promise.all([
-    db.from("vw_workspaces").select("plan, billing_status, trial_ends_at, current_period_end").eq("id", workspace.id).single(),
+    db.from("vw_workspaces").select("plan, billing_status, trial_ends_at, current_period_end, connect_payments_status").eq("id", workspace.id).single(),
     submissionsThisMonth(workspace.id),
     storageBytes(workspace.id),
     db.from("vw_modules").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id),
@@ -91,6 +93,10 @@ export default async function WorkspaceBillingPage(props: { params: Promise<{ sl
         {role === "owner" && <BillingActions slug={workspace.slug} status={status} currentPlan={plan} />}
         {role !== "owner" && status !== "comped" && <p className="mt-4 text-sm text-gray-500">Only workspace owners can change billing.</p>}
       </section>
+
+      {role === "owner" && (
+        <ConnectPaymentsCard slug={workspace.slug} initialStatus={(ws?.connect_payments_status as "none" | "pending" | "active") ?? "none"} feePercent={platformFeePercent()} />
+      )}
 
       <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6" aria-labelledby="usage-h">
         <h2 id="usage-h" className="text-lg font-bold text-navy-dark">This month</h2>
