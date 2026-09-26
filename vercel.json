@@ -67,6 +67,10 @@
     {
       "path": "/api/cron/trial-ending",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/modules-upload-cleanup",
+      "schedule": "30 6 * * *"
     }
   ]
 }
