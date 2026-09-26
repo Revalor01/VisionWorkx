@@ -17,7 +17,7 @@ Rules:
 - Field types: text (short answers, addresses), email, phone, select (a fixed list of choices, 2-8 options), textarea (longer descriptions), file (photos or PDFs the customer attaches).
 - Use a file field only when the owner asks for photos, pictures, documents, or attachments.
 - ids: short snake_case, unique, starting with a letter (e.g. "name", "email", "service_address", "photo").
-- Labels: plain, friendly, sentence case, no jargon ("What do you need help with?", not "Service category").
+- Labels: plain, friendly, sentence case, no jargon ("What do you need help with?", not "Service category"). Never write "(optional)" or "(required)" in a label — the form adds those markers itself.
 - required: true for name, email, and anything the owner says they need; false for nice-to-haves.
 - options: the choices for select fields; an empty list for every other type.
 - title: the heading on the form ("Request a free quote"). intro: one short sentence setting expectations. submit_label: 2-4 words on the button. success_message: one or two sentences shown after sending.
@@ -121,7 +121,7 @@ export function configFromDraft(raw: RawDraft): FormConfig {
     successMessage: raw.success_message,
     fields: (Array.isArray(raw.fields) ? raw.fields : []).slice(0, 12).map((f) => ({
       id: f.id,
-      label: f.label,
+      label: typeof f.label === "string" ? f.label.replace(/\s*\((optional|required)\)\s*$/i, "") : f.label,
       type: f.type,
       required: f.required,
       ...(f.type === "select" ? { options: f.options } : {}),

@@ -87,6 +87,16 @@ describe("AI draft cleanup", () => {
     expect(c.fields.map((f) => f.id)).toEqual(["name", "email"]);
     expect(c.submitLabel).toBe("Send");
   });
+  it("strips (optional)/(required) the model wrote into labels", () => {
+    const c = configFromDraft({
+      title: "", intro: "", submit_label: "", success_message: "",
+      fields: [
+        { id: "email", label: "Email (required)", type: "email", required: true, options: [] },
+        { id: "photo", label: "Photo of the issue (optional)", type: "file", required: false, options: [] },
+      ],
+    });
+    expect(c.fields.map((f) => f.label)).toEqual(["Email", "Photo of the issue"]);
+  });
   it("caps drafts at 12 fields", () => {
     const fields = Array.from({ length: 20 }, (_, i) => ({ id: `f${i}`, label: `Q${i}`, type: "text", required: false, options: [] }));
     fields[0] = { id: "email", label: "Email", type: "email", required: true, options: [] };
