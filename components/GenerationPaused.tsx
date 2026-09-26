@@ -20,7 +20,7 @@ export default function GenerationPaused({ backHref = "/dashboard" }: { backHref
             href={WAITLIST_URL}
             className="inline-block bg-navy-dark text-white font-semibold px-6 py-3 rounded-xl hover:bg-navy transition-colors"
           >
-            Join the modules waitlist →
+            Try VisionWorkx modules free →
           </a>
           <Link
             href={backHref}

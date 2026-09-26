@@ -9,7 +9,7 @@ import { PLAN_LIMITS, PLAN_PRICE, PLANS, TRIAL_DAYS, type ModulePlan } from "@/l
 // VisionWorkx marketing page — embeddable modules for the website a business
 // already has. (The old full-app builder is frozen; see docs/full-app-generation-freeze.md.)
 
-const WAITLIST = "https://products.revalorllc.com/visionworkx/waitlist";
+const START = "https://modules.revalorllc.com/start";
 const PREVIEW = "https://products.revalorllc.com/visionworkx/preview";
 
 const BUILDERS = ["WordPress", "Squarespace", "Wix", "Webflow", "Framer", "Shopify"];
@@ -131,8 +131,8 @@ export default function HomePage() {
               Just describe it. VisionWorkx builds the module, matches your branding, and emails every customer back the moment they reach out.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a href={WAITLIST} className="rounded-xl bg-white px-6 py-3 font-semibold text-navy-dark shadow-lg hover:bg-blue-50">
-                Join the waitlist →
+              <a href={START} className="rounded-xl bg-white px-6 py-3 font-semibold text-navy-dark shadow-lg hover:bg-blue-50">
+                Start your {TRIAL_DAYS}-day free trial →
               </a>
               <a href={PREVIEW} className="font-semibold text-blue-100 underline decoration-blue-400/50 underline-offset-4 hover:text-white">
                 See every module on a real website
@@ -302,10 +302,10 @@ export default function HomePage() {
                     ))}
                   </ul>
                   <a
-                    href={WAITLIST}
+                    href={START}
                     className={`mt-7 block rounded-xl py-3 text-center font-semibold ${featured ? "bg-navy-dark text-white hover:bg-navy" : "border border-gray-300 text-navy-dark hover:bg-gray-50"}`}
                   >
-                    Join the waitlist
+                    Start free trial
                   </a>
                 </article>
               );
@@ -325,8 +325,8 @@ export default function HomePage() {
             Revalor sets up your modules, matches your branding and installs them on your site. Need something bigger? Revalor Consulting builds custom tools — and can include VisionWorkx modules.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
-            <a href={WAITLIST} className="rounded-xl bg-navy-dark px-6 py-3 font-semibold text-white hover:bg-navy">
-              Join the waitlist
+            <a href={START} className="rounded-xl bg-navy-dark px-6 py-3 font-semibold text-white hover:bg-navy">
+              Start your free trial
             </a>
             <a href="https://products.revalorllc.com/consulting" className="rounded-xl border border-gray-300 px-6 py-3 font-semibold text-navy-dark hover:bg-gray-50">
               Revalor Consulting
@@ -358,9 +358,9 @@ export default function HomePage() {
       {/* ─── Final CTA ─── */}
       <section className="bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] px-4 py-20 text-center text-white">
         <h2 className="mx-auto max-w-2xl text-3xl font-bold text-balance">Your website, doing more of the work.</h2>
-        <p className="mx-auto mt-3 max-w-xl text-blue-100">VisionWorkx is launching soon. Join the waitlist to be first in line.</p>
-        <a href={WAITLIST} className="mt-8 inline-block rounded-xl bg-white px-8 py-3 font-semibold text-navy-dark hover:bg-blue-50">
-          Join the waitlist →
+        <p className="mx-auto mt-3 max-w-xl text-blue-100">Set up your first module in about ten minutes. {TRIAL_DAYS} days free, cancel any time.</p>
+        <a href={START} className="mt-8 inline-block rounded-xl bg-white px-8 py-3 font-semibold text-navy-dark hover:bg-blue-50">
+          Start your {TRIAL_DAYS}-day free trial →
         </a>
         <p className="mt-6 text-sm text-blue-200">A Revalor Business product · Veteran-owned</p>
       </section>

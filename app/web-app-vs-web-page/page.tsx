@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Navbar from "@/components/nav/Navbar";
 import Footer from "@/components/nav/Footer";
 
-const WAITLIST = "https://products.revalorllc.com/visionworkx/waitlist";
+const START = "https://modules.revalorllc.com/start";
 const PREVIEW = "https://products.revalorllc.com/visionworkx/preview";
 const CONSULTING = "https://products.revalorllc.com/consulting";
 
@@ -188,8 +188,8 @@ export default function WebAppVsWebPagePage() {
             <a href={PREVIEW} className="rounded-xl bg-navy-dark px-5 py-3 font-semibold text-white hover:bg-navy">
               See the modules on a real website
             </a>
-            <a href={WAITLIST} className="rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold text-navy-dark hover:bg-gray-50">
-              Join the waitlist
+            <a href={START} className="rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold text-navy-dark hover:bg-gray-50">
+              Start a 14-day free trial
             </a>
           </div>
         </div>
@@ -238,11 +238,11 @@ export default function WebAppVsWebPagePage() {
       <section className="bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] px-4 py-20 text-center text-white">
         <h2 className="mx-auto max-w-2xl text-3xl font-bold text-balance">Keep your website. Give it a front desk.</h2>
         <p className="mx-auto mt-3 max-w-xl text-blue-100">
-          VisionWorkx adds booking, lead capture and automatic follow-up to the site you already have. Launching soon.
+          VisionWorkx adds booking, lead capture and automatic follow-up to the site you already have. Try it free for 14 days.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <a href={WAITLIST} className="rounded-xl bg-white px-6 py-3 font-semibold text-navy-dark hover:bg-blue-50">
-            Join the waitlist →
+          <a href={START} className="rounded-xl bg-white px-6 py-3 font-semibold text-navy-dark hover:bg-blue-50">
+            Start your free trial →
           </a>
           <Link href="/#how-it-works" className="rounded-xl border border-white/30 px-6 py-3 font-semibold text-white hover:bg-white/10">
             How it works

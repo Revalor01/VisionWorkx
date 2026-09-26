@@ -85,7 +85,7 @@ export default function Footer() {
               <li><Link href="/#modules" className="hover:text-white transition-colors">Modules</Link></li>
               <li><Link href="/#automation" className="hover:text-white transition-colors">Automation</Link></li>
               <li><Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
-              <li><a href="https://products.revalorllc.com/visionworkx/waitlist" className="hover:text-white transition-colors">Join the waitlist</a></li>
+              <li><a href="https://modules.revalorllc.com/start" className="hover:text-white transition-colors">Start free trial</a></li>
               <li><Link href="/web-app-vs-web-page" className="hover:text-white transition-colors">Web App vs. Web Page</Link></li>
             </ul>
           </div>
