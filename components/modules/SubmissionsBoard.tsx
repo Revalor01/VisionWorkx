@@ -4,10 +4,13 @@ import { useMemo, useState } from "react";
 import { modulesBrowserClient } from "@/lib/modules/supabase-browser";
 import { SUBMISSION_STATUSES, type SubmissionStatus } from "@/lib/modules/constants";
 
+type FileRef = { path: string; name: string; size: number; type: string };
+type Value = string | FileRef;
+
 export interface SubmissionRow {
   id: string;
   module_id: string;
-  data: Record<string, string>;
+  data: Record<string, Value>;
   status: SubmissionStatus;
   notes: string;
   source_url: string | null;
@@ -22,8 +25,12 @@ const PILL: Record<SubmissionStatus, string> = {
   lost: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
-function who(d: Record<string, string>): string {
-  return d.name || d.full_name || d.email || "Submission";
+const str = (v: Value | undefined) => (typeof v === "string" ? v : "");
+function who(d: Record<string, Value>): string {
+  return str(d.name) || str(d.full_name) || str(d.email) || "Submission";
+}
+function fmtSize(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 export default function SubmissionsBoard(props: {
@@ -31,6 +38,7 @@ export default function SubmissionsBoard(props: {
   slug: string;
   timeZone: string;
   moduleNames: Record<string, string>;
+  fieldLabels?: Record<string, Record<string, string>>; // module id -> field id -> question
   initial: SubmissionRow[];
 }) {
   const [rows, setRows] = useState(props.initial);
@@ -128,7 +136,7 @@ export default function SubmissionsBoard(props: {
                       <button type="button" className="text-left font-semibold text-gray-900 hover:underline" onClick={() => setOpenId(r.id)}>
                         {who(r.data)}
                       </button>
-                      {r.data.email && r.data.email !== who(r.data) && <div className="text-xs text-gray-500">{r.data.email}</div>}
+                      {str(r.data.email) && str(r.data.email) !== who(r.data) && <div className="text-xs text-gray-500">{str(r.data.email)}</div>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{props.moduleNames[r.module_id] ?? "Module"}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-gray-600 tabular-nums">{fmt.format(new Date(r.created_at))}</td>
@@ -161,8 +169,19 @@ export default function SubmissionsBoard(props: {
               <dl className="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                 {Object.entries(open.data).map(([k, v]) => (
                   <div key={k} className="contents">
-                    <dt className="text-gray-500">{k.replace(/_/g, " ")}</dt>
-                    <dd className="break-words text-gray-900 whitespace-pre-wrap">{v}</dd>
+                    <dt className="text-gray-500">{props.fieldLabels?.[open.module_id]?.[k] ?? k.replace(/_/g, " ")}</dt>
+                    <dd className="break-words text-gray-900 whitespace-pre-wrap">
+                      {typeof v === "string" ? (
+                        v
+                      ) : (
+                        <a
+                          href={`/api/workspace/${props.slug}/file?submission=${open.id}&field=${encodeURIComponent(k)}`}
+                          className="font-semibold text-navy hover:underline"
+                        >
+                          📎 {v.name} ({fmtSize(v.size)})
+                        </a>
+                      )}
+                    </dd>
                   </div>
                 ))}
                 {open.source_url && (

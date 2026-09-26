@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getModuleByPublicId } from "@/lib/modules/data";
 import { modulesConfigured } from "@/lib/modules/supabase";
 import { corsHeaders, json, originAllowed } from "@/lib/modules/http";
+import { resolveBrand } from "@/lib/modules/config";
 
 // Public config for shadow-DOM mode (the embed renders the form directly in
 // the host page instead of an iframe). Only visitor-facing fields.
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ moduleId:
   return json(
     req,
     mod.domains,
-    { type: mod.type, name: mod.workspaceName, logoUrl: mod.logoUrl, brand: mod.brand, config: mod.config },
+    { type: mod.type, name: mod.workspaceName, logoUrl: mod.logoUrl, brand: resolveBrand(mod.brand, mod.config.style), config: mod.config },
     200,
     { "Cache-Control": "public, max-age=60" },
   );
