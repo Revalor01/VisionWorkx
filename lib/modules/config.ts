@@ -38,6 +38,14 @@ export interface FormStyle {
   radius?: number;
 }
 
+/** Fixed-amount payment collected on submit (deposit, full amount, invoice fee -- the label says which). Requires the workspace's Connect payments to be active; see lib/modules/connect.ts. */
+export interface PaymentConfig {
+  enabled: boolean;
+  amountCents: number;
+  /** Shown on the Stripe Checkout page and in the dashboard, e.g. "Booking deposit". */
+  label: string;
+}
+
 export interface FormConfig {
   title: string;
   intro: string;
@@ -46,6 +54,7 @@ export interface FormConfig {
   redirectUrl: string | null;
   style: FormStyle;
   fields: FieldDef[];
+  payment: PaymentConfig | null;
 }
 
 export interface Brand {
@@ -110,7 +119,19 @@ export function parseFormConfig(raw: unknown): FormConfig {
     redirectUrl: /^https:\/\/[^\s]+$/.test(redirect) ? redirect : null,
     style,
     fields,
+    payment: parsePaymentConfig(c.payment),
   };
+}
+
+/** Drops to null on anything invalid or disabled -- a form with a bad amount never silently charges the wrong thing. */
+function parsePaymentConfig(raw: unknown): PaymentConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  if (p.enabled !== true) return null;
+  const amountCents = typeof p.amountCents === "number" ? Math.round(p.amountCents) : 0;
+  if (!Number.isFinite(amountCents) || amountCents < 50 || amountCents > 500_000_00) return null;
+  const label = str(p.label, 60) || "Payment";
+  return { enabled: true, amountCents, label };
 }
 
 export function parseBrand(raw: unknown): Brand {
@@ -203,4 +224,5 @@ export const DEFAULT_LEAD_FORM: FormConfig = {
     { id: "phone", label: "Phone", type: "phone", required: false, maxLength: 40 },
     { id: "message", label: "How can we help?", type: "textarea", required: false, maxLength: 4000 },
   ],
+  payment: null,
 };

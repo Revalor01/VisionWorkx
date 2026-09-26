@@ -166,6 +166,55 @@ one production URL serves both live and sandbox events.
 
 ---
 
+## Module workspace payments (deposits & payment links)
+
+Separate feature, same platform account and mechanism as above — a module
+workspace (`vw_workspaces`, the embeddable-modules product) can also connect
+its own Stripe account to collect money **from its own customers** (a
+deposit collected when a form is submitted, or a payment link an owner sends
+manually off a submission). This is distinct from `lib/modules/billing.ts`
+(the workspace paying *VisionWorkx* for its plan) — that's the workspace's
+customer paying *the workspace*.
+
+- **Code**: `lib/modules/connect.ts` (ported from `lib/apps/payments.ts`,
+  copied rather than shared since the modules DB is a separate Supabase
+  project with its own service client).
+- **Schema**: `vw_workspaces.stripe_connect_account_id` /
+  `connect_payments_status` / `connect_payments_test_mode`,
+  `vw_submissions.payment_status` / `payment_amount_cents` /
+  `stripe_checkout_session_id` (migration `20260926000007_vw_module_payments.sql`).
+- **Onboarding**: `/workspace/[slug]/billing` → "Accept payments from your
+  customers" card → `/api/workspace/[slug]/payments/connect` (GET status,
+  POST to start/resume onboarding). Same Stripe-hosted flow as the app
+  builder's — no new env vars, reuses `STRIPE_SECRET_KEY` /
+  `STRIPE_TEST_SECRET_KEY` / `PLATFORM_FEE_PERCENT`.
+- **Deposit / fixed payment on submit**: a module's `FormConfig.payment`
+  (set in the form builder) makes `app/api/m/[moduleId]/submit/route.ts`
+  create a Checkout Session right after saving the submission and return its
+  URL as `redirectUrl` — the embed widget already knew how to follow a
+  redirect after submit, so nothing changed there. A Connect problem never
+  loses the submission; it just falls back to the form's normal redirect/message.
+- **Micro-invoicing**: `POST /api/workspace/[slug]/submissions/[id]/invoice`
+  (owner-only) — the owner types an amount, a Checkout Session is created and
+  the link is emailed (via Resend) to the submission's captured email.
+- **Confirmation**: like the app builder, **don't rely solely on the
+  webhook** for connected-account `checkout.session.completed` — it only
+  arrives if the platform's webhook is `@accounts`-scoped for that event
+  type (see Troubleshooting below). The success pages
+  (`/m/[moduleId]/paid`, `/pay/received`) call
+  `confirmSubmissionPayment(sessionId)` on load, same on-demand pattern as
+  `GET /api/apps/[appId]/checkout?session_id=…`. The webhook branch in
+  `app/api/webhooks/stripe/route.ts` (keyed on `metadata.vw_submission_id`)
+  is a bonus, not the only path.
+- **Not yet built**: expiring a submission's `payment_status` back from
+  `pending` if the customer never completes or cancels checkout (Stripe
+  Checkout Sessions expire after 24h with no code-side reconciliation of
+  that yet) — an owner just sees "Payment sent" indefinitely today if the
+  customer never pays. Low-risk (no money at stake, just a stale label), but
+  worth a follow-up if it's noisy in practice.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause / fix |

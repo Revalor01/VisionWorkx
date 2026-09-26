@@ -36,6 +36,28 @@ describe("parseFormConfig", () => {
   });
 });
 
+describe("parseFormConfig payment", () => {
+  it("defaults to null (no payment)", () => {
+    expect(parseFormConfig({}).payment).toBeNull();
+  });
+  it("drops a payment block that isn't explicitly enabled", () => {
+    expect(parseFormConfig({ payment: { amountCents: 5000, label: "Deposit" } }).payment).toBeNull();
+  });
+  it("rejects amounts below 50 cents, above the ceiling, or non-numeric", () => {
+    expect(parseFormConfig({ payment: { enabled: true, amountCents: 49 } }).payment).toBeNull();
+    expect(parseFormConfig({ payment: { enabled: true, amountCents: 500_000_01 } }).payment).toBeNull();
+    expect(parseFormConfig({ payment: { enabled: true, amountCents: "5000" } }).payment).toBeNull();
+  });
+  it("keeps a valid payment block and falls back to a default label", () => {
+    expect(parseFormConfig({ payment: { enabled: true, amountCents: 5000, label: "Booking deposit" } }).payment).toEqual({
+      enabled: true,
+      amountCents: 5000,
+      label: "Booking deposit",
+    });
+    expect(parseFormConfig({ payment: { enabled: true, amountCents: 5000 } }).payment?.label).toBe("Payment");
+  });
+});
+
 describe("parseBrand", () => {
   it("rejects non-hex colors and clamps radius", () => {
     expect(parseBrand({ color: "red; background:url(x)", radius: 999 })).toEqual({ color: "#1b2542", font: "modern", radius: 24 });

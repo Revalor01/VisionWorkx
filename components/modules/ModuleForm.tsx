@@ -152,8 +152,15 @@ export default function ModuleForm(props: {
         setFieldErrors(body.fields ?? {});
         throw new Error(body.error || "Something went wrong — please try again.");
       }
-      if (body.redirectUrl && window.parent !== window) {
-        window.parent.postMessage({ type: "vw:redirect", id: publicId, url: body.redirectUrl }, "*");
+      if (body.redirectUrl) {
+        if (window.parent !== window) {
+          // Iframe embed: the host page's embed.js navigates itself (see public/embed.js).
+          window.parent.postMessage({ type: "vw:redirect", id: publicId, url: body.redirectUrl }, "*");
+        } else {
+          // Direct link (e.g. /m/<id> shared on its own, not embedded) — nobody's listening for the message, so navigate directly.
+          window.location.assign(body.redirectUrl);
+          return;
+        }
       }
       setStatus("done");
       setMessage(body.message || config.successMessage);

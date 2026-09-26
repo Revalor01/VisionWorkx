@@ -263,6 +263,51 @@ export default function FormBuilder(props: {
             </label>
           </section>
 
+          <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-payment">
+            <div className="flex items-center justify-between">
+              <h2 id="fb-payment" className="font-bold text-gray-900">Payment</h2>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={config.payment?.enabled ?? false}
+                  onChange={(e) =>
+                    set({
+                      payment: e.target.checked
+                        ? { enabled: true, amountCents: config.payment?.amountCents ?? 5000, label: config.payment?.label || "Deposit" }
+                        : null,
+                    })
+                  }
+                />
+                Collect a payment on submit
+              </label>
+            </div>
+            {config.payment?.enabled ? (
+              <>
+                <p className="text-xs text-gray-500">
+                  Requires Stripe connected on the Billing page. The customer pays right after submitting, before seeing the thank-you message.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className={label} htmlFor="fb-pay-label">What it&apos;s for <span className="font-normal text-gray-500">(shown to the customer)</span>
+                    <input id="fb-pay-label" className={input} value={config.payment.label} maxLength={60} placeholder="Deposit" onChange={(e) => set({ payment: { ...config.payment!, label: e.target.value } })} />
+                  </label>
+                  <label className={label} htmlFor="fb-pay-amount">Amount (USD)
+                    <input
+                      id="fb-pay-amount"
+                      type="number"
+                      min="0.5"
+                      step="0.01"
+                      className={input}
+                      value={(config.payment.amountCents / 100).toFixed(2)}
+                      onChange={(e) => set({ payment: { ...config.payment!, amountCents: Math.max(50, Math.round(Number(e.target.value || 0) * 100)) } })}
+                    />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-gray-500">Off — this form just collects the fields below.</p>
+            )}
+          </section>
+
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-fields">
             <div className="flex items-center justify-between">
               <h2 id="fb-fields" className="font-bold text-gray-900">Questions</h2>
