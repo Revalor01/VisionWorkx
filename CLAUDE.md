@@ -80,6 +80,10 @@ Lead Capture (A5): owners build forms at `/workspace/<slug>/modules/new` — pla
 signed links (`/api/m/[id]/upload`); the submit route re-checks each file with `storage.info()`; members download
 via `/api/workspace/[slug]/file` (5-min signed links). Follow-up: a cleanup job for uploads never attached to a
 submission.
+Automation (A6): emails are SENT by revalor-automation (modules DB, `vw_automation` role). VisionWorkx owns the
+schema (`20260926000003_vw_automation.sql`), the `/workspace/<slug>/emails` page (usage vs plan, send log, owner
+template editing via `PUT /api/workspace/[slug]/templates`; defaults mirrored in `lib/modules/emailDefaults.ts`
+— keep in sync with revalor-automation `lib/vw/templates.mjs`), and `email_usage` in the modules directory.
 
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
