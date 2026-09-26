@@ -78,8 +78,8 @@ Lead Capture (A5): owners build forms at `/workspace/<slug>/modules/new` — pla
 **Claude Haiku 4.5** (`lib/modules/formFromPrompt.ts`, structured outputs, logged to `ai_usage_log` as
 `module_config`, 20 drafts/hour/workspace). File fields upload to the private `vw-uploads` bucket via one-time
 signed links (`/api/m/[id]/upload`); the submit route re-checks each file with `storage.info()`; members download
-via `/api/workspace/[slug]/file` (5-min signed links). Follow-up: a cleanup job for uploads never attached to a
-submission.
+via `/api/workspace/[slug]/file` (5-min signed links). `/api/cron/modules-upload-cleanup` (daily 06:30 UTC)
+deletes uploads older than 24h that no submission references (`vw_orphan_uploads()`).
 Automation (A6): emails are SENT by revalor-automation (modules DB, `vw_automation` role). VisionWorkx owns the
 schema (`20260926000003_vw_automation.sql`), the `/workspace/<slug>/emails` page (usage vs plan, send log, owner
 template editing via `PUT /api/workspace/[slug]/templates`; defaults mirrored in `lib/modules/emailDefaults.ts`
