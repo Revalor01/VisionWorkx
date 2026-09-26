@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
+import { countModulesByType, fetchModuleCostEstimate } from "@/lib/modules/moduleStats";
 import ModulesAdmin, { type AdminWorkspace } from "./ModulesAdmin";
 
 export const dynamic = "force-dynamic";
@@ -31,5 +32,20 @@ export default async function AdminModulesPage() {
     memberCount: (members ?? []).filter((m) => m.workspace_id === w.id).length,
     submissions30d: (subs ?? []).filter((s) => s.workspace_id === w.id).length,
   }));
-  return <ModulesAdmin initial={workspaces} />;
+
+  const allModules = mods ?? [];
+  const modulesByType = countModulesByType(allModules);
+  const cost = await fetchModuleCostEstimate(allModules.length);
+
+  return (
+    <ModulesAdmin
+      initial={workspaces}
+      stats={{
+        businessCount: workspaces.length,
+        liveModuleCount: allModules.filter((m) => m.status === "live").length,
+        modulesByType,
+        cost,
+      }}
+    />
+  );
 }
