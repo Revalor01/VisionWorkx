@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const email = typeof b.email === "string" ? b.email.trim().toLowerCase() : "";
     const role = b.role === "staff" ? "staff" : "owner";
     if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
-    const redirectTo = `${req.nextUrl.origin}/workspace/auth/callback`;
+    const redirectTo = `${req.nextUrl.origin}/workspace/auth/confirm`; // invite links carry the session in the URL fragment
 
     let userId: string | null = null;
     const inv = await db.auth.admin.inviteUserByEmail(email, { redirectTo });
