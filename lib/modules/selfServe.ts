@@ -7,7 +7,7 @@ export function selfServeEnabled(): boolean {
   return process.env.SELF_SERVE_SIGNUP === "true";
 }
 
-export const TERMS_VERSION = "2026-09-draft";
+export const TERMS_VERSION = "2026-09-26";
 export const SITE_BUILDERS = ["WordPress", "Squarespace", "Wix", "Webflow", "Framer", "Shopify", "Other", "No website yet"] as const;
 
 const RESERVED = new Set(["admin", "api", "app", "billing", "login", "signup", "start", "support", "www", "revalor", "visionworkx", "workspace", "help", "settings", "onboarding"]);

@@ -2,11 +2,11 @@ import Navbar from "@/components/nav/Navbar";
 import Footer from "@/components/nav/Footer";
 
 export const metadata = {
-  title: "Privacy Policy — Vision Workx",
-  description: "How Vision Workx collects, uses, and protects your data.",
+  title: "Privacy Policy — VisionWorkx",
+  description: "How VisionWorkx collects, uses, and protects information, including data collected by VisionWorkx Modules forms.",
 };
 
-const LAST_UPDATED = "August 18, 2026";
+const LAST_UPDATED = "September 26, 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -14,6 +14,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-lg font-bold text-navy-dark mb-3">{title}</h2>
       <div className="space-y-3 text-sm text-gray-600 leading-relaxed">{children}</div>
     </section>
+  );
+}
+
+function Email() {
+  return (
+    <a href="mailto:info@revalorllc.com" className="text-navy underline">
+      info@revalorllc.com
+    </a>
   );
 }
 
@@ -25,145 +33,195 @@ export default function PrivacyPage() {
         <h1 className="text-3xl font-bold text-navy-dark mb-2">Privacy Policy</h1>
         <p className="text-xs text-gray-400 mb-10">Last updated: {LAST_UPDATED}</p>
 
-        <Section title="1. Who We Are">
+        <Section title="Who this covers">
           <p>
-            This Privacy Policy explains how Revalor LLC, doing business as Vision Workx (&ldquo;Vision
-            Workx,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), collects, uses, and shares
-            information when you use our website and app generation/hosting platform (the
-            &ldquo;Service&rdquo;). It applies to visitors to our marketing site and to registered customers.
-          </p>
-        </Section>
-
-        <Section title="2. Information We Collect">
-          <p>
-            <span className="font-semibold text-navy-dark">Account information:</span> name, email address, and
-            password (stored securely, hashed, via our authentication provider) when you sign up.
-          </p>
-          <p>
-            <span className="font-semibold text-navy-dark">Business information:</span> the details you provide
-            about your business when generating an app — business name, description, location, branding
-            (logo, colors, fonts), and any photos or social links you add — which we use to build and operate
-            your generated app.
-          </p>
-          <p>
-            <span className="font-semibold text-navy-dark">Payment information:</span> when you subscribe to a
-            paid plan, billing details are collected and processed directly by Stripe, our payment processor.
-            We do not store your full card number on our own servers.
-          </p>
-          <p>
-            <span className="font-semibold text-navy-dark">Usage data:</span> log data, device/browser
-            information, and how you interact with the Service, collected automatically to operate and improve
-            it.
-          </p>
-          <p>
-            <span className="font-semibold text-navy-dark">End-customer data:</span> if your generated app
-            collects information from your own customers (for example, bookings or leads), that data belongs to
-            you and is subject to your own privacy practices toward your customers — we process it on your
-            behalf as a service provider.
-          </p>
-        </Section>
-
-        <Section title="3. How We Use Information">
-          <ul className="list-disc pl-5 space-y-1">
-            <li>To create and operate your account and generated app(s);</li>
-            <li>To process payments and manage subscriptions;</li>
-            <li>To send transactional emails (account, billing, booking notifications) and, where you&apos;ve opted in, product updates;</li>
-            <li>To provide customer support;</li>
-            <li>To monitor, secure, and improve the Service;</li>
-            <li>To comply with legal obligations.</li>
-          </ul>
-          <p>
-            Business information you provide is also sent to our AI provider (Anthropic) as part of generating
-            your app&apos;s code and content — see Section 4.
-          </p>
-        </Section>
-
-        <Section title="4. Third-Party Service Providers">
-          <p>
-            We share information with the following categories of service providers, solely to operate the
-            Service on our behalf:
+            This Privacy Policy explains how Revalor LLC, doing business as VisionWorkx (&ldquo;VisionWorkx,&rdquo; &ldquo;we,&rdquo;
+            &ldquo;us,&rdquo; or &ldquo;our&rdquo;), collects, uses and shares information through our website, the VisionWorkx App Builder
+            and VisionWorkx Modules (together, the &ldquo;Service&rdquo;). It covers two groups of people differently:
           </p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><span className="font-semibold text-navy-dark">Supabase</span> — database, authentication, and file storage;</li>
-            <li><span className="font-semibold text-navy-dark">Vercel</span> — application hosting and infrastructure;</li>
-            <li><span className="font-semibold text-navy-dark">Stripe</span> — payment processing and billing;</li>
-            <li><span className="font-semibold text-navy-dark">Resend</span> — transactional email delivery;</li>
-            <li><span className="font-semibold text-navy-dark">Anthropic</span> — AI model used to generate app code and content from the business information you provide.</li>
+            <li>
+              <strong>Our customers</strong>: businesses and their staff who sign up for and use the Service. We decide how this information
+              is used.
+            </li>
+            <li>
+              <strong>Our customers&apos; visitors</strong>: people who fill in a VisionWorkx form on a customer&apos;s website. Here we act
+              as a <strong>service provider (processor)</strong> for that business, which decides how the information is used. Section 3
+              explains this.
+            </li>
+          </ul>
+        </Section>
+
+        <Section title="1. Information we collect from customers">
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>Account and signup information:</strong> your name, email address, business name, website address, the website builder
+              you use, and the date and version of the Terms you accepted. Workspace sign-in is passwordless (by emailed link). For the App
+              Builder, passwords are stored hashed by our authentication provider.
+            </li>
+            <li>
+              <strong>Business and configuration information:</strong> branding (logo, colors, fonts), business details, form and email
+              settings, the website domains your modules run on, and an optional webhook address.
+            </li>
+            <li>
+              <strong>AI prompts:</strong> descriptions you type to generate an app or draft a form.
+            </li>
+            <li>
+              <strong>Payment information:</strong> collected and processed directly by Stripe. We never see or store your full card number.
+            </li>
+            <li>
+              <strong>Usage and log data:</strong> device and browser information, pages used, and service logs, collected automatically to
+              operate and secure the Service.
+            </li>
+          </ul>
+        </Section>
+
+        <Section title="2. How we use customer information">
+          <p>
+            To provide and operate the Service and your Workspace; to process payments and manage subscriptions (including free trials); to
+            send service emails (sign-in links, welcome and setup emails, usage-limit warnings, billing and security notices); to provide
+            support, including installation help you request; to secure, monitor and improve the Service; and to comply with the law. We
+            send product news only if you opt in.
+          </p>
+        </Section>
+
+        <Section title="3. Information from visitors to our customers' websites (Modules)">
+          <p>When someone submits a VisionWorkx form on a customer&apos;s website, we collect on that business&apos;s behalf:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>The information they enter</strong>, for example name, email, phone, message, and any files they upload;
+            </li>
+            <li>
+              <strong>The page address</strong> the form was submitted from;
+            </li>
+            <li>
+              <strong>Email delivery events</strong> for the automatic emails the business has turned on (for example delivered, bounced, or
+              unsubscribed), so we can stop emailing people who bounce or opt out.
+            </li>
           </ul>
           <p>
-            We don&apos;t sell your personal information. We may disclose information if required by law, to
-            protect our rights, or in connection with a merger, acquisition, or sale of assets, subject to
-            standard confidentiality protections.
+            To protect forms from abuse we compute a <strong>one-way, salted hash of the visitor&apos;s IP address</strong> for rate limiting.
+            We don&apos;t store the raw IP address with submissions, and rate-limit records are cleared automatically within about an hour.
+          </p>
+          <p>
+            We use visitor information <strong>only</strong> to provide the Service to the business: storing the submission, showing it in
+            their Workspace, sending the automatic reply and notification emails they configured, delivering it to their webhook if they set
+            one, and preventing abuse. We <strong>don&apos;t</strong> sell it, use it for our own marketing, or use it to train AI models.
+            Visitor submissions are <strong>not</strong> sent to our AI provider.
+          </p>
+          <p>
+            The business is responsible for telling its visitors how their information is used.{" "}
+            <strong>
+              If you submitted a form on a business&apos;s website and want to access or delete your information, please contact that
+              business;
+            </strong>{" "}
+            we&apos;ll help them respond. You can also reach us at <Email /> and we&apos;ll pass your request on. Every automatic email
+            includes an unsubscribe link.
+          </p>
+        </Section>
+
+        <Section title="4. How we share information">
+          <p>We share information only with service providers that process it on our behalf:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>Supabase</strong>: database, authentication and file storage (hosted in the United States);
+            </li>
+            <li>
+              <strong>Vercel</strong>: application hosting and infrastructure;
+            </li>
+            <li>
+              <strong>Stripe</strong>: payment processing and billing (customers only);
+            </li>
+            <li>
+              <strong>Resend</strong>: email delivery (sign-in links, notifications, and automatic emails to visitors);
+            </li>
+            <li>
+              <strong>Anthropic</strong>: AI model used to generate apps and draft forms from <strong>customer</strong> prompts and business
+              details (never visitor submissions).
+            </li>
+          </ul>
+          <p>
+            A customer&apos;s webhook, if configured, sends that customer&apos;s submissions to the address the customer chooses. We don&apos;t
+            sell personal information or share it for cross-context behavioral advertising. We may disclose information if required by law,
+            to protect rights and safety, or as part of a merger, acquisition or sale of assets under confidentiality protections.
           </p>
         </Section>
 
         <Section title="5. Cookies">
           <p>
-            We use essential cookies to keep you logged in and to operate core site functionality. We do not
-            currently use third-party advertising or cross-site tracking cookies on the Vision Workx marketing
-            site or dashboard.
+            We use essential cookies to keep customers signed in and to run the Service. We don&apos;t use advertising or cross-site tracking
+            cookies. <strong>VisionWorkx forms embedded on customer websites don&apos;t set cookies on visitors.</strong>
           </p>
         </Section>
 
-        <Section title="6. Data Retention">
+        <Section title="6. Data retention">
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>Customer account information:</strong> while your account is active, then as long as reasonably needed for legal, tax,
+              accounting or dispute purposes.
+            </li>
+            <li>
+              <strong>Visitor submissions and files:</strong> kept for the business while its subscription is active. The business can delete
+              them. After a subscription ends, they&apos;re kept for 30 days so the business can export them, then deleted.
+            </li>
+            <li>
+              <strong>Unfinished uploads</strong> (files uploaded to a form that was never submitted) are deleted automatically after 24
+              hours.
+            </li>
+            <li>
+              <strong>Email suppression records</strong> (addresses that bounced or unsubscribed) are kept so we don&apos;t email them again.
+            </li>
+          </ul>
+        </Section>
+
+        <Section title="7. Where information is stored">
           <p>
-            We retain account and business information for as long as your account is active. If you delete an
-            app or close your account, we retain data only as long as reasonably necessary for legal,
-            accounting, or dispute-resolution purposes, after which it is deleted or anonymized.
+            The Service is operated from, and data is stored in, the <strong>United States</strong>. A Data Processing Addendum is available
+            on request for customers who need one.
           </p>
         </Section>
 
-        <Section title="7. Your Rights">
+        <Section title="8. Your rights">
           <p>
-            Depending on where you live, you may have rights to access, correct, delete, or export your
-            personal information, or to object to certain processing. To exercise these rights, contact us at{" "}
-            <a href="mailto:info@revalorllc.com" className="text-navy underline">
-              info@revalorllc.com
-            </a>
-            . [Region-specific rights language — e.g. GDPR/CCPA — to be confirmed based on where customers are
-            located.]
+            Depending on where you live, you may have the right to access, correct, delete or export your personal information, or to object
+            to or limit certain processing. Customers can export their submissions from the Workspace at any time. To make a request, email{" "}
+            <Email />; we&apos;ll verify your identity before acting. We won&apos;t discriminate against you for exercising your rights.
           </p>
         </Section>
 
-        <Section title="8. Children's Privacy">
+        <Section title="9. Children">
           <p>
-            The Service is intended for business owners and is not directed at children under 16. We do not
-            knowingly collect personal information from children.
+            The Service is for businesses and is not directed at children under 16. Customers may not use modules on sites directed at
+            children under 13. We don&apos;t knowingly collect information from children.
           </p>
         </Section>
 
-        <Section title="9. Security">
+        <Section title="10. Security">
           <p>
-            We use reasonable technical and organizational measures — including encrypted connections and
-            access-controlled infrastructure — to protect your information. No method of transmission or
-            storage is 100% secure, and we can&apos;t guarantee absolute security.
+            We use encrypted connections, access-controlled infrastructure and isolation between customers&apos; Workspaces (each business can
+            see only its own data). No system is perfectly secure, and we can&apos;t guarantee absolute security. We&apos;ll notify affected
+            customers of a security incident involving their data as required by law.
           </p>
         </Section>
 
-        <Section title="10. Changes to This Policy">
+        <Section title="11. Revalor Social Manager">
           <p>
-            We may update this Privacy Policy from time to time. If we make material changes, we&apos;ll update
-            the &ldquo;Last updated&rdquo; date above and, where required, notify you directly.
+            Revalor Social Manager, our internal social media management tool, connects to Facebook Pages and Instagram Business Accounts
+            that we own and administer, to schedule and publish content on our own behalf. We access basic account information (Page/account
+            ID, username) and use publishing permissions solely to post approved content to our own connected accounts. We do not access,
+            store or process Meta account data belonging to any other individual or business.
           </p>
         </Section>
 
-        <Section title="11. Facebook and Instagram Integration">
+        <Section title="12. Changes">
           <p>
-            Revalor Social Manager, our internal social media management tool, connects to Facebook Pages and
-            Instagram Business Accounts that we own and administer, in order to schedule and publish content on
-            our own behalf. We access basic account information (Page/account ID, username) and use publishing
-            permissions solely to post approved content to our own connected accounts. We do not access, store,
-            or process Meta account data belonging to any other individual or business.
+            We may update this Privacy Policy. For material changes we&apos;ll update the date above and notify customers by email.
           </p>
         </Section>
 
-        <Section title="12. Contact">
+        <Section title="13. Contact">
           <p>
-            Questions about this Privacy Policy? Reach us at{" "}
-            <a href="mailto:info@revalorllc.com" className="text-navy underline">
-              info@revalorllc.com
-            </a>
-            .
+            Questions about this Privacy Policy? Reach us at <Email />.
           </p>
         </Section>
       </main>
