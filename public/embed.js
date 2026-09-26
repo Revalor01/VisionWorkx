@@ -126,8 +126,8 @@
     fetch(origin + "/api/m/" + id + "/config", { credentials: "omit" })
       .then(function (r) { if (!r.ok) throw new Error("config " + r.status); return r.json(); })
       .then(function (m) {
-        // File uploads and quote calculators need the full iframe form; fall back to it.
-        if (m.quote || m.type === "quote_calculator" || (m.config.fields || []).some(function (f) { return f.type === "file"; })) {
+        // File uploads, quote calculators and booking need the full iframe form; fall back to it.
+        if (m.quote || m.booking || m.type === "quote_calculator" || m.type === "booking" || (m.config.fields || []).some(function (f) { return f.type === "file"; })) {
           // Only remove the wrapper we created; never a site's own data-target element.
           if (!script.getAttribute("data-target") && box.parentNode) box.parentNode.removeChild(box);
           return mountIframe(script, id, origin);

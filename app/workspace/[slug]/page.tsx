@@ -2,6 +2,7 @@ import { requireWorkspace } from "@/lib/modules/workspace";
 import SubmissionsBoard, { type SubmissionRow } from "@/components/modules/SubmissionsBoard";
 import { parseFormConfig } from "@/lib/modules/config";
 import { isQuoteModule, parseQuotePricing, quoteFieldDefs } from "@/lib/modules/quote";
+import { bookingFieldDefs, isBookingModule } from "@/lib/modules/booking";
 
 export default async function WorkspaceSubmissionsPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;
@@ -24,6 +25,7 @@ export default async function WorkspaceSubmissionsPage(props: { params: Promise<
     const quote = isQuoteModule(m.type) ? parseQuotePricing((m.config as { quote?: unknown } | null)?.quote) : null;
     fieldLabels[m.id] = Object.fromEntries([
       ...(quote ? quoteFieldDefs(quote).map((f) => [f.id, f.label]) : []),
+      ...(isBookingModule(m.type) ? bookingFieldDefs().map((f) => [f.id, f.label]) : []),
       ...parseFormConfig(m.config).fields.map((f) => [f.id, f.label]),
     ]);
   });

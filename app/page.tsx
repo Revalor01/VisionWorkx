@@ -40,8 +40,8 @@ const MODULES = [
   },
   {
     name: "Online booking",
-    status: "Coming soon",
-    body: "Customers pick an open time, in their own time zone. No double-booking, with reminders and easy rescheduling.",
+    status: "Available now",
+    body: "Customers pick an open time, in their own time zone. No double-booking, with reminders and easy rescheduling. Google and Outlook calendar sync coming soon.",
   },
   {
     name: "Quote calculator",

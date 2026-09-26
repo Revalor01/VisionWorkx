@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import ModuleForm from "@/components/modules/ModuleForm";
 import QuotePricingEditor from "@/components/modules/QuotePricingEditor";
 import { parseQuotePricing, type QuotePricing } from "@/lib/modules/quote";
-import { DEFAULT_QUOTE_CONFIG } from "@/lib/modules/moduleConfig";
+import { DEFAULT_QUOTE_CONFIG, defaultBookingConfig } from "@/lib/modules/moduleConfig";
+import BookingSetupEditor from "@/components/modules/BookingSetupEditor";
+import { parseBookingSetup, type BookingSetup } from "@/lib/modules/booking";
 import {
   FIELD_TYPES,
   parseFormConfig,
@@ -29,7 +31,7 @@ const TYPE_LABEL: Record<FieldType, string> = {
   file: "Photo or file",
 };
 
-type BuilderConfig = FormConfig & { quote?: QuotePricing };
+type BuilderConfig = FormConfig & { quote?: QuotePricing; booking?: BookingSetup };
 
 const QUOTE_EXAMPLES = [
   "House cleaning: $90 base plus $12 per bedroom and $18 per bathroom, add-ons for oven and fridge, 10% off every-2-weeks visits.",
@@ -60,18 +62,25 @@ export default function FormBuilder(props: {
   workspaceBrand: Brand;
   hasDomains: boolean;
   existing?: { publicId: string; name: string; status: string; config: BuilderConfig };
-  /** "quote" builds a quote calculator; defaults to a lead form. */
-  kind?: "form" | "quote";
+  /** "quote" builds a quote calculator, "booking" an online booking module; defaults to a lead form. */
+  kind?: "form" | "quote" | "booking";
+  /** Workspace time zone (booking default). */
+  timeZone?: string;
 }) {
   const router = useRouter();
   const isQuote = props.kind === "quote";
-  const noun = isQuote ? "quote calculator" : "lead form";
-  const [step, setStep] = useState<Step>(props.existing ? "edit" : "describe");
+  const isBooking = props.kind === "booking";
+  const tz = props.timeZone ?? "America/New_York";
+  const noun = isQuote ? "quote calculator" : isBooking ? "booking page" : "lead form";
+  // Booking has no AI step: it's mostly hours and durations, so start from a sensible default.
+  const [step, setStep] = useState<Step>(props.existing || isBooking ? "edit" : "describe");
   const [description, setDescription] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [note, setNote] = useState("");
-  const [name, setName] = useState(props.existing?.name ?? "");
-  const [config, setConfig] = useState<BuilderConfig>(props.existing?.config ?? parseFormConfig({ fields: [] }));
+  const [name, setName] = useState(props.existing?.name ?? (isBooking ? "Online booking" : ""));
+  const [config, setConfig] = useState<BuilderConfig>(
+    props.existing?.config ?? (isBooking ? defaultBookingConfig(tz) : parseFormConfig({ fields: [] })),
+  );
   const [publicId, setPublicId] = useState(props.existing?.publicId ?? null);
   const [status, setStatus] = useState(props.existing?.status ?? "draft");
   const [saving, setSaving] = useState(false);
@@ -128,14 +137,16 @@ export default function FormBuilder(props: {
     // Same sanitisers the server uses.
     const clean: BuilderConfig = isQuote
       ? { ...parseFormConfig(config), payment: null, quote: parseQuotePricing(config.quote) }
-      : parseFormConfig(config);
+      : isBooking
+        ? { ...parseFormConfig(config), booking: parseBookingSetup(config.booking, tz) }
+        : parseFormConfig(config);
     try {
       let id = publicId;
       if (!id) {
         const res = await fetch(`/api/workspace/${props.slug}/modules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, config: clean, ...(isQuote ? { type: "quote_calculator" } : {}) }),
+          body: JSON.stringify({ name, config: clean, ...(isQuote ? { type: "quote_calculator" } : isBooking ? { type: "booking" } : {}) }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Couldn't save.");
@@ -241,7 +252,9 @@ export default function FormBuilder(props: {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-navy-dark">{props.existing ? `Edit ${noun}` : isQuote ? "Your draft calculator" : "Your draft form"}</h1>
+          <h1 className="text-2xl font-bold text-navy-dark">
+            {props.existing ? `Edit ${noun}` : isQuote ? "Your draft calculator" : isBooking ? "Set up online booking" : "Your draft form"}
+          </h1>
           <p className="text-sm text-gray-500">
             Status: <strong>{status}</strong>
             {note && <span className="ml-2 text-amber-700">{note}</span>}
@@ -299,6 +312,12 @@ export default function FormBuilder(props: {
             </label>
           </section>
 
+          {isBooking && (
+            <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-booking">
+              <h2 id="fb-booking" className="font-bold text-gray-900">Services &amp; availability</h2>
+              <BookingSetupEditor value={config.booking ?? parseBookingSetup({}, tz)} onChange={(booking) => set({ booking })} />
+            </section>
+          )}
           {isQuote ? (
             <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-pricing">
               <h2 id="fb-pricing" className="font-bold text-gray-900">Pricing</h2>
@@ -353,7 +372,7 @@ export default function FormBuilder(props: {
 
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-fields">
             <div className="flex items-center justify-between">
-              <h2 id="fb-fields" className="font-bold text-gray-900">{isQuote ? "Contact questions" : "Questions"}</h2>
+              <h2 id="fb-fields" className="font-bold text-gray-900">{isQuote || isBooking ? "Contact questions" : "Questions"}</h2>
               <button type="button" onClick={addField} disabled={config.fields.length >= 30} className="text-sm font-semibold text-navy hover:underline">+ Add a question</button>
             </div>
             <ol className="space-y-3">
@@ -452,6 +471,7 @@ export default function FormBuilder(props: {
               brand={brand}
               config={parseFormConfig(config)}
               quote={isQuote ? parseQuotePricing(config.quote) : null}
+              booking={isBooking ? parseBookingSetup(config.booking, tz) : null}
               sourceUrl={null}
               preview
             />
