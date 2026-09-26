@@ -78,8 +78,8 @@ Lead Capture (A5): owners build forms at `/workspace/<slug>/modules/new` — pla
 **Claude Haiku 4.5** (`lib/modules/formFromPrompt.ts`, structured outputs, logged to `ai_usage_log` as
 `module_config`, 20 drafts/hour/workspace). File fields upload to the private `vw-uploads` bucket via one-time
 signed links (`/api/m/[id]/upload`); the submit route re-checks each file with `storage.info()`; members download
-via `/api/workspace/[slug]/file` (5-min signed links). Follow-up: a cleanup job for uploads never attached to a
-submission.
+via `/api/workspace/[slug]/file` (5-min signed links). `/api/cron/modules-upload-cleanup` (daily 06:30 UTC)
+deletes uploads older than 24h that no submission references (`vw_orphan_uploads()`).
 
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
