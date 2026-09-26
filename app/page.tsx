@@ -2,837 +2,315 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/nav/Navbar";
 import Footer from "@/components/nav/Footer";
-import HeroEmailForm from "@/components/landing/HeroEmailForm";
-import PricingSection from "@/components/landing/PricingSection";
+import ModuleForm from "@/components/modules/ModuleForm";
+import { parseFormConfig } from "@/lib/modules/config";
 
-const EXAMPLES = [
+// VisionWorkx marketing page — embeddable modules for the website a business
+// already has. (The old full-app builder is frozen; see docs/full-app-generation-freeze.md.)
+
+const WAITLIST = "https://products.revalorllc.com/visionworkx/waitlist";
+const PREVIEW = "https://products.revalorllc.com/visionworkx/preview";
+
+const BUILDERS = ["WordPress", "Squarespace", "Wix", "Webflow", "Framer", "Shopify"];
+
+const STEPS = [
   {
-    name: "Green Blade Lawn Care",
-    category: "Booking & Scheduling",
-    image: "/examples/green-blade-lawn-care.png",
-    url: "https://vw-green-blade-lawn-care-booking-c0640777-hxd7fq3op.vercel.app",
+    n: "1",
+    title: "Describe it",
+    body: "Tell us what you need in a sentence — “a quote request for plumbing jobs, with the address and a photo.” VisionWorkx drafts the form for you.",
   },
   {
-    name: "Peak Performance Gym",
-    category: "Booking & Scheduling",
-    image: "/examples/peak-performance-gym.png",
-    url: "https://vw-peak-performance-gym-e5fcbdd6-7ezzlq9dp-vision-workx.vercel.app",
+    n: "2",
+    title: "Make it yours",
+    body: "Change any question, add your logo, colors and wording. A live preview shows exactly what your visitors will see.",
   },
   {
-    name: "Sunny Day Spa",
-    category: "Booking & Scheduling",
-    image: "/examples/sunny-day-spa.png",
-    url: "https://vw-sunny-day-spa-booking-app-741aa936-borvjp7w8-vision-workx.vercel.app",
+    n: "3",
+    title: "Paste one line",
+    body: "Copy a single line of code into your site builder. It loads in the background and never slows down or breaks your page.",
   },
 ];
 
-const HOW_IT_WORKS = [
+const MODULES = [
   {
-    step: "01",
-    icon: "✏️",
-    title: "Describe Your App",
-    body: "Tell us your business name, type, and what your app needs to do. No technical jargon required — plain English works perfectly.",
-    tag: "5 minutes",
+    name: "Lead capture",
+    status: "First to launch",
+    body: "Quote requests and contact forms with the questions you choose — including photo and document uploads up to 10 MB.",
   },
   {
-    step: "02",
-    icon: "⚡",
-    title: "AI Generates It",
-    body: "Our AI builds a complete, production-ready web app tailored to your exact requirements — code, design, and database included.",
-    tag: "~10 minutes",
+    name: "Online booking",
+    status: "Coming soon",
+    body: "Customers pick an open time, in their own time zone. No double-booking, with reminders and easy rescheduling.",
   },
   {
-    step: "03",
-    icon: "🚀",
-    title: "Live Within the Hour",
-    body: "Your app deploys automatically with your branding — on your own custom domain when you're ready. Most apps are live and ready to share within the hour.",
-    tag: "Usually under an hour",
+    name: "Quote calculator",
+    status: "Coming soon",
+    body: "Visitors see an instant price range from the prices you set, then send you their details for the exact quote.",
   },
   {
-    step: "04",
-    icon: "🔄",
-    title: "Change It Anytime",
-    body: "Need a new field, a different workflow, a price change, staff logins? Describe it in plain English and your live app updates — no rebuild, no developer, no wait.",
-    tag: "Anytime",
+    name: "Intake form",
+    status: "Coming soon",
+    body: "Multi-step onboarding with document uploads and signed consent, stored privately for your business.",
   },
 ];
 
-const CATEGORIES = [
+const DASHBOARD = [
+  "Every lead, booking and form in one list",
+  "Mark each one New, Contacted, Won or Lost",
+  "Notes for your team on every submission",
+  "Download everything as a spreadsheet (CSV)",
+  "Send submissions on to the tools you already use",
+  "Separate logins for owners and staff",
+];
+
+const EMAIL_TIERS = [
+  { plan: "Free", emails: "25" },
+  { plan: "Starter", emails: "100" },
+  { plan: "Growth", emails: "500" },
+  { plan: "Pro", emails: "2,000" },
+];
+
+const FAQ = [
   {
-    icon: "📅",
-    title: "Booking & Scheduling",
-    desc: "Let customers book appointments online, 24/7 — no phone calls needed.",
-    for: "Salons · Clinics · Gyms · Studios",
-    features: [
-      "Public booking page",
-      "Deposit & cancellation policies",
-      "Card payments straight to your bank (Stripe)",
-      "Staff logins for your team",
-      "Calendar management",
-    ],
+    q: "Do I need a new website?",
+    a: "No. VisionWorkx adds to the site you already have. If you can paste text into your site builder, you can install a module — and Revalor can install it for you.",
   },
   {
-    icon: "👥",
-    title: "Customer CRM",
-    desc: "Track every client, lead, and deal from one clean dashboard.",
-    for: "Consultants · Coaches · Freelancers",
-    features: [
-      "Contact management",
-      "Lead pipeline tracking",
-      "Deal stage tracking",
-      "Notes & activity history",
-      "Owner dashboard with live metrics",
-    ],
+    q: "Will it look like my site?",
+    a: "Yes. Every module uses your logo, colors, fonts and wording. It's styled to fit in, and your site's styles can't break it.",
   },
   {
-    icon: "📦",
-    title: "Inventory & Orders",
-    desc: "Know exactly what you have in stock and what needs reordering.",
-    for: "Retailers · Cafes · Boutiques · Makers",
-    features: [
-      "Real-time stock tracking",
-      "Order management",
-      "Barcode & SKU lookup",
-      "Supplier contacts",
-      "Owner dashboard with live metrics",
-    ],
+    q: "What happens when someone fills it in?",
+    a: "Your customer gets an instant confirmation from your business name, you get an alert with every detail, and the submission lands in your dashboard.",
   },
   {
-    icon: "🔐",
-    title: "Customer Portal",
-    desc: "Give clients a secure place to check status, share files, and pay invoices.",
-    for: "Law firms · Accountants · Agencies",
-    features: [
-      "Secure client login",
-      "Document sharing",
-      "Project status tracking",
-      "Team logins & roles",
-      "Invoice history",
-    ],
+    q: "Who can see my customers' information?",
+    a: "Only you and the staff you invite. Submissions are stored privately for your business, uploaded files are never public, and nothing is shared across businesses.",
   },
   {
-    icon: "🧾",
-    title: "Invoicing & Quotes",
-    desc: "Send professional quotes, invoice clients, and get paid faster — no spreadsheets.",
-    for: "Contractors · Electricians · Plumbers · Landscapers",
-    features: [
-      "Quote & estimate builder",
-      "One-click invoicing",
-      "Card payments straight to your bank (Stripe)",
-      "Automatic payment reminders",
-      "Job history tracking",
-    ],
-  },
-  {
-    icon: "🎫",
-    title: "Membership Management",
-    desc: "Manage recurring memberships, track check-ins, and automate billing.",
-    for: "Gyms · Studios · Clubs · Wellness Centers",
-    features: [
-      "Recurring billing to your own Stripe account",
-      "Member check-in tracking",
-      "Plan tiers & pricing",
-      "Staff check-in logins",
-      "Attendance reporting",
-    ],
+    q: "What does it cost?",
+    a: "Pricing is announced at launch. Join the waitlist and you'll be the first to know — and first in line.",
   },
 ];
 
-const WHY_VISION_WORKX = [
-  {
-    quote:
-      "Most small business owners we talk to have wanted a custom app for years — but agencies quote $15,000+ and 3 months, and no-code tools still require you to be the builder. Vision Workx exists to close that gap.",
-  },
-  {
-    quote:
-      "You describe your business. We generate a working app — booking, scheduling, client management, whatever you need — and deploy it live. No dev team, no code, no waiting months.",
-  },
-  {
-    quote:
-      "We're a new platform, and we'd rather be upfront about that than fake a track record. What you get is a founder-built product, direct support, and a pricing model with no surprise bills — something even the big AI app builders haven't figured out yet.",
-  },
-];
+const DEMO_FORM = parseFormConfig({
+  title: "Request a free quote",
+  intro: "Tell us what you need and we'll get back to you within one business day.",
+  submitLabel: "Send my request",
+  successMessage: "Thanks — this is a preview, so nothing was sent.",
+  fields: [
+    { id: "name", label: "Full name", type: "text", required: true },
+    { id: "email", label: "Email", type: "email", required: true },
+    { id: "service", label: "What do you need?", type: "select", required: true, options: ["Leak or repair", "Water heater", "Drain cleaning", "Something else"] },
+    { id: "photo", label: "Photo of the problem", type: "file" },
+  ],
+});
 
-const STATS = [
-  { value: "~10 min", label: "From description to live app" },
-  { value: "6 app types", label: "Combine as many as you need" },
-  { value: "$0", label: "To preview before you sign up" },
-];
-
-const EVERY_APP = [
-  {
-    icon: "💳",
-    title: "Card payments",
-    body: "Take deposits, invoices, and memberships. Money goes straight to your own Stripe account — we never hold it.",
-  },
-  {
-    icon: "📊",
-    title: "Owner dashboard",
-    body: "A live metrics view in every app — revenue, bookings, active members — so you see what's working.",
-  },
-  {
-    icon: "👥",
-    title: "Staff logins",
-    body: "Invite your team with a link. Each person gets their own login; you control who sees what.",
-  },
-  {
-    icon: "🌐",
-    title: "Custom domain",
-    body: "Launch on yourbusiness.com — set it up yourself from the dashboard, no support ticket.",
-  },
-  {
-    icon: "⬇️",
-    title: "Your data, exportable",
-    body: "Export everything to CSV anytime. Your business, your data.",
-  },
-  {
-    icon: "🔄",
-    title: "Plain-English edits",
-    body: "Change any screen, field, or rule by describing it. Your live app updates in place.",
-  },
-];
-
-export default function LandingPage() {
+export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      {/* ─── Brand strip ─── */}
-      <section className="bg-navy-dark text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            <div className="flex items-center gap-2">
-              <Link
-                href="/"
-                className="flex items-center gap-2.5 hover:[text-shadow:0_0_10px_rgba(232,184,75,0.75)] transition-all"
-              >
-                <span className="text-xl font-bold tracking-tight text-promote-gold">Vision Workx</span>
-              </Link>
-              <a
-                href="https://revalor-automation.vercel.app/"
-                className="text-xs text-blue-300 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
-              >
-                by Revalor
+      {/* ─── Hero ─── */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] text-white">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
+          <div>
+            <div className="mb-5 flex items-center gap-3">
+              <Image src="/VisionWorks.png" alt="VisionWorkx" width={56} height={56} className="rounded-xl bg-white p-1" priority />
+              <span className="text-xs font-semibold uppercase tracking-widest text-blue-200">A Revalor Business product</span>
+            </div>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight text-balance sm:text-5xl">
+              Add booking, lead capture and automatic follow-up to the website you already have.
+            </h1>
+            <p className="mt-5 max-w-xl text-lg text-blue-100">
+              Just describe it. VisionWorkx builds the module, matches your branding, and emails every customer back the moment they reach out.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <a href={WAITLIST} className="rounded-xl bg-white px-6 py-3 font-semibold text-navy-dark shadow-lg hover:bg-blue-50">
+                Join the waitlist →
+              </a>
+              <a href={PREVIEW} className="font-semibold text-blue-100 underline decoration-blue-400/50 underline-offset-4 hover:text-white">
+                See every module on a real website
               </a>
             </div>
-            <Link
-              href="/web-app-vs-web-page"
-              className="text-sm font-medium text-blue-100 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
-            >
-              Web App vs. Web Page
-            </Link>
-            <Link
-              href="/#contact"
-              className="text-sm font-medium text-blue-100 hover:text-white hover:[text-shadow:0_0_10px_rgba(255,255,255,0.85)] transition-all"
-            >
-              Contact Us
-            </Link>
+            <div className="mt-8">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-300">Works on</p>
+              <ul className="flex flex-wrap gap-2" aria-label="Supported website builders">
+                {BUILDERS.map((b) => (
+                  <li key={b} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-blue-50">
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="rounded-2xl bg-white/5 p-3 ring-1 ring-white/10">
+              <div className="mb-2 flex items-center gap-2 px-2 text-xs text-blue-200">
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="ml-2 font-mono">yourbusiness.com/get-a-quote</span>
+                <span className="ml-auto rounded bg-white/10 px-1.5 py-0.5">Live preview</span>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <ModuleForm
+                  publicId="m_000000000000000000"
+                  businessName="Harbor Plumbing"
+                  logoUrl={null}
+                  brand={{ color: "#1b2542", font: "modern", radius: 10 }}
+                  config={DEMO_FORM}
+                  sourceUrl={null}
+                  preview
+                />
+              </div>
+            </div>
+            <p className="mt-3 text-center text-xs text-blue-200">This is the real form, running in preview mode. Try it — nothing is sent.</p>
           </div>
         </div>
       </section>
 
-      {/* ─── Hero ─── */}
-      <section className="relative bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] text-white overflow-hidden">
-        {/* subtle grid overlay */}
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
-
-        <div className="relative max-w-6xl mx-auto px-4 pt-8 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left — CTA */}
-            <div className="text-center lg:text-left">
-              <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-300 bg-blue-900/40 border border-blue-700/50 px-4 py-2 rounded-full mb-6">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                Powered by Claude AI · No Code Required
-              </span>
-
-              <div className="flex items-start justify-center lg:justify-start gap-4">
-                <h1 className="text-5xl md:text-6xl font-bold leading-[1.1] tracking-tight">
-                  Describe it.
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-300">
-                    We build it.
-                  </span>
-                </h1>
-                <span className="ml-4 bg-white rounded-lg p-2 flex items-center justify-center shrink-0">
-                  <Image
-                    src="/VisionWorks.png"
-                    alt="Vision Workx"
-                    width={509}
-                    height={512}
-                    className="h-[92px] md:h-[114px] w-auto object-contain"
-                  />
+      {/* ─── How it works ─── */}
+      <section id="how-it-works" className="bg-white px-4 py-20">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-navy">How it works</p>
+          <h2 className="mt-2 max-w-2xl text-3xl font-bold text-navy-dark text-balance">From a sentence to a working form on your site in minutes.</h2>
+          <ol className="mt-10 grid gap-6 md:grid-cols-3">
+            {STEPS.map((s) => (
+              <li key={s.n} className="rounded-2xl border border-gray-200 p-6">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-sm font-bold text-white" aria-hidden="true">
+                  {s.n}
                 </span>
-              </div>
+                <h3 className="mt-4 text-lg font-bold text-navy-dark">{s.title}</h3>
+                <p className="mt-2 text-gray-600">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
-              <p className="mt-6 text-lg md:text-xl text-blue-100/80 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                Describe your business in plain English and get a working{" "}
-                <Link
-                  href="/web-app-vs-web-page"
-                  className="inline-block font-bold text-white border-2 border-white/80 rounded-full px-3 py-0.5 whitespace-nowrap hover:bg-white hover:text-blue-900 hover:border-white transition-colors"
-                >
-                  web app →
-                </Link>{" "}
-                — bookings, card payments, customer records, staff logins —
-                deployed live in minutes. Need a change later? Just ask for it.
-                No developers, ever.
-              </p>
-
-              <div className="mt-8 flex flex-col items-center lg:items-start gap-4">
-                <HeroEmailForm />
-                <a
-                  href="#guided-build"
-                  className="group flex w-full max-w-md items-center justify-between gap-3 rounded-xl border border-blue-500/40 bg-white/[0.03] px-5 py-3 text-left transition-colors hover:border-promote-gold/70 hover:bg-white/[0.06]"
-                >
-                  <span>
-                    <span className="block text-sm font-semibold text-white">
-                      Not sure what you need?
-                    </span>
-                    <span className="block text-xs text-blue-300">
-                      Talk it through — we&apos;ll work out the setup and build it. $10, credited to your first month.
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-blue-300 transition-colors group-hover:text-promote-gold">→</span>
-                </a>
-                <Link
-                  href="https://products.revalorllc.com/visionworkx/preview"
-                  className="text-sm font-medium text-blue-300 hover:text-white underline underline-offset-4 decoration-blue-500/50 hover:decoration-white transition-all"
-                >
-                  or see the new VisionWorkx modules on a real website →
-                </Link>
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-1 text-xs text-blue-300/80">
-                  <span className="flex items-center gap-1">
-                    <span className="text-green-400">✓</span> Preview a real app before you sign up
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="text-green-400">✓</span> No card for the preview
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="text-green-400">✓</span> Cancel anytime
+      {/* ─── Modules ─── */}
+      <section id="modules" className="bg-off-white px-4 py-20">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-navy">Modules</p>
+          <h2 className="mt-2 max-w-2xl text-3xl font-bold text-navy-dark text-balance">Pick what your site is missing. Add more any time.</h2>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+            {MODULES.map((m) => (
+              <article key={m.name} className="rounded-2xl border border-gray-200 bg-white p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-bold text-navy-dark">{m.name}</h3>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      m.status === "First to launch" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {m.status}
                   </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Right — Browser mockup */}
-            <div className="hidden lg:block">
-              <div className="rounded-2xl border border-promote-gold bg-blue-950/60 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-sm">
-                {/* Browser chrome */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-blue-900/70 border-b border-blue-700/50">
-                  <span className="w-3 h-3 rounded-full bg-red-400/80" />
-                  <span className="w-3 h-3 rounded-full bg-yellow-400/80" />
-                  <span className="w-3 h-3 rounded-full bg-green-400/80" />
-                  <div className="ml-3 flex-1 bg-blue-900/80 rounded-md px-3 py-1 text-xs text-blue-300 font-mono">
-                    app.visionworkx.com/onboard
-                  </div>
-                </div>
-                {/* Mockup content */}
-                <div className="p-6 space-y-4">
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <div
-                          key={n}
-                          className={`h-1.5 rounded-full ${
-                            n <= 1
-                              ? "w-8 bg-blue-400"
-                              : "w-4 bg-blue-800"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-blue-400 ml-auto border border-promote-gold rounded-full px-2.5 py-1">
-                      Step 1 of 5
-                    </span>
-                  </div>
-                  <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
-                    Tell us about your business
-                  </p>
-                  <div className="space-y-2.5">
-                    {[
-                      ["Business Name", "Radiance Hair Studio"],
-                      ["Location", "Austin, TX"],
-                      ["App Category", "Booking & Scheduling ✓"],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="bg-blue-900/50 border border-blue-700/50 rounded-xl px-4 py-3 text-sm"
-                      >
-                        <span className="text-blue-400 text-xs">{label}: </span>
-                        <span className="text-white font-medium">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-1">
-                    <div className="bg-navy text-white text-sm font-semibold px-5 py-2.5 rounded-xl inline-flex items-center gap-2">
-                      Next: Choose Features
-                      <span className="text-blue-300">→</span>
-                    </div>
-                  </div>
-                  <div className="border-t border-blue-800 pt-3 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-xs text-blue-400">
-                      AI is ready to build your app
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats bar */}
-          <div className="mt-14 grid grid-cols-3 divide-x divide-blue-800 border-t border-blue-800 pt-8">
-            {STATS.map(({ value, label }) => (
-              <div key={label} className="text-center px-4">
-                <p className="text-2xl md:text-3xl font-bold text-white">
-                  {value}
-                </p>
-                <p className="text-xs text-blue-400 mt-1">{label}</p>
-              </div>
+                <p className="mt-2 text-gray-600">{m.body}</p>
+              </article>
             ))}
           </div>
+          <p className="mt-8 text-center">
+            <a href={PREVIEW} className="font-semibold text-navy hover:underline">
+              See each module on a real website →
+            </a>
+          </p>
         </div>
       </section>
 
-      {/* ─── Problem ─── */}
-      <section className="py-20 px-4 bg-off-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-navy-dark">
-            Most small businesses waste time on manual tasks.
-          </h2>
-          <ul className="mt-8 flex flex-wrap justify-center gap-3">
-            {[
-              "Booking and scheduling",
-              "Customer follow-ups",
-              "Invoicing and quotes",
-              "CRM and customer management",
-              "Membership and portal access",
-            ].map((item) => (
-              <li
-                key={item}
-                className="text-sm font-medium text-navy bg-white border border-gray-200 px-4 py-2 rounded-full"
-              >
-                {item}
+      {/* ─── Automation ─── */}
+      <section id="automation" className="bg-navy-dark px-4 py-20 text-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-widest text-blue-300">VisionWorkx Automation · included</p>
+            <h2 className="mt-2 text-3xl font-bold text-balance">Every customer hears back in seconds. You never miss a lead.</h2>
+            <p className="mt-4 text-blue-100">
+              The moment a form is sent, your customer gets a friendly confirmation from your business name and you get an alert with every detail. Reply to either email to reach the other person directly. Add a follow-up a day or two later with one switch.
+            </p>
+            <ul className="mt-6 space-y-2 text-blue-50">
+              <li>✓ Written in your words — edit every email</li>
+              <li>✓ Sent from your business name, or your own domain</li>
+              <li>✓ Unsubscribe and bounce handling built in</li>
+            </ul>
+          </div>
+          <div>
+            <p className="mb-3 text-sm font-semibold text-blue-200">Automatic emails each month</p>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {EMAIL_TIERS.map((t) => (
+                <div key={t.plan} className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                  <dt className="text-xs uppercase tracking-widest text-blue-300">{t.plan}</dt>
+                  <dd className="mt-1 text-2xl font-bold tabular-nums">{t.emails}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-3 text-sm text-blue-200">Plan pricing is announced at launch.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Dashboard ─── */}
+      <section id="dashboard" className="bg-white px-4 py-20">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-navy">Your dashboard</p>
+          <h2 className="mt-2 max-w-2xl text-3xl font-bold text-navy-dark text-balance">Everything your website collects, in one place.</h2>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {DASHBOARD.map((d) => (
+              <li key={d} className="rounded-xl border border-gray-200 p-4 text-gray-700">
+                {d}
               </li>
             ))}
           </ul>
-          <p className="mt-8 text-gray-600 text-lg">
-            Vision Workx builds the app your business needs in minutes —
-            payments, scheduling, customers, and team access in one place — and
-            keeps changing it as you grow.
+        </div>
+      </section>
+
+      {/* ─── Done for you ─── */}
+      <section id="done-for-you" className="bg-off-white px-4 py-20">
+        <div className="mx-auto max-w-4xl rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-200 sm:p-12">
+          <h2 className="text-2xl font-bold text-navy-dark text-balance">Rather not touch your website? We&apos;ll install it for you.</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+            Revalor sets up your modules, matches your branding and installs them on your site. Need something bigger? Revalor Consulting builds custom tools — and can include VisionWorkx modules.
           </p>
-        </div>
-      </section>
-
-      {/* ─── How It Works ─── */}
-      <section id="how-it-works" className="py-24 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-              How It Works
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
-              From idea to live app in minutes
-            </h2>
-            <p className="mt-3 text-gray-500 text-lg">
-              Four steps. No technical skills required.
-            </p>
-          </div>
-
-          <div className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-            {/* Connector line (desktop only) */}
-            <div
-              aria-hidden
-              className="hidden md:block absolute top-12 left-[calc(12.5%+28px)] right-[calc(12.5%+28px)] h-px border-t-2 border-dashed border-gray-200"
-            />
-
-            {HOW_IT_WORKS.map((item) => (
-              <div key={item.step} className="relative text-center group">
-                <div className="w-16 h-16 rounded-2xl bg-navy-dark text-white flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:scale-105 transition-transform">
-                  <span className="text-2xl">{item.icon}</span>
-                </div>
-                <span className="text-xs font-bold text-navy/40 tracking-widest uppercase mb-2 block">
-                  Step {item.step}
-                </span>
-                <h3 className="text-xl font-bold text-navy-dark mb-3">
-                  {item.title}
-                </h3>
-                <p className="text-gray-500 leading-relaxed text-sm mb-4">
-                  {item.body}
-                </p>
-                <span className="inline-block text-xs font-semibold text-navy bg-blue-50 px-3 py-1 rounded-full">
-                  {item.tag}
-                </span>
-              </div>
-            ))}
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <a href={WAITLIST} className="rounded-xl bg-navy-dark px-6 py-3 font-semibold text-white hover:bg-navy">
+              Join the waitlist
+            </a>
+            <a href="https://products.revalorllc.com/consulting" className="rounded-xl border border-gray-300 px-6 py-3 font-semibold text-navy-dark hover:bg-gray-50">
+              Revalor Consulting
+            </a>
           </div>
         </div>
       </section>
 
-      {/* ─── Guided Build Session ─── */}
-      <section id="guided-build" className="py-20 px-4 bg-navy-dark text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-sm font-semibold text-promote-gold uppercase tracking-widest mb-3">
-            Not sure what you need?
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Talk it through. We&apos;ll figure it out{" "}
-            <span className="text-promote-gold">and build it.</span>
-          </h2>
-          <p className="text-blue-100 text-lg leading-relaxed max-w-2xl mx-auto">
-            The builder asks you to pick features. This doesn&apos;t. Get on a short guided
-            session, describe your business the way you&apos;d explain it to a friend, and we
-            work out exactly what your app should do — then build it, live, in minutes.
-          </p>
-
-          <div className="mt-10 grid gap-4 sm:grid-cols-3 text-left">
-            {[
-              [
-                "1",
-                "Tell us about your business",
-                "A short back-and-forth — what you do, how customers find you, what eats your time. No tech questions.",
-              ],
-              [
-                "2",
-                "We map it to a build",
-                "Your answers become a plan: the app type, the features you actually need, payments, staff logins. Change anything before we start.",
-              ],
-              [
-                "3",
-                "Your app starts building",
-                "Approve the plan and generation kicks off. A working app on a live link in minutes — the real thing, not a mockup.",
-              ],
-            ].map(([n, title, body]) => (
-              <div key={n} className="bg-white/5 border border-blue-800 rounded-xl p-5">
-                <div className="w-8 h-8 rounded-lg bg-navy border border-promote-gold flex items-center justify-center text-promote-gold font-bold text-sm mb-3">
-                  {n}
-                </div>
-                <h3 className="font-bold text-white mb-1.5">{title}</h3>
-                <p className="text-sm text-blue-300 leading-relaxed">{body}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 inline-flex flex-col items-center gap-1.5 rounded-2xl border border-blue-800 bg-white/5 px-6 py-5">
-            <p className="text-blue-100">
-              You walk away with a <span className="font-semibold text-white">live app</span> and a{" "}
-              <span className="font-semibold text-white">build brief</span> in your inbox.
-            </p>
-            <p className="text-3xl font-bold text-promote-gold mt-1">$10</p>
-            <p className="text-sm text-blue-300">
-              Credited to your first month — so if you subscribe, the session was free.
-            </p>
-          </div>
-
-          <div className="mt-8">
-            <Link
-              href="https://products.revalorllc.com/visionworkx/waitlist"
-              className="inline-block bg-promote-gold hover:brightness-110 text-navy-dark font-bold px-8 py-4 rounded-xl text-base transition-all shadow-lg shadow-promote-gold/30"
-            >
-              Join the modules waitlist →
-            </Link>
-            <p className="mt-4 text-sm text-blue-400">
-              Credited to your first month · already know what you want?{" "}
-              <Link href="https://products.revalorllc.com/visionworkx/preview" className="underline hover:text-white">
-                See the new modules
-              </Link>
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── App Categories ─── */}
-      <section id="categories" className="py-24 px-4 bg-off-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-              App Types
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
-              Built for your type of business
-            </h2>
-            <p className="mt-3 text-gray-500 text-lg">
-              Pick your main type — then add any others you need. A gym can be
-              booking + memberships + CRM in one app.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {CATEGORIES.map((cat) => (
-              <div
-                key={cat.title}
-                className="bg-white border border-gray-200 rounded-2xl p-7 hover:border-navy hover:shadow-lg transition-all group"
-              >
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-2xl shrink-0 group-hover:bg-blue-100 transition-colors">
-                    {cat.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-navy-dark leading-tight">
-                      {cat.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">{cat.desc}</p>
-                  </div>
-                </div>
-
-                <ul className="space-y-2 mb-5">
-                  {cat.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-center gap-2 text-sm text-gray-600"
-                    >
-                      <span className="text-navy shrink-0">✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-navy bg-blue-50 px-3 py-1.5 rounded-full">
-                    {cat.for}
-                  </p>
-                  <Link
-                    href="https://products.revalorllc.com/visionworkx/waitlist"
-                    className="text-xs font-semibold text-navy hover:underline"
-                  >
-                    Join the waitlist →
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Examples ─── */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-              Real Results
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
-              See what gets built
-            </h2>
-            <p className="mt-3 text-gray-500 text-lg">
-              Sample apps generated by Vision Workx — click through and explore.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            {EXAMPLES.map((ex) => (
-              <a
-                key={ex.name}
-                href={ex.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-navy hover:shadow-lg transition-all"
-              >
-                <div className="relative">
-                  <Image
-                    src={ex.image}
-                    alt={ex.name}
-                    width={1280}
-                    height={720}
-                    className="w-full h-auto border-b border-gray-200"
-                  />
-                  <span className="absolute top-3 left-3 text-[11px] font-semibold uppercase tracking-wide bg-navy-dark/90 text-white px-2.5 py-1 rounded-full">
-                    Sample app
+      {/* ─── FAQ ─── */}
+      <section id="faq" className="bg-white px-4 py-20">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-3xl font-bold text-navy-dark">Questions</h2>
+          <div className="mt-8 divide-y divide-gray-200 border-y border-gray-200">
+            {FAQ.map((f) => (
+              <details key={f.q} className="group py-4">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-navy-dark">
+                  {f.q}
+                  <span className="text-gray-400 transition group-open:rotate-45" aria-hidden="true">
+                    +
                   </span>
-                </div>
-                <div className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-navy-dark">{ex.name}</p>
-                    <p className="text-sm text-gray-500">{ex.category}</p>
-                  </div>
-                  <span className="text-sm font-semibold text-navy group-hover:underline shrink-0">
-                    View live →
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Everything included ─── */}
-      <section className="py-24 px-4 bg-off-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-              ✅ In every app, no add-ons
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
-              What every Vision Workx app comes with
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {EVERY_APP.map((item) => (
-              <div
-                key={item.title}
-                className="bg-white border border-gray-200 rounded-2xl p-7 hover:border-navy hover:shadow-lg transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-2xl shrink-0 mb-4">
-                  {item.icon}
-                </div>
-                <h3 className="text-lg font-bold text-navy-dark leading-tight mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{item.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── VisionWorkx Automation ─── */}
-      <section className="py-20 px-4 bg-navy-dark text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-sm font-semibold text-promote-gold uppercase tracking-widest mb-3">
-            ⚡ Included With Every App
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            <span className="text-promote-gold">VisionWorkx Automation</span> comes built in
-          </h2>
-          <p className="text-blue-100 text-lg leading-relaxed max-w-2xl mx-auto">
-            Every app ships with automation already running — and the automations
-            match the kind of app you built: booking confirmations,
-            membership-renewal notices, invoice reminders, review requests. No
-            setup, no add-on purchase. Turn any of them on or off from your
-            dashboard.
-          </p>
-
-          <div className="mt-10 grid grid-cols-3 gap-4 max-w-lg mx-auto">
-            {[
-              { tier: "Starter", count: "100" },
-              { tier: "Growth", count: "500" },
-              { tier: "Pro", count: "2,000" },
-            ].map((t) => (
-              <div key={t.tier} className="bg-white/5 border border-blue-800 rounded-xl p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-blue-300 mb-1">
-                  {t.tier}
-                </div>
-                <div className="text-2xl font-bold text-promote-gold">{t.count}</div>
-                <div className="text-xs text-blue-300">emails / mo</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Pricing ─── */}
-      <PricingSection />
-
-      {/* ─── Custom Builds ─── */}
-      <section id="custom-builds" className="py-20 px-4 bg-navy-dark text-white">
-        <div className="max-w-2xl mx-auto text-center">
-          <p className="text-sm font-semibold text-promote-gold uppercase tracking-widest mb-3">
-            Beyond Self-Serve
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Need something more custom?</h2>
-          <p className="text-blue-200 text-lg leading-relaxed mb-8">
-            Some businesses need more than a template can offer — a custom integration, a workflow that doesn&apos;t
-            fit a category, or a build handled start to finish. Our team will scope it, build it on the same
-            platform powering Vision Workx, and deploy it — so you get a working product without building anything
-            yourself.
-          </p>
-          <a
-            href="mailto:info@revalorllc.com?subject=Custom%20Build%20Inquiry"
-            className="inline-block bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
-          >
-            Talk to Our Team →
-          </a>
-          <p className="mt-6 text-sm text-blue-400">Typical project: $2,500–$15,000, depending on scope</p>
-        </div>
-      </section>
-
-      {/* ─── Why Vision Workx Exists ─── */}
-      <section id="why-choose-us" className="py-24 px-4 bg-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-            ⚙️ Why Vision Workx Exists
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-navy-dark mb-6">
-            Built to give you your time back
-          </h2>
-          <p className="text-gray-600 text-lg leading-relaxed">
-            Small businesses run on passion — but that passion gets buried
-            under endless admin, scattered tools, and tech that slows
-            everything down. Owners waste hours managing bookings, payments,
-            customers, and workflows that never quite fit together. Vision
-            Workx fixes that by turning your entire process into a simple,
-            automated app built instantly by AI. No coding, no developers, no
-            delays. Just clarity, control, and more time to grow your
-            business.
-          </p>
-        </div>
-      </section>
-
-      {/* ─── Why Choose Vision Workx ─── */}
-      <section className="pt-6 pb-24 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-navy uppercase tracking-widest mb-3">
-              Why Choose Vision Workx
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy-dark">
-              Built for business owners, not developers
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {WHY_VISION_WORKX.map((item, i) => (
-              <div
-                key={i}
-                className="bg-off-white border border-gray-100 rounded-2xl p-7 flex flex-col hover:shadow-md transition-shadow"
-              >
-                <p className="text-gray-700 text-sm leading-relaxed flex-1">
-                  &ldquo;{item.quote}&rdquo;
-                </p>
-              </div>
+                </summary>
+                <p className="mt-2 text-gray-600">{f.a}</p>
+              </details>
             ))}
           </div>
         </div>
       </section>
 
       {/* ─── Final CTA ─── */}
-      <section className="py-24 px-4 bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] text-white">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Your app could be live this week.
-          </h2>
-          <p className="text-blue-200 text-lg mb-8 leading-relaxed">
-            Start your free 14-day trial today. No credit card needed. No
-            developers. No waiting months for an agency.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="https://products.revalorllc.com/visionworkx/waitlist"
-              className="bg-navy hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl text-base transition-colors shadow-lg"
-            >
-              Join the modules waitlist →
-            </Link>
-            <Link
-              href="#how-it-works"
-              className="border border-blue-500/60 text-blue-200 font-semibold px-8 py-4 rounded-xl text-base hover:bg-blue-900/40 transition-colors"
-            >
-              See How It Works
-            </Link>
-          </div>
-
-          <p className="mt-6 text-sm text-blue-400">
-            No credit card required · Cancel anytime · Setup in minutes
-          </p>
-        </div>
+      <section className="bg-gradient-to-br from-navy-dark via-[#1e3f6b] to-[#0d1f35] px-4 py-20 text-center text-white">
+        <h2 className="mx-auto max-w-2xl text-3xl font-bold text-balance">Your website, doing more of the work.</h2>
+        <p className="mx-auto mt-3 max-w-xl text-blue-100">VisionWorkx is launching soon. Join the waitlist to be first in line.</p>
+        <a href={WAITLIST} className="mt-8 inline-block rounded-xl bg-white px-8 py-3 font-semibold text-navy-dark hover:bg-blue-50">
+          Join the waitlist →
+        </a>
+        <p className="mt-6 text-sm text-blue-200">A Revalor Business product · Veteran-owned</p>
       </section>
 
       <Footer />

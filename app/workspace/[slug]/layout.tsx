@@ -20,6 +20,7 @@ export default async function WorkspaceLayout(props: { children: React.ReactNode
           <nav className="flex items-center gap-1 text-sm" aria-label="Workspace">
             <Link href={base} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Submissions</Link>
             <Link href={`${base}/modules`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Modules &amp; install</Link>
+            <Link href={`${base}/emails`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Emails</Link>
             {role === "owner" && (
               <Link href={`${base}/settings`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Settings</Link>
             )}

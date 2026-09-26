@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
 import { embedSnippet } from "@/lib/modules/install";
+import { AUTOMATION_SEND_LIMITS, currentAutomationPeriod } from "@/lib/automationLimits";
+import type { Plan } from "@/lib/database.types";
 
 // Read-only directory of VisionWorkx client workspaces and modules for
 // revalor-admin's "VisionWorkx Clients" section. Machine-to-machine: bearer
@@ -22,11 +24,13 @@ export async function GET(req: NextRequest) {
   if (!modulesConfigured()) return NextResponse.json({ error: "Modules database isn't configured." }, { status: 503 });
   const db = modulesServiceClient();
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [{ data: ws }, { data: mods }, { data: members }, { data: subs }] = await Promise.all([
+  const period = currentAutomationPeriod();
+  const [{ data: ws }, { data: mods }, { data: members }, { data: subs }, { data: usage }] = await Promise.all([
     db.from("vw_workspaces").select("id, name, slug, domains, plan, time_zone, created_at").order("created_at", { ascending: false }),
     db.from("vw_modules").select("public_id, workspace_id, type, name, status, created_at, updated_at"),
     db.from("vw_workspace_members").select("workspace_id, role"),
     db.from("vw_submissions").select("workspace_id, created_at").gte("created_at", since),
+    db.from("vw_email_usage").select("workspace_id, sent_count").eq("period", period),
   ]);
   const origin = process.env.NEXT_PUBLIC_MODULES_EMBED_ORIGIN ?? "https://modules.revalorllc.com";
   const workspaces = (ws ?? []).map((w) => {
@@ -45,6 +49,11 @@ export async function GET(req: NextRequest) {
         staff: (members ?? []).filter((m) => m.workspace_id === w.id && m.role === "staff").length,
       },
       submissions_30d: wsSubs.length,
+      email_usage: {
+        period,
+        sent: (usage ?? []).find((u) => u.workspace_id === w.id)?.sent_count ?? 0,
+        limit: AUTOMATION_SEND_LIMITS[(w.plan as Plan) ?? "free"] ?? AUTOMATION_SEND_LIMITS.free,
+      },
       last_submission_at: wsSubs.map((s) => s.created_at).sort().pop() ?? null,
       modules: (mods ?? [])
         .filter((m) => m.workspace_id === w.id)

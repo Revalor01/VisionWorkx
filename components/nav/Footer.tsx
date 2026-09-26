@@ -82,9 +82,9 @@ export default function Footer() {
             </p>
             <ul className="space-y-2 text-sm">
               <li><Link href="/#how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
-              <li><Link href="/#categories" className="hover:text-white transition-colors">Features</Link></li>
-              <li><Link href="/#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
-              <li><Link href="/#custom-builds" className="hover:text-white transition-colors">Custom Builds</Link></li>
+              <li><Link href="/#modules" className="hover:text-white transition-colors">Modules</Link></li>
+              <li><Link href="/#automation" className="hover:text-white transition-colors">Automation</Link></li>
+              <li><a href="https://products.revalorllc.com/visionworkx/waitlist" className="hover:text-white transition-colors">Join the waitlist</a></li>
               <li><Link href="/web-app-vs-web-page" className="hover:text-white transition-colors">Web App vs. Web Page</Link></li>
             </ul>
           </div>
@@ -94,9 +94,8 @@ export default function Footer() {
               Account
             </p>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/login" className="hover:text-white transition-colors">Log In</Link></li>
-              <li><Link href="/signup" className="hover:text-white transition-colors">Sign Up</Link></li>
-              <li><Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link></li>
+              <li><Link href="/workspace/login" className="hover:text-white transition-colors">Client login</Link></li>
+              <li><Link href="/login" className="hover:text-white transition-colors">Legacy app login</Link></li>
             </ul>
           </div>
         </div>
