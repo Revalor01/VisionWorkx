@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ moduleId:
   return json(
     req,
     mod.domains,
-    { type: mod.type, name: mod.workspaceName, logoUrl: mod.logoUrl, brand: resolveBrand(mod.brand, mod.config.style), config: mod.config },
+    { type: mod.type, name: mod.workspaceName, logoUrl: mod.logoUrl, brand: resolveBrand(mod.brand, mod.config.style), config: mod.config, quote: mod.quote },
     200,
     { "Cache-Control": "public, max-age=60" },
   );

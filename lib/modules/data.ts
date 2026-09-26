@@ -1,5 +1,6 @@
 import { modulesServiceClient } from "./supabase";
 import { parseBrand, parseFormConfig, type Brand, type FormConfig } from "./config";
+import { isQuoteModule, parseQuotePricing, type QuotePricing } from "./quote";
 
 // Server-side reads for the public embed paths. Only returns what a visitor's
 // browser is allowed to see (never webhook secrets, emails or plan).
@@ -19,6 +20,8 @@ export interface PublicModule {
   brand: Brand;
   logoUrl: string | null;
   config: FormConfig;
+  /** Pricing for quote calculators (config.quote); null for every other type. */
+  quote: QuotePricing | null;
   /** Server-only -- never sent to the visitor's browser, only used to decide whether/how to create a Checkout Session. */
   stripeConnectAccountId: string | null;
   connectPaymentsStatus: string;
@@ -70,6 +73,7 @@ export async function getModuleByPublicId(publicId: string): Promise<PublicModul
     brand: parseBrand(ws.brand),
     logoUrl: ws.logo_url,
     config: parseFormConfig(data.config),
+    quote: isQuoteModule(data.type) ? parseQuotePricing((data.config as { quote?: unknown } | null)?.quote) : null,
     stripeConnectAccountId: ws.stripe_connect_account_id,
     connectPaymentsStatus: ws.connect_payments_status,
     connectPaymentsTestMode: ws.connect_payments_test_mode,

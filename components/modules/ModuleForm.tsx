@@ -5,6 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import type { Brand, FieldDef, FileValue, FormConfig } from "@/lib/modules/config";
 import { FILE_MAX_BYTES, FILE_TYPES } from "@/lib/modules/config";
 import { UPLOAD_BUCKET } from "@/lib/modules/constants";
+import { computeEstimate, defaultAnswers, type QuoteAnswers, type QuotePricing } from "@/lib/modules/quote";
+import QuoteCalculator, { QUOTE_CSS } from "./QuoteCalculator";
 
 // The visitor-facing form rendered inside the embed iframe. Talks to the
 // parent page only through postMessage (height + optional redirect), and to
@@ -49,6 +51,8 @@ export default function ModuleForm(props: {
   logoUrl: string | null;
   brand: Brand;
   config: FormConfig;
+  /** Quote calculator pricing: adds an estimate step before the contact questions. */
+  quote?: QuotePricing | null;
   sourceUrl: string | null;
   preview?: boolean;
 }) {
@@ -59,6 +63,20 @@ export default function ModuleForm(props: {
   const [message, setMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<Record<string, Upload>>({});
+  const quote = props.quote ?? null;
+  const [step, setStep] = useState<"estimate" | "details">(quote ? "estimate" : "details");
+  const [answers, setAnswers] = useState<QuoteAnswers>(() => (quote ? defaultAnswers(quote) : {}));
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const firstStep = useRef(true);
+
+  // Moving between the estimate and contact steps: put focus on the new step.
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    detailsRef.current?.focus();
+  }, [step]);
 
   // Tell the embed loader how tall we are, whenever that changes.
   useEffect(() => {
@@ -145,7 +163,7 @@ export default function ModuleForm(props: {
       const res = await fetch(`/api/m/${publicId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data, source_url: props.sourceUrl, vw_hp: String(fd.get("vw_hp") ?? "") }),
+        body: JSON.stringify({ data, ...(quote ? { quote: answers } : {}), source_url: props.sourceUrl, vw_hp: String(fd.get("vw_hp") ?? "") }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -189,7 +207,7 @@ export default function ModuleForm(props: {
 
   return (
     <div ref={rootRef} className="vwm" style={vars}>
-      <style>{CSS}</style>
+      <style>{quote ? CSS + QUOTE_CSS : CSS}</style>
       <div className="vwm-card">
         <header className="vwm-head">
           {logoUrl ? (
@@ -209,9 +227,28 @@ export default function ModuleForm(props: {
               <div className="vwm-tick" aria-hidden="true">✓</div>
               <p>{message}</p>
             </div>
+          ) : quote && step === "estimate" ? (
+            <div ref={detailsRef} tabIndex={-1} className="vwm-step">
+              {config.intro && <p className="vwm-intro">{config.intro}</p>}
+              <QuoteCalculator pricing={quote} answers={answers} onChange={setAnswers} />
+              <button type="button" className="vwm-btn" onClick={() => setStep("details")}>
+                Get my exact quote
+              </button>
+            </div>
           ) : (
             <form onSubmit={onSubmit} noValidate>
-              {config.intro && <p className="vwm-intro">{config.intro}</p>}
+              {quote ? (
+                <div ref={detailsRef} tabIndex={-1} className="vwm-q-summary vwm-step">
+                  <span>
+                    Your estimate: <strong>{computeEstimate(quote, answers).text}</strong>
+                  </span>
+                  <button type="button" className="vwm-link" onClick={() => setStep("estimate")}>
+                    ← Adjust
+                  </button>
+                </div>
+              ) : (
+                config.intro && <p className="vwm-intro">{config.intro}</p>
+              )}
               {status === "error" && errorList.length > 0 && (
                 <div className="vwm-summary" ref={summaryRef} tabIndex={-1} role="alert" aria-labelledby="vwm-summary-h">
                   <p id="vwm-summary-h">Please fix {errorList.length === 1 ? "this" : `these ${errorList.length}`}:</p>
@@ -358,6 +395,7 @@ html,body{background:transparent!important;margin:0}
 .vwm-done{text-align:center;padding:18px 6px}
 .vwm-done p{margin:0;color:#39404f;font-size:15px;line-height:1.5}
 .vwm-tick{width:48px;height:48px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:var(--vw-soft);color:var(--vw-b);font-size:22px;font-weight:700}
+.vwm-step{outline:none}
 .vwm-hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .vwm-foot{padding:9px 20px;background:#f8f9fb;border-top:1px solid #eceef3;font-size:11.5px;color:#6f7789;text-align:right}
 @media (prefers-reduced-motion:reduce){.vwm *{transition:none!important}}

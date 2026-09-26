@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
-import { parseFormConfig } from "@/lib/modules/config";
+import { buildStoredConfig } from "@/lib/modules/moduleConfig";
 import { billingAllowsService } from "@/lib/modules/plans";
 
 // Owners edit a form's name/config or publish/pause it.
@@ -18,9 +18,17 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: s
   const patch: Record<string, unknown> = {};
   if (typeof body.name === "string" && body.name.trim()) patch.name = body.name.trim().slice(0, 120);
   if (body.config !== undefined) {
-    const config = parseFormConfig(body.config);
-    if (config.fields.length === 0) return NextResponse.json({ error: "Add at least one field." }, { status: 400 });
-    patch.config = config;
+    // The module's own type decides how its config is checked (never the request).
+    const { data: existing } = await modulesServiceClient()
+      .from("vw_modules")
+      .select("type")
+      .eq("public_id", publicId)
+      .eq("workspace_id", auth.workspace.id)
+      .maybeSingle();
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const built = buildStoredConfig(existing.type, body.config);
+    if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
+    patch.config = built.config;
   }
   if (body.status !== undefined) {
     if (!["draft", "live", "paused"].includes(body.status as string)) return NextResponse.json({ error: "Bad status" }, { status: 400 });

@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ModuleForm from "@/components/modules/ModuleForm";
+import QuotePricingEditor from "@/components/modules/QuotePricingEditor";
+import { parseQuotePricing, type QuotePricing } from "@/lib/modules/quote";
+import { DEFAULT_QUOTE_CONFIG } from "@/lib/modules/moduleConfig";
 import {
   FIELD_TYPES,
   parseFormConfig,
@@ -13,8 +16,9 @@ import {
   type FormConfig,
 } from "@/lib/modules/config";
 
-// Owner-facing lead form builder: describe the form in a sentence, get a
-// draft, edit anything, see it live, save, publish.
+// Owner-facing builder for lead forms and quote calculators: describe it in a
+// sentence, get a draft, edit anything, see it live, save, publish. A quote
+// calculator is a form (its fields are the contact questions) plus pricing.
 
 const TYPE_LABEL: Record<FieldType, string> = {
   text: "Short answer",
@@ -24,6 +28,14 @@ const TYPE_LABEL: Record<FieldType, string> = {
   textarea: "Long answer",
   file: "Photo or file",
 };
+
+type BuilderConfig = FormConfig & { quote?: QuotePricing };
+
+const QUOTE_EXAMPLES = [
+  "House cleaning: $90 base plus $12 per bedroom and $18 per bathroom, add-ons for oven and fridge, 10% off every-2-weeks visits.",
+  "Lawn mowing priced by yard size from 1,000 to 20,000 sq ft, $35 minimum, with edging and leaf cleanup add-ons.",
+  "Interior painting: $2.50 per square foot of wall, premium paint adds 20%, ceilings extra.",
+];
 
 const EXAMPLES = [
   "Quote request for plumbing jobs — ask for their address, what's wrong, and a photo.",
@@ -47,15 +59,19 @@ export default function FormBuilder(props: {
   logoUrl: string | null;
   workspaceBrand: Brand;
   hasDomains: boolean;
-  existing?: { publicId: string; name: string; status: string; config: FormConfig };
+  existing?: { publicId: string; name: string; status: string; config: BuilderConfig };
+  /** "quote" builds a quote calculator; defaults to a lead form. */
+  kind?: "form" | "quote";
 }) {
   const router = useRouter();
+  const isQuote = props.kind === "quote";
+  const noun = isQuote ? "quote calculator" : "lead form";
   const [step, setStep] = useState<Step>(props.existing ? "edit" : "describe");
   const [description, setDescription] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [note, setNote] = useState("");
   const [name, setName] = useState(props.existing?.name ?? "");
-  const [config, setConfig] = useState<FormConfig>(props.existing?.config ?? parseFormConfig({ fields: [] }));
+  const [config, setConfig] = useState<BuilderConfig>(props.existing?.config ?? parseFormConfig({ fields: [] }));
   const [publicId, setPublicId] = useState(props.existing?.publicId ?? null);
   const [status, setStatus] = useState(props.existing?.status ?? "draft");
   const [saving, setSaving] = useState(false);
@@ -63,7 +79,7 @@ export default function FormBuilder(props: {
   const [previewKey, setPreviewKey] = useState(0);
 
   const brand = useMemo(() => resolveBrand(props.workspaceBrand, config.style), [props.workspaceBrand, config.style]);
-  const set = (patch: Partial<FormConfig>) => {
+  const set = (patch: Partial<BuilderConfig>) => {
     setConfig((c) => ({ ...c, ...patch }));
     setMsg(null);
   };
@@ -78,12 +94,12 @@ export default function FormBuilder(props: {
       const res = await fetch(`/api/workspace/${props.slug}/modules/draft`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description, ...(isQuote ? { kind: "quote" } : {}) }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Couldn't draft the form.");
       setConfig(body.config);
-      setName(body.config.title || "Lead capture form");
+      setName(body.config.title || (isQuote ? "Quote calculator" : "Lead capture form"));
       setNote(body.note ?? "");
       setStep("edit");
       setPreviewKey((k) => k + 1);
@@ -109,14 +125,17 @@ export default function FormBuilder(props: {
   async function save(nextStatus?: "live" | "paused" | "draft") {
     setSaving(true);
     setMsg(null);
-    const clean = parseFormConfig(config); // same sanitiser the server uses
+    // Same sanitisers the server uses.
+    const clean: BuilderConfig = isQuote
+      ? { ...parseFormConfig(config), payment: null, quote: parseQuotePricing(config.quote) }
+      : parseFormConfig(config);
     try {
       let id = publicId;
       if (!id) {
         const res = await fetch(`/api/workspace/${props.slug}/modules`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, config: clean }),
+          body: JSON.stringify({ name, config: clean, ...(isQuote ? { type: "quote_calculator" } : {}) }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || "Couldn't save.");
@@ -136,9 +155,9 @@ export default function FormBuilder(props: {
         kind: "ok",
         text:
           nextStatus === "live"
-            ? "Published — your form is live. Copy the snippet on the Modules & install page."
+            ? `Published — your ${noun} is live. Copy the snippet on the Modules & install page.`
             : nextStatus === "paused"
-              ? "Paused — the form is hidden on your site until you publish it again."
+              ? `Paused — the ${noun} is hidden on your site until you publish it again.`
               : "Saved.",
       });
       router.refresh();
@@ -156,12 +175,16 @@ export default function FormBuilder(props: {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-navy-dark">New lead form</h1>
-          <p className="text-sm text-gray-500">Describe the form in plain English. We&apos;ll draft it, and you can change anything before it goes live.</p>
+          <h1 className="text-2xl font-bold text-navy-dark">New {noun}</h1>
+          <p className="text-sm text-gray-500">
+            {isQuote
+              ? "Describe how you price your work in plain English. We'll draft the calculator, and you can check every price before it goes live."
+              : "Describe the form in plain English. We'll draft it, and you can change anything before it goes live."}
+          </p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-6">
           <label htmlFor="fb-desc" className={label}>
-            What should the form ask for?
+            {isQuote ? "How do you price your work?" : "What should the form ask for?"}
           </label>
           <textarea
             id="fb-desc"
@@ -169,13 +192,17 @@ export default function FormBuilder(props: {
             maxLength={800}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Quote request for plumbing jobs — ask for their address and a photo of the problem."
+            placeholder={
+              isQuote
+                ? "e.g. House cleaning: $90 base plus $12 per bedroom and $18 per bathroom, with add-ons, and discounts for weekly visits."
+                : "e.g. Quote request for plumbing jobs — ask for their address and a photo of the problem."
+            }
             className={input}
           />
           <div className="mt-3 flex flex-wrap gap-2" aria-label="Examples">
-            {EXAMPLES.map((ex) => (
+            {(isQuote ? QUOTE_EXAMPLES : EXAMPLES).map((ex) => (
               <button key={ex} type="button" onClick={() => setDescription(ex)} className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">
-                {ex.split(" — ")[0].split(":")[0]}
+                {ex.split(" — ")[0].split(":")[0].split(" priced")[0]}
               </button>
             ))}
           </div>
@@ -186,13 +213,22 @@ export default function FormBuilder(props: {
               disabled={drafting || description.trim().length < 8}
               className="rounded-xl bg-navy-dark px-5 py-2.5 font-semibold text-white hover:bg-navy disabled:opacity-50"
             >
-              {drafting ? "Drafting your form…" : "Draft my form"}
+              {drafting ? `Drafting your ${isQuote ? "calculator" : "form"}…` : `Draft my ${isQuote ? "calculator" : "form"}`}
             </button>
-            <button type="button" onClick={() => { setConfig(parseFormConfig({ fields: [
-              { id: "name", label: "Full name", type: "text", required: true },
-              { id: "email", label: "Email", type: "email", required: true },
-            ] })); setName("Lead capture form"); setStep("edit"); }} className="text-sm font-semibold text-navy hover:underline">
-              Or start from a blank form
+            <button type="button" onClick={() => {
+              if (isQuote) {
+                setConfig(DEFAULT_QUOTE_CONFIG);
+                setName("Quote calculator");
+              } else {
+                setConfig(parseFormConfig({ fields: [
+                  { id: "name", label: "Full name", type: "text", required: true },
+                  { id: "email", label: "Email", type: "email", required: true },
+                ] }));
+                setName("Lead capture form");
+              }
+              setStep("edit");
+            }} className="text-sm font-semibold text-navy hover:underline">
+              {isQuote ? "Or start from an example calculator" : "Or start from a blank form"}
             </button>
           </div>
           <p role="status" aria-live="polite" className="mt-3 text-sm text-red-600">{msg?.kind === "err" ? msg.text : ""}</p>
@@ -205,7 +241,7 @@ export default function FormBuilder(props: {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-navy-dark">{props.existing ? "Edit lead form" : "Your draft form"}</h1>
+          <h1 className="text-2xl font-bold text-navy-dark">{props.existing ? `Edit ${noun}` : isQuote ? "Your draft calculator" : "Your draft form"}</h1>
           <p className="text-sm text-gray-500">
             Status: <strong>{status}</strong>
             {note && <span className="ml-2 text-amber-700">{note}</span>}
@@ -263,6 +299,12 @@ export default function FormBuilder(props: {
             </label>
           </section>
 
+          {isQuote ? (
+            <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-pricing">
+              <h2 id="fb-pricing" className="font-bold text-gray-900">Pricing</h2>
+              <QuotePricingEditor value={config.quote ?? parseQuotePricing({})} onChange={(quote) => set({ quote })} />
+            </section>
+          ) : (
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-payment">
             <div className="flex items-center justify-between">
               <h2 id="fb-payment" className="font-bold text-gray-900">Payment</h2>
@@ -307,10 +349,11 @@ export default function FormBuilder(props: {
               <p className="text-xs text-gray-500">Off — this form just collects the fields below.</p>
             )}
           </section>
+          )}
 
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="fb-fields">
             <div className="flex items-center justify-between">
-              <h2 id="fb-fields" className="font-bold text-gray-900">Questions</h2>
+              <h2 id="fb-fields" className="font-bold text-gray-900">{isQuote ? "Contact questions" : "Questions"}</h2>
               <button type="button" onClick={addField} disabled={config.fields.length >= 30} className="text-sm font-semibold text-navy hover:underline">+ Add a question</button>
             </div>
             <ol className="space-y-3">
@@ -408,6 +451,7 @@ export default function FormBuilder(props: {
               logoUrl={props.logoUrl}
               brand={brand}
               config={parseFormConfig(config)}
+              quote={isQuote ? parseQuotePricing(config.quote) : null}
               sourceUrl={null}
               preview
             />
