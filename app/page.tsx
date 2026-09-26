@@ -4,6 +4,7 @@ import Navbar from "@/components/nav/Navbar";
 import Footer from "@/components/nav/Footer";
 import ModuleForm from "@/components/modules/ModuleForm";
 import { parseFormConfig } from "@/lib/modules/config";
+import { PLAN_LIMITS, PLAN_PRICE, PLANS, TRIAL_DAYS, type ModulePlan } from "@/lib/modules/plans";
 
 // VisionWorkx marketing page — embeddable modules for the website a business
 // already has. (The old full-app builder is frozen; see docs/full-app-generation-freeze.md.)
@@ -63,12 +64,16 @@ const DASHBOARD = [
   "Separate logins for owners and staff",
 ];
 
-const EMAIL_TIERS = [
-  { plan: "Free", emails: "25" },
-  { plan: "Starter", emails: "100" },
-  { plan: "Growth", emails: "500" },
-  { plan: "Pro", emails: "2,000" },
-];
+const PLAN_FEATURES = (p: ModulePlan) => {
+  const l = PLAN_LIMITS[p];
+  return [
+    `${l.modules} modules`,
+    `${l.submissionsPerMonth.toLocaleString()} submissions a month`,
+    `${l.emailsPerMonth.toLocaleString()} automatic emails a month`,
+    `${l.storageBytes / 1024 ** 3} GB file storage`,
+    `${l.aiDraftsPerMonth} AI form drafts a month`,
+  ];
+};
 
 const FAQ = [
   {
@@ -89,7 +94,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: "Pricing is announced at launch. Join the waitlist and you'll be the first to know — and first in line.",
+    a: "Starter is $59 a month, Growth $129 and Pro $299 — or save 20% paying yearly. Every plan starts with a 14-day free trial, and you can cancel any time before it ends.",
   },
 ];
 
@@ -236,16 +241,19 @@ export default function HomePage() {
             </ul>
           </div>
           <div>
-            <p className="mb-3 text-sm font-semibold text-blue-200">Automatic emails each month</p>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {EMAIL_TIERS.map((t) => (
-                <div key={t.plan} className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                  <dt className="text-xs uppercase tracking-widest text-blue-300">{t.plan}</dt>
-                  <dd className="mt-1 text-2xl font-bold tabular-nums">{t.emails}</dd>
+            <p className="mb-3 text-sm font-semibold text-blue-200">Automatic emails each month, included</p>
+            <dl className="grid grid-cols-3 gap-3">
+              {PLANS.map((p) => (
+                <div key={p} className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                  <dt className="text-xs uppercase tracking-widest text-blue-300">{PLAN_PRICE[p].label}</dt>
+                  <dd className="mt-1 text-2xl font-bold tabular-nums">{PLAN_LIMITS[p].emailsPerMonth.toLocaleString()}</dd>
                 </div>
               ))}
             </dl>
-            <p className="mt-3 text-sm text-blue-200">Plan pricing is announced at launch.</p>
+            <p className="mt-3 text-sm text-blue-200">
+              Enough for a confirmation and an alert on every submission your plan includes.{" "}
+              <a href="#pricing" className="underline underline-offset-2 hover:text-white">See pricing</a>
+            </p>
           </div>
         </div>
       </section>
@@ -262,6 +270,50 @@ export default function HomePage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* ─── Pricing ─── */}
+      <section id="pricing" className="bg-off-white px-4 py-20">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-navy">Pricing</p>
+          <h2 className="mt-2 text-3xl font-bold text-navy-dark text-balance">Simple plans. Every one starts with a {TRIAL_DAYS}-day free trial.</h2>
+          <p className="mt-3 max-w-2xl text-gray-600">
+            Every plan includes automatic emails, your dashboard, your own branding and spam protection. Pay monthly, or save 20% paying yearly.
+          </p>
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            {PLANS.map((p) => {
+              const price = PLAN_PRICE[p];
+              const featured = p === "growth";
+              return (
+                <article key={p} className={`relative rounded-2xl bg-white p-7 ${featured ? "ring-2 ring-navy shadow-lg" : "ring-1 ring-gray-200"}`}>
+                  {featured && (
+                    <span className="absolute -top-3 left-7 rounded-full bg-navy px-3 py-1 text-xs font-semibold text-white">Most popular</span>
+                  )}
+                  <h3 className="text-lg font-bold text-navy-dark">{price.label}</h3>
+                  <p className="mt-3">
+                    <span className="text-4xl font-bold tabular-nums text-gray-900">${price.monthly}</span>
+                    <span className="text-gray-500">/month</span>
+                  </p>
+                  <p className="text-sm text-gray-500 tabular-nums">or ${price.annual.toLocaleString()}/year — save 20%</p>
+                  <ul className="mt-6 space-y-2 text-sm text-gray-700">
+                    {PLAN_FEATURES(p).map((f) => (
+                      <li key={f}>✓ {f}</li>
+                    ))}
+                  </ul>
+                  <a
+                    href={WAITLIST}
+                    className={`mt-7 block rounded-xl py-3 text-center font-semibold ${featured ? "bg-navy-dark text-white hover:bg-navy" : "border border-gray-300 text-navy-dark hover:bg-gray-50"}`}
+                  >
+                    Join the waitlist
+                  </a>
+                </article>
+              );
+            })}
+          </div>
+          <p className="mt-6 text-center text-sm text-gray-500">
+            {TRIAL_DAYS}-day free trial on every plan · card required, charged only after the trial · cancel any time. Busy month? We keep saving submissions up to 50% over your plan and let you know, so you never lose a customer.
+          </p>
         </div>
       </section>
 

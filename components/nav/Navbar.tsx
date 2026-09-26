@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#modules", label: "Modules" },
   { href: "/#automation", label: "Automation" },
+  { href: "/#pricing", label: "Pricing" },
   { href: "/#faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
   { href: "/workspace/login", label: "Client login" },
