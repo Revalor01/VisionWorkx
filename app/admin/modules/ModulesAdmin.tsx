@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { embedSnippet } from "@/lib/modules/install";
 import { MODULE_TYPES } from "@/lib/modules/constants";
 import type { ModuleCostEstimate, ModuleTypeCounts } from "@/lib/modules/moduleStats";
+import { AdminHeader, AdminProductPills } from "../AdminNavHeader";
 
 export interface AdminWorkspace {
   id: string; name: string; slug: string; domains: string[]; plan: string; created_at: string;
@@ -59,7 +60,12 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8 p-6">
+    <div className="min-h-screen bg-white">
+      <AdminHeader badge="Modules" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
+        <AdminProductPills />
+      </div>
+      <main className="mx-auto max-w-5xl space-y-8 p-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Operator</p>
         <h1 className="text-2xl font-bold text-navy-dark">VisionWorkx modules — client workspaces</h1>
@@ -121,7 +127,8 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
           </div>
         </section>
       ))}
-    </main>
+      </main>
+    </div>
   );
 }
 
