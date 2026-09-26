@@ -5,9 +5,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app";
-const TITLE = "Vision Workx — AI-Powered Apps for Small Businesses";
+const TITLE = "VisionWorkx — Booking, lead capture and follow-up for the website you already have";
 const DESCRIPTION =
-  "Describe the app you need in plain English. We build and deploy it in days — no code, no agency.";
+  "Add lead capture, online booking, quote calculators and intake forms to your existing WordPress, Squarespace, Wix, Webflow, Framer or Shopify site — with automatic follow-up emails. Just describe it.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

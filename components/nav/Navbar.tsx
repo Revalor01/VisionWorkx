@@ -6,11 +6,11 @@ import Link from "next/link";
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/#how-it-works", label: "How It Works" },
-  { href: "/#categories", label: "Features" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/#why-choose-us", label: "Why Us" },
+  { href: "/#modules", label: "Modules" },
+  { href: "/#automation", label: "Automation" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
-  { href: "/login", label: "Log in" },
+  { href: "/workspace/login", label: "Client login" },
 ];
 
 export default function Navbar() {
