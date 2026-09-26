@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { modulesConfigured, modulesServerClient } from "@/lib/modules/supabase";
+import { selfServeEnabled } from "@/lib/modules/selfServe";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "VisionWorkx workspace", robots: { index: false, follow: false } };
@@ -22,6 +23,7 @@ export default async function WorkspaceIndex() {
     return { ...ws, role: r.role as string };
   });
   if (list.length === 1) redirect(`/workspace/${list[0].slug}`);
+  if (list.length === 0 && selfServeEnabled()) redirect("/workspace/onboarding");
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-16">
@@ -30,7 +32,8 @@ export default async function WorkspaceIndex() {
         {list.length === 0 ? (
           <p className="text-gray-600">
             You&apos;re signed in as {user.email}, but you haven&apos;t been added to a workspace yet. Ask your Revalor
-            contact to invite you.
+            contact to invite you, or{" "}
+            <Link href="/start" className="font-semibold text-navy hover:underline">start your own workspace</Link>.
           </p>
         ) : (
           <ul className="divide-y divide-gray-100">

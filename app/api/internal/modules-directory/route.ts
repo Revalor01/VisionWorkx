@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
   const period = currentAutomationPeriod();
   const [{ data: ws }, { data: mods }, { data: members }, { data: subs }, { data: usage }] = await Promise.all([
-    db.from("vw_workspaces").select("id, name, slug, domains, plan, billing_status, trial_ends_at, current_period_end, time_zone, created_at").order("created_at", { ascending: false }),
+    db.from("vw_workspaces").select("id, name, slug, domains, plan, billing_status, trial_ends_at, current_period_end, time_zone, self_serve, install_requested_at, created_at").order("created_at", { ascending: false }),
     db.from("vw_modules").select("public_id, workspace_id, type, name, status, created_at, updated_at"),
     db.from("vw_workspace_members").select("workspace_id, role"),
     db.from("vw_submissions").select("workspace_id, created_at").gte("created_at", since),
@@ -42,6 +42,18 @@ export async function GET(req: NextRequest) {
       plan: w.plan,
       billing: { status: w.billing_status, trial_ends_at: w.trial_ends_at, current_period_end: w.current_period_end },
       limits: limitsFor(w.plan),
+      onboarding: {
+        self_serve: w.self_serve,
+        install_requested_at: w.install_requested_at,
+        // Coarse funnel stage for self-serve follow-up; "live" = submissions in the last 30 days.
+        stage: wsSubs.length
+          ? "live"
+          : !["trialing", "active", "past_due", "comped"].includes(w.billing_status)
+            ? "no_plan"
+            : (mods ?? []).some((m) => m.workspace_id === w.id)
+              ? "not_installed"
+              : "no_module",
+      },
       time_zone: w.time_zone,
       created_at: w.created_at,
       workspace_url: `${origin}/workspace/${w.slug}`,

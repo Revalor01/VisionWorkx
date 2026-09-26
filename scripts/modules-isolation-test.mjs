@@ -74,7 +74,7 @@ try {
 
   const aPlan = await a.client.from("vw_workspaces").update({ plan: "pro" }).eq("id", wsA.id);
   const planNow = await admin.from("vw_workspaces").select("plan").eq("id", wsA.id).single();
-  check("owners can't change their own plan", !!aPlan.error || planNow.data?.plan === "free");
+  check("owners can't change their own plan", !!aPlan.error || planNow.data?.plan !== "pro");
 
   const secretA = await a.client.from("vw_workspaces").select("webhook_secret").eq("id", wsA.id);
   check("webhook secret not readable by client logins", !!secretA.error);
@@ -95,6 +95,30 @@ try {
 
   const rate = await a.client.rpc("vw_rate_check", { p_key: "x", max_hits: 1, window_seconds: 1 });
   check("rate-limit function is server-only", !!rate.error);
+
+  // ── self-serve signup ──
+  const signup = await anon.auth.signUp({ email: `${tag}-direct@example.com`, password: pw });
+  if (signup.data?.user?.id) created.users.push(signup.data.user.id);
+  check("public Supabase signup stays disabled (accounts only via /api/start)", !!signup.error);
+
+  const ownIns = await a.client.from("vw_workspaces").insert({ name: "Sneaky", slug: `${tag}-sneaky`, self_serve: true, created_by: a.id }).select("id");
+  if (ownIns.data?.[0]?.id) created.workspaces.push(ownIns.data[0].id);
+  check("logins can't create workspaces directly", !!ownIns.error);
+
+  for (const [col, val] of [["self_serve", true], ["created_by", b.id], ["install_requested_at", new Date().toISOString()], ["billing_status", "comped"]]) {
+    const r = await a.client.from("vw_workspaces").update({ [col]: val }).eq("id", wsA.id);
+    const now = await admin.from("vw_workspaces").select(col).eq("id", wsA.id).single();
+    check(`owners can't set ${col}`, !!r.error || JSON.stringify(now.data?.[col]) !== JSON.stringify(val));
+  }
+
+  const { error: dupErr } = await admin.from("vw_workspaces").insert([
+    { name: "SS 1", slug: `${tag}-ss1`, self_serve: true, created_by: a.id },
+  ]);
+  const { data: ss1 } = await admin.from("vw_workspaces").select("id").eq("slug", `${tag}-ss1`).maybeSingle();
+  if (ss1) created.workspaces.push(ss1.id);
+  const second = await admin.from("vw_workspaces").insert({ name: "SS 2", slug: `${tag}-ss2`, self_serve: true, created_by: a.id }).select("id");
+  if (second.data?.[0]?.id) created.workspaces.push(second.data[0].id);
+  check("one self-serve workspace per user (DB-enforced)", !dupErr && second.error?.code === "23505");
 } catch (err) {
   console.error("ERROR", err?.message ?? err);
   failures++;

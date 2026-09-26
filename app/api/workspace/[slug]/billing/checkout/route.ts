@@ -48,6 +48,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
 
   const trialDays = trialDaysForNewSubscription(ws);
   const base = req.nextUrl.origin;
+  // First-time setup: land on the form builder (next checklist step) after checkout.
+  const { count: moduleCount } = await db.from("vw_modules").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
+  const successUrl = moduleCount ? `${base}/workspace/${slug}/billing?checkout=success` : `${base}/workspace/${slug}/modules/new?checkout=success`;
   const session = await s.checkout.sessions.create({
     mode: "subscription",
     customer,
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
       ...(trialDays ? { trial_period_days: trialDays } : {}),
     },
     metadata: { vw_workspace_id: ws.id },
-    success_url: `${base}/workspace/${slug}/billing?checkout=success`,
+    success_url: successUrl,
     cancel_url: `${base}/workspace/${slug}/billing?checkout=cancelled`,
   });
   return NextResponse.json({ url: session.url });
