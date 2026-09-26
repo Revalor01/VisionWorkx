@@ -18,3 +18,6 @@ export const SITE_BUILDERS = [
   "Framer",
   "Shopify",
 ] as const;
+
+/** Private storage bucket for files visitors attach (modules DB). */
+export const UPLOAD_BUCKET = "vw-uploads";

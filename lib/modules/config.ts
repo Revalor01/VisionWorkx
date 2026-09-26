@@ -5,7 +5,7 @@
 // A4 ships the generic form shape used by lead capture and intake forms.
 // Booking / quote modules (A7) add their own config types on top.
 
-export const FIELD_TYPES = ["text", "email", "phone", "select", "textarea"] as const;
+export const FIELD_TYPES = ["text", "email", "phone", "select", "textarea", "file"] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 
 export interface FieldDef {
@@ -15,7 +15,27 @@ export interface FieldDef {
   required: boolean;
   options?: string[]; // select only
   placeholder?: string;
-  maxLength: number;
+  maxLength: number; // text-like fields; unused for file
+}
+
+/** A file a visitor attached (uploaded to the private vw-uploads bucket). */
+export interface FileValue {
+  path: string; // <module uuid>/<random uuid>/<file name>
+  name: string;
+  size: number;
+  type: string;
+}
+
+export const FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const FILE_TYPES = [
+  "image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif", "application/pdf",
+] as const;
+
+/** Per-form style overrides; anything unset falls back to the workspace brand. */
+export interface FormStyle {
+  color?: string;
+  font?: Brand["font"];
+  radius?: number;
 }
 
 export interface FormConfig {
@@ -24,6 +44,7 @@ export interface FormConfig {
   submitLabel: string;
   successMessage: string;
   redirectUrl: string | null;
+  style: FormStyle;
   fields: FieldDef[];
 }
 
@@ -33,7 +54,7 @@ export interface Brand {
   radius: number;
 }
 
-const DEFAULT_MAX: Record<FieldType, number> = { text: 200, email: 254, phone: 40, select: 200, textarea: 4000 };
+const DEFAULT_MAX: Record<FieldType, number> = { text: 200, email: 254, phone: 40, select: 200, textarea: 4000, file: 0 };
 const ID_RE = /^[a-z][a-z0-9_]{0,39}$/;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -76,12 +97,18 @@ export function parseFormConfig(raw: unknown): FormConfig {
     });
   }
   const redirect = str(c.redirectUrl, 500);
+  const st = (c.style && typeof c.style === "object" ? c.style : {}) as Record<string, unknown>;
+  const style: FormStyle = {};
+  if (typeof st.color === "string" && HEX_RE.test(st.color)) style.color = st.color;
+  if (["modern", "classic", "friendly"].includes(st.font as string)) style.font = st.font as Brand["font"];
+  if (typeof st.radius === "number") style.radius = Math.max(0, Math.min(24, Math.round(st.radius)));
   return {
     title: str(c.title, 120),
     intro: str(c.intro, 500),
     submitLabel: str(c.submitLabel, 40) || "Send",
     successMessage: str(c.successMessage, 500) || "Thanks — we've got it and will be in touch soon.",
     redirectUrl: /^https:\/\/[^\s]+$/.test(redirect) ? redirect : null,
+    style,
     fields,
   };
 }
@@ -93,20 +120,58 @@ export function parseBrand(raw: unknown): Brand {
   return { color: typeof b.color === "string" && HEX_RE.test(b.color) ? b.color : "#1b2542", font, radius };
 }
 
+/** Workspace brand with the form's own style overrides applied. */
+export function resolveBrand(workspaceBrand: Brand, style: FormStyle | undefined): Brand {
+  return {
+    color: style?.color ?? workspaceBrand.color,
+    font: style?.font ?? workspaceBrand.font,
+    radius: style?.radius ?? workspaceBrand.radius,
+  };
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[0-9+().\-\s]{7,40}$/;
 
+export type SubmissionValue = string | FileValue;
+
 export type ValidationResult =
-  | { ok: true; values: Record<string, string> }
+  | { ok: true; values: Record<string, SubmissionValue> }
   | { ok: false; errors: Record<string, string> };
 
-/** Validate visitor input against the config. Unknown keys are ignored. */
-export function validateSubmission(config: FormConfig, input: unknown): ValidationResult {
+function parseFileValue(raw: unknown, modulePrefix: string): FileValue | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const path = typeof o.path === "string" ? o.path : "";
+  // Must be an upload issued for THIS module: <module uuid>/<uuid>/<name>, no traversal.
+  if (!path.startsWith(`${modulePrefix}/`) || path.includes("..") || path.length > 300) return null;
+  if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[^/]{1,120}$/.test(path)) return null;
+  const size = typeof o.size === "number" ? o.size : -1;
+  const type = typeof o.type === "string" ? o.type : "";
+  if (size <= 0 || size > FILE_MAX_BYTES || !(FILE_TYPES as readonly string[]).includes(type)) return null;
+  return { path, name: str(o.name, 120) || "file", size, type };
+}
+
+/**
+ * Validate visitor input against the config. Unknown keys are ignored.
+ * `modulePrefix` (the module's uuid) is required to accept file fields; the
+ * caller must still confirm each file actually exists in storage.
+ */
+export function validateSubmission(config: FormConfig, input: unknown, modulePrefix = ""): ValidationResult {
   const data = (input && typeof input === "object" && !Array.isArray(input) ? input : {}) as Record<string, unknown>;
-  const values: Record<string, string> = {};
+  const values: Record<string, SubmissionValue> = {};
   const errors: Record<string, string> = {};
   for (const f of config.fields) {
     const raw = data[f.id];
+    if (f.type === "file") {
+      if (raw === undefined || raw === null || raw === "") {
+        if (f.required) errors[f.id] = `${f.label} is required.`;
+        continue;
+      }
+      const fv = modulePrefix ? parseFileValue(raw, modulePrefix) : null;
+      if (!fv) errors[f.id] = `${f.label}: upload a photo or PDF up to 10 MB.`;
+      else values[f.id] = fv;
+      continue;
+    }
     const v = typeof raw === "string" ? raw.trim() : "";
     if (!v) {
       if (f.required) errors[f.id] = `${f.label} is required.`;
@@ -131,6 +196,7 @@ export const DEFAULT_LEAD_FORM: FormConfig = {
   submitLabel: "Send my request",
   successMessage: "Thanks — we've got your request and will be in touch soon.",
   redirectUrl: null,
+  style: {},
   fields: [
     { id: "name", label: "Full name", type: "text", required: true, maxLength: 120 },
     { id: "email", label: "Email", type: "email", required: true, maxLength: 254 },
