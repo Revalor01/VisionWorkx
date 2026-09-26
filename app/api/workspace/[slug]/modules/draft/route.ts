@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { formFromPrompt } from "@/lib/modules/formFromPrompt";
+import { currentPeriod, limitsFor } from "@/lib/modules/plans";
 
 // "Describe your form" -> an editable draft. Nothing is saved here.
 export const runtime = "nodejs";
@@ -21,7 +22,16 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   if (description.length < 8) return NextResponse.json({ error: "Describe the form in a sentence or two." }, { status: 400 });
   if (description.length > 800) return NextResponse.json({ error: "Keep the description under 800 characters." }, { status: 400 });
 
-  const { data: allowed } = await modulesServiceClient().rpc("vw_rate_check", {
+  const db = modulesServiceClient();
+  const { data: monthly } = await db.rpc("vw_rate_check", {
+    p_key: `ai_month:${auth.workspace.id}:${currentPeriod()}`,
+    max_hits: limitsFor(auth.workspace.plan).aiDraftsPerMonth,
+    window_seconds: 32 * 86400,
+  });
+  if (monthly === false) {
+    return NextResponse.json({ error: "You've used this month's AI drafts for your plan. You can still build and edit forms by hand, or upgrade on the Billing page." }, { status: 429 });
+  }
+  const { data: allowed } = await db.rpc("vw_rate_check", {
     p_key: `ai_draft:${auth.workspace.id}`,
     max_hits: 20,
     window_seconds: 3600,

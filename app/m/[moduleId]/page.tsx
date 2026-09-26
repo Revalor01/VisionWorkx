@@ -3,6 +3,7 @@ import { getModuleByPublicId } from "@/lib/modules/data";
 import { modulesConfigured } from "@/lib/modules/supabase";
 import ModuleForm from "@/components/modules/ModuleForm";
 import { resolveBrand } from "@/lib/modules/config";
+import { billingAllowsService } from "@/lib/modules/plans";
 
 // Rendered inside the embed iframe on client websites. Which sites may frame
 // it is enforced by a CSP frame-ancestors header set in middleware.
@@ -18,7 +19,7 @@ export default async function ModuleFramePage(props: {
   const { src } = await props.searchParams;
   const mod = modulesConfigured() ? await getModuleByPublicId(moduleId) : null;
 
-  if (!mod || mod.status !== "live") {
+  if (!mod || mod.status !== "live" || !billingAllowsService(mod.billingStatus)) {
     return (
       <p style={{ font: "14px system-ui, sans-serif", color: "#6a7285", padding: 16, margin: 0 }}>
         This form isn&apos;t available right now.

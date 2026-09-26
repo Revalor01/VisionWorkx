@@ -4,6 +4,7 @@ import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase"
 import { normalizeDomainList } from "@/lib/modules/domains";
 import { DEFAULT_LEAD_FORM, parseFormConfig } from "@/lib/modules/config";
 import { MODULE_TYPES, type ModuleType } from "@/lib/modules/constants";
+import { limitsFor } from "@/lib/modules/plans";
 
 // Operator-only actions for setting clients up. Everything here uses the
 // modules service role, so the operator check comes first, always.
@@ -74,6 +75,11 @@ export async function POST(req: NextRequest) {
     const type = MODULE_TYPES.includes(b.type as ModuleType) ? (b.type as ModuleType) : "lead_capture";
     const name = typeof b.name === "string" && b.name.trim() ? b.name.trim().slice(0, 120) : "Lead capture form";
     const config = b.config ? parseFormConfig(b.config) : DEFAULT_LEAD_FORM;
+    const { data: wsRow } = await db.from("vw_workspaces").select("plan, billing_status").eq("id", id).single();
+    const { count } = await db.from("vw_modules").select("id", { count: "exact", head: true }).eq("workspace_id", id);
+    if (wsRow && wsRow.billing_status !== "comped" && (count ?? 0) >= limitsFor(wsRow.plan).modules) {
+      return NextResponse.json({ error: `Plan limit: ${limitsFor(wsRow.plan).modules} modules on ${wsRow.plan}.` }, { status: 402 });
+    }
     const { data, error } = await db
       .from("vw_modules")
       .insert({ workspace_id: id, type, name, config })

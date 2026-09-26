@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { parseFormConfig } from "@/lib/modules/config";
+import { billingAllowsService } from "@/lib/modules/plans";
 
 // Owners edit a form's name/config or publish/pause it.
 export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: string; publicId: string }> }) {
@@ -23,6 +24,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: s
   }
   if (body.status !== undefined) {
     if (!["draft", "live", "paused"].includes(body.status as string)) return NextResponse.json({ error: "Bad status" }, { status: 400 });
+    if (body.status === "live" && !billingAllowsService(auth.workspace.billing_status)) {
+      return NextResponse.json({ error: "Start your 14-day free trial on the Billing page to publish forms." }, { status: 402 });
+    }
     if (body.status === "live" && auth.workspace.domains.length === 0) {
       return NextResponse.json({ error: "Add your website in Settings first — forms only load on your own site." }, { status: 400 });
     }
