@@ -1,6 +1,7 @@
 import { requireWorkspace } from "@/lib/modules/workspace";
 import { embedSnippet, INSTALL_STEPS } from "@/lib/modules/install";
 import { parseBrand, parseFormConfig, resolveBrand } from "@/lib/modules/config";
+import { isQuoteModule, parseQuotePricing } from "@/lib/modules/quote";
 import Link from "next/link";
 import ModuleForm from "@/components/modules/ModuleForm";
 import CopyButton from "@/components/modules/CopyButton";
@@ -38,7 +39,7 @@ export default async function WorkspaceModulesPage(props: { params: Promise<{ sl
       </div>
       {role === "owner" && (
         <Link href={`/workspace/${workspace.slug}/modules/new`} className="rounded-xl bg-navy-dark px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy">
-          + New lead form
+          + New module
         </Link>
       )}
       </div>
@@ -57,7 +58,7 @@ export default async function WorkspaceModulesPage(props: { params: Promise<{ sl
               <h2 id={`mod-${m.id}`} className="text-lg font-bold text-navy-dark">{m.name}</h2>
               <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{TYPE_LABEL[m.type] ?? m.type}</span>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL[m.status] ?? ""}`}>{m.status}</span>
-              {role === "owner" && (m.type === "lead_capture" || m.type === "intake_form") && (
+              {role === "owner" && (m.type === "lead_capture" || m.type === "intake_form" || m.type === "quote_calculator") && (
                 <Link href={`/workspace/${workspace.slug}/modules/${m.public_id}/edit`} className="ml-auto text-sm font-semibold text-navy hover:underline">
                   Edit form
                 </Link>
@@ -99,6 +100,7 @@ export default async function WorkspaceModulesPage(props: { params: Promise<{ sl
                     logoUrl={workspace.logo_url}
                     brand={resolveBrand(parseBrand(workspace.brand), parseFormConfig(m.config).style)}
                     config={parseFormConfig(m.config)}
+                    quote={isQuoteModule(m.type) ? parseQuotePricing((m.config as { quote?: unknown } | null)?.quote) : null}
                     sourceUrl={null}
                     preview
                   />

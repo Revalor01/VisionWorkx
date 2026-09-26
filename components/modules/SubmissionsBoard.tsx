@@ -39,6 +39,13 @@ const PILL: Record<SubmissionStatus, string> = {
 };
 
 const str = (v: Value | undefined) => (typeof v === "string" ? v : "");
+
+/** Answers in the form's own question order (jsonb doesn't keep key order); unknown keys last. */
+function orderedEntries<T>(data: Record<string, T>, labels: Record<string, string> | undefined): [string, T][] {
+  const order = Object.keys(labels ?? {});
+  const rank = (k: string) => (order.includes(k) ? order.indexOf(k) : order.length);
+  return Object.entries(data).sort(([a], [b]) => rank(a) - rank(b));
+}
 function who(d: Record<string, Value>): string {
   return str(d.name) || str(d.full_name) || str(d.email) || "Submission";
 }
@@ -216,7 +223,7 @@ export default function SubmissionsBoard(props: {
                 {props.moduleNames[open.module_id] ?? "Module"} · {fmt.format(new Date(open.created_at))}
               </p>
               <dl className="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                {Object.entries(open.data).map(([k, v]) => (
+                {orderedEntries(open.data, props.fieldLabels?.[open.module_id]).map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="text-gray-500">{props.fieldLabels?.[open.module_id]?.[k] ?? k.replace(/_/g, " ")}</dt>
                     <dd className="break-words text-gray-900 whitespace-pre-wrap">

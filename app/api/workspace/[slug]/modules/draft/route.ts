@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { formFromPrompt } from "@/lib/modules/formFromPrompt";
+import { quoteFromPrompt } from "@/lib/modules/quoteFromPrompt";
 import { currentPeriod, limitsFor } from "@/lib/modules/plans";
 
 // "Describe your form" -> an editable draft. Nothing is saved here.
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   const auth = await requireOwner(slug);
   if ("error" in auth) return auth.error;
 
-  let body: { description?: unknown };
+  let body: { description?: unknown; kind?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -40,6 +41,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
     return NextResponse.json({ error: "You've drafted a lot of forms this hour — try again a bit later, or edit the current draft by hand." }, { status: 429 });
   }
 
+  if (body.kind === "quote") {
+    const { config, fromAi } = await quoteFromPrompt({ description, businessName: auth.workspace.name });
+    return NextResponse.json({
+      config,
+      fromAi,
+      note: fromAi ? null : "We couldn't draft that automatically, so here's an example calculator to start from. Change every price to yours.",
+    });
+  }
   const { config, fromAi } = await formFromPrompt({ description, businessName: auth.workspace.name });
   return NextResponse.json({
     config,

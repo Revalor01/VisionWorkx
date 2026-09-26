@@ -8,6 +8,7 @@ import { UPLOAD_BUCKET } from "@/lib/modules/constants";
 import { billingAllowsService, gateSubmission, limitsFor } from "@/lib/modules/plans";
 import { sendUsageAlert, submissionsThisMonth } from "@/lib/modules/usage";
 import { createWorkspaceCheckout } from "@/lib/modules/connect";
+import { computeEstimate, normalizeAnswers, quoteFieldDefs, quoteValues } from "@/lib/modules/quote";
 import { NextResponse } from "next/server";
 
 // Public: visitors on client websites submit module forms here.
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
   const raw = await req.text();
   if (raw.length > MAX_BYTES) return NextResponse.json({ error: "Too large." }, { status: 413 });
 
-  let body: { data?: unknown; source_url?: unknown; [HONEYPOT]?: unknown };
+  let body: { data?: unknown; quote?: unknown; source_url?: unknown; [HONEYPOT]?: unknown };
   try {
     body = JSON.parse(raw);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
@@ -93,6 +94,16 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     result.values[f.id] = { ...fv, size: realSize, type: info.contentType ?? fv.type };
   }
 
+  // Quote calculator: recompute the estimate from the visitor's answers (a
+  // price sent by the browser is ignored) and store the answers + estimate as
+  // ordinary labelled values ahead of the contact details.
+  let quoteFields: { id: string; label: string; type: string }[] = [];
+  if (mod.quote) {
+    const answers = normalizeAnswers(mod.quote, body.quote);
+    result.values = { ...quoteValues(mod.quote, answers, computeEstimate(mod.quote, answers)), ...result.values };
+    quoteFields = quoteFieldDefs(mod.quote).map((f) => ({ ...f, type: "text" }));
+  }
+
   const sourceUrl =
     typeof body.source_url === "string" && /^https?:\/\//.test(body.source_url) ? body.source_url.slice(0, 500) : null;
 
@@ -115,7 +126,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
         typeof v === "string" ? [k, v] : [k, { file: true, name: v.name, size: v.size, type: v.type }],
       ),
     ),
-    fields: mod.config.fields.map((f) => ({ id: f.id, label: f.label, type: f.type })),
+    fields: [...quoteFields, ...mod.config.fields.map((f) => ({ id: f.id, label: f.label, type: f.type }))],
     created_at: sub.created_at,
   };
 
