@@ -1,0 +1,119 @@
+import { after, NextRequest } from "next/server";
+import { getModuleByPublicId } from "@/lib/modules/data";
+import { validateSubmission } from "@/lib/modules/config";
+import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
+import { corsHeaders, ipHash, json, originAllowed } from "@/lib/modules/http";
+import { sendWebhook } from "@/lib/modules/webhook";
+import { NextResponse } from "next/server";
+
+// Public: visitors on client websites submit module forms here.
+// Order matters — cheap checks first, database last:
+//   size -> JSON -> honeypot -> module lookup -> origin -> rate limit -> validate -> store.
+
+export const runtime = "nodejs";
+const MAX_BYTES = 16 * 1024;
+const HONEYPOT = "vw_hp";
+
+export async function OPTIONS(req: NextRequest, props: { params: Promise<{ moduleId: string }> }) {
+  const { moduleId } = await props.params;
+  if (!modulesConfigured()) return new NextResponse(null, { status: 204 });
+  const mod = await getModuleByPublicId(moduleId);
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req, mod?.domains ?? []) });
+}
+
+export async function POST(req: NextRequest, props: { params: Promise<{ moduleId: string }> }) {
+  const { moduleId } = await props.params;
+  if (!modulesConfigured()) return NextResponse.json({ error: "Modules aren't set up yet." }, { status: 503 });
+
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_BYTES) return NextResponse.json({ error: "Too large." }, { status: 413 });
+  const raw = await req.text();
+  if (raw.length > MAX_BYTES) return NextResponse.json({ error: "Too large." }, { status: 413 });
+
+  let body: { data?: unknown; source_url?: unknown; [HONEYPOT]?: unknown };
+  try {
+    body = JSON.parse(raw);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
+  } catch {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const mod = await getModuleByPublicId(moduleId);
+  if (!mod || mod.status !== "live") return NextResponse.json({ error: "This form isn't available." }, { status: 404 });
+  const domains = mod.domains;
+
+  if (!originAllowed(req, domains)) {
+    return json(req, domains, { error: "This form can't be used from this website." }, 403);
+  }
+
+  // Honeypot filled: pretend it worked, store nothing.
+  if (typeof body[HONEYPOT] === "string" && body[HONEYPOT] !== "") {
+    return json(req, domains, { ok: true, message: mod.config.successMessage, redirectUrl: mod.config.redirectUrl });
+  }
+
+  const db = modulesServiceClient();
+  const ip = ipHash(req);
+  const [perIp, perModule] = await Promise.all([
+    db.rpc("vw_rate_check", { p_key: `sub:${mod.publicId}:${ip}`, max_hits: 8, window_seconds: 600 }),
+    db.rpc("vw_rate_check", { p_key: `sub:${mod.publicId}`, max_hits: 300, window_seconds: 3600 }),
+  ]);
+  if (perIp.data === false || perModule.data === false) {
+    return json(req, domains, { error: "Too many submissions — please try again in a few minutes." }, 429, {
+      "Retry-After": "600",
+    });
+  }
+
+  const result = validateSubmission(mod.config, body.data);
+  if (!result.ok) return json(req, domains, { error: "Please fix the highlighted fields.", fields: result.errors }, 400);
+
+  const sourceUrl =
+    typeof body.source_url === "string" && /^https?:\/\//.test(body.source_url) ? body.source_url.slice(0, 500) : null;
+
+  const { data: sub, error } = await db
+    .from("vw_submissions")
+    .insert({ workspace_id: mod.workspaceId, module_id: mod.id, data: result.values, source_url: sourceUrl })
+    .select("id, created_at")
+    .single();
+  if (error || !sub) {
+    console.error("[modules/submit] insert failed:", error?.code);
+    return json(req, domains, { error: "Something went wrong — please try again." }, 500);
+  }
+
+  const eventPayload = {
+    submission_id: sub.id,
+    module: { id: mod.publicId, type: mod.type, name: mod.config.title },
+    workspace: { id: mod.workspaceId, name: mod.workspaceName },
+    data: result.values,
+    fields: mod.config.fields.map((f) => ({ id: f.id, label: f.label })),
+    created_at: sub.created_at,
+  };
+
+  // Event for the automation service (A6): customer confirmation + owner alert.
+  const ev = await db.from("vw_events").insert({
+    workspace_id: mod.workspaceId,
+    module_id: mod.id,
+    submission_id: sub.id,
+    type: "submission.created",
+    payload: eventPayload,
+  });
+  if (ev.error) console.error("[modules/submit] event insert failed:", ev.error.code);
+
+  // Outgoing webhook, after the response so the visitor never waits on it.
+  after(async () => {
+    const { data: ws } = await db
+      .from("vw_workspaces")
+      .select("webhook_url, webhook_secret")
+      .eq("id", mod.workspaceId)
+      .single();
+    if (!ws?.webhook_url) return;
+    const r = await sendWebhook(ws.webhook_url, ws.webhook_secret, { type: "submission.created", ...eventPayload });
+    await db.from("vw_webhook_deliveries").insert({
+      workspace_id: mod.workspaceId,
+      submission_id: sub.id,
+      status_code: r.status,
+      error: r.error,
+    });
+  });
+
+  return json(req, domains, { ok: true, message: mod.config.successMessage, redirectUrl: mod.config.redirectUrl });
+}

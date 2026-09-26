@@ -10,6 +10,20 @@ const nextConfig = {
   // keeps them un-bundled so `require()` + `__dirname` resolve normally at
   // real runtime instead.
   serverExternalPackages: ["ffmpeg-static", "ffprobe-static"],
+  // The module embed loader is pasted onto client websites: short cache so
+  // fixes reach every site within minutes.
+  async headers() {
+    return [
+      {
+        source: "/embed.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=300, s-maxage=300, stale-while-revalidate=86400" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+    ];
+  },
   // outputFileTracingIncludes still separately ensures the binary files
   // themselves (not just resolvable code) land in each route's deployed
   // bundle - Vercel's file tracer doesn't reliably detect them on its own

@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/lib/database.types";
+import { allowedFrameDomains } from "@/lib/modules/frameGuard";
+import { frameAncestors } from "@/lib/modules/domains";
 
 const TRIAL_DAYS = 14;
 
@@ -20,7 +22,9 @@ const SUBSCRIPTION_REQUIRED = ["/onboard", "/generate"];
 // public, unauthenticated read (see the migration's RLS policy), and this
 // keeps it a single fast fetch with no cookie plumbing. This app's own
 // /admin dashboard is exempt so an operator can still get in to fix things.
-const MAINTENANCE_BYPASS_PREFIXES = ["/maintenance", "/admin", "/api"];
+// "/m" and "/embed.js" are VisionWorkx modules embedded on CLIENT websites —
+// a VisionWorkx maintenance window must never break a client's own site.
+const MAINTENANCE_BYPASS_PREFIXES = ["/maintenance", "/admin", "/api", "/m", "/embed.js"];
 
 async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | null> {
   const path = req.nextUrl.pathname;
@@ -53,6 +57,18 @@ async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | nu
 }
 
 export async function middleware(req: NextRequest) {
+  // Module iframes (/m/<publicId>): only the workspace's own domains may frame
+  // them. Unknown module or lookup failure -> frame-ancestors 'none'.
+  const modMatch = req.nextUrl.pathname.match(/^\/m\/(m_[0-9a-f]{18})\/?$/);
+  if (modMatch) {
+    const domains = await allowedFrameDomains(modMatch[1]);
+    const res = NextResponse.next();
+    res.headers.set("Content-Security-Policy", `frame-ancestors ${frameAncestors(domains ?? [])}`);
+    res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    return res;
+  }
+
   const maintenanceRedirect = await checkMaintenanceMode(req);
   if (maintenanceRedirect) return maintenanceRedirect;
 
