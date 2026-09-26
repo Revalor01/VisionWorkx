@@ -13,6 +13,7 @@ const RATES: Record<string, { input: number; output: number }> = {
   // repair now use this model (see lib/apps/canaryApps.ts) specifically
   // to cut cost, so an accurate rate here is what proves that out.
   "claude-haiku-4-5-20251001": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
+  "claude-haiku-4-5": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
 };
 
 // One tag per direct-Anthropic-call site across the ecosystem — see each
@@ -34,7 +35,8 @@ export type AiUsageSource =
   | "content_engine_source"
   | "outreach_group_post"
   | "try_recommend"
-  | "stability_analysis";
+  | "stability_analysis"
+  | "module_config";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a
 // serverless function can be frozen/killed right after it returns, so a
