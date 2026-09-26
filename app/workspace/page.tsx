@@ -3,6 +3,7 @@ import Link from "next/link";
 import { modulesConfigured, modulesServerClient } from "@/lib/modules/supabase";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "VisionWorkx workspace", robots: { index: false, follow: false } };
 
 export default async function WorkspaceIndex() {
   if (!modulesConfigured()) redirect("/workspace/login");

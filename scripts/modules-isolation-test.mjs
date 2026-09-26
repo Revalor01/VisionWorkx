@@ -7,7 +7,8 @@
 // NEVER point this at a database with real client data you care about — it only
 // touches rows it creates, but run it on the modules DEV/pre-launch project.
 //
-// Usage: node --env-file=.env.local scripts/modules-isolation-test.mjs
+// Usage: node --env-file=.env.local scripts/modules-isolation-test.mjs   (Node 22+; on Node 20 use
+//        `npx -y node@22 --env-file=.env.local scripts/modules-isolation-test.mjs` — supabase-js needs native WebSocket)
 import { createClient } from "@supabase/supabase-js";
 
 const URL = process.env.MODULES_SUPABASE_URL ?? process.env.NEXT_PUBLIC_MODULES_SUPABASE_URL;

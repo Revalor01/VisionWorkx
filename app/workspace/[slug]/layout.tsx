@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/modules/workspace";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "VisionWorkx workspace", robots: { index: false, follow: false } };
 
 export default async function WorkspaceLayout(props: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;

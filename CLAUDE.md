@@ -66,6 +66,15 @@ still build). Don't remove the gates in `lib/featureFlags.ts` callers or re-enab
 without the user's OK. Details: `docs/full-app-generation-freeze.md`. The legacy sections below
 describe the frozen builder.
 
+## VisionWorkx modules database (A4) — a SEPARATE Supabase project
+Embeddable-module data (workspaces, modules, client customers' submissions) lives in the dedicated
+**visionworkx-modules** project (`vgyvycepumnrtseciofx`, us-east-1), NOT the main project above.
+Migrations: `supabase-modules/migrations` (never mix with `supabase/migrations`). Code: `lib/modules/*`,
+`public/embed.js`, `/m/[publicId]`, `/api/m/*`, `/workspace`, `/admin/modules`. Env: `MODULES_SUPABASE_URL`,
+`NEXT_PUBLIC_MODULES_SUPABASE_URL`, `NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY`, `MODULES_SUPABASE_SERVICE_ROLE_KEY`,
+`MODULES_DIRECTORY_SECRET`. Embed origin: `https://modules.revalorllc.com`. After any modules migration run
+`scripts/modules-isolation-test.mjs`. revalor-admin reads it only via `/api/internal/modules-directory`.
+
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
   adds or edits files in `supabase/migrations`) **migration-reviewer**. Don't open the PR on a
