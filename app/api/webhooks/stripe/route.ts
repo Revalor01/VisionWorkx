@@ -5,6 +5,7 @@ import { syncConnectAccount } from "@/lib/apps/payments";
 import { confirmGuidedSession } from "@/lib/apps/guidedSession";
 import { sendBillingEmail, lookupUserEmails } from "@/lib/billing/notify";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
+import { syncWorkspaceSubscription } from "@/lib/modules/billing";
 
 // Stripe uses "canceled"; our schema uses "cancelled"
 const STRIPE_STATUS_MAP: Record<string, SubscriptionStatus> = {
@@ -63,6 +64,32 @@ export async function POST(req: NextRequest) {
   if (!event) {
     console.error("[stripe webhook] signature verification failed for all secrets");
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // VisionWorkx module workspaces (modules DB) — routed by metadata, handled
+  // before the legacy account logic below so the two never mix.
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.metadata?.vw_workspace_id && typeof session.subscription === "string") {
+        const sub = await stripe.subscriptions.retrieve(session.subscription);
+        await syncWorkspaceSubscription(sub);
+        return NextResponse.json({ received: true });
+      }
+    } else if (
+      event.type === "customer.subscription.created" ||
+      event.type === "customer.subscription.updated" ||
+      event.type === "customer.subscription.deleted"
+    ) {
+      const sub = event.data.object as Stripe.Subscription;
+      if (sub.metadata?.vw_workspace_id) {
+        await syncWorkspaceSubscription(sub);
+        return NextResponse.json({ received: true });
+      }
+    }
+  } catch (err) {
+    console.error("[stripe webhook] module workspace sync failed:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "sync failed" }, { status: 500 });
   }
 
   const serviceClient = createServiceClient();
