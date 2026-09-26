@@ -40,6 +40,28 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: s
     }
     patch.status = body.status;
   }
+  // A deposit only works once Stripe is connected; otherwise it's silently
+  // skipped and the owner would think they're collecting payments. Check the
+  // state the module would end up in (live + payment on).
+  if (patch.status !== undefined || patch.config !== undefined) {
+    const { data: cur } = await modulesServiceClient()
+      .from("vw_modules")
+      .select("status, config")
+      .eq("public_id", publicId)
+      .eq("workspace_id", auth.workspace.id)
+      .maybeSingle();
+    const finalStatus = (patch.status as string | undefined) ?? cur?.status;
+    const finalConfig = (patch.config ?? cur?.config) as { payment?: { enabled?: boolean } | null } | null | undefined;
+    if (finalStatus === "live" && finalConfig?.payment?.enabled === true) {
+      const { data: ws } = await modulesServiceClient().from("vw_workspaces").select("connect_payments_status").eq("id", auth.workspace.id).single();
+      if (ws?.connect_payments_status !== "active") {
+        return NextResponse.json(
+          { error: "This form collects a payment, but Stripe isn't connected yet. Connect it on the Billing page, or turn off the payment, then publish." },
+          { status: 400 },
+        );
+      }
+    }
+  }
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
 
   const { data, error } = await modulesServiceClient()
