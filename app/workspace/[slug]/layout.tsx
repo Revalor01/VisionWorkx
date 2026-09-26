@@ -8,7 +8,13 @@ export const metadata: Metadata = { title: "VisionWorkx workspace", robots: { in
 
 export default async function WorkspaceLayout(props: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;
-  const { workspace, role, user } = await requireWorkspace(slug);
+  const { supabase, workspace, role, user } = await requireWorkspace(slug);
+  const { count: bookingModules } = await supabase
+    .from("vw_modules")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", workspace.id)
+    .eq("type", "booking");
+  const hasBooking = (bookingModules ?? 0) > 0;
   const base = `/workspace/${workspace.slug}`;
   return (
     <div className="min-h-screen bg-gray-50">
@@ -20,6 +26,9 @@ export default async function WorkspaceLayout(props: { children: React.ReactNode
           </div>
           <nav className="flex items-center gap-1 text-sm" aria-label="Workspace">
             <Link href={base} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Submissions</Link>
+            {hasBooking && (
+              <Link href={`${base}/bookings`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Bookings</Link>
+            )}
             <Link href={`${base}/modules`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Modules &amp; install</Link>
             <Link href={`${base}/emails`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Emails</Link>
             <Link href={`${base}/billing`} className="rounded-lg px-3 py-2 font-medium text-gray-700 hover:bg-gray-100">Billing</Link>

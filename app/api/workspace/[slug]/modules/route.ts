@@ -19,10 +19,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   }
   const type = body.type === undefined ? "lead_capture" : body.type;
   if (!(CREATABLE_TYPES as readonly unknown[]).includes(type)) return NextResponse.json({ error: "Unknown module type." }, { status: 400 });
-  const built = buildStoredConfig(type as string, body.config);
+  const built = buildStoredConfig(type as string, body.config, auth.workspace.time_zone);
   if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
   const config = built.config;
-  const fallbackName = type === "quote_calculator" ? "Quote calculator" : "Lead capture form";
+  const fallbackName = type === "quote_calculator" ? "Quote calculator" : type === "booking" ? "Online booking" : "Lead capture form";
   const name = (typeof body.name === "string" && body.name.trim() ? body.name.trim() : config.title || fallbackName).slice(0, 120);
 
   const db = modulesServiceClient();
@@ -36,8 +36,31 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   const { data, error } = await db
     .from("vw_modules")
     .insert({ workspace_id: auth.workspace.id, type, name, config, status: "draft" })
-    .select("public_id")
+    .select("id, public_id")
     .single();
   if (error || !data) return NextResponse.json({ error: "Couldn't save the form." }, { status: 500 });
+  // Booking pages get booking-worded emails (the defaults talk about a "request").
+  // Module-level templates, so the owner can still edit them on the Emails page.
+  if (type === "booking") {
+    const { error: tplErr } = await db.from("vw_email_templates").insert([
+      {
+        workspace_id: auth.workspace.id,
+        module_id: data.id,
+        kind: "customer_confirmation",
+        subject: "You're booked with {{business_name}}, {{customer_first_name}}",
+        body:
+          "Hi {{customer_first_name}},\n\nYou're booked! Here are the details:\n\n{{submission_summary}}\n\n" +
+          "We'll send you a reminder the day before. Need to change it? Use the change or cancel link above.\n\n— {{business_name}}",
+      },
+      {
+        workspace_id: auth.workspace.id,
+        module_id: data.id,
+        kind: "owner_alert",
+        subject: "New booking: {{customer_name}}",
+        body: "You have a new booking from your {{form_name}} page.\n\n{{submission_summary}}\n\nSee all bookings: {{dashboard_url}}/bookings",
+      },
+    ]);
+    if (tplErr) console.error("[modules] booking email templates failed:", tplErr.message);
+  }
   return NextResponse.json({ ok: true, publicId: data.public_id });
 }

@@ -7,6 +7,8 @@ import { FILE_MAX_BYTES, FILE_TYPES } from "@/lib/modules/config";
 import { UPLOAD_BUCKET } from "@/lib/modules/constants";
 import { computeEstimate, defaultAnswers, type QuoteAnswers, type QuotePricing } from "@/lib/modules/quote";
 import QuoteCalculator, { QUOTE_CSS } from "./QuoteCalculator";
+import { BOOKING_CSS, ServicePicker, TimePicker, visitorTimeZone } from "./BookingWidget";
+import type { BookingSetup } from "@/lib/modules/booking";
 
 // The visitor-facing form rendered inside the embed iframe. Talks to the
 // parent page only through postMessage (height + optional redirect), and to
@@ -53,6 +55,8 @@ export default function ModuleForm(props: {
   config: FormConfig;
   /** Quote calculator pricing: adds an estimate step before the contact questions. */
   quote?: QuotePricing | null;
+  /** Booking setup: adds service + time steps before the contact questions. */
+  booking?: BookingSetup | null;
   sourceUrl: string | null;
   preview?: boolean;
 }) {
@@ -64,7 +68,15 @@ export default function ModuleForm(props: {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<Record<string, Upload>>({});
   const quote = props.quote ?? null;
-  const [step, setStep] = useState<"estimate" | "details">(quote ? "estimate" : "details");
+  const booking = props.booking ?? null;
+  const [step, setStep] = useState<"estimate" | "service" | "time" | "details">(
+    quote ? "estimate" : booking ? (booking.services.length === 1 ? "time" : "service") : "details",
+  );
+  const [serviceId, setServiceId] = useState<string | null>(booking?.services.length === 1 ? booking.services[0].id : null);
+  const [start, setStart] = useState<string | null>(null);
+  const [slotMsg, setSlotMsg] = useState("");
+  const [calendar, setCalendar] = useState<{ icsUrl: string; manageUrl: string } | null>(null);
+  const service = booking?.services.find((x) => x.id === serviceId) ?? null;
   const [answers, setAnswers] = useState<QuoteAnswers>(() => (quote ? defaultAnswers(quote) : {}));
   const detailsRef = useRef<HTMLDivElement>(null);
   const firstStep = useRef(true);
@@ -163,9 +175,23 @@ export default function ModuleForm(props: {
       const res = await fetch(`/api/m/${publicId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data, ...(quote ? { quote: answers } : {}), source_url: props.sourceUrl, vw_hp: String(fd.get("vw_hp") ?? "") }),
+        body: JSON.stringify({
+          data,
+          ...(quote ? { quote: answers } : {}),
+          ...(booking ? { booking: { serviceId, start, timeZone: visitorTimeZone() } } : {}),
+          source_url: props.sourceUrl,
+          vw_hp: String(fd.get("vw_hp") ?? ""),
+        }),
       });
       const body = await res.json().catch(() => ({}));
+      if (!res.ok && body.code === "slot_taken") {
+        // Someone else got that time first: back to the picker with a note.
+        setStart(null);
+        setSlotMsg(body.error || "That time was just taken — please pick another.");
+        setStatus("idle");
+        setStep("time");
+        return;
+      }
       if (!res.ok) {
         setFieldErrors(body.fields ?? {});
         throw new Error(body.error || "Something went wrong — please try again.");
@@ -180,6 +206,7 @@ export default function ModuleForm(props: {
           return;
         }
       }
+      if (body.booking?.icsUrl) setCalendar(body.booking);
       setStatus("done");
       setMessage(body.message || config.successMessage);
     } catch (err) {
@@ -207,7 +234,7 @@ export default function ModuleForm(props: {
 
   return (
     <div ref={rootRef} className="vwm" style={vars}>
-      <style>{quote ? CSS + QUOTE_CSS : CSS}</style>
+      <style>{CSS + (quote ? QUOTE_CSS : "") + (booking ? BOOKING_CSS : "")}</style>
       <div className="vwm-card">
         <header className="vwm-head">
           {logoUrl ? (
@@ -226,6 +253,44 @@ export default function ModuleForm(props: {
             <div className="vwm-done" role="status" aria-live="polite">
               <div className="vwm-tick" aria-hidden="true">✓</div>
               <p>{message}</p>
+              {calendar && (
+                <p className="vwm-b-cal">
+                  <a href={calendar.icsUrl}>Add to my calendar</a> · <a href={calendar.manageUrl} target="_blank" rel="noopener noreferrer">Change or cancel</a>
+                </p>
+              )}
+            </div>
+          ) : booking && step === "service" ? (
+            <div ref={detailsRef} tabIndex={-1} className="vwm-step">
+              {config.intro && <p className="vwm-intro">{config.intro}</p>}
+              <ServicePicker services={booking.services} value={serviceId} onChange={(id) => { setServiceId(id); setStart(null); }} />
+              <button type="button" className="vwm-btn" disabled={!serviceId} onClick={() => setStep("time")}>
+                Choose a time
+              </button>
+            </div>
+          ) : booking && step === "time" && service ? (
+            <div ref={detailsRef} tabIndex={-1} className="vwm-step">
+              {booking.services.length > 1 ? (
+                <div className="vwm-b-summary">
+                  <span>
+                    <strong>{service.name}</strong> · {service.durationMin} min
+                  </span>
+                  <button type="button" className="vwm-link" onClick={() => setStep("service")}>
+                    Change
+                  </button>
+                </div>
+              ) : (
+                config.intro && <p className="vwm-intro">{config.intro}</p>
+              )}
+              <p className="vwm-b-h">Pick a day and time</p>
+              {slotMsg && (
+                <p className="vwm-err" role="alert">
+                  {slotMsg}
+                </p>
+              )}
+              <TimePicker publicId={publicId} setup={booking} service={service} value={start} onChange={(iso) => { setStart(iso); setSlotMsg(""); }} preview={props.preview} />
+              <button type="button" className="vwm-btn" disabled={!start} onClick={() => setStep("details")}>
+                Continue
+              </button>
             </div>
           ) : quote && step === "estimate" ? (
             <div ref={detailsRef} tabIndex={-1} className="vwm-step">
@@ -237,7 +302,17 @@ export default function ModuleForm(props: {
             </div>
           ) : (
             <form onSubmit={onSubmit} noValidate>
-              {quote ? (
+              {booking && service && start ? (
+                <div ref={detailsRef} tabIndex={-1} className="vwm-b-summary vwm-step">
+                  <span>
+                    <strong>{service.name}</strong> ·{" "}
+                    {new Intl.DateTimeFormat("en-US", { timeZone: visitorTimeZone(), weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(start))}
+                  </span>
+                  <button type="button" className="vwm-link" onClick={() => setStep("time")}>
+                    ← Change
+                  </button>
+                </div>
+              ) : quote ? (
                 <div ref={detailsRef} tabIndex={-1} className="vwm-q-summary vwm-step">
                   <span>
                     Your estimate: <strong>{computeEstimate(quote, answers).text}</strong>
@@ -396,6 +471,8 @@ html,body{background:transparent!important;margin:0}
 .vwm-done p{margin:0;color:#39404f;font-size:15px;line-height:1.5}
 .vwm-tick{width:48px;height:48px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:var(--vw-soft);color:var(--vw-b);font-size:22px;font-weight:700}
 .vwm-step{outline:none}
+.vwm-b-cal{margin:12px 0 0!important;font-size:14px}
+.vwm-b-cal a{color:#39404f;font-weight:600}
 .vwm-hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .vwm-foot{padding:9px 20px;background:#f8f9fb;border-top:1px solid #eceef3;font-size:11.5px;color:#6f7789;text-align:right}
 @media (prefers-reduced-motion:reduce){.vwm *{transition:none!important}}

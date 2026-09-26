@@ -9,6 +9,9 @@ import { billingAllowsService, gateSubmission, limitsFor } from "@/lib/modules/p
 import { sendUsageAlert, submissionsThisMonth } from "@/lib/modules/usage";
 import { createWorkspaceCheckout } from "@/lib/modules/connect";
 import { computeEstimate, normalizeAnswers, quoteFieldDefs, quoteValues } from "@/lib/modules/quote";
+import { bookingFieldDefs, bookingValues, isValidTimeZone, whenText } from "@/lib/modules/booking";
+import { manageUrl, reserveSlot, scheduleReminder } from "@/lib/modules/bookingServer";
+import { submissionEmail } from "@/lib/modules/submissionEmail";
 import { NextResponse } from "next/server";
 
 // Public: visitors on client websites submit module forms here.
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
   const raw = await req.text();
   if (raw.length > MAX_BYTES) return NextResponse.json({ error: "Too large." }, { status: 413 });
 
-  let body: { data?: unknown; quote?: unknown; source_url?: unknown; [HONEYPOT]?: unknown };
+  let body: { data?: unknown; quote?: unknown; booking?: unknown; source_url?: unknown; [HONEYPOT]?: unknown };
   try {
     body = JSON.parse(raw);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
@@ -104,6 +107,42 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     quoteFields = quoteFieldDefs(mod.quote).map((f) => ({ ...f, type: "text" }));
   }
 
+  // Booking: re-check and reserve the slot (the database rejects overlaps, so
+  // two visitors racing for one time can't both get it), then store the
+  // booking details as labelled values ahead of the contact details.
+  let booked: { bookingId: string; token: string; start: Date; serviceName: string; customerTz: string | null } | null = null;
+  let bookingFields: { id: string; label: string; type: string }[] = [];
+  if (mod.booking) {
+    const req0 = (body.booking && typeof body.booking === "object" ? body.booking : {}) as { serviceId?: unknown; start?: unknown; timeZone?: unknown };
+    const service = mod.booking.services.find((x) => x.id === req0.serviceId);
+    const start = new Date(typeof req0.start === "string" ? req0.start : "");
+    const customerTz = typeof req0.timeZone === "string" && isValidTimeZone(req0.timeZone) ? req0.timeZone : null;
+    if (!service || Number.isNaN(start.getTime())) return json(req, domains, { error: "Pick a service and a time first." }, 400);
+    const r = await reserveSlot({ workspaceId: mod.workspaceId, moduleId: mod.id, setup: mod.booking, service, start, customerTz });
+    if (!r.ok) {
+      return json(
+        req,
+        domains,
+        {
+          error:
+            r.reason === "error"
+              ? "Something went wrong — please try again."
+              : r.reason === "taken"
+                ? "Sorry — that time was just taken. Please pick another."
+                : "That time isn't available — please pick another.",
+          code: r.reason === "error" ? undefined : "slot_taken",
+        },
+        r.reason === "error" ? 500 : 409,
+      );
+    }
+    booked = { bookingId: r.bookingId, token: r.token, start, serviceName: service.name, customerTz };
+    result.values = {
+      ...bookingValues({ whenText: whenText(start, mod.booking, customerTz), service, manageUrl: manageUrl(r.token), locationNote: mod.booking.locationNote }),
+      ...result.values,
+    };
+    bookingFields = bookingFieldDefs().map((f) => ({ ...f, type: "text" }));
+  }
+
   const sourceUrl =
     typeof body.source_url === "string" && /^https?:\/\//.test(body.source_url) ? body.source_url.slice(0, 500) : null;
 
@@ -114,6 +153,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     .single();
   if (error || !sub) {
     console.error("[modules/submit] insert failed:", error?.code);
+    // Don't leave a reserved slot behind for a booking that didn't save.
+    if (booked) await db.from("vw_bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", booked.bookingId);
     return json(req, domains, { error: "Something went wrong — please try again." }, 500);
   }
 
@@ -126,9 +167,28 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
         typeof v === "string" ? [k, v] : [k, { file: true, name: v.name, size: v.size, type: v.type }],
       ),
     ),
-    fields: [...quoteFields, ...mod.config.fields.map((f) => ({ id: f.id, label: f.label, type: f.type }))],
+    fields: [...quoteFields, ...bookingFields, ...mod.config.fields.map((f) => ({ id: f.id, label: f.label, type: f.type }))],
     created_at: sub.created_at,
   };
+
+  if (booked && mod.booking) {
+    await db.from("vw_bookings").update({ submission_id: sub.id }).eq("id", booked.bookingId);
+    const values = result.values as Record<string, unknown>;
+    await scheduleReminder({
+      bookingId: booked.bookingId,
+      workspaceId: mod.workspaceId,
+      moduleId: mod.id,
+      submissionId: sub.id,
+      businessName: mod.workspaceName,
+      start: booked.start,
+      setup: mod.booking,
+      customerTz: booked.customerTz,
+      serviceName: booked.serviceName,
+      to: submissionEmail(values),
+      customerName: typeof values.name === "string" ? values.name : "",
+      token: booked.token,
+    });
+  }
 
   // Event for the automation service (A6): customer confirmation + owner alert.
   const ev = await db.from("vw_events").insert({
@@ -185,5 +245,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     }
   }
 
-  return json(req, domains, { ok: true, message: mod.config.successMessage, redirectUrl });
+  return json(req, domains, {
+    ok: true,
+    message: mod.config.successMessage,
+    redirectUrl,
+    ...(booked ? { booking: { manageUrl: manageUrl(booked.token), icsUrl: `${manageUrl(booked.token).replace("/b/", "/api/b/")}/ics` } } : {}),
+  });
 }

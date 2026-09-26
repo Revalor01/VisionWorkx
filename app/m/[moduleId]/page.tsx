@@ -26,7 +26,7 @@ export default async function ModuleFramePage(props: {
       </p>
     );
   }
-  if (mod.type !== "lead_capture" && mod.type !== "intake_form" && mod.type !== "quote_calculator") {
+  if (mod.type !== "lead_capture" && mod.type !== "intake_form" && mod.type !== "quote_calculator" && mod.type !== "booking") {
     return (
       <p style={{ font: "14px system-ui, sans-serif", color: "#6a7285", padding: 16, margin: 0 }}>
         This module type is coming soon.
@@ -42,6 +42,7 @@ export default async function ModuleFramePage(props: {
       brand={resolveBrand(mod.brand, mod.config.style)}
       config={mod.config}
       quote={mod.quote}
+      booking={mod.booking}
       sourceUrl={sourceUrl}
     />
   );

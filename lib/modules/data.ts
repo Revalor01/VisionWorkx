@@ -1,6 +1,7 @@
 import { modulesServiceClient } from "./supabase";
 import { parseBrand, parseFormConfig, type Brand, type FormConfig } from "./config";
 import { isQuoteModule, parseQuotePricing, type QuotePricing } from "./quote";
+import { isBookingModule, parseBookingSetup, type BookingSetup } from "./booking";
 
 // Server-side reads for the public embed paths. Only returns what a visitor's
 // browser is allowed to see (never webhook secrets, emails or plan).
@@ -22,6 +23,8 @@ export interface PublicModule {
   config: FormConfig;
   /** Pricing for quote calculators (config.quote); null for every other type. */
   quote: QuotePricing | null;
+  /** Services, hours and rules for booking modules (config.booking); null otherwise. */
+  booking: BookingSetup | null;
   /** Server-only -- never sent to the visitor's browser, only used to decide whether/how to create a Checkout Session. */
   stripeConnectAccountId: string | null;
   connectPaymentsStatus: string;
@@ -40,7 +43,7 @@ export async function getModuleByPublicId(publicId: string): Promise<PublicModul
   const { data, error } = await db
     .from("vw_modules")
     .select(
-      "id, public_id, workspace_id, type, status, config, vw_workspaces!inner(name, slug, domains, brand, logo_url, plan, billing_status, notification_email, stripe_connect_account_id, connect_payments_status, connect_payments_test_mode)",
+      "id, public_id, workspace_id, type, status, config, vw_workspaces!inner(name, slug, domains, brand, logo_url, plan, billing_status, notification_email, time_zone, stripe_connect_account_id, connect_payments_status, connect_payments_test_mode)",
     )
     .eq("public_id", publicId)
     .maybeSingle();
@@ -54,6 +57,7 @@ export async function getModuleByPublicId(publicId: string): Promise<PublicModul
     plan: string;
     billing_status: string;
     notification_email: string | null;
+    time_zone: string;
     stripe_connect_account_id: string | null;
     connect_payments_status: string;
     connect_payments_test_mode: boolean;
@@ -74,6 +78,7 @@ export async function getModuleByPublicId(publicId: string): Promise<PublicModul
     logoUrl: ws.logo_url,
     config: parseFormConfig(data.config),
     quote: isQuoteModule(data.type) ? parseQuotePricing((data.config as { quote?: unknown } | null)?.quote) : null,
+    booking: isBookingModule(data.type) ? parseBookingSetup((data.config as { booking?: unknown } | null)?.booking, ws.time_zone) : null,
     stripeConnectAccountId: ws.stripe_connect_account_id,
     connectPaymentsStatus: ws.connect_payments_status,
     connectPaymentsTestMode: ws.connect_payments_test_mode,

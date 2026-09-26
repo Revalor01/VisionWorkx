@@ -22,9 +22,10 @@ const SUBSCRIPTION_REQUIRED = ["/onboard", "/generate"];
 // public, unauthenticated read (see the migration's RLS policy), and this
 // keeps it a single fast fetch with no cookie plumbing. This app's own
 // /admin dashboard is exempt so an operator can still get in to fix things.
-// "/m" and "/embed.js" are VisionWorkx modules embedded on CLIENT websites —
+// "/m" and "/embed.js" are VisionWorkx modules embedded on CLIENT websites
+// ("/b" is their customers' manage-booking links) —
 // a VisionWorkx maintenance window must never break a client's own site.
-const MAINTENANCE_BYPASS_PREFIXES = ["/maintenance", "/admin", "/api", "/m", "/embed.js"];
+const MAINTENANCE_BYPASS_PREFIXES = ["/maintenance", "/admin", "/api", "/m", "/b", "/embed.js"];
 
 async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | null> {
   const path = req.nextUrl.pathname;

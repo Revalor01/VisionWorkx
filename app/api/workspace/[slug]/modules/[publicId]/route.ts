@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: s
       .eq("workspace_id", auth.workspace.id)
       .maybeSingle();
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    const built = buildStoredConfig(existing.type, body.config);
+    const built = buildStoredConfig(existing.type, body.config, auth.workspace.time_zone);
     if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
     patch.config = built.config;
   }
