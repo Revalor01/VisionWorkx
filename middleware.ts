@@ -25,7 +25,17 @@ const SUBSCRIPTION_REQUIRED = ["/onboard", "/generate"];
 // "/m" and "/embed.js" are VisionWorkx modules embedded on CLIENT websites
 // ("/b" is their customers' manage-booking links) —
 // a VisionWorkx maintenance window must never break a client's own site.
-const MAINTENANCE_BYPASS_PREFIXES = ["/maintenance", "/admin", "/api", "/m", "/b", "/embed.js"];
+// The Google file is Search Console's site-verification token, which Google
+// re-checks periodically — a redirect would silently unverify the site.
+const MAINTENANCE_BYPASS_PREFIXES = [
+  "/maintenance",
+  "/admin",
+  "/api",
+  "/m",
+  "/b",
+  "/embed.js",
+  "/google76cb218efc22afc2.html",
+];
 
 async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | null> {
   const path = req.nextUrl.pathname;
