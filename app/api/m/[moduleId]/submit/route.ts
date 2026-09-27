@@ -10,7 +10,7 @@ import { sendUsageAlert, submissionsThisMonth } from "@/lib/modules/usage";
 import { createWorkspaceCheckout } from "@/lib/modules/connect";
 import { computeEstimate, normalizeAnswers, quoteFieldDefs, quoteValues } from "@/lib/modules/quote";
 import { bookingFieldDefs, bookingValues, isValidTimeZone, whenText } from "@/lib/modules/booking";
-import { manageUrl, reserveSlot, scheduleReminder } from "@/lib/modules/bookingServer";
+import { manageUrl, reserveSlot, scheduleReminder, syncNewBookingToCalendar } from "@/lib/modules/bookingServer";
 import { submissionEmail } from "@/lib/modules/submissionEmail";
 import { NextResponse } from "next/server";
 
@@ -188,6 +188,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
       customerName: typeof values.name === "string" ? values.name : "",
       token: booked.token,
     });
+    syncNewBookingToCalendar(booked.bookingId);
   }
 
   // Event for the automation service (A6): customer confirmation + owner alert.
