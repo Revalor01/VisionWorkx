@@ -96,6 +96,18 @@ try {
   const rate = await a.client.rpc("vw_rate_check", { p_key: "x", max_hits: 1, window_seconds: 1 });
   check("rate-limit function is server-only", !!rate.error);
 
+  // ── calendar connections (encrypted Google tokens): server-only, even for the owner ──
+  await admin.from("vw_calendar_connections").insert({ workspace_id: wsA.id, refresh_token_enc: "v1.test.test.test", account_email: "cal@example.com" });
+  const aCal = await a.client.from("vw_calendar_connections").select("workspace_id, refresh_token_enc");
+  const anonCal = await anon.from("vw_calendar_connections").select("workspace_id");
+  check("calendar tokens hidden from the workspace's own owner", (aCal.data ?? []).length === 0);
+  check("calendar tokens hidden from anonymous", (anonCal.data ?? []).length === 0);
+  await a.client.from("vw_calendar_connections").update({ account_email: "hacked@example.com" }).eq("workspace_id", wsA.id);
+  const calNow = await admin.from("vw_calendar_connections").select("account_email").eq("workspace_id", wsA.id).single();
+  check("owner can't change a calendar connection directly", calNow.data?.account_email === "cal@example.com");
+  const bCalIns = await b.client.from("vw_calendar_connections").insert({ workspace_id: wsB.id, refresh_token_enc: "x" });
+  check("members can't create calendar connections", !!bCalIns.error);
+
   // ── self-serve signup ──
   const signup = await anon.auth.signUp({ email: `${tag}-direct@example.com`, password: pw });
   if (signup.data?.user?.id) created.users.push(signup.data.user.id);
