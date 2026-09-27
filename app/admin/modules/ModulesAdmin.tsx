@@ -12,6 +12,10 @@ export interface AdminWorkspace {
   billing_status: string; self_serve: boolean; install_requested_at: string | null;
   modules: { id: string; public_id: string; type: string; name: string; status: string }[];
   memberCount: number; submissions30d: number;
+  hasConnectAccount: boolean; connect_payments_status: string | null;
+  paymentEnabledModules: number;
+  paidCount: number; paidTotalCents: number;
+  pendingCount: number; pendingTotalCents: number;
 }
 
 export interface ModulesAdminStats {
@@ -19,6 +23,9 @@ export interface ModulesAdminStats {
   liveModuleCount: number;
   modulesByType: ModuleTypeCounts;
   cost: ModuleCostEstimate;
+  connectedBusinessCount: number;
+  totalPaidCents: number;
+  totalPendingCents: number;
 }
 
 const MODULE_TYPE_LABELS: Record<string, string> = {
@@ -100,9 +107,21 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
             <h2 className="text-lg font-bold">{w.name} <span className="text-sm font-normal text-gray-500">/{w.slug} · {w.plan} · {w.billing_status}</span>
               {w.self_serve && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Self-serve</span>}
               {w.install_requested_at && <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Install requested</span>}
+              {w.connect_payments_status === "active" ? (
+                <span className="ml-2 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">Connected to Stripe</span>
+              ) : w.hasConnectAccount ? (
+                <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">Stripe onboarding incomplete</span>
+              ) : null}
             </h2>
             <span className="text-sm text-gray-500">{w.memberCount} logins · {w.submissions30d} submissions (30d)</span>
           </div>
+          {(w.paymentEnabledModules > 0 || w.paidCount > 0 || w.pendingCount > 0) && (
+            <p className="text-xs text-gray-500">
+              {w.paymentEnabledModules} payment-enabled module{w.paymentEnabledModules === 1 ? "" : "s"}
+              {" · "}Collected {formatUsd(w.paidTotalCents / 100)} ({w.paidCount})
+              {" · "}Pending {formatUsd(w.pendingTotalCents / 100)} ({w.pendingCount})
+            </p>
+          )}
           <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); run({ action: "update_domains", workspace_id: w.id, domains: String(f.get("domains") ?? "").split(/[\s,]+/) }, "Domains saved."); }}>
             <input name="domains" defaultValue={w.domains.join(" ")} className={`${input} min-w-0 flex-1`} aria-label="Domains" />
             <button disabled={busy} className="rounded-lg border px-3 py-2 text-sm">Save domains</button>
@@ -203,6 +222,12 @@ function ModuleStatsSection({ stats }: { stats: ModulesAdminStats }) {
           value={formatUsd(stats.cost.avgCostPerModuleUsd)}
           sub={`${formatUsd(stats.cost.totalCostUsd)} total · ${stats.cost.measuredDrafts} drafts`}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <StatCard label="Connected to Stripe" value={String(stats.connectedBusinessCount)} sub={`of ${stats.businessCount} businesses`} />
+        <StatCard label="Collected" value={formatUsd(stats.totalPaidCents / 100)} sub="all-time, across all workspaces" />
+        <StatCard label="Pending" value={formatUsd(stats.totalPendingCents / 100)} sub="checkout started, not yet paid" />
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5">
