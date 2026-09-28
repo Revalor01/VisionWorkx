@@ -6,21 +6,6 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    // React Compiler-era rules that eslint-config-next 16 turned on as errors.
-    // The existing admin/workspace components predate them (mostly
-    // setState-in-effect data loading); fixing them changes component
-    // behaviour, so they warn for now and get fixed file by file.
-    // Same files glob as eslint-config-next's block that loads the plugin.
-    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
-    rules: {
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/use-memo": "warn",
-      "react-hooks/preserve-manual-memoization": "warn",
-    },
-  },
-  {
     // Plain Node CommonJS scripts - require() is the module system here.
     files: ["**/*.cjs"],
     rules: { "@typescript-eslint/no-require-imports": "off" },
