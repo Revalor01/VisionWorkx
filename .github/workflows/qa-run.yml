@@ -1,0 +1,80 @@
+name: QA Run
+
+# Revalor QA suite (qa/, Playwright). Started from /admin/qa via the GitHub
+# API (workflow_dispatch) -- see lib/qa/github.ts. Results stream back to
+# /api/admin/qa/report as each test finishes; see docs/qa-suite.md.
+#
+# Repo secrets: QA_REPORT_SECRET, MODULES_SUPABASE_URL,
+# MODULES_SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY.
+# Optional: VERCEL_AUTOMATION_BYPASS_SECRET (protected previews).
+# Repo variable (optional): QA_REPORT_URL, default https://vision-workx.vercel.app.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "vw_qa_runs id (set by /admin/qa; blank = create one)"
+        required: false
+        default: ""
+      product:
+        description: "Product slug"
+        required: false
+        default: "visionworkx"
+      target_url:
+        description: "Site to test"
+        required: false
+        default: "https://modules.revalorllc.com"
+      target_env:
+        description: "production or preview"
+        required: false
+        default: "production"
+      grep:
+        description: "Playwright --grep (blank = all tests)"
+        required: false
+        default: ""
+
+concurrency:
+  group: qa-${{ inputs.product }}-${{ inputs.run_id || github.run_id }}
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "true"
+      QA_RUN_ID: ${{ inputs.run_id }}
+      QA_PRODUCT: ${{ inputs.product }}
+      QA_TARGET_URL: ${{ inputs.target_url }}
+      QA_TARGET_ENV: ${{ inputs.target_env }}
+      QA_REPORT_URL: ${{ vars.QA_REPORT_URL || 'https://vision-workx.vercel.app' }}
+      QA_REPORT_SECRET: ${{ secrets.QA_REPORT_SECRET }}
+      MODULES_SUPABASE_URL: ${{ secrets.MODULES_SUPABASE_URL }}
+      MODULES_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MODULES_SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Sync test catalog
+        run: node qa/sync-catalog.mjs
+      - name: Run tests
+        env:
+          QA_GREP: ${{ inputs.grep }}
+        run: |
+          if [ -n "$QA_GREP" ]; then
+            npx playwright test -c qa/playwright.config.ts --grep "$QA_GREP"
+          else
+            npx playwright test -c qa/playwright.config.ts
+          fi
+      # If setup failed before Playwright could report, don't leave the run "queued" forever.
+      - name: Report setup failure
+        if: failure() && inputs.run_id != ''
+        run: |
+          curl -sS -X POST "$QA_REPORT_URL/api/admin/qa/report" \
+            -H "Authorization: Bearer $QA_REPORT_SECRET" -H "Content-Type: application/json" \
+            -d "{\"type\":\"end\",\"runId\":\"$QA_RUN_ID\",\"status\":\"failed\",\"error\":\"The QA workflow failed during setup or a test errored. See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" || true

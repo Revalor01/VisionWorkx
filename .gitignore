@@ -39,3 +39,8 @@ supabase/.temp/
 # pilot script run data — local history, not source (see scripts/pilot-crm-module.mjs)
 scripts/pilot-crm-module-history.jsonl
 .env*
+
+# Playwright (qa/)
+/test-results/
+/playwright-report/
+/qa/test-results/

@@ -85,6 +85,14 @@ schema (`20260926000003_vw_automation.sql`), the `/workspace/<slug>/emails` page
 template editing via `PUT /api/workspace/[slug]/templates`; defaults mirrored in `lib/modules/emailDefaults.ts`
 — keep in sync with revalor-automation `lib/vw/templates.mjs`), and `email_usage` in the modules directory.
 
+## QA suite — every new feature ships with its tests
+Real-browser Playwright tests for every Revalor product live in `qa/products/<product>/*.qa.ts`, run in GitHub
+Actions (`.github/workflows/qa-run.yml`) and are picked/run/reviewed at **/admin/qa** (tables `vw_qa_*`, main project).
+When you add or change a user-facing feature, add or update its `qa()` test in the same PR (stable id
+`<product>/<area>/<name>`; `smoke: true` for the critical path). Test data must use the `qaWorkspace` fixture
+(is_test, deleted after) — never real workspaces. Other products are tested black-box from here; don't edit their
+repos. Details: `docs/qa-suite.md`.
+
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
   adds or edits files in `supabase/migrations`) **migration-reviewer**. Don't open the PR on a
