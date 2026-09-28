@@ -34,7 +34,8 @@ qa(
         return data;
       }, "the workspace row");
       expect(ws.name).toBe("QA Plumbing Co");
-      expect(ws.domains).toEqual([QA_HOST]);
+      // Onboarding also allows the www. version of the site the owner typed.
+      expect([...ws.domains].sort()).toEqual([QA_HOST, `www.${QA_HOST}`].sort());
       expect(ws.plan).toBe("starter");
       expect(ws.billing_status, "no plan until the trial starts").toBe("none");
       expect(ws.self_serve).toBe(true);
