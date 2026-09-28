@@ -24,7 +24,8 @@ function failingStep(steps: TestStep[]): string | null {
 
 export default class QaReporter implements Reporter {
   private url = process.env.QA_REPORT_URL?.replace(/\/$/, "");
-  private secret = process.env.QA_REPORT_SECRET;
+  // Stray byte-order marks / line breaks (e.g. from piping a secret through PowerShell) would break the header.
+  private secret = process.env.QA_REPORT_SECRET?.replace(/[﻿\s]/g, "");
   private runId: Promise<string | null> = Promise.resolve(process.env.QA_RUN_ID || null);
   private pending: Promise<unknown>[] = [];
   private errors: string[] = [];

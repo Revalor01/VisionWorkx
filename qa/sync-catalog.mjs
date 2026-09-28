@@ -47,10 +47,12 @@ for (const [product, tests] of byProduct) {
     continue;
   }
   const url = process.env.QA_REPORT_URL?.replace(/\/$/, "");
-  if (!url || !process.env.QA_REPORT_SECRET) throw new Error("QA_REPORT_URL / QA_REPORT_SECRET not set");
+  // Stray byte-order marks / line breaks (e.g. from piping a secret through PowerShell) would break the header.
+  const secret = (process.env.QA_REPORT_SECRET ?? "").replace(/[﻿\s]/g, "");
+  if (!url || !secret) throw new Error("QA_REPORT_URL / QA_REPORT_SECRET not set");
   const res = await fetch(`${url}/api/admin/qa/report`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.QA_REPORT_SECRET}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
     body: JSON.stringify({ type: "catalog", product, tests: list }),
   });
   console.log(`catalog ${product}: ${list.length} tests → ${res.status} ${await res.text()}`);
