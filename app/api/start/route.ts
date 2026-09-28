@@ -3,11 +3,13 @@ import { modulesConfigured, modulesServerClient, modulesServiceClient } from "@/
 import { ipHash } from "@/lib/modules/http";
 import { normalizeHost } from "@/lib/modules/domains";
 import { selfServeEnabled, SITE_BUILDERS, TERMS_VERSION } from "@/lib/modules/selfServe";
+import { createAccountAndSendLink } from "@/lib/modules/startSignIn";
 
 // Self-serve signup. Supabase's own public signup stays DISABLED: accounts are
 // only created here, after validation + rate limiting, via the admin API. The
 // sign-in link then goes out through the normal (shouldCreateUser: false) OTP
 // flow, so the email owner must click it before anything else happens.
+// Accounts are created confirmed -- see lib/modules/startSignIn.ts.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function str(v: unknown, max: number): string {
@@ -52,10 +54,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many attempts — please try again in an hour." }, { status: 429 });
   }
 
-  const { error: createErr } = await db.auth.admin.createUser({
+  const supabase = await modulesServerClient();
+  const result = await createAccountAndSendLink(
+    {
+      async createUser(e, metadata) {
+        // Created confirmed: see lib/modules/startSignIn.ts for why that's required and safe.
+        const { error } = await db.auth.admin.createUser({ email: e, email_confirm: true, user_metadata: metadata });
+        if (!error) return { ok: true };
+        // An existing account just gets a sign-in link; onboarding handles the rest.
+        if (/already|registered|exists/i.test(error.message)) return { exists: true };
+        console.error("[start] createUser failed:", error.status, error.code);
+        return { error: error.code ?? error.message };
+      },
+      async sendLink(e) {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: e,
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: `${req.nextUrl.origin}/workspace/auth/callback?next=${encodeURIComponent("/workspace/onboarding")}`,
+          },
+        });
+        if (!error) return { ok: true };
+        console.error("[start] OTP send failed:", error.status, error.code);
+        return { error: error.message, code: error.code };
+      },
+      async confirmExisting(e) {
+        // generateLink is the admin API's way to look an account up by email;
+        // the link it makes is discarded (the real one goes out via sendLink).
+        const { data, error } = await db.auth.admin.generateLink({ type: "magiclink", email: e });
+        if (error || !data.user) {
+          console.error("[start] account lookup failed:", error?.status, error?.code);
+          return false;
+        }
+        if (data.user.email_confirmed_at) return true;
+        const { error: ue } = await db.auth.admin.updateUserById(data.user.id, { email_confirm: true });
+        if (ue) console.error("[start] confirming existing account failed:", ue.status, ue.code);
+        return !ue;
+      },
+    },
     email,
-    email_confirm: false,
-    user_metadata: {
+    {
       full_name: name,
       business_name: businessName,
       website: website ?? "",
@@ -64,24 +102,11 @@ export async function POST(req: NextRequest) {
       terms_accepted_at: new Date().toISOString(),
       signup_source: "self_serve",
     },
-  });
-  // An existing account just gets a sign-in link; onboarding handles the rest.
-  if (createErr && !/already|registered|exists/i.test(createErr.message)) {
-    console.error("[start] createUser failed:", createErr.status, createErr.code);
-    return NextResponse.json({ error: "We couldn't create your account just now. Please try again." }, { status: 500 });
-  }
-
-  const supabase = await modulesServerClient();
-  const { error: otpErr } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: false,
-      emailRedirectTo: `${req.nextUrl.origin}/workspace/auth/callback?next=${encodeURIComponent("/workspace/onboarding")}`,
-    },
-  });
-  if (otpErr) {
-    console.error("[start] OTP send failed:", otpErr.status, otpErr.code);
-    return NextResponse.json({ error: "We couldn't send your sign-in link. Please try again in a minute." }, { status: 502 });
+  );
+  if ("error" in result) {
+    return result.error === "create_failed"
+      ? NextResponse.json({ error: "We couldn't create your account just now. Please try again." }, { status: 500 })
+      : NextResponse.json({ error: "We couldn't send your sign-in link. Please try again in a minute." }, { status: 502 });
   }
   return NextResponse.json({ ok: true });
 }
