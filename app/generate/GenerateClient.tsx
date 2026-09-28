@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useNow } from "@/lib/hooks";
 import Link from "next/link";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -34,6 +35,7 @@ export default function GenerateClient({
   // A gentle crawl within the current phase so the bar is never frozen — it's
   // reset whenever the phase advances.
   const [drift, setDrift] = useState(0);
+  const now = useNow();
 
   const abortRef = useRef<AbortController | null>(null);
   const hasStarted = useRef(false);
@@ -233,7 +235,7 @@ export default function GenerateClient({
 
   const fmtWhen = (iso: string | null) => {
     if (!iso) return "";
-    const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    const mins = Math.round((now - new Date(iso).getTime()) / 60000);
     if (mins < 1) return "just now";
     if (mins < 60) return `${mins} min ago`;
     const hrs = Math.round(mins / 60);

@@ -6,6 +6,8 @@ import BookingsList, { type BookingRow } from "./BookingsList";
 export default async function BookingsPage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;
   const { supabase, workspace, role } = await requireWorkspace(slug);
+  // Server component rendered per request (reads the signed-in member): reading the clock here is intended.
+  // eslint-disable-next-line react-hooks/purity
   const since = new Date(Date.now() - 2 * 86400e3).toISOString();
   // RLS: members only ever see their own workspace's bookings.
   const { data: rows } = await supabase
