@@ -479,6 +479,8 @@ _Started 2026-09-11._
       merge. Also added a `templates/base` drift check (regenerates
       `baseTemplate.generated.ts` and diffs it against the committed version —
       catches editing `templates/base/**` without `npm run gen:base`).
+      _2026-09-27:_ CI also runs `npm run lint` (`eslint .`, ESLint 9 flat
+      config in `eslint.config.mjs`) after Typecheck.
       **Needs a one-time manual step** (blocked for the agent, same class as
       the Vercel env write): make the `check` job a required status check on
       `main`. Run once, by you:
