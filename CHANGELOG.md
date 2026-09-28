@@ -4,6 +4,8 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Security: closed open redirects via `?next=` on `/login` and `/signup` (e.g. `/login?next=https://evil.example` no longer sends a signed-in user off-site) and a `/\host` gap in the admin SSO consume route (`app/api/admin/sso/consume`); only same-origin paths are followed now, otherwise the user lands on `/dashboard` (or `/admin` for SSO). Workspace login/callback keep their existing `/workspace` prefix check.
+- For developers: any user-supplied redirect target must go through `safeNextPath(value, fallback)` from `lib/safeRedirect.ts`, which returns a same-origin path or the fallback (it rejects absolute and protocol-relative URLs, backslashes, control characters, inputs over 2048 chars, anything that parses to another origin, and paths that collapse to `//` via dot segments).
 - Linting works again: ESLint moved to a v9 flat config (`eslint.config.mjs`, replacing `.eslintrc.json`) because Next 16 removed `next lint`; `npm run lint` now runs `eslint .`.
 - Lint skips code that isn't the app's own Next.js source: `templates/**`, `supabase/functions/**`, `public/embed.js` and `lib/apps/baseTemplate.generated.ts`.
 - The newer React Compiler-era react-hooks rules (`set-state-in-effect`, `purity`, `immutability`, `use-memo`, `preserve-manual-memoization`) are errors again: all 35 warnings they raised (plus one `exhaustive-deps`) were fixed across admin screens, workspace/billing/generate pages and customer-facing components, and the temporary warn-downgrade was removed, so a new violation fails lint and CI.
