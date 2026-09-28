@@ -58,6 +58,9 @@ describe("safeNextPathWithin", () => {
     ["/workspace/acme/settings?tab=billing", "/workspace/acme/settings?tab=billing"],
     ["/workspace?welcome=1", "/workspace?welcome=1"],
     ["/workspace#top", "/workspace#top"],
+    // Slashes after the path are only query/fragment text.
+    ["/workspace?next=//evil.example", "/workspace?next=//evil.example"],
+    ["/workspace#//evil.example", "/workspace#//evil.example"],
   ])("keeps %s", (input, expected) => {
     expect(safeNextPathWithin(input, AREA)).toBe(expected);
   });
@@ -68,6 +71,8 @@ describe("safeNextPathWithin", () => {
     ["prefix look-alike", "/workspaces-x"],
     ["dot-dot out of the area", "/workspace/../admin"],
     ["encoded dot-dot out of the area", "/workspace/%2e%2e/admin"],
+    ["upper-case encoded dot-dot", "/workspace/%2E%2E/admin"],
+    ["different case", "/WORKSPACE"],
     ["protocol-relative", "//evil.example"],
     ["backslash host", "/\\evil.example"],
     ["dot segment to protocol-relative", "/workspace/../..//evil.example"],
