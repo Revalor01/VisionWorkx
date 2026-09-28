@@ -483,7 +483,8 @@ export default function AdminDashboard({
     return () => clearInterval(interval);
   }, [autoRefresh, router]);
 
-  // Fetched once, the first time the Payments tab is opened.
+  // Fetched when the Payments tab is opened, until a load succeeds. After a
+  // failure, re-opening the tab retries (the error stays shown meanwhile).
   useEffect(() => {
     if (tab !== "payments" || paymentsFetched) return;
     fetch("/api/admin/payments")
@@ -492,11 +493,12 @@ export default function AdminDashboard({
         if (d.error) { setPaymentsError(d.error); return; }
         setPayments(d.rows ?? []);
         setPaymentStats({ totalRevenue: d.totalRevenue, failedCount: d.failedCount });
+        setPaymentsError("");
+        setPaymentsFetched(true);
       })
-      .catch(() => setPaymentsError("Failed to load payments"))
-      .finally(() => setPaymentsFetched(true));
+      .catch(() => setPaymentsError("Failed to load payments"));
   }, [tab, paymentsFetched]);
-  const paymentsLoading = tab === "payments" && !paymentsFetched;
+  const paymentsLoading = tab === "payments" && !paymentsFetched && !paymentsError;
 
   // ── Stats ──────────────────────────────────────────────────────
   const now = useNow();
