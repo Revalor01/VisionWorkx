@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
+import { testWorkspaceIds } from "@/lib/modules/testWorkspaces";
 import { embedSnippet } from "@/lib/modules/install";
 import { currentPeriod as currentAutomationPeriod, limitsFor } from "@/lib/modules/plans";
 
@@ -32,7 +33,8 @@ export async function GET(req: NextRequest) {
     db.from("vw_email_usage").select("workspace_id, sent_count").eq("period", period),
   ]);
   const origin = process.env.NEXT_PUBLIC_MODULES_EMBED_ORIGIN ?? "https://modules.revalorllc.com";
-  const workspaces = (ws ?? []).map((w) => {
+  const testIds = await testWorkspaceIds(db);
+  const workspaces = (ws ?? []).filter((w) => !testIds.has(w.id)).map((w) => {
     const wsSubs = (subs ?? []).filter((s) => s.workspace_id === w.id);
     return {
       id: w.id,

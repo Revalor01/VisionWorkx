@@ -3,6 +3,7 @@ import { isOperator } from "@/lib/modules/adminGuard";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
 import { countModulesByType, fetchModuleCostEstimate } from "@/lib/modules/moduleStats";
 import { parseFormConfig } from "@/lib/modules/config";
+import { testWorkspaceIds } from "@/lib/modules/testWorkspaces";
 import ModulesAdmin, { type AdminWorkspace } from "./ModulesAdmin";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +36,12 @@ export default async function AdminModulesPage() {
     db.from("vw_submissions").select("workspace_id, payment_status, payment_amount_cents").neq("payment_status", "none"),
   ]);
 
-  const allModules = mods ?? [];
+  const testIds = await testWorkspaceIds(db);
+  const allModules = (mods ?? []).filter((m) => !testIds.has(m.workspace_id));
   const allPayments = payments ?? [];
   const paymentsByWorkspace = (workspaceId: string) => allPayments.filter((p) => p.workspace_id === workspaceId);
 
-  const workspaces: AdminWorkspace[] = (ws ?? []).map((w) => {
+  const workspaces: AdminWorkspace[] = (ws ?? []).filter((w) => !testIds.has(w.id)).map((w) => {
     const wsModules = allModules.filter((m) => m.workspace_id === w.id);
     const wsPayments = paymentsByWorkspace(w.id);
     const { stripe_connect_account_id, ...wRest } = w;
