@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useOnChange } from "@/lib/hooks";
 import type { MarketingAutonomy, MarketingCampaign, MarketingProduct, MarketingRecurrence, MarketingRecurringSchedule } from "@/lib/database.types";
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
 import { SMS_BODY_MAX } from "@/lib/mobile/limits";
@@ -39,8 +40,11 @@ export default function MarketingDashboard({
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [schedules, setSchedules] = useState(initialSchedules);
   const [product, setProduct] = useState<MarketingProduct>("visionworkx");
-  const [audienceCount, setAudienceCount] = useState<number | null>(null);
-  const [loadingAudience, setLoadingAudience] = useState(false);
+  // Audience size for the selected product; loading until the fetch for the
+  // current product has answered.
+  const [audience, setAudience] = useState<{ product: MarketingProduct; count: number | null } | null>(null);
+  const loadingAudience = audience?.product !== product;
+  const audienceCount = loadingAudience ? null : audience.count;
 
   const [goal, setGoal] = useState("");
   const [voiceNotes, setVoiceNotes] = useState("");
@@ -89,22 +93,23 @@ export default function MarketingDashboard({
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadAudience(product);
-    setConfirmSend(false);
-  }, [product]);
+  useOnChange(product, () => setConfirmSend(false));
 
-  async function loadAudience(p: MarketingProduct) {
-    setLoadingAudience(true);
-    setAudienceCount(null);
-    try {
-      const res = await fetch(`/api/admin/marketing/audience?product=${p}`);
-      const body = await res.json();
-      if (res.ok) setAudienceCount(body.count);
-    } finally {
-      setLoadingAudience(false);
-    }
-  }
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/marketing/audience?product=${product}`)
+      .then(async (res) => {
+        const body = await res.json();
+        return res.ok ? (body.count as number) : null;
+      })
+      .catch(() => null)
+      .then((count) => {
+        if (!cancelled) setAudience({ product, count });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product]);
 
   async function refreshCampaigns() {
     const res = await fetch("/api/admin/marketing/campaigns");

@@ -140,10 +140,6 @@ export default function CalendarTab({
     });
   }
 
-  function brandName(id: string) {
-    return brands.find((b) => b.id === id)?.name ?? "—";
-  }
-
   const events = useMemo<ActivityEvent[]>(() => {
     const out: ActivityEvent[] = [];
 
@@ -155,7 +151,7 @@ export default function CalendarTab({
         kind: "social",
         date: new Date(dateStr),
         title: truncate(c.hook || c.caption, 60),
-        subtitle: brandName(c.brand_id),
+        subtitle: brands.find((b) => b.id === c.brand_id)?.name ?? "—",
         status: c.status,
         href: null,
         platform: c.platform,
