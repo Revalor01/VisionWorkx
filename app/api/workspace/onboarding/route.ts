@@ -9,6 +9,7 @@ import {
   sendWelcome,
   TERMS_VERSION,
 } from "@/lib/modules/selfServe";
+import { isQaEmail } from "@/lib/modules/testWorkspaces";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -56,7 +57,8 @@ export async function POST(req: NextRequest) {
     });
   }
   const { data: ws } = await db.from("vw_workspaces").select("id").eq("slug", result.slug).single();
-  if (ws) {
+  // QA suite accounts: no welcome email to a fake address, no signup alert to the operator.
+  if (ws && !isQaEmail(user.email)) {
     await onboardingEmailOnce(ws.id, "welcome", async () => {
       await Promise.all([
         sendWelcome(user.email!, meta.full_name || businessName, result.slug),

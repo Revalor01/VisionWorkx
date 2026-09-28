@@ -1,5 +1,6 @@
 import { modulesServiceClient } from "./supabase";
 import { normalizeDomainList } from "./domains";
+import { isQaEmail } from "./testWorkspaces";
 
 // Self-serve signup (modules.revalorllc.com/start). OFF unless
 // SELF_SERVE_SIGNUP=true — a missing env var never opens signups.
@@ -64,6 +65,8 @@ export async function createSelfServeWorkspace(input: NewWorkspaceInput): Promis
         billing_status: "none",
         self_serve: true,
         created_by: input.userId,
+        // Only sent for QA accounts, so signups never depend on the is_test column.
+        ...(isQaEmail(input.email) ? { is_test: true } : {}),
       })
       .select("id, slug")
       .single();

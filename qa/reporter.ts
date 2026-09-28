@@ -69,6 +69,8 @@ export default class QaReporter implements Reporter {
     if (!this.enabled) return;
     const idTag = test.tags.find((t) => /^@[a-z0-9-]+\//.test(t));
     if (!idTag) return; // not declared with qa()
+    // The phone-sized re-run of a test is tracked as its own entry.
+    const testId = test.parent.project()?.name === "mobile" ? `${idTag.slice(1)}--mobile` : idTag.slice(1);
     const attachments = result.attachments.filter(
       (a): a is typeof a & { name: Kind; path: string } => !!a.path && (a.name === "screenshot" || a.name === "trace" || a.name === "video"),
     );
@@ -79,7 +81,7 @@ export default class QaReporter implements Reporter {
         const r = await this.post({
           type: "result",
           runId,
-          testId: idTag.slice(1),
+          testId,
           status: mapStatus(result.status, result.retry),
           attempt: result.retry + 1,
           durationMs: result.duration,

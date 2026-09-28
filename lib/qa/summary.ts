@@ -63,7 +63,9 @@ export function grepFor(selection: "smoke" | "all" | "custom", testIds: string[]
   if (selection === "all") return "";
   // Ids are [a-z0-9-/] only (TEST_ID_RE), so no regex escaping is needed; the
   // lookahead stops "@a/b/c" from also matching "@a/b/c-more" or "@a/b/c/d".
-  return testIds.map((id) => `@${id}(?![\\w/-])`).join("|");
+  // A "--mobile" entry is the phone re-run of the same test: select the base test.
+  const ids = [...new Set(testIds.map((id) => id.replace(/--mobile$/, "")))];
+  return ids.map((id) => `@${id}(?![\\w/-])`).join("|");
 }
 
 export function isStale(run: { status: RunStatus; created_at: string }, now = Date.now()): boolean {

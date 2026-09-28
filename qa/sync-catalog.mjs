@@ -31,6 +31,10 @@ function walk(suite) {
     const product = id.split("/")[0];
     if (!byProduct.has(product)) byProduct.set(product, new Map());
     byProduct.get(product).set(id, test);
+    // Tests with mobile: true also run on a phone-sized screen, tracked as "<id>--mobile".
+    if ((spec.tests ?? []).some((t) => t.projectName === "mobile")) {
+      byProduct.get(product).set(`${id}--mobile`, { ...test, id: `${id}--mobile`, title: `${test.title} (phone)`, tags: test.tags.filter((t) => t !== "smoke") });
+    }
   }
   for (const child of suite.suites ?? []) walk(child);
 }

@@ -25,5 +25,9 @@ export default defineConfig({
     video: "retain-on-failure",
     ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass, "x-vercel-set-bypass-cookie": "samesitenone" } } : {}),
   },
-  projects: [{ name: "desktop", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    // Tests declared with mobile: true run again on a phone-sized screen (Chromium, so no extra browser install).
+    { name: "mobile", grep: /@mobile/, use: { ...devices["Pixel 7"] } },
+  ],
 });

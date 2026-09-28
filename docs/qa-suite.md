@@ -35,11 +35,37 @@ qa({ id: "visionworkx/booking/double-booking", area: "Booking", title: "Two visi
   shows a setup badge.
 - `qaWorkspace` gives a throwaway modules workspace (is_test, comped billing,
   domain `qa-site.revalor.test`) that's deleted afterwards.
-- Helpers in `qa/lib/modules.ts`: `openHostPage` (fake customer site with the
-  embed), `signIn` (owner session), `modulesAdmin` (service-role client),
-  `waitFor`.
+- `qaUser` gives a signed-up user with no workspace (onboarding tests).
+  `test.use({ workspaceOptions: { plan, notificationEmail } })` changes the
+  workspace for a file or `test.describe` block.
+- `mobile: true` re-runs the test on a phone-sized screen (Pixel 7, Chromium);
+  it's tracked in /admin/qa as a separate `<id>--mobile` entry.
+- Helpers in `qa/lib/modules.ts`: `createModule` (insert a live module
+  directly), `formConfig`/`NAME_FIELD`/`EMAIL_FIELD`, `openHostPage` (fake
+  customer site with the embed), `submitViaApi` (submit as a visitor's
+  browser would), `signIn` (owner session), `modulesAdmin` (service-role
+  client), `waitFor`.
+- **Email:** never use a real address. `resendTestAddress(label)` gives a Resend
+  test inbox (`delivered+label@resend.dev`). Email tests check the modules
+  `vw_email_log`, and are tagged `requires: ["automation"]` because
+  revalor-automation does the sending.
+- QA accounts (`qa+…@example.com`) never get welcome emails or trigger the
+  operator's signup alert, and self-serve workspaces they create are marked
+  `is_test` automatically (`lib/modules/testWorkspaces.ts`).
 - Files are `*.qa.ts`, not `*.spec.ts`, so Vitest ignores them.
 - The new test appears in /admin/qa after the next run (the catalog syncs first).
+
+## VisionWorkx coverage
+| Area | Tests |
+|---|---|
+| Public site | pages load, embed script |
+| Signup | onboarding creates the workspace (the /start email link is a manual check) |
+| Forms | embed → submit → dashboard (+phone), AI draft & publish, file upload & download, status/notes/CSV, other sites blocked |
+| Quote calculator | estimate math matches pricing, lead saved with estimate (+phone) |
+| Booking | slot rules, book in widget (+phone), no double-booking, customer reschedule/cancel, owner cancel, reminder queued |
+| Emails | confirmation + owner alert sent (needs revalor-automation) |
+| Plans & billing | Starter module cap, Growth allows more |
+| Not yet | Stripe trial/upgrade/cancel and deposits (Phase 3, preview + test keys), Google Calendar (Phase 3, QA Google account) |
 
 ## Adding a product
 Insert a `vw_qa_products` row (slug, name, production base_url), then add
