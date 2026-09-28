@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { modulesBrowserClient } from "@/lib/modules/supabase-browser";
 
@@ -35,7 +36,7 @@ export default function WorkspaceAuthConfirm() {
         {error ? (
           <>
             <p role="alert" className="mb-4 text-gray-700">{error}</p>
-            <a href="/workspace/login" className="font-semibold text-navy hover:underline">Request a new sign-in link →</a>
+            <Link href="/workspace/login" className="font-semibold text-navy hover:underline">Request a new sign-in link →</Link>
           </>
         ) : (
           <p role="status" className="text-gray-600">Signing you in…</p>

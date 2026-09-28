@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 interface PreviewState {
@@ -106,9 +107,9 @@ export default function TryStatusClient({
       {failed && (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           The build didn&apos;t complete. Head back and{" "}
-          <a href="/try" className="font-semibold underline">
+          <Link href="/try" className="font-semibold underline">
             try again
-          </a>{" "}
+          </Link>{" "}
           — it usually works on a second run.
         </div>
       )}

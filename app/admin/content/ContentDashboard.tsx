@@ -493,7 +493,7 @@ export default function ContentDashboard({
               className="w-full bg-black border border-slate-700 rounded-lg px-3 py-2 text-sm mb-4"
             >
               <option value="manual">Manual — hold every derivative for review</option>
-              <option value="auto">Auto — publish/send where each channel's own quality/risk bar allows</option>
+              <option value="auto">Auto — publish/send where each channel&apos;s own quality/risk bar allows</option>
             </select>
 
             <button
