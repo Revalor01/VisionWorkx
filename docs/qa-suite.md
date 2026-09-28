@@ -65,7 +65,27 @@ qa({ id: "visionworkx/booking/double-booking", area: "Booking", title: "Two visi
 | Booking | slot rules, book in widget (+phone), no double-booking, customer reschedule/cancel, owner cancel, reminder queued |
 | Emails | confirmation + owner alert sent (needs revalor-automation) |
 | Plans & billing | Starter module cap, Growth allows more |
-| Not yet | Stripe trial/upgrade/cancel and deposits (Phase 3, preview + test keys), Google Calendar (Phase 3, QA Google account) |
+| Google Calendar | bookings added/moved/removed on the calendar; busy times hide slots and open up again (QA Google account) |
+| Manual checks | /start email link, Stripe Connect onboarding, Google consent screen, disconnect revokes access, reminder email arrives |
+| Not yet | Stripe trial/upgrade/cancel and deposits (needs Stripe **test** keys in Vercel Preview) |
+
+## Google Calendar tests (QA Google account)
+`revalor.qa@gmail.com` is connected **once, by hand** to the permanent
+**Revalor QA Calendar** workspace (a normal, non-test workspace). Calendar
+tests call `connectQaCalendar(workspaceId)`, which copies that saved,
+encrypted connection into their throwaway workspace — no Google password or
+token ever goes to GitHub. Rules:
+- **Never click Disconnect on Revalor QA Calendar**, and never call the
+  app's disconnect on a copied connection: it revokes the grant for every test.
+- If calendar tests start failing with "No active Google Calendar connection",
+  sign in as the QA account and reconnect in that workspace's Settings.
+- Tests cancel their bookings in `finally` so their events are removed from
+  the QA calendar even when a step fails.
+
+## Manual checks
+`qa/products/<product>/manual.json` lists checks a robot can't do. They sync
+with the catalog and show on the product page with Passed / Failed / Skip
+buttons and a note (stored in `vw_qa_manual_checks`).
 
 ## Adding a product
 Insert a `vw_qa_products` row (slug, name, production base_url), then add
