@@ -60,7 +60,7 @@ for (const [product, tests] of byProduct) {
   }
   const url = process.env.QA_REPORT_URL?.replace(/\/$/, "");
   // Stray byte-order marks / line breaks (e.g. from piping a secret through PowerShell) would break the header.
-  const secret = (process.env.QA_REPORT_SECRET ?? "").replace(/[﻿\s]/g, "");
+  const secret = (process.env.QA_REPORT_SECRET ?? "").replace(/[\uFEFF\s]/g, "");
   if (!url || !secret) throw new Error("QA_REPORT_URL / QA_REPORT_SECRET not set");
   const res = await fetch(`${url}/api/admin/qa/report`, {
     method: "POST",
