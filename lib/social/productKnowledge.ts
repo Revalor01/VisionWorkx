@@ -113,13 +113,15 @@ export const PRODUCT_KNOWLEDGE: Record<SocialVideoProduct, ProductKnowledge | nu
   revalor: null,
 };
 
-// Which products each social_brands row speaks for, keyed by brand name -
-// the same brand/product matrix Media Studio uses (see
-// app/api/social/video-assets/studio-generate/route.ts). Brands not listed
-// (e.g. "Revalor LLC") get no product facts and rely on their voice notes.
+// Which products each social_brands row speaks for, keyed by the brand's
+// exact name in social_brands. Media Studio calls the business line "Revalor
+// Business" (see app/api/social/video-assets/studio-generate/route.ts), but
+// there is no brand row by that name - the "Revalor LLC" brand carries the
+// Revalor Business products. Brands not listed get no product facts and rely
+// on their voice notes.
 const BRAND_PRODUCTS: Record<string, SocialVideoProduct[]> = {
   VisionWorkx: ["visionworkx"],
-  "Revalor Business": ["visionworkx", "proactive", "revalor_consulting"],
+  "Revalor LLC": ["visionworkx", "proactive", "revalor_consulting"],
   "Revalor Kids": ["chorebit", "feelflow", "mindbit"],
   "Revalor Wellness": ["sanctum"],
 };
