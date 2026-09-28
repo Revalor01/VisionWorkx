@@ -91,7 +91,10 @@ export async function exchangeCode(code: string, redirectUri: string): Promise<E
     await revoke(t.access_token);
     return { ok: false, reason: "missing_scopes" };
   }
-  if (!t.refresh_token) return { ok: false, reason: "no_refresh_token" };
+  if (!t.refresh_token) {
+    console.error("[gcal] code exchange returned no refresh token");
+    return { ok: false, reason: "no_refresh_token" };
+  }
   return { ok: true, refreshToken: t.refresh_token, accessToken: t.access_token, expiresIn: t.expires_in, email: emailFromIdToken(t.id_token) };
 }
 
@@ -165,6 +168,7 @@ export async function saveConnection(input: { workspaceId: string; userId: strin
       },
       { onConflict: "workspace_id" },
     );
+  if (error) console.error("[gcal] saving connection failed:", error.code, error.message);
   tokenCache.delete(input.workspaceId);
   busyCache.clear();
   return !error;
