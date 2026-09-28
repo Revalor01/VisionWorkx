@@ -6,11 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import PasswordInput from "@/components/PasswordInput";
+import { safeNextPath } from "@/lib/safeRedirect";
 
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
+  // ?next= is user-controlled: only follow it to a path on this site.
+  const next = safeNextPath(searchParams.get("next"), "/dashboard");
 
   // ?email= (e.g. from the waitlist / try flow) pre-fills the form.
   const emailParam = searchParams.get("email");
