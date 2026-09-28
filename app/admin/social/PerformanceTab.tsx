@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useOnChange } from "@/lib/hooks";
 import type { SocialBrand } from "@/lib/database.types";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
@@ -65,35 +66,43 @@ function platformIcon(p: string) {
 export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
   const [brandId, setBrandId] = useState<string>("");
   const [days, setDays] = useState<number>(30);
-  const [data, setData] = useState<PerfData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Result of the latest fetch, tagged with the filters it was for. While a
+  // new fetch is in flight the previous data stays on screen.
+  const queryKey = `${brandId}:${days}`;
+  const [result, setResult] = useState<{ key: string; data: PerfData | null; error: string | null } | null>(null);
+  const loading = result?.key !== queryKey;
+  const data = result?.data ?? null;
+  const error = loading ? null : result.error;
   const [page, setPage] = useState(0);
 
   const PAGE_SIZE = 10;
 
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "—";
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = new URLSearchParams({ days: String(days) });
-      if (brandId) qs.set("brandId", brandId);
-      const res = await fetch(`/api/social/performance?${qs}`);
-      if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`);
-      setData(await res.json());
-      setPage(0);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [brandId, days]);
+  useOnChange(queryKey, () => setPage(0));
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    const key = `${brandId}:${days}`;
+    const qs = new URLSearchParams({ days: String(days) });
+    if (brandId) qs.set("brandId", brandId);
+    fetch(`/api/social/performance?${qs}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`);
+        return (await res.json()) as PerfData;
+      })
+      .then(
+        (fresh) => {
+          if (!cancelled) setResult({ key, data: fresh, error: null });
+        },
+        (e: Error) => {
+          if (!cancelled) setResult((prev) => ({ key, data: prev?.data ?? null, error: e.message }));
+        }
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [brandId, days]);
 
   const maxHourEng = Math.max(
     0.0001,

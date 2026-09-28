@@ -14,24 +14,32 @@ interface TriggerRow {
   recentFireCount: number;
 }
 
+async function fetchTriggers(): Promise<TriggerRow[]> {
+  const res = await fetch("/api/admin/marketing/lifecycle");
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+  return body.triggers;
+}
+
 export default function LifecycleDashboard() {
   const [triggers, setTriggers] = useState<TriggerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
+  // Initial load: `loading` already starts true, so only set state once the
+  // fetch answers. Later reloads go through load().
   useEffect(() => {
-    load();
+    fetchTriggers()
+      .then(setTriggers, (err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/marketing/lifecycle");
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-      setTriggers(body.triggers);
+      setTriggers(await fetchTriggers());
     } catch (err) {
       setError((err as Error).message);
     } finally {

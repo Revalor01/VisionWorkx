@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useOnChange } from "@/lib/hooks";
 import type { MarketingCampaign, MarketingProduct, MarketingRecurrence, MarketingRecurringSchedule } from "@/lib/database.types";
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
 import { PUSH_TITLE_MAX, PUSH_BODY_MAX, SMS_BODY_MAX } from "@/lib/mobile/limits";
@@ -40,8 +41,12 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
   const [schedules, setSchedules] = useState<MarketingRecurringSchedule[]>([]);
   const [product, setProduct] = useState<MarketingProduct>("visionworkx");
   const [channel, setChannel] = useState<MobileChannel>("push");
-  const [audienceCount, setAudienceCount] = useState<number | null>(null);
-  const [loadingAudience, setLoadingAudience] = useState(false);
+  // Audience size for the selected product + channel; loading until the
+  // fetch for the current selection has answered.
+  const [audience, setAudience] = useState<{ key: string; count: number | null } | null>(null);
+  const audienceKey = `${product}:${channel}`;
+  const loadingAudience = audience?.key !== audienceKey;
+  const audienceCount = loadingAudience ? null : audience.count;
 
   const [goal, setGoal] = useState("");
   const [voiceNotes, setVoiceNotes] = useState("");
@@ -76,26 +81,28 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
+  useOnChange(audienceKey, () => setConfirmSend(false));
+
   useEffect(() => {
-    loadAudience(product, channel);
-    setConfirmSend(false);
+    let cancelled = false;
+    const key = `${product}:${channel}`;
+    fetch(`/api/admin/mobile/audience?product=${product}&channel=${channel}`)
+      .then(async (res) => {
+        const body = await res.json();
+        return res.ok ? (body.count as number) : null;
+      })
+      .catch(() => null)
+      .then((count) => {
+        if (!cancelled) setAudience({ key, count });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [product, channel]);
 
   useEffect(() => {
     refreshSchedules();
   }, []);
-
-  async function loadAudience(p: MarketingProduct, c: MobileChannel) {
-    setLoadingAudience(true);
-    setAudienceCount(null);
-    try {
-      const res = await fetch(`/api/admin/mobile/audience?product=${p}&channel=${c}`);
-      const body = await res.json();
-      if (res.ok) setAudienceCount(body.count);
-    } finally {
-      setLoadingAudience(false);
-    }
-  }
 
   async function refreshCampaigns() {
     const res = await fetch("/api/admin/mobile/campaigns");

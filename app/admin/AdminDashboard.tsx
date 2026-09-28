@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useNow, useOnChange } from "@/lib/hooks";
 import { useRouter } from "next/navigation";
 import { AdminHeader, AdminProductPills } from "./AdminNavHeader";
 import type { App, AppCategory, AppRevisionKind, AppRevisionStatus, AppStatus, AutomationEvent, Lead, LeadLanguage, LeadStatus, Plan, PartnerApplication, PartnerReferral, PartnerReferralStatus, PartnerStatus, PartnerTier, Profile, Subscription } from "@/lib/database.types";
@@ -161,18 +162,13 @@ export default function AdminDashboard({
   const [usersPage, setUsersPage] = useState(1);
   const [eventsPage, setEventsPage] = useState(1);
 
-  useEffect(() => {
-    setAppsPage(1);
-  }, [appSearch, appStatusFilter]);
-
-  useEffect(() => {
-    setUsersPage(1);
-  }, [userSearch]);
+  useOnChange(JSON.stringify([appSearch, appStatusFilter]), () => setAppsPage(1));
+  useOnChange(userSearch, () => setUsersPage(1));
 
   // ── Payments state ─────────────────────────────────────────────
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [paymentStats, setPaymentStats] = useState<{ totalRevenue: number; failedCount: number } | null>(null);
-  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsFetched, setPaymentsFetched] = useState(false);
   const [paymentsError, setPaymentsError] = useState("");
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentRow["status"] | "all">("all");
@@ -202,13 +198,12 @@ export default function AdminDashboard({
   const [emailSendError, setEmailSendError] = useState("");
   const [emailSendResult, setEmailSendResult] = useState("");
 
-  useEffect(() => {
-    setLeads(initialLeads);
-  }, [initialLeads]);
-
-  useEffect(() => {
-    setLeadsPage(1);
-  }, [leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadEmailFilter, leadMinScore]);
+  // Auto-refresh re-renders with fresh server props; take them over.
+  useOnChange(initialLeads, setLeads);
+  useOnChange(
+    JSON.stringify([leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadEmailFilter, leadMinScore]),
+    () => setLeadsPage(1)
+  );
 
   // ── Partners state ─────────────────────────────────────────────
   const [partners, setPartners] = useState<PartnerApplication[]>(initialPartners);
@@ -219,13 +214,8 @@ export default function AdminDashboard({
   const [partnersPage, setPartnersPage] = useState(1);
   const PARTNERS_PER_PAGE = 30;
 
-  useEffect(() => {
-    setPartners(initialPartners);
-  }, [initialPartners]);
-
-  useEffect(() => {
-    setPartnersPage(1);
-  }, [partnerStatusFilter, partnerTierFilter]);
+  useOnChange(initialPartners, setPartners);
+  useOnChange(JSON.stringify([partnerStatusFilter, partnerTierFilter]), () => setPartnersPage(1));
 
   async function handlePartnerDecision(applicationId: string, decision: "approved" | "denied") {
     setUpdatingPartnerId(applicationId);
@@ -274,13 +264,8 @@ export default function AdminDashboard({
   const [referralsPage, setReferralsPage] = useState(1);
   const REFERRALS_PER_PAGE = 30;
 
-  useEffect(() => {
-    setReferrals(initialReferrals);
-  }, [initialReferrals]);
-
-  useEffect(() => {
-    setReferralsPage(1);
-  }, [referralStatusFilter]);
+  useOnChange(initialReferrals, setReferrals);
+  useOnChange(referralStatusFilter, () => setReferralsPage(1));
 
   const partnersById = useMemo(() => new Map(partners.map((p) => [p.id, p])), [partners]);
 
@@ -370,14 +355,6 @@ export default function AdminDashboard({
     });
   }
 
-  function toggleSelectAllFiltered() {
-    setSelectedLeadIds((prev) => {
-      const allSelected = filteredLeads.length > 0 && filteredLeads.every((l) => prev.has(l.id));
-      if (allSelected) return new Set();
-      return new Set(filteredLeads.map((l) => l.id));
-    });
-  }
-
   const selectedEmailableCount = useMemo(
     () => leads.filter((l) => selectedLeadIds.has(l.id) && l.email).length,
     [leads, selectedLeadIds]
@@ -440,10 +417,18 @@ export default function AdminDashboard({
     });
   }, [leads, leadStatusFilter, leadCategoryFilter, leadLanguageFilter, leadWebsiteFilter, leadEmailFilter, leadMinScore]);
 
+  function toggleSelectAllFiltered() {
+    setSelectedLeadIds((prev) => {
+      const allSelected = filteredLeads.length > 0 && filteredLeads.every((l) => prev.has(l.id));
+      if (allSelected) return new Set();
+      return new Set(filteredLeads.map((l) => l.id));
+    });
+  }
+
   const leadsTotalPages = Math.max(1, Math.ceil(filteredLeads.length / LEADS_PER_PAGE));
   const paginatedLeads = useMemo(
     () => filteredLeads.slice((leadsPage - 1) * LEADS_PER_PAGE, leadsPage * LEADS_PER_PAGE),
-    [filteredLeads, leadsPage]
+    [filteredLeads, leadsPage, LEADS_PER_PAGE]
   );
 
   const leadStats = useMemo(() => {
@@ -498,9 +483,9 @@ export default function AdminDashboard({
     return () => clearInterval(interval);
   }, [autoRefresh, router]);
 
+  // Fetched once, the first time the Payments tab is opened.
   useEffect(() => {
-    if (tab !== "payments" || payments.length > 0) return;
-    setPaymentsLoading(true);
+    if (tab !== "payments" || paymentsFetched) return;
     fetch("/api/admin/payments")
       .then((r) => r.json())
       .then((d) => {
@@ -509,19 +494,20 @@ export default function AdminDashboard({
         setPaymentStats({ totalRevenue: d.totalRevenue, failedCount: d.failedCount });
       })
       .catch(() => setPaymentsError("Failed to load payments"))
-      .finally(() => setPaymentsLoading(false));
-  }, [tab, payments.length]);
+      .finally(() => setPaymentsFetched(true));
+  }, [tab, paymentsFetched]);
+  const paymentsLoading = tab === "payments" && !paymentsFetched;
 
   // ── Stats ──────────────────────────────────────────────────────
+  const now = useNow();
   const stats = useMemo(() => {
     const liveApps = apps.filter((a) => a.status === "deployed").length;
     const activeSubs = subscriptions.filter((s) => s.status === "active" || s.status === "trialing");
     const mrr = activeSubs.reduce((sum, s) => sum + (PLAN_MRR[s.plan ?? ""] ?? 0), 0);
     const appsThisWeek = apps.filter(
-      (a) => Date.now() - new Date(a.created_at).getTime() < 7 * 86400000
+      (a) => now - new Date(a.created_at).getTime() < 7 * 86400000
     ).length;
 
-    const now = Date.now();
     const within = (iso: string, days: number) => now - new Date(iso).getTime() < days * 86400000;
 
     const changeReqs = revisions.filter((r) => r.kind === "change");
@@ -590,7 +576,7 @@ export default function AdminDashboard({
       buildCount,
       aiCostPerBuild: buildCount ? (aiByGroup["App builds"] ?? 0) / buildCount : 0,
     };
-  }, [apps, profiles, subscriptions, revisions, aiUsage]);
+  }, [apps, profiles, subscriptions, revisions, aiUsage, now]);
 
   // ── Build reliability (golden-intake canary) ────────────────────
   // Logic lives in lib/apps/productStability.ts — shared with
@@ -650,8 +636,8 @@ export default function AdminDashboard({
   const noSourceSet = useMemo(() => new Set(noSourceAppIds), [noSourceAppIds]);
   const oldestPendingAgeMinutes = useMemo(() => {
     if (!oldestUndeliveredAt) return null;
-    return Math.round((Date.now() - new Date(oldestUndeliveredAt).getTime()) / 60000);
-  }, [oldestUndeliveredAt]);
+    return Math.round((now - new Date(oldestUndeliveredAt).getTime()) / 60000);
+  }, [oldestUndeliveredAt, now]);
 
   // ── Filtered apps ──────────────────────────────────────────────
   const filteredApps = useMemo(() => {

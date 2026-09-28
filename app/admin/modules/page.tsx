@@ -28,6 +28,8 @@ export default async function AdminModulesPage() {
       .order("created_at", { ascending: false }),
     db.from("vw_modules").select("id, public_id, workspace_id, type, name, status, config"),
     db.from("vw_workspace_members").select("workspace_id, user_id, role"),
+    // Server component rendered per request (force-dynamic): reading the clock here is intended.
+    // eslint-disable-next-line react-hooks/purity
     db.from("vw_submissions").select("workspace_id").gte("created_at", new Date(Date.now() - 30 * 864e5).toISOString()),
     // All-time, not just 30d -- revenue collected doesn't reset like the submissions-cap window does.
     db.from("vw_submissions").select("workspace_id, payment_status, payment_amount_cents").neq("payment_status", "none"),
