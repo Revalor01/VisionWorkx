@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
 import { extractJson } from "@/lib/social/extractJson";
 import type { LinkedInProduct } from "@/lib/database.types";
+import { formatProductKnowledge } from "@/lib/social/productKnowledge";
 
 // Separate from lib/social/contentGenerator.ts on purpose: LinkedIn reads
 // nothing like Instagram/TikTok/Facebook (longer-form, no hashtag spam,
@@ -9,9 +10,10 @@ import type { LinkedInProduct } from "@/lib/database.types";
 // specifically, never a social_content brand row - a dedicated prompt keeps
 // that fixed instead of threading brand selection through
 // generateContentCalendar. It does, however, always speak on behalf of one
-// specific Revalor Business product (VisionWorkx or Proactive) so the post
-// stays grounded in that product's real capabilities from
-// products.revalorllc.com rather than describing Revalor generically.
+// specific Revalor Business product (VisionWorkx, Proactive, or Revalor
+// Consulting) or the company as a whole, grounded in the product facts in
+// lib/social/productKnowledge.ts (a snapshot of products.revalorllc.com)
+// rather than describing Revalor generically.
 
 export interface GeneratedLinkedInPost {
   hook: string;
@@ -19,20 +21,28 @@ export interface GeneratedLinkedInPost {
   hashtags: string[];
 }
 
-const PRODUCT_CONTEXT: Record<LinkedInProduct, string> = {
-  visionworkx: `Product: VisionWorkx (products.revalorllc.com) — an AI-powered app builder for small businesses and entrepreneurs. You describe the app you need in plain English and it builds it: booking systems, CRMs, invoicing tools, and more, ready to use in minutes. It includes integrated automation that sends emails for bookings and leads without extra setup. Pricing runs from a free tier (25 emails/month) up to Pro (2,000 emails/month).
-Angle it toward: how much manual setup/dev work this replaces for a non-technical founder, concrete examples of apps it can build, or the automation piece saving time on lead follow-up.`,
-  proactive: `Product: Proactive (products.revalorllc.com) — a leadership coaching platform for people trying to get clarity, leadership, and growth. It gives daily leadership prompts across decisiveness, organization, problem-solving, and resource management, plus Collaborator, an AI coach you can talk through a real, specific decision with conversationally instead of getting generic wellness content.
-Angle it toward: the difference between generic advice and working through one real decision, the daily-prompt habit-building angle, or what "leadership coaching" means when it's software instead of a person.`,
-  revalor: `Product: Revalor LLC as a company (products.revalorllc.com) — not one specific app, but the company itself. It builds practical, AI-powered software across two lanes: tools that help a business run itself (VisionWorkx) and tools that help a person think and lead more clearly (Proactive), plus a set of apps for families (Chorebit, FeelFlow, MindBit) and personal wellness (Sanctum). The throughline across all of it: less manual, more human — software that does real work instead of asking you to do more configuring.
-Angle it toward: the philosophy connecting products that otherwise look unrelated, why a small company builds across such different categories instead of picking one niche, or a founder's-eye view of what "less manual, more human" actually means in practice. Don't single out or oversell any one product by name as the flagship — this post speaks for the company, not a pitch for a specific app.`,
+const PRODUCT_ANGLES: Record<Exclude<LinkedInProduct, "revalor">, string> = {
+  visionworkx: `Angle it toward: a small business whose website gets visitors but doesn't capture them (no booking, no quote, no follow-up), getting leads and bookings without rebuilding the site or hiring a developer, concrete examples of a module on a real kind of business (a quote calculator for a contractor, online booking for a salon, an intake form for a consultant), or the automation that confirms to the customer and alerts the owner the moment someone submits. VisionWorkx is NOT an app builder and does not build websites or full apps — it adds modules to a site the business already has.`,
+  proactive: `Angle it toward: the difference between generic advice and working through one real decision, the daily-prompt habit-building angle, or what "leadership coaching" means when it's software instead of a person.`,
+  revalor_consulting: `Angle it toward: when a business has outgrown off-the-shelf tools (a custom data model, an unusual workflow, an integration), why a fixed-scope quote agreed before any build work matters, or the difference between an in-house team that ships its own live products and an agency handoff. Where it fits, note that a custom build can sit alongside VisionWorkx modules on the site the business already has.`,
 };
+
+const REVALOR_COMPANY_CONTEXT = `Product: Revalor LLC as a company (products.revalorllc.com) — not one specific app, but the company itself. Tagline: "Software for the Human Condition." A veteran-owned business that builds two kinds of software: tools that help your business grow, and tools that help you live better — both a little more human, and a lot less manual. Six live products across three product lines:
+- Revalor Business (growth, automation, efficiency, operations): VisionWorkx (booking, lead capture and automatic follow-up modules for the website a business already has), Revalor Consulting (custom-built web applications by Revalor's own team), and Proactive (AI leadership coaching).
+- Revalor Kids (fun, screen-safe tools that build real-world habits): Chorebit (chores into savings goals), FeelFlow (emotional check-ins), MindBit (self-control games).
+- Revalor Wellness (mental clarity, calm, grounded daily reflection): Sanctum.
+Angle it toward: the philosophy connecting products that otherwise look unrelated, why a small company builds across business, family, and wellness instead of picking one niche, or a founder's-eye view of what "less manual, more human" actually means in practice. Don't single out or oversell any one product by name as the flagship — this post speaks for the company, not a pitch for a specific app.`;
+
+function productContext(product: LinkedInProduct): string {
+  if (product === "revalor") return REVALOR_COMPANY_CONTEXT;
+  return `Product (products.revalorllc.com):\n${formatProductKnowledge(product)}\n${PRODUCT_ANGLES[product]}`;
+}
 
 const SYSTEM_PROMPT_HEADER = `You write LinkedIn posts for Revalor LLC, promoting one specific Revalor Business product per post. Revalor's throughline across everything it builds: less manual, more human.
 
 Rules:
 - Write like a founder sharing something genuine about this specific product, not a corporate brand account. LinkedIn rewards specificity and a real point of view over generic uplift.
-- Stay grounded in the product's actual, listed capabilities below. Do not invent features it doesn't have, and do not describe Revalor generically — this post is about this product.
+- Stay grounded in the product's actual, listed capabilities, plans, and prices below. Do not invent features, prices, or free tiers it doesn't have, and do not describe Revalor generically — this post is about this product.
 - hook: the first line, which LinkedIn truncates the rest behind a "see more" - it must stand alone and earn the click (<=100 chars).
 - caption: 3-6 short paragraphs, professional but conversational. No corporate jargon, no excessive emoji, no hashtag stuffing inside the body.
 - hashtags: 3-5 relevant, professional tags (e.g. "smallbusiness", "softwaredevelopment", "founderstory"), no "#" prefix, lowercase.
@@ -45,7 +55,7 @@ export async function generateLinkedInPost(params: { topic?: string; product?: L
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const product = params.product ?? "visionworkx";
 
-  const systemPrompt = `${SYSTEM_PROMPT_HEADER}\n\n${PRODUCT_CONTEXT[product]}`;
+  const systemPrompt = `${SYSTEM_PROMPT_HEADER}\n\n${productContext(product)}`;
 
   const userPrompt = params.topic
     ? `Write a LinkedIn post about: ${params.topic}`

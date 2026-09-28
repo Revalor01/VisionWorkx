@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
 import { extractJson } from "@/lib/social/extractJson";
+import { productFactsForBrand } from "@/lib/social/productKnowledge";
 import type { SocialPlatform } from "@/lib/database.types";
 
 export interface GeneratedPost {
@@ -21,6 +22,7 @@ Rules:
 - caption: the full post body, platform-appropriate length (Instagram can run longer/more personal; Facebook can be a bit more direct/informational; TikTok should be short and punchy — a sentence or two, trend-aware tone, not a paragraph; YouTube's caption becomes the video description — write it like a real description with context, not a punchy hook, since the hook already covers that role as the video title)
 - hashtags: 3-8 relevant tags, no "#" prefix in the output, lowercase
 - No generic filler ("Check this out!", "Exciting news!") — be specific about what the product actually does
+- When product facts are provided, they are the source of truth: describe only the capabilities, plans, prices, and trials listed there. If the voice notes or topics describe a product differently (older positioning), follow the product facts. Never invent features, prices, or free tiers that aren't listed
 - Respect the brand voice notes provided exactly — they describe how this specific brand should sound
 - riskLevel: rate each post "low" (factual, supportive, no claims), "medium" (soft claims or urgency), or "high" (strong claims, controversial, or sensitive topic) — this drives an automated approval gate, so rate honestly rather than defaulting to "low"
 
@@ -51,9 +53,11 @@ export async function generateContentCalendar(params: {
         .join("\n")
     : "";
 
+  const productFacts = productFactsForBrand(brandName);
+
   const userPrompt = `Brand: ${brandName}
 Voice notes: ${voiceNotes || "(none provided — use a confident, clear, founder-built tone)"}
-Platforms to generate for: ${platforms.join(", ")}
+${productFacts ? `Current product facts for ${brandName} (source of truth — from products.revalorllc.com):\n${productFacts}\n` : ""}Platforms to generate for: ${platforms.join(", ")}
 ${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
 
   const message = await anthropic.messages.create({
