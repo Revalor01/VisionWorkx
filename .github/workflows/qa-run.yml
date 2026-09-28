@@ -76,6 +76,7 @@ jobs:
       - name: Report setup failure
         if: failure() && inputs.run_id != ''
         run: |
+          SECRET=$(printf '%s' "$QA_REPORT_SECRET" | sed $'s/^\xef\xbb\xbf//' | tr -d '\r\n ')
           curl -sS -X POST "$QA_REPORT_URL/api/admin/qa/report" \
-            -H "Authorization: Bearer $QA_REPORT_SECRET" -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $SECRET" -H "Content-Type: application/json" \
             -d "{\"type\":\"end\",\"runId\":\"$QA_RUN_ID\",\"status\":\"failed\",\"error\":\"The QA workflow failed during setup or a test errored. See $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" || true
