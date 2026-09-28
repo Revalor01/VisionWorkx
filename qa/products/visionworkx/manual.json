@@ -1,0 +1,32 @@
+[
+  {
+    "id": "visionworkx/manual/start-email-link",
+    "area": "Signup",
+    "title": "Signup email link arrives and signs you in",
+    "instructions": "Go to /start and sign up with a real inbox you control (e.g. you+test@gmail.com). The sign-in email should arrive within a minute; clicking it should land on onboarding. Afterwards, delete the test account's workspace from /admin/modules."
+  },
+  {
+    "id": "visionworkx/manual/stripe-connect-onboarding",
+    "area": "Payments",
+    "title": "Stripe Connect onboarding completes",
+    "instructions": "In a test workspace: Billing → Connect Stripe. Finish Stripe's hosted onboarding (test mode). Back on Billing it should say \"Payments are on\"."
+  },
+  {
+    "id": "visionworkx/manual/google-consent-screen",
+    "area": "Google Calendar",
+    "title": "Google consent screen shows the VisionWorkx name and both permissions",
+    "instructions": "In a test workspace: Settings → Connect Google Calendar with your own account. The screen should name VisionWorkx (not revalorllc.com) and list exactly two calendar permissions. Then Disconnect (only on your own test workspace — never on Revalor QA Calendar)."
+  },
+  {
+    "id": "visionworkx/manual/google-disconnect-revokes",
+    "area": "Google Calendar",
+    "title": "Disconnect removes access in the Google Account",
+    "instructions": "After disconnecting your own test connection, check myaccount.google.com → Security → Third-party connections: VisionWorkx should no longer be listed."
+  },
+  {
+    "id": "visionworkx/manual/reminder-email-arrives",
+    "area": "Booking",
+    "title": "24-hour reminder email arrives",
+    "instructions": "Book a time about 25 hours ahead with your real email. The next day, the reminder should arrive about 24 hours before, with a working change/cancel link."
+  }
+]

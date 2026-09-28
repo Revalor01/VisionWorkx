@@ -4,6 +4,7 @@
 // Run by .github/workflows/qa-run.yml before the tests. Needs QA_REPORT_URL
 // and QA_REPORT_SECRET; `--dry` just prints the catalog.
 import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 const dry = process.argv.includes("--dry");
 const out = execFileSync("npx", ["playwright", "test", "--list", "--reporter=json", "-c", "qa/playwright.config.ts"], {
@@ -39,6 +40,17 @@ function walk(suite) {
   for (const child of suite.suites ?? []) walk(child);
 }
 for (const s of report.suites ?? []) walk(s);
+
+// Manual checks: qa/products/<product>/manual.json -> shown as tick boxes in /admin/qa.
+for (const product of readdirSync("qa/products", { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
+  const file = `qa/products/${product}/manual.json`;
+  if (!existsSync(file)) continue;
+  for (const m of JSON.parse(readFileSync(file, "utf8"))) {
+    if (!String(m.id).startsWith(`${product}/`)) throw new Error(`${file}: id ${m.id} must start with ${product}/`);
+    if (!byProduct.has(product)) byProduct.set(product, new Map());
+    byProduct.get(product).set(m.id, { id: m.id, title: m.title, area: m.area ?? "Manual", instructions: m.instructions ?? "", manual: true, tags: [], requires: [] });
+  }
+}
 
 for (const [product, tests] of byProduct) {
   const list = [...tests.values()];

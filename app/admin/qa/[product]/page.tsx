@@ -6,6 +6,7 @@ import { finalResults, isStale, PRODUCT_RE } from "@/lib/qa/summary";
 import { qaDispatchConfigured } from "@/lib/qa/github";
 import { NotConfigured, QaShell, StatusBadge, timeAgo } from "../ui";
 import TestPicker from "./TestPicker";
+import ManualChecks, { type ManualCheck } from "./ManualChecks";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +27,26 @@ export default async function QaProductPage(props: { params: Promise<{ product: 
   if (!p) notFound();
 
   const [{ data: tests }, { data: runs }] = await Promise.all([
-    db.from("vw_qa_tests").select("id, product_slug, area, title, tags, requires, manual, active").eq("product_slug", product).eq("active", true).order("area").order("title"),
+    db.from("vw_qa_tests").select("id, product_slug, area, title, tags, requires, manual, instructions, active").eq("product_slug", product).eq("active", true).order("area").order("title"),
     db.from("vw_qa_runs").select("*").eq("product_slug", product).order("created_at", { ascending: false }).limit(25),
   ]);
   const runList = (runs ?? []) as QaRun[];
   const testList = ((tests ?? []) as QaTest[]).filter((t) => !t.manual);
+  const manualList = ((tests ?? []) as (QaTest & { instructions: string | null })[]).filter((t) => t.manual);
+  const { data: checks } = manualList.length
+    ? await db
+        .from("vw_qa_manual_checks")
+        .select("test_id, status, note, created_at")
+        .in("test_id", manualList.map((t) => t.id))
+        .order("created_at", { ascending: false })
+    : { data: [] };
+  const manualChecks: ManualCheck[] = manualList.map((t) => ({
+    id: t.id,
+    area: t.area,
+    title: t.title,
+    instructions: t.instructions ?? "",
+    last: ((checks ?? []) as (ManualCheck["last"] & { test_id: string })[]).find((c) => c?.test_id === t.id) ?? null,
+  }));
 
   // Latest status per test, from the most recent runs.
   const { data: recent } = runList.length
@@ -63,6 +79,8 @@ export default async function QaProductPage(props: { params: Promise<{ product: 
         tests={testList.map((t) => ({ id: t.id, area: t.area, title: t.title, tags: t.tags, requires: t.requires, last: lastStatus[t.id] ?? null }))}
         dispatchReady={qaDispatchConfigured()}
       />
+
+      <ManualChecks checks={manualChecks} />
 
       <section className="mt-10">
         <h2 className="mb-3 text-lg font-bold text-zinc-900">Recent runs</h2>
