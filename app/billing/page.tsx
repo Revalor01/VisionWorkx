@@ -60,6 +60,8 @@ export default async function BillingPage() {
   const trialEnd = createdAt
     ? new Date(createdAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000)
     : null;
+  // Server component rendered per request (reads the signed-in user): reading the clock here is intended.
+  // eslint-disable-next-line react-hooks/purity
   const trialMsLeft = trialEnd ? trialEnd.getTime() - Date.now() : 0;
   const trialDaysLeft = Math.max(
     0,

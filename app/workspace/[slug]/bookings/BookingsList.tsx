@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useNow } from "@/lib/hooks";
 
 export interface BookingRow {
   id: string;
@@ -20,7 +21,7 @@ export default function BookingsList(props: { slug: string; timeZone: string; in
   const [msg, setMsg] = useState("");
   const day = new Intl.DateTimeFormat("en-US", { timeZone: props.timeZone, weekday: "long", month: "long", day: "numeric" });
   const time = new Intl.DateTimeFormat("en-US", { timeZone: props.timeZone, hour: "numeric", minute: "2-digit" });
-  const now = Date.now();
+  const now = useNow();
   const upcoming = rows.filter((r) => r.status === "confirmed" && new Date(r.endsAt).getTime() >= now);
   const groups = new Map<string, BookingRow[]>();
   for (const r of upcoming) {

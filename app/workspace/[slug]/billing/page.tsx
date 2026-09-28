@@ -55,6 +55,8 @@ export default async function WorkspaceBillingPage(props: { params: Promise<{ sl
   const plan = (ws?.plan ?? "starter") as ModulePlan;
   const limits = limitsFor(plan);
   const dateFmt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: workspace.time_zone });
+  // Server component rendered per request (reads the signed-in member): reading the clock here is intended.
+  // eslint-disable-next-line react-hooks/purity
   const trialDaysLeft = ws?.trial_ends_at ? Math.max(0, Math.ceil((new Date(ws.trial_ends_at).getTime() - Date.now()) / 864e5)) : null;
 
   return (
