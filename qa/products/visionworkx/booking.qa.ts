@@ -1,63 +1,10 @@
-import type { APIRequestContext } from "@playwright/test";
 import { expect, qa, test } from "../../lib/qa";
-import {
-  createModule,
-  EMAIL_FIELD,
-  formConfig,
-  modulesAdmin,
-  NAME_FIELD,
-  openHostPage,
-  QA_HOST,
-  resendTestAddress,
-  signIn,
-  submitViaApi,
-  target,
-  waitFor,
-} from "../../lib/modules";
+import { createModule, modulesAdmin, openHostPage, resendTestAddress, signIn, target, waitFor } from "../../lib/modules";
+import { book, bookingConfig, dayOff, EMAIL_FIELD, NAME_FIELD, NOTICE_HOURS, openSlots, TZ } from "../../lib/booking";
 import { localDate, localParts } from "../../../lib/modules/booking";
 
 // Online booking: which times are offered, booking through the widget,
 // double-booking protection, and changes by the customer and the owner.
-
-const TZ = "America/New_York";
-const NOTICE_HOURS = 12;
-
-function addDays(date: string, n: number): string {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
-}
-
-const today = () => localDate(new Date(), TZ);
-const dayOff = () => addDays(today(), 3);
-
-function bookingConfig(fields: Record<string, unknown>[] = [NAME_FIELD]) {
-  return {
-    ...formConfig(fields, { submitLabel: "Book", successMessage: "You're booked — QA." }),
-    booking: {
-      services: [{ id: "consult", name: "QA consult", durationMin: 30, bufferMin: 15, priceLabel: "Free", description: "" }],
-      weekly: Array.from({ length: 7 }, () => [{ start: "09:00", end: "17:00" }]),
-      daysOff: [dayOff()],
-      minNoticeHours: NOTICE_HOURS,
-      maxDaysAhead: 30,
-      slotStepMin: 30,
-      cancelCutoffHours: 1,
-      timeZone: TZ,
-      locationNote: "QA test booking",
-    },
-  };
-}
-
-async function openSlots(request: APIRequestContext, publicId: string, days = 7): Promise<string[]> {
-  const res = await request.get(`${target()}/api/m/${publicId}/slots?service=consult&from=${today()}&days=${days}`, {
-    headers: { Origin: `https://${QA_HOST}` },
-  });
-  expect(res.status(), "slots API").toBe(200);
-  return ((await res.json()) as { slots: string[] }).slots;
-}
-
-async function book(request: APIRequestContext, publicId: string, start: string, data: Record<string, string> = { name: "QA Booker" }) {
-  return submitViaApi(request, publicId, { data, booking: { serviceId: "consult", start, timeZone: TZ } });
-}
 
 qa({ id: "visionworkx/booking/slots-follow-rules", area: "Booking", title: "Only open times are offered (hours, day off, notice)" }, async ({ request, qaWorkspace }) => {
   const mod = await createModule(qaWorkspace.id, "booking", bookingConfig());
