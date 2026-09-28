@@ -1,7 +1,9 @@
 import { createHash, randomBytes } from "crypto";
+import { after } from "next/server";
 import { modulesServiceClient } from "./supabase";
 import { EMBED_ORIGIN } from "./constants";
 import { submissionEmail } from "./submissionEmail";
+import { deleteBookingEvent, googleBusy, upsertBookingEvent, withoutOwnEvent } from "./googleCalendar";
 import {
   canChange,
   formatWhen,
@@ -33,19 +35,30 @@ export function hashToken(token: string): string {
   return createHash("sha256").update(`vw-booking:${token}`).digest("hex");
 }
 
-/** Confirmed bookings (with buffers) overlapping [from, to) for a workspace. */
+/**
+ * Busy ranges overlapping [from, to) for a workspace: confirmed bookings (with
+ * buffers) plus busy times on its connected Google Calendar, if any. When
+ * `excludeBookingId` is given (a reschedule), that booking and its own
+ * calendar event don't count.
+ */
 export async function busyRanges(workspaceId: string, from: Date, to: Date, excludeBookingId?: string): Promise<Busy[]> {
-  let q = modulesServiceClient()
-    .from("vw_bookings")
-    .select("id, starts_at, block_ends_at")
-    .eq("workspace_id", workspaceId)
-    .eq("status", "confirmed")
-    .lt("starts_at", to.toISOString())
-    .gt("block_ends_at", from.toISOString())
-    .limit(2000);
-  if (excludeBookingId) q = q.neq("id", excludeBookingId);
-  const { data } = await q;
-  return (data ?? []).map((b) => ({ start: new Date(b.starts_at), end: new Date(b.block_ends_at) }));
+  const [{ data }, google] = await Promise.all([
+    modulesServiceClient()
+      .from("vw_bookings")
+      .select("id, starts_at, ends_at, block_ends_at")
+      .eq("workspace_id", workspaceId)
+      .eq("status", "confirmed")
+      .lt("starts_at", to.toISOString())
+      .gt("block_ends_at", from.toISOString())
+      .limit(2000),
+    googleBusy(workspaceId, from, to),
+  ]);
+  const rows = data ?? [];
+  const own = rows.find((b) => b.id === excludeBookingId);
+  return [
+    ...rows.filter((b) => b.id !== excludeBookingId).map((b) => ({ start: new Date(b.starts_at), end: new Date(b.block_ends_at) })),
+    ...withoutOwnEvent(google, own ? { start: new Date(own.starts_at), end: new Date(own.ends_at) } : null),
+  ];
 }
 
 export type BookResult = { ok: true; bookingId: string; token: string } | { ok: false; reason: "unavailable" | "taken" | "error" };
@@ -180,6 +193,8 @@ export interface ManagedBooking {
   service: BookingService | null;
   customerName: string;
   customerEmail: string | null;
+  customerData: Record<string, unknown>;
+  gcalEventId: string | null;
 }
 
 export async function bookingByToken(token: string): Promise<ManagedBooking | null> {
@@ -199,7 +214,7 @@ async function loadBooking(column: "id" | "manage_token_hash", value: string): P
   const { data: b } = await db
     .from("vw_bookings")
     .select(
-      "id, workspace_id, module_id, submission_id, status, starts_at, ends_at, customer_tz, service_id, service_name, reminder_job_id, vw_modules!inner(public_id, type, config), vw_workspaces!inner(name, slug, time_zone)",
+      "id, workspace_id, module_id, submission_id, status, starts_at, ends_at, customer_tz, service_id, service_name, reminder_job_id, gcal_event_id, vw_modules!inner(public_id, type, config), vw_workspaces!inner(name, slug, time_zone)",
     )
     .eq(column, value)
     .maybeSingle();
@@ -210,9 +225,11 @@ async function loadBooking(column: "id" | "manage_token_hash", value: string): P
   const setup = parseBookingSetup(mod.config?.booking, ws.time_zone);
   let customerName = "";
   let customerEmail: string | null = null;
+  let customerData: Record<string, unknown> = {};
   if (b.submission_id) {
     const { data: s } = await db.from("vw_submissions").select("data").eq("id", b.submission_id).maybeSingle();
     const data = (s?.data ?? {}) as Record<string, unknown>;
+    customerData = data;
     customerName = typeof data.name === "string" ? data.name : "";
     customerEmail = submissionEmail(data);
   }
@@ -235,7 +252,34 @@ async function loadBooking(column: "id" | "manage_token_hash", value: string): P
     service: setup.services.find((s) => s.id === b.service_id) ?? null,
     customerName,
     customerEmail,
+    customerData,
+    gcalEventId: b.gcal_event_id,
   };
+}
+
+// ── Google Calendar (best effort, after the response) ───────────────────────
+
+function toCalendarEvent(b: ManagedBooking, start: Date, end: Date) {
+  return {
+    id: b.id,
+    workspaceId: b.workspaceId,
+    workspaceSlug: b.workspaceSlug,
+    serviceName: b.serviceName,
+    startsAt: start,
+    endsAt: end,
+    locationNote: b.setup.locationNote,
+    customer: b.customerData,
+    gcalEventId: b.gcalEventId,
+    dashboardUrl: `${origin()}/workspace/${b.workspaceSlug}/bookings`,
+  };
+}
+
+/** Puts a newly confirmed booking on the workspace's connected calendar. Call once the submission is linked. */
+export function syncNewBookingToCalendar(bookingId: string) {
+  after(async () => {
+    const b = await loadBooking("id", bookingId);
+    if (b?.status === "confirmed") await upsertBookingEvent(toCalendarEvent(b, b.startsAt, b.endsAt));
+  });
 }
 
 export async function cancelBooking(b: ManagedBooking, by: "customer" | "owner"): Promise<{ ok: boolean; error?: string }> {
@@ -251,6 +295,7 @@ export async function cancelBooking(b: ManagedBooking, by: "customer" | "owner")
     .select("id");
   if (error || !data?.length) return { ok: false, error: "Couldn't cancel — please try again." };
   await cancelReminder(b.reminderJobId);
+  after(() => deleteBookingEvent(b.workspaceId, b.id, b.gcalEventId));
   if (b.submissionId) {
     await modulesServiceClient().from("vw_submissions").update({ status: "lost" }).eq("id", b.submissionId).eq("status", "new");
   }
@@ -310,6 +355,7 @@ export async function rescheduleBooking(b: ManagedBooking, newStart: Date): Prom
     if (s) await db.from("vw_submissions").update({ data: { ...(s.data as object), bk_when: whenText(newStart, b.setup, b.customerTz) } }).eq("id", b.submissionId);
   }
   await cancelReminder(b.reminderJobId);
+  after(() => upsertBookingEvent(toCalendarEvent(b, newStart, end)));
   await notifyOwner(
     b.workspaceId,
     `Rescheduled: ${b.serviceName} → ${formatWhen(newStart, b.setup.timeZone)}`,

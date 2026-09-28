@@ -211,7 +211,7 @@ export default function BookingSetupEditor(props: { value: BookingSetup; onChang
           ))}
         </div>
       </div>
-      <p className="text-xs text-gray-500">Customers get a confirmation right away and a reminder 24 hours before. Google and Outlook calendar sync is coming soon.</p>
+      <p className="text-xs text-gray-500">Customers get a confirmation right away and a reminder 24 hours before. Connect Google Calendar in Settings to block your busy times and add bookings to your calendar (Outlook coming soon).</p>
     </div>
   );
 }

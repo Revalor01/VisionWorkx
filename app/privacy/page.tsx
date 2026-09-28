@@ -6,7 +6,7 @@ export const metadata = {
   description: "How VisionWorkx collects, uses, and protects information, including data collected by VisionWorkx Modules forms.",
 };
 
-const LAST_UPDATED = "September 26, 2026";
+const LAST_UPDATED = "September 27, 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -213,13 +213,53 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="12. Changes">
+        <Section title="12. Google Calendar (VisionWorkx booking)">
+          <p>
+            A business using a VisionWorkx booking module can choose to connect its Google Calendar. With the business owner&apos;s
+            permission we access, from their Google account:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              <strong>Their email address</strong>, to show which Google account is connected.
+            </li>
+            <li>
+              <strong>Free/busy times</strong> on their primary calendar (start and end times only, never event titles, attendees or
+              other details), so their booking page doesn&apos;t offer times they&apos;re already busy.
+            </li>
+            <li>
+              <strong>Events we create</strong> on their primary calendar: one per booking made through VisionWorkx, which we update when
+              the booking is rescheduled and remove when it&apos;s cancelled. We don&apos;t read, change or delete any other events.
+            </li>
+          </ul>
+          <p>
+            We store only an encrypted Google access credential, the connected email address, and the ID of each event we created. We don&apos;t sell
+            Google user data, use it for advertising, share it with third parties (other than the service providers that host
+            VisionWorkx), or use it to train AI or machine-learning models, and people at Revalor don&apos;t read it except to
+            provide support the business asks for, for security, or where the law requires it. The business can disconnect at any time
+            from Workspace Settings (or from their Google Account&apos;s third-party access page), which revokes our access and deletes
+            the stored token.
+          </p>
+          <p>
+            VisionWorkx&apos;s use and transfer of information received from Google APIs to any other app will adhere to the{" "}
+            <a
+              href="https://developers.google.com/terms/api-services-user-data-policy"
+              className="text-navy underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google API Services User Data Policy
+            </a>
+            , including the Limited Use requirements.
+          </p>
+        </Section>
+
+        <Section title="13. Changes">
           <p>
             We may update this Privacy Policy. For material changes we&apos;ll update the date above and notify customers by email.
           </p>
         </Section>
 
-        <Section title="13. Contact">
+        <Section title="14. Contact">
           <p>
             Questions about this Privacy Policy? Reach us at <Email />.
           </p>
