@@ -13,6 +13,7 @@ const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
 const PRODUCT_LABEL: Record<LinkedInProduct, string> = {
   visionworkx: "VisionWorkx",
   proactive: "Proactive",
+  revalor_consulting: "Revalor Consulting",
   revalor: "Revalor (company-wide)",
 };
 
@@ -98,7 +99,7 @@ export default function LinkedInTab({
           <HelpButton title="How to use LinkedIn">
             <HelpStep n={1}>
               Pick a <strong className="text-[#1A3A5C]">Product</strong> (VisionWorkx / Proactive / Revalor
-              company-wide), optionally type a topic, and click{" "}
+              Consulting / Revalor company-wide), optionally type a topic, and click{" "}
               <strong className="text-[#1A3A5C]">Generate Post</strong> — Claude writes a draft hook, caption, and
               hashtags.
             </HelpStep>
@@ -139,6 +140,7 @@ export default function LinkedInTab({
           >
             <option value="visionworkx">VisionWorkx</option>
             <option value="proactive">Proactive</option>
+            <option value="revalor_consulting">Revalor Consulting</option>
             <option value="revalor">Revalor (company-wide)</option>
           </select>
           <input

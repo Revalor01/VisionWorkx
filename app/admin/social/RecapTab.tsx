@@ -131,7 +131,7 @@ export default function RecapTab() {
         <div>
           <h2 className="text-lg font-semibold text-[#1A3A5C]">Weekly Recap</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Real stats pulled from all four products, turned into a short personal recap video to share yourself.
+            Real stats pulled from VisionWorkx, Chorebit, FeelFlow and MindBit, turned into a short personal recap video to share yourself.
           </p>
         </div>
         <button
