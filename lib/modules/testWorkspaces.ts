@@ -9,3 +9,12 @@ export async function testWorkspaceIds(db: SupabaseClient): Promise<Set<string>>
   if (error) return new Set();
   return new Set((data ?? []).map((w: { id: string }) => w.id));
 }
+
+/**
+ * Accounts the QA suite creates (qa/lib/modules.ts): qa+<tag>@example.com.
+ * Their workspaces are marked is_test and they never get onboarding emails
+ * or trigger the admin signup alert.
+ */
+export function isQaEmail(email: string | null | undefined): boolean {
+  return /^qa\+[a-z0-9]+@example\.com$/i.test(email ?? "");
+}

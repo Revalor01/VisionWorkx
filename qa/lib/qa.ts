@@ -1,5 +1,5 @@
 import { test as base, expect } from "@playwright/test";
-import { createTestWorkspace, type TestWorkspace } from "./modules";
+import { createQaUser, createTestWorkspace, type QaUser, type TestWorkspace, type WorkspaceOptions } from "./modules";
 
 // Every QA test is declared with qa(): it gives the test a stable id (used by
 // /admin/qa to pick, re-run and track it), an area heading, and tags.
@@ -14,19 +14,34 @@ export interface QaMeta {
   area: string;
   title: string;
   smoke?: boolean;
+  /** Also run on a phone-sized screen (the "mobile" project). */
+  mobile?: boolean;
   /** Extra setup the test needs (shown as a badge), e.g. "stripe-test", "google-qa". */
   requires?: string[];
 }
 
 interface Fixtures {
+  /** Options for qaWorkspace; set per file with test.use({ workspaceOptions: { … } }). */
+  workspaceOptions: WorkspaceOptions;
   /** A throwaway VisionWorkx modules workspace (is_test, comped), deleted after the test. */
   qaWorkspace: TestWorkspace;
+  /** A signed-up user with no workspace yet, deleted (with anything they create) after the test. */
+  qaUser: QaUser;
 }
 
 export const test = base.extend<Fixtures>({
+  workspaceOptions: [{}, { option: true }],
   // eslint-disable-next-line no-empty-pattern
-  qaWorkspace: async ({}, use, testInfo) => {
-    const ws = await createTestWorkspace(testInfo.testId);
+  qaUser: async ({}, use, testInfo) => {
+    const u = await createQaUser(testInfo.testId);
+    try {
+      await use(u);
+    } finally {
+      await u.cleanup();
+    }
+  },
+  qaWorkspace: async ({ workspaceOptions }, use, testInfo) => {
+    const ws = await createTestWorkspace(testInfo.testId, workspaceOptions);
     try {
       await use(ws);
     } finally {
@@ -44,7 +59,7 @@ export function qa(meta: QaMeta, body: Parameters<typeof test>[2]) {
   test(
     meta.title,
     {
-      tag: [`@${meta.id}`, ...(meta.smoke ? ["@smoke"] : [])],
+      tag: [`@${meta.id}`, ...(meta.smoke ? ["@smoke"] : []), ...(meta.mobile ? ["@mobile"] : [])],
       annotation: [{ type: "area", description: meta.area }, ...(meta.requires ?? []).map((r) => ({ type: "requires", description: r }))],
     },
     body,

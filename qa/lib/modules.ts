@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
-import type { BrowserContext, Page } from "@playwright/test";
+import type { APIRequestContext, BrowserContext, Page } from "@playwright/test";
 import { MODULES_AUTH_COOKIE } from "../../lib/modules/constants";
 
 // Test data in the VisionWorkx MODULES database. Everything created here is
@@ -30,6 +30,59 @@ export function modulesAdmin(): SupabaseClient {
   return admin;
 }
 
+function newTag(): string {
+  return `${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+}
+
+function newPassword(): string {
+  return `Qa!${randomBytes(18).toString("base64url")}`;
+}
+
+/**
+ * Resend's test inbox: "delivers" without a real mailbox and without any hit
+ * to sender reputation. Use it for anything that sends email.
+ */
+export function resendTestAddress(label: string): string {
+  return `delivered+${label.replace(/[^a-z0-9]/gi, "").toLowerCase()}@resend.dev`;
+}
+
+// ── users and workspaces ──────────────────────────────────────────────────────
+
+export interface QaUser {
+  id: string;
+  email: string;
+  password: string;
+  /** Deletes the user and any is_test workspace they created. */
+  cleanup: () => Promise<void>;
+}
+
+/** A signed-up user with no workspace yet (for onboarding tests). */
+export async function createQaUser(seed: string): Promise<QaUser> {
+  const db = modulesAdmin();
+  const email = `qa+${newTag()}@${QA_EMAIL_DOMAIN}`;
+  const password = newPassword();
+  const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { qa: true, seed } });
+  if (error || !data.user) throw new Error(`QA user create failed: ${error?.message}`);
+  const id = data.user.id;
+  return {
+    id,
+    email,
+    password,
+    cleanup: async () => {
+      const { error: we } = await db.from("vw_workspaces").delete().eq("created_by", id).eq("is_test", true);
+      if (we) console.warn(`[qa] cleanup: workspaces of ${email} not deleted: ${we.message}`);
+      const { error: de } = await db.auth.admin.deleteUser(id);
+      if (de) console.warn(`[qa] cleanup: user ${email} not deleted: ${de.message}`);
+    },
+  };
+}
+
+export interface WorkspaceOptions {
+  /** Where owner alerts go. Default: none, so nothing is emailed. Use resendTestAddress() to test emails. */
+  notificationEmail?: string | null;
+  plan?: "starter" | "growth" | "pro";
+}
+
 export interface TestWorkspace {
   id: string;
   slug: string;
@@ -38,11 +91,11 @@ export interface TestWorkspace {
   cleanup: () => Promise<void>;
 }
 
-export async function createTestWorkspace(seed: string): Promise<TestWorkspace> {
+export async function createTestWorkspace(seed: string, opts: WorkspaceOptions = {}): Promise<TestWorkspace> {
   const db = modulesAdmin();
-  const tag = `${Date.now().toString(36)}${randomBytes(3).toString("hex")}`;
+  const tag = newTag();
   const email = `qa+${tag}@${QA_EMAIL_DOMAIN}`;
-  const password = `Qa!${randomBytes(18).toString("base64url")}`;
+  const password = newPassword();
 
   const { data: u, error: ue } = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { qa: true, seed } });
   if (ue || !u.user) throw new Error(`QA user create failed: ${ue?.message}`);
@@ -52,7 +105,16 @@ export async function createTestWorkspace(seed: string): Promise<TestWorkspace> 
   const name = `QA ${tag}`;
   const { data: ws, error: we } = await db
     .from("vw_workspaces")
-    .insert({ name, slug, domains: [QA_HOST], plan: "starter", billing_status: "comped", is_test: true, time_zone: "America/New_York" })
+    .insert({
+      name,
+      slug,
+      domains: [QA_HOST],
+      plan: opts.plan ?? "starter",
+      billing_status: "comped",
+      is_test: true,
+      time_zone: "America/New_York",
+      notification_email: opts.notificationEmail ?? null,
+    })
     .select("id")
     .single();
   if (we || !ws) {
@@ -111,18 +173,73 @@ export async function signIn(context: BrowserContext, who: { email: string; pass
   await context.addCookies([...jar].map(([name, value]) => ({ name, value, domain, path: "/", secure: true, sameSite: "Lax" as const })));
 }
 
+// ── modules ───────────────────────────────────────────────────────────────────
+
+export interface CreatedModule {
+  id: string;
+  publicId: string;
+}
+
+/** Inserts a module directly (skipping the builder UI); live unless told otherwise. */
+export async function createModule(
+  workspaceId: string,
+  type: "lead_capture" | "quote_calculator" | "booking",
+  config: Record<string, unknown>,
+  status: "live" | "draft" = "live",
+): Promise<CreatedModule> {
+  const { data, error } = await modulesAdmin()
+    .from("vw_modules")
+    .insert({ workspace_id: workspaceId, type, name: `QA ${type}`, config, status })
+    .select("id, public_id")
+    .single();
+  if (error || !data) throw new Error(`QA module create failed: ${error?.message}`);
+  return { id: data.id, publicId: data.public_id };
+}
+
+/** A plain form config with the given fields (no payment). */
+export function formConfig(fields: Record<string, unknown>[], extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    title: "QA form",
+    intro: "Automated test.",
+    submitLabel: "Send",
+    successMessage: "Thanks — QA got it.",
+    redirectUrl: null,
+    style: {},
+    fields,
+    payment: null,
+    ...extra,
+  };
+}
+
+export const NAME_FIELD = { id: "name", label: "Full name", type: "text", required: true, maxLength: 120 };
+export const EMAIL_FIELD = { id: "email", label: "Email", type: "email", required: true, maxLength: 254 };
+
 /** Opens the fake customer site with a module's embed snippet on it. */
-export async function openHostPage(page: Page, publicId: string): Promise<void> {
-  await page.route(`https://${QA_HOST}/**`, (route) =>
+export async function openHostPage(page: Page, publicId: string, host = QA_HOST): Promise<void> {
+  await page.route(`https://${host}/**`, (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html><head><meta charset="utf-8"><title>QA host site</title></head><body>
+      body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QA host site</title></head><body>
 <h1>QA host site</h1>
 <script src="${target()}/embed.js" data-module="${publicId}" async></script>
 </body></html>`,
     }),
   );
-  await page.goto(`https://${QA_HOST}/`);
+  await page.goto(`https://${host}/`);
+}
+
+/** POSTs a submission the way a visitor's browser on `host` would. */
+export async function submitViaApi(
+  request: APIRequestContext,
+  publicId: string,
+  body: Record<string, unknown>,
+  host = QA_HOST,
+): Promise<{ status: number; json: Record<string, unknown> }> {
+  const res = await request.post(`${target()}/api/m/${publicId}/submit`, {
+    headers: { Origin: `https://${host}`, "Content-Type": "application/json" },
+    data: { source_url: `https://${host}/`, vw_hp: "", ...body },
+  });
+  return { status: res.status(), json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
 /** Polls until `fn` returns a value (or times out). */

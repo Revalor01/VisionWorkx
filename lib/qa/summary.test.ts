@@ -49,6 +49,9 @@ describe("grepFor", () => {
     expect(re.test("Title @visionworkx/forms/submit/extra")).toBe(false);
     expect(re.test("Title @visionworkx/forms/other")).toBe(false);
   });
+  it("selects the base test for a phone (--mobile) entry", () => {
+    expect(grepFor("custom", ["visionworkx/forms/submit--mobile", "visionworkx/forms/submit"])).toBe("@visionworkx/forms/submit(?![\\w/-])");
+  });
 });
 
 describe("helpers", () => {
