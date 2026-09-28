@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import LoginForm from "./LoginForm";
 import { modulesConfigured } from "@/lib/modules/supabase";
+import { safeNextPathWithin } from "@/lib/safeRedirect";
 
 export const metadata: Metadata = { title: "Sign in — VisionWorkx workspace", robots: { index: false } };
 
 export default async function WorkspaceLoginPage(props: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next, error } = await props.searchParams;
-  const safeNext = typeof next === "string" && next.startsWith("/workspace") && !next.startsWith("//") ? next : "/workspace";
+  // ?next= is user-controlled: only follow it within the workspace area.
+  const safeNext = safeNextPathWithin(next, "/workspace");
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-16">
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">

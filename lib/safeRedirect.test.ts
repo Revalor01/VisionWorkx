@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeNextPath } from "./safeRedirect";
+import { safeNextPath, safeNextPathWithin } from "./safeRedirect";
 
 const FALLBACK = "/dashboard";
 
@@ -45,5 +45,34 @@ describe("safeNextPath", () => {
 
   it("keeps percent-encoded slashes as a path, not a host", () => {
     expect(safeNextPath("/%2F%2Fevil.example", FALLBACK)).toBe("/%2F%2Fevil.example");
+  });
+});
+
+describe("safeNextPathWithin", () => {
+  const AREA = "/workspace";
+
+  it.each([
+    ["/workspace", "/workspace"],
+    ["/workspace/onboarding", "/workspace/onboarding"],
+    ["/workspace/acme", "/workspace/acme"],
+    ["/workspace/acme/settings?tab=billing", "/workspace/acme/settings?tab=billing"],
+    ["/workspace?welcome=1", "/workspace?welcome=1"],
+    ["/workspace#top", "/workspace#top"],
+  ])("keeps %s", (input, expected) => {
+    expect(safeNextPathWithin(input, AREA)).toBe(expected);
+  });
+
+  it.each([
+    ["missing", null],
+    ["another app area", "/admin"],
+    ["prefix look-alike", "/workspaces-x"],
+    ["dot-dot out of the area", "/workspace/../admin"],
+    ["encoded dot-dot out of the area", "/workspace/%2e%2e/admin"],
+    ["protocol-relative", "//evil.example"],
+    ["backslash host", "/\\evil.example"],
+    ["dot segment to protocol-relative", "/workspace/../..//evil.example"],
+    ["absolute URL", "https://evil.example/workspace"],
+  ])("falls back for %s", (_label, input) => {
+    expect(safeNextPathWithin(input as string | null, AREA)).toBe(AREA);
   });
 });

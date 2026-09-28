@@ -28,3 +28,14 @@ export function safeNextPath(value: string | null | undefined, fallback: string)
   if (!path.startsWith("/") || path.startsWith("//")) return fallback;
   return path;
 }
+
+// Like safeNextPath, but the resolved path must also stay inside `area`
+// (e.g. "/workspace"): exactly the area, or a path, query or fragment under
+// it. Checked after parsing, so "/workspace/../admin" or "/workspaces-x"
+// fall back to `area`.
+export function safeNextPathWithin(value: string | null | undefined, area: string): string {
+  const path = safeNextPath(value, area);
+  const inside =
+    path === area || path.startsWith(`${area}/`) || path.startsWith(`${area}?`) || path.startsWith(`${area}#`);
+  return inside ? path : area;
+}
