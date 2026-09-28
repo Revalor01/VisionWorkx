@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppNavbar from "@/components/nav/AppNavbar";
@@ -114,19 +114,15 @@ export default function BillingClient({
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
   const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">(
     "monthly"
   );
 
-  // Handle Stripe redirect back with ?checkout=success
-  useEffect(() => {
-    if (searchParams.get("checkout") === "success") {
-      setSuccessMsg(
-        "You're all set! Your subscription is now active. It may take a moment to reflect here."
-      );
-    }
-  }, [searchParams]);
+  // Stripe redirects back with ?checkout=success.
+  const successMsg =
+    searchParams.get("checkout") === "success"
+      ? "You're all set! Your subscription is now active. It may take a moment to reflect here."
+      : "";
 
   async function handleCheckout(priceId: string, planName: string) {
     setLoadingPlan(planName);
@@ -139,7 +135,7 @@ export default function BillingClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create checkout");
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (err) {
       setError((err as Error).message);
       setLoadingPlan(null);
@@ -153,7 +149,7 @@ export default function BillingClient({
       const res = await fetch("/api/create-portal", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to open billing portal");
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (err) {
       setError((err as Error).message);
       setPortalLoading(false);

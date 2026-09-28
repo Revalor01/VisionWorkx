@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { DomainRecord, DomainStatus } from "@/lib/apps/domains";
 import type { Plan } from "@/lib/database.types";
@@ -30,6 +30,17 @@ function RecordTable({ rows }: { rows: DomainRecord[] }) {
   );
 }
 
+// null on any failure (polling is best-effort; the next tick retries).
+async function fetchDomainStatus(appId: string): Promise<DomainStatus | null> {
+  try {
+    const res = await fetch(`/api/apps/${appId}/domain`);
+    const data = await res.json();
+    return res.ok && data.domain !== null ? (data as DomainStatus) : null;
+  } catch {
+    return null; // transient
+  }
+}
+
 export default function DomainCard({
   appId,
   plan,
@@ -47,23 +58,17 @@ export default function DomainCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const refresh = useCallback(async () => {
-    if (!domain) return;
-    try {
-      const res = await fetch(`/api/apps/${appId}/domain`);
-      const data = await res.json();
-      if (res.ok && data.domain !== null) setStatus(data);
-    } catch {
-      /* transient */
-    }
-  }, [appId, domain]);
-
+  // Poll the domain's verification status while one is attached.
   useEffect(() => {
     if (!domain || gated) return;
+    const refresh = () =>
+      fetchDomainStatus(appId).then((s) => {
+        if (s) setStatus(s);
+      });
     refresh();
     const t = setInterval(refresh, 15000);
     return () => clearInterval(t);
-  }, [domain, gated, refresh]);
+  }, [appId, domain, gated]);
 
   async function attach() {
     const d = input.trim().toLowerCase();

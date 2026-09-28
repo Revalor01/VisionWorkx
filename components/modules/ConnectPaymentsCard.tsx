@@ -1,6 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type ConnectStatus = "none" | "pending" | "active";
+
+// The workspace's Connect status, or null on any failure (reconciling is
+// best-effort).
+async function fetchConnectStatus(slug: string): Promise<ConnectStatus | null> {
+  try {
+    const res = await fetch(`/api/workspace/${slug}/payments/connect`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.status || null;
+  } catch {
+    return null; // transient
+  }
+}
 
 export default function ConnectPaymentsCard({
   slug,
@@ -17,27 +32,20 @@ export default function ConnectPaymentsCard({
   const [error, setError] = useState("");
   const polled = useRef(false);
 
-  const sync = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/workspace/${slug}/payments/connect`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.status) setStatus(data.status);
-    } catch {
-      /* transient */
-    }
-  }, [slug]);
-
   // On return from Stripe onboarding the status may still read "pending"
   // locally — reconcile once on mount, and again shortly after if not settled.
   useEffect(() => {
     if (polled.current) return;
     polled.current = true;
     if (status === "active") return;
+    const sync = () =>
+      fetchConnectStatus(slug).then((s) => {
+        if (s) setStatus(s);
+      });
     sync();
     const t = setTimeout(sync, 4000);
     return () => clearTimeout(t);
-  }, [status, sync]);
+  }, [status, slug]);
 
   async function start() {
     if (working) return;

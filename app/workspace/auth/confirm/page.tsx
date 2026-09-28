@@ -19,6 +19,10 @@ export default function WorkspaceAuthConfirm() {
     const refresh_token = params.get("refresh_token");
     history.replaceState(null, "", window.location.pathname); // don't leave tokens in the address bar
     if (!access_token || !refresh_token) {
+      // The tokens live in the URL fragment, which only the browser can read, and
+      // must be consumed (and scrubbed from the address bar) exactly once - so this
+      // runs in an effect and reports a bad link straight away.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(params.get("error_description") || "This sign-in link is invalid or has expired.");
       return;
     }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useNow } from "@/lib/hooks";
+import { useNow, useOnChange } from "@/lib/hooks";
 import Link from "next/link";
 import AppNavbar from "@/components/nav/AppNavbar";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -43,8 +43,10 @@ export default function GenerateClient({
 
   const view = clientBuildState(dbStatus, { streamPhase, notice, noticeAt });
 
+  // Each new phase (or finishing) starts the drift over.
+  useOnChange(`${view.phase}:${view.done}`, () => setDrift(0));
+
   useEffect(() => {
-    setDrift(0);
     if (view.done) return;
     const t = setInterval(() => setDrift((d) => Math.min(d + 0.5, 16)), 2500);
     return () => clearInterval(t);
