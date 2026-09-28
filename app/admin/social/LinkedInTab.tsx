@@ -294,7 +294,7 @@ function PostCard({
         </button>
       </div>
 
-      <label className="block text-xs font-medium text-slate-500 mb-1">Hook (first line, shown before "see more")</label>
+      <label className="block text-xs font-medium text-slate-500 mb-1">Hook (first line, shown before &quot;see more&quot;)</label>
       <input
         value={hook}
         onChange={(e) => setHook(e.target.value)}

@@ -315,7 +315,7 @@ export default function StudioTab({
 
         <div className="flex flex-wrap gap-4 mb-3">
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it's about)</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it&apos;s about)</label>
             <select
               value={product}
               onChange={(e) => handleProductChange(e.target.value as SocialVideoProduct)}
@@ -411,7 +411,7 @@ export default function StudioTab({
       <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
         <h2 className="text-lg font-semibold text-[#1A3A5C] mb-1">Import video</h2>
         <p className="text-sm text-slate-500 mb-4">
-          Already have a high-quality video from another platform? Upload it here — pick the product it's about and
+          Already have a high-quality video from another platform? Upload it here — pick the product it&apos;s about and
           the app whose logo should close it out, and it gets the same fade-in/fade-out brand outro as videos
           generated above, then shows up right below alongside them.
         </p>
@@ -421,7 +421,7 @@ export default function StudioTab({
 
         <div className="flex flex-wrap gap-4 mb-3">
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it's about)</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Product (what it&apos;s about)</label>
             <select
               value={importProduct}
               onChange={(e) => handleImportProductChange(e.target.value as SocialVideoProduct)}
