@@ -29,6 +29,12 @@ describe("safeNextPath", () => {
     ["relative without slash", "evil.example"],
     ["tab-smuggled slashes", "/\t/evil.example"],
     ["newline-smuggled slashes", "/\n/evil.example"],
+    // Dot segments that only collapse into "//host" once the URL is parsed.
+    ["dot then double slash", "/.//evil.example"],
+    ["dot-dot then double slash", "/a/..//evil.example"],
+    ["encoded dot then double slash", "/%2e//evil.example"],
+    ["encoded dot-dot then double slash", "/%2E%2E//evil.example"],
+    ["overlong", "/" + "a".repeat(2048)],
   ])("rejects %s", (_label, input) => {
     expect(safeNextPath(input as string | null | undefined, FALLBACK)).toBe(FALLBACK);
   });
