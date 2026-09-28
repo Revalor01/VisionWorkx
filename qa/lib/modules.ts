@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
-import type { APIRequestContext, BrowserContext, Page } from "@playwright/test";
+import { request as playwrightRequest, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 import { MODULES_AUTH_COOKIE } from "../../lib/modules/constants";
 
 // Test data in the VisionWorkx MODULES database. Everything created here is
@@ -159,6 +159,19 @@ export async function sweepStaleTestData(hours = 3): Promise<void> {
 
 /** Signs the browser in as a workspace member (password sign-in, same session cookie the app sets). */
 export async function signIn(context: BrowserContext, who: { email: string; password: string }): Promise<void> {
+  await context.addCookies(await sessionCookies(who));
+}
+
+/** An API client signed in as a workspace member (for owner actions without a page). Dispose it when done. */
+export async function memberApi(who: { email: string; password: string }): Promise<APIRequestContext> {
+  return playwrightRequest.newContext({
+    baseURL: target(),
+    storageState: { cookies: (await sessionCookies(who)).map((c) => ({ ...c, expires: -1, httpOnly: false })), origins: [] },
+    extraHTTPHeaders: { Origin: target() },
+  });
+}
+
+async function sessionCookies(who: { email: string; password: string }) {
   const jar = new Map<string, string>();
   const supabase = createServerClient(env("MODULES_SUPABASE_URL"), env("NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY"), {
     cookieOptions: { name: MODULES_AUTH_COOKIE },
@@ -170,7 +183,42 @@ export async function signIn(context: BrowserContext, who: { email: string; pass
   const { error } = await supabase.auth.signInWithPassword(who);
   if (error) throw new Error(`QA sign-in failed: ${error.message}`);
   const domain = new URL(target()).hostname;
-  await context.addCookies([...jar].map(([name, value]) => ({ name, value, domain, path: "/", secure: true, sameSite: "Lax" as const })));
+  return [...jar].map(([name, value]) => ({ name, value, domain, path: "/", secure: true, sameSite: "Lax" as const }));
+}
+
+// ── Google Calendar (the QA Google account) ───────────────────────────────────
+
+/**
+ * revalor.qa@gmail.com is connected ONCE, by hand, to the permanent "Revalor
+ * QA Calendar" workspace (never is_test, never disconnected). Calendar tests
+ * copy that saved (encrypted) connection into their throwaway workspace, so
+ * no Google password or token ever leaves the database. Never call the app's
+ * Disconnect on a copied connection -- it revokes the grant for everyone.
+ */
+export const QA_GOOGLE_ACCOUNT = "revalor.qa@gmail.com";
+
+export async function connectQaCalendar(workspaceId: string): Promise<void> {
+  const db = modulesAdmin();
+  const { data: src, error } = await db
+    .from("vw_calendar_connections")
+    .select("provider, account_email, calendar_id, refresh_token_enc, connected_by, vw_workspaces!inner(is_test)")
+    .eq("account_email", QA_GOOGLE_ACCOUNT)
+    .eq("status", "active")
+    .eq("vw_workspaces.is_test", false) // the permanent workspace, not another test's copy
+    .not("refresh_token_enc", "is", null)
+    .order("connected_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !src) {
+    throw new Error(
+      `No active Google Calendar connection for ${QA_GOOGLE_ACCOUNT}${error ? ` (${error.message})` : ""}. ` +
+        "Reconnect it in the Revalor QA Calendar workspace's Settings (see docs/qa-suite.md).",
+    );
+  }
+  const { vw_workspaces: _ws, ...row } = src as typeof src & { vw_workspaces: unknown };
+  void _ws;
+  const { error: ie } = await db.from("vw_calendar_connections").insert({ ...row, workspace_id: workspaceId, status: "active" });
+  if (ie) throw new Error(`Copying the QA calendar connection failed: ${ie.message}`);
 }
 
 // ── modules ───────────────────────────────────────────────────────────────────
