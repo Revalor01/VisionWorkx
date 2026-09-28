@@ -55,7 +55,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22+: supabase-js (used by the test helpers) needs Node's native WebSocket.
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Install Chromium
