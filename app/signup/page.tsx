@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
+import { useOnChange } from "@/lib/hooks";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -11,20 +12,21 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/dashboard";
 
+  // ?email= (e.g. from the waitlist / try flow) pre-fills the form.
+  const emailParam = searchParams.get("email");
   const [form, setForm] = useState({
     fullName: "",
     companyName: "",
-    email: "",
+    email: emailParam ?? "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkEmail, setCheckEmail] = useState(false);
 
-  useEffect(() => {
-    const emailParam = searchParams.get("email");
-    if (emailParam) setForm((prev) => ({ ...prev, email: emailParam }));
-  }, [searchParams]);
+  useOnChange(emailParam, (email) => {
+    if (email) setForm((prev) => ({ ...prev, email }));
+  });
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));

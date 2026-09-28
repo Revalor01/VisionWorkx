@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useOnChange } from "@/lib/hooks";
 import { generateSlots, localDate, type BookingService, type BookingSetup } from "@/lib/modules/booking";
 
 // Visitor-side booking steps, rendered inside ModuleForm (brand CSS variables)
@@ -57,20 +58,36 @@ export function TimePicker(props: {
   slotsUrl?: (from: string) => string;
 }) {
   const { setup, service } = props;
-  const tz = useMemo(visitorTimeZone, []);
+  const tz = useMemo(() => visitorTimeZone(), []);
   const today = useMemo(() => localDate(new Date(), setup.timeZone), [setup.timeZone]);
   const [from, setFrom] = useState(today);
-  const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [day, setDay] = useState<string | null>(null);
 
+  // One week of slots starting at `from`. The builder preview computes them
+  // locally; otherwise they're fetched, and a response only counts for the
+  // request it answers (anything still in flight shows "loading").
+  const queryKey = `${from}|${service.id}|${props.publicId}|${props.preview ? "preview" : "live"}`;
+  useOnChange(queryKey, () => setDay(null));
+  const previewSlots = useMemo(
+    () => (props.preview ? generateSlots(setup, service, from, 7, [], new Date()) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [from, service.id, props.preview]
+  );
+  const [fetched, setFetched] = useState<{ key: string; loaded: Loaded } | null>(null);
+  const loaded = useMemo<Loaded>(
+    () =>
+      previewSlots
+        ? { status: "ok", slots: previewSlots }
+        : fetched?.key === queryKey
+          ? fetched.loaded
+          : { status: "loading" },
+    [previewSlots, fetched, queryKey]
+  );
+
   useEffect(() => {
+    if (props.preview) return;
     let cancelled = false;
-    setLoaded({ status: "loading" });
-    setDay(null);
-    if (props.preview) {
-      setLoaded({ status: "ok", slots: generateSlots(setup, service, from, 7, [], new Date()) });
-      return;
-    }
+    const key = `${from}|${service.id}|${props.publicId}|live`;
     const url = props.slotsUrl ? props.slotsUrl(from) : `/api/m/${props.publicId}/slots?service=${encodeURIComponent(service.id)}&from=${from}&days=7`;
     fetch(url)
       .then(async (r) => {
@@ -78,8 +95,12 @@ export function TimePicker(props: {
         if (!r.ok) throw new Error(body.error || "Couldn't load open times.");
         return (body.slots as string[]).map((s) => new Date(s));
       })
-      .then((slots) => !cancelled && setLoaded({ status: "ok", slots }))
-      .catch((e) => !cancelled && setLoaded({ status: "error", message: e instanceof Error ? e.message : "Couldn't load open times." }));
+      .then((slots) => !cancelled && setFetched({ key, loaded: { status: "ok", slots } }))
+      .catch(
+        (e) =>
+          !cancelled &&
+          setFetched({ key, loaded: { status: "error", message: e instanceof Error ? e.message : "Couldn't load open times." } })
+      );
     return () => {
       cancelled = true;
     };
