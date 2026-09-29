@@ -46,7 +46,8 @@ It's remembered per browser.
 One-time:
 1. Set `NEEDS_ANALYZER_SYNC_SECRET` in Vercel (production) to a long random value.
 2. On the laptop, save the same value as the first line of `~/.needs-analyzer-sync-secret`
-   (not inside the analyzer folder, so it never gets zipped up with it).
+   (not inside the analyzer folder, so it never gets zipped up with it), or set it as the
+   `NEEDS_ANALYZER_SYNC_SECRET` environment variable there.
 3. Copy `scripts/needs-analyzer-sync.mjs` somewhere on the laptop (Node 18+, no packages).
 
 Each time the laptop is back online:
@@ -56,6 +57,10 @@ node needs-analyzer-sync.mjs ~/Documents/revalor-needs-analyzer            # ass
 node needs-analyzer-sync.mjs ~/Documents/revalor-needs-analyzer --settings # + catalog & ecosystem
 node needs-analyzer-sync.mjs ~/Documents/revalor-needs-analyzer --dry-run  # show, send nothing
 ```
+
+It sends to `https://vision-workx.vercel.app` unless you pass `--url <site>`. The
+secret goes to that address, so `--url` must be `https://` (or `http://localhost` /
+`127.0.0.1` for a local dev server); anything else stops before sending.
 
 Matching is by the offline id (`local_id`). `synced_at` records the laptop's
 `updatedAt` the last sync wrote; online edits bump `updated_at`. So:
@@ -72,10 +77,17 @@ Sync is one-way (laptop → online). Nothing on the laptop is changed, and
 assessments started online don't go back to the laptop. `--settings` replaces
 the online catalog and ecosystem with the laptop's.
 
+Size limits: a sync is at most 500 assessments and 8 MB; operator saves are at
+most 512 KB. Oversized bodies are refused on their declared `content-length`
+before being read, then checked again on the real size.
+
 ## Logos
 
 Catalog & pricing → Brand logos holds an https image address per slot,
-defaulting to the files on products.revalorllc.com. File upload isn't built yet.
+defaulting to the files on products.revalorllc.com; clear a slot to hide that logo.
+Any text saves, but only plain `https://` addresses are ever shown, and logo images
+load with `referrerPolicy="no-referrer"` (so the image host never sees admin or
+proposal URLs, including share tokens). File upload isn't built yet.
 
 ## QA
 

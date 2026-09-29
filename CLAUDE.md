@@ -93,6 +93,13 @@ When you add or change a user-facing feature, add or update its `qa()` test in t
 (is_test, deleted after) — never real workspaces. Other products are tested black-box from here; don't edit their
 repos. Details: `docs/qa-suite.md`.
 
+## Needs Analyzer (online copy of Machine B's offline app)
+`/admin/needs-analyzer` (operator), public `/proposal/<token>`, laptop sync `/api/needs-analyzer/sync`
+(`NEEDS_ANALYZER_SYNC_SECRET`, script `scripts/needs-analyzer-sync.mjs`). Tables `vw_na_assessments`, `vw_na_settings`
+in the **main** project (RLS on, no policies; service role only). `lib/needsAnalyzer/questions.ts` and `rules.ts` must stay
+identical in behaviour to the offline app (Machine B owns it; don't edit that repo) — `rules.test.ts` pins the output, so a
+rules change here needs the same change there. Details: `docs/needs-analyzer.md`.
+
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
   adds or edits files in `supabase/migrations`) **migration-reviewer**. Don't open the PR on a
