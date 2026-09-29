@@ -47,6 +47,10 @@ export default function TestPicker({
   }, [tests]);
   const smokeCount = tests.filter((t) => t.tags.includes("smoke")).length;
   const failing = tests.filter((t) => t.last === "failed" || t.last === "timed_out").map((t) => t.id);
+  // Areas start collapsed, except any with a failing test.
+  const [openAreas, setOpenAreas] = useState<Set<string>>(
+    () => new Set(tests.filter((t) => t.last === "failed" || t.last === "timed_out").map((t) => t.area)),
+  );
 
   function toggle(ids: string[], on: boolean) {
     setPicked((prev) => {
@@ -152,15 +156,50 @@ export default function TestPicker({
         </p>
       ) : (
         <div className="mt-6 space-y-5">
+          <div className="flex gap-3 text-xs font-semibold">
+            <button type="button" onClick={() => setOpenAreas(new Set(areas.map(([a]) => a)))} className="text-navy hover:underline">
+              Expand all
+            </button>
+            <button type="button" onClick={() => setOpenAreas(new Set())} className="text-navy hover:underline">
+              Collapse all
+            </button>
+          </div>
           {areas.map(([area, list]) => {
             const allOn = list.every((t) => picked.has(t.id));
+            const open = openAreas.has(area);
+            const failed = list.filter((t) => t.last === "failed" || t.last === "timed_out").length;
+            const passed = list.filter((t) => t.last === "passed" || t.last === "flaky").length;
+            const panelId = `area-${area.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
             return (
-              <fieldset key={area}>
-                <legend className="mb-2 flex items-center gap-2 text-sm font-bold text-zinc-900">
+              <fieldset key={area} className="rounded-lg border border-zinc-200">
+                <legend className="sr-only">{area}</legend>
+                <div className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setOpenAreas((prev) => { const next = new Set(prev); if (next.has(area)) next.delete(area); else next.add(area); return next; })}
+                    aria-expanded={open}
+                    aria-controls={panelId}
+                    className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100"
+                    title={open ? "Collapse" : "Expand"}
+                  >
+                    <span aria-hidden="true" className={`inline-block transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
+                    <span className="sr-only">{open ? `Collapse ${area}` : `Expand ${area}`}</span>
+                  </button>
                   <input type="checkbox" checked={allOn} onChange={(e) => toggle(list.map((t) => t.id), e.target.checked)} aria-label={`Select all ${area}`} />
-                  {area}
-                </legend>
-                <ul className="space-y-1 pl-6">
+                  <button
+                    type="button"
+                    onClick={() => setOpenAreas((prev) => { const next = new Set(prev); if (next.has(area)) next.delete(area); else next.add(area); return next; })}
+                    className="font-bold text-zinc-900 hover:underline"
+                  >
+                    {area}
+                  </button>
+                  <span className="text-xs text-zinc-500">
+                    {list.length} test{list.length === 1 ? "" : "s"}
+                    {passed > 0 && <span className="text-emerald-700"> · {passed} passed</span>}
+                    {failed > 0 && <span className="font-semibold text-red-700"> · {failed} failed</span>}
+                  </span>
+                </div>
+                <ul id={panelId} hidden={!open} className="space-y-1 border-t border-zinc-100 px-3 py-2 pl-12">
                   {list.map((t) => (
                     <li key={t.id} className="flex items-center gap-2 text-sm">
                       <input id={t.id} type="checkbox" checked={picked.has(t.id)} onChange={(e) => toggle([t.id], e.target.checked)} />

@@ -23,9 +23,16 @@ export default async function QaProductsPage() {
       <div className={`${SECTION} flex flex-col-reverse items-start justify-between gap-4 sm:flex-row sm:items-center`}>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-navy-dark">Configure Your Tests for an Automation Run</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-zinc-600 lg:flex-nowrap lg:whitespace-nowrap">
-            {["Real functionality tests for each Revalor product", "Click a product section to configure", "Smoke and regression testing"].map((part, i) => (
-              <span key={part} className="flex items-center gap-2.5">
+          {/* One line whenever it fits; on narrower screens it wraps between phrases, never inside one. */}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-zinc-600">
+            {[
+              "Real functionality tests for each Revalor product",
+              "Click a product section to configure",
+              "Smoke and regression testing",
+              "Controlled through GitHub Actions",
+              "Viewable test results",
+            ].map((part, i) => (
+              <span key={part} className="flex items-center gap-2.5 whitespace-nowrap">
                 {i > 0 && <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#B8860B]" />}
                 {part}
               </span>
