@@ -335,7 +335,7 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
         </a>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <AdminNavBar category="media" current="mobile" />
 
         <h1 className="text-2xl font-bold text-white mb-1">Mobile Marketing</h1>

@@ -82,7 +82,7 @@ export default function LifecycleDashboard() {
         </a>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <h1 className="text-2xl font-bold text-white mb-1">Lifecycle Triggers</h1>
         <p className="text-slate-400 text-sm mb-8">
           Event-driven email based on account activity, evaluated hourly. Generated drafts land in Email

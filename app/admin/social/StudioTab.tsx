@@ -482,7 +482,7 @@ export default function StudioTab({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {studioVideos.map((asset) => (
           <div key={asset.id} className="bg-white border border-green-600 rounded-xl p-4">
             <div className="flex justify-between items-start mb-1">

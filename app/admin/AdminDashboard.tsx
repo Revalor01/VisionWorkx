@@ -933,7 +933,7 @@ export default function AdminDashboard({
         }
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <AdminProductPills />
 
         {/* Page title */}
