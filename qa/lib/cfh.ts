@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import type { Page } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 
 // Christian Friends Hub (https://christian-friends-hub.vercel.app), the Summit
 // Bridge community hub. Its own Supabase project (free plan). Plain REST.
@@ -119,7 +119,13 @@ export async function cfhLogin(page: Page, member: CfhMember): Promise<void> {
   await page.goto("/login");
   await page.locator('input[type="email"]').fill(member.email);
   await page.locator('input[type="password"]').fill(member.password);
+  const started = Date.now();
   await page.getByRole("button", { name: "Log In", exact: true }).click();
-  // The app switches pages client-side (no full load event), so wait for the URL change only.
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 20_000, waitUntil: "commit" });
+  // After the password check the page records the sign-in in the login
+  // history and only then navigates (client-side). That step can be slow, so
+  // allow a minute and note how long it took on the test.
+  await page.getByRole("button", { name: "Log out" }).first().waitFor({ state: "visible", timeout: 60_000 });
+  const seconds = Math.round((Date.now() - started) / 100) / 10;
+  test.info().annotations.push({ type: "login time", description: `${seconds}s` });
+  if (seconds > 10) console.warn(`[qa] CFH login took ${seconds}s`);
 }
