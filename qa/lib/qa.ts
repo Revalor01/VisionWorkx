@@ -1,6 +1,7 @@
 import { test as base, expect } from "@playwright/test";
 import { createQaUser, createTestWorkspace, type QaUser, type TestWorkspace, type WorkspaceOptions } from "./modules";
 import { createSanctumUser, deleteSanctumUser, type SanctumTier, type SanctumUser } from "./sanctum";
+import { createProactiveUser, deleteProactiveUser, type ProactiveTier, type ProactiveUser } from "./proactive";
 
 // Every QA test is declared with qa(): it gives the test a stable id (used by
 // /admin/qa to pick, re-run and track it), an area heading, and tags.
@@ -30,6 +31,8 @@ interface Fixtures {
   qaUser: QaUser;
   /** Sanctum: makes throwaway users at a tier (onboarding skipped unless onboarded: false); all deleted after the test. */
   sanctumUser: (opts?: { tier?: SanctumTier; onboarded?: boolean }) => Promise<SanctumUser>;
+  /** Proactive: same as sanctumUser, in Proactive's database. */
+  proactiveUser: (opts?: { tier?: ProactiveTier; onboarded?: boolean }) => Promise<ProactiveUser>;
 }
 
 export const test = base.extend<Fixtures>({
@@ -45,6 +48,19 @@ export const test = base.extend<Fixtures>({
       });
     } finally {
       for (const id of made) await deleteSanctumUser(id);
+    }
+  },
+  // eslint-disable-next-line no-empty-pattern
+  proactiveUser: async ({}, use) => {
+    const made: string[] = [];
+    try {
+      await use(async (opts) => {
+        const u = await createProactiveUser(opts);
+        made.push(u.id);
+        return u;
+      });
+    } finally {
+      for (const id of made) await deleteProactiveUser(id);
     }
   },
   // eslint-disable-next-line no-empty-pattern

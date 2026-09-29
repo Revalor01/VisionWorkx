@@ -1,4 +1,5 @@
 {
   "visionworkx": { "name": "VisionWorkx", "url": "https://modules.revalorllc.com" },
-  "sanctum": { "name": "Sanctum", "url": "https://sanctum-web-xi.vercel.app" }
+  "sanctum": { "name": "Sanctum", "url": "https://sanctum-web-xi.vercel.app" },
+  "proactive": { "name": "Proactive", "url": "https://proactive-zeta-three.vercel.app" }
 }

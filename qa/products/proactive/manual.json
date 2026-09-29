@@ -1,0 +1,26 @@
+[
+  {
+    "id": "proactive/manual/signup-email-link",
+    "area": "Sign-in & onboarding",
+    "title": "Sign-up email link arrives and signs you in",
+    "instructions": "On https://proactive-zeta-three.vercel.app/auth/signup, sign up with a real inbox you control (e.g. you+proactive@gmail.com). The email should arrive within a minute and clicking it should land on the disclaimer or onboarding. Afterwards remove the test account from Proactive's admin page."
+  },
+  {
+    "id": "proactive/manual/stripe-checkout",
+    "area": "Payments",
+    "title": "Upgrading through Stripe checkout unlocks the plan",
+    "instructions": "With a test account, go to Account → Manage plan and upgrade to Entry (Stripe test mode, card 4242 4242 4242 4242). After returning, the plan shows Entry and the Entry features open. Cancel the subscription afterwards."
+  },
+  {
+    "id": "proactive/manual/daily-reminder-email",
+    "area": "Daily use",
+    "title": "Daily reminder email arrives",
+    "instructions": "With a test account, turn on the daily reminder in Account → Notifications for a time a few minutes ahead. The reminder email should arrive then and its link should open the app."
+  },
+  {
+    "id": "proactive/manual/collaborator-real-reply",
+    "area": "Plans",
+    "title": "Collaborator gives a sensible real reply",
+    "instructions": "The automated tests simulate Collaborator (no real AI calls). Occasionally, with a Premium/test account, run Prioritization, click \"Personalize with Collaborator\", and confirm the reply is sensible and on-brand."
+  }
+]
