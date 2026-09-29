@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
@@ -20,7 +21,17 @@ export default async function QaProductsPage() {
   return (
     <QaShell>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-navy-dark">Automated tests</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-navy-dark">Automated tests</h1>
+          <Image
+            src="/revalor-automation-suite-logo.png"
+            alt="Revalor Automation"
+            width={56}
+            height={56}
+            className="h-14 w-14 rounded-lg object-cover shadow-sm"
+            priority
+          />
+        </div>
         <p className="mt-1 text-sm text-zinc-500">
           Real-browser tests for each Revalor product, run in GitHub Actions. Pick a product to choose tests, run them and see
           what broke.

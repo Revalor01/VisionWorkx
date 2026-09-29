@@ -7,9 +7,12 @@ import type { ReactNode } from "react";
 // that drifts out of sync with this one (the exact drift revalor-admin's
 // own AdminNavBar.tsx was written to fix for its side of the ecosystem).
 //
+// `title` replaces the "Vision Workx" wordmark for pages that aren't
+// VisionWorkx-specific (e.g. the Revalor Test Automation Suite at /admin/qa).
+//
 // `extra` is a slot for a page-specific control (e.g. AdminDashboard's
 // auto-refresh toggle) rendered before the shared links.
-export function AdminHeader({ badge = "Admin", extra }: { badge?: string; extra?: ReactNode }) {
+export function AdminHeader({ badge = "Admin", title = "Vision Workx", extra }: { badge?: string; title?: string; extra?: ReactNode }) {
   return (
     <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -22,7 +25,7 @@ export function AdminHeader({ badge = "Admin", extra }: { badge?: string; extra?
           className="h-8 w-8 rounded bg-white/90 object-contain p-0.5"
         />
         <Image src="/sanctum-logo.png" alt="Sanctum" width={32} height={32} className="h-8 w-8 rounded bg-white/90 object-contain p-0.5" />
-        <span className="text-lg font-bold tracking-tight">Vision Workx</span>
+        <span className="text-lg font-bold tracking-tight">{title}</span>
         <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">{badge}</span>
       </div>
       <div className="flex items-center gap-4 flex-wrap justify-end">
