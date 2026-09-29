@@ -21,7 +21,8 @@ test.beforeEach(() => {
 });
 
 async function workspaceBilling(id: string) {
-  const { data } = await modulesAdmin().from("vw_workspaces").select("plan, billing_status, stripe_customer_id, trial_ends_at").eq("id", id).single();
+  const { data, error } = await modulesAdmin().from("vw_workspaces").select("plan, billing_status, stripe_customer_id, trial_ends_at").eq("id", id).single();
+  if (error || !data) throw new Error(`workspace ${id} not found: ${error?.message}`);
   return data as { plan: string; billing_status: string; stripe_customer_id: string | null; trial_ends_at: string | null };
 }
 
@@ -57,8 +58,13 @@ qa(
       });
 
       await test.step("pay on Stripe's checkout page (test card 4242)", async () => {
-        const cardTab = page.locator('[data-testid="card-accordion-item-button"]');
-        if (await cardTab.isVisible({ timeout: 5_000 }).catch(() => false)) await cardTab.click();
+        // Checkout lists several payment methods; pick Card.
+        const card = page.getByRole("radio", { name: "Card", exact: true });
+        await expect(card).toBeVisible({ timeout: 20_000 });
+        await card.check();
+        // Stripe Link's "save my information" is on by default and wants a phone number: switch it off.
+        const saveInfo = page.getByRole("checkbox", { name: /Save my information/ });
+        if (await saveInfo.isChecked({ timeout: 3_000 }).catch(() => false)) await saveInfo.uncheck();
         await page.locator("#cardNumber").fill("4242 4242 4242 4242");
         await page.locator("#cardExpiry").fill("12 / 34");
         await page.locator("#cardCvc").fill("123");
@@ -86,7 +92,7 @@ qa(
         await expect(page.getByText(/Free trial — 1[34] days left/)).toBeVisible();
       });
     } finally {
-      await deleteTestCustomer(customerId ?? (await workspaceBilling(qaWorkspace.id)).stripe_customer_id);
+      await deleteTestCustomer(customerId ?? (await workspaceBilling(qaWorkspace.id).catch(() => null))?.stripe_customer_id);
     }
   },
 );
