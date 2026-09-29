@@ -35,13 +35,14 @@ interface Fixtures {
   proactiveUser: (opts?: { tier?: ProactiveTier; onboarded?: boolean }) => Promise<ProactiveUser>;
 }
 
+// Fixtures hand their value to the test with `provide` (Playwright calls it `use`,
+// which React's lint rules would mistake for a hook).
 export const test = base.extend<Fixtures>({
   workspaceOptions: [{}, { option: true }],
-  // eslint-disable-next-line no-empty-pattern
-  sanctumUser: async ({}, use) => {
+  sanctumUser: async ({}, provide) => {
     const made: string[] = [];
     try {
-      await use(async (opts) => {
+      await provide(async (opts) => {
         const u = await createSanctumUser(opts);
         made.push(u.id);
         return u;
@@ -50,11 +51,10 @@ export const test = base.extend<Fixtures>({
       for (const id of made) await deleteSanctumUser(id);
     }
   },
-  // eslint-disable-next-line no-empty-pattern
-  proactiveUser: async ({}, use) => {
+  proactiveUser: async ({}, provide) => {
     const made: string[] = [];
     try {
-      await use(async (opts) => {
+      await provide(async (opts) => {
         const u = await createProactiveUser(opts);
         made.push(u.id);
         return u;
@@ -63,19 +63,18 @@ export const test = base.extend<Fixtures>({
       for (const id of made) await deleteProactiveUser(id);
     }
   },
-  // eslint-disable-next-line no-empty-pattern
-  qaUser: async ({}, use, testInfo) => {
+  qaUser: async ({}, provide, testInfo) => {
     const u = await createQaUser(testInfo.testId);
     try {
-      await use(u);
+      await provide(u);
     } finally {
       await u.cleanup();
     }
   },
-  qaWorkspace: async ({ workspaceOptions }, use, testInfo) => {
+  qaWorkspace: async ({ workspaceOptions }, provide, testInfo) => {
     const ws = await createTestWorkspace(testInfo.testId, workspaceOptions);
     try {
-      await use(ws);
+      await provide(ws);
     } finally {
       await ws.cleanup();
     }

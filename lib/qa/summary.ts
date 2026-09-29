@@ -73,6 +73,5 @@ export function isStale(run: { status: RunStatus; created_at: string }, now = Da
 }
 
 export function stripAnsi(s: string): string {
-  // eslint-disable-next-line no-control-regex
   return s.replace(/\u001b\[[0-9;]*m/g, "");
 }
