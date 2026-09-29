@@ -1,0 +1,40 @@
+{
+  "_readme": "Revalor / VisionWorkx ecosystem database. Every tool, database and service the company runs on, and the capabilities each provides. The analyzer checks recommended modules against this file to flag delivery gaps. Items marked 'To confirm' were not known when this file was created — fill them in on the Ecosystem screen.",
+  "capabilities": [
+    { "id": "hosting", "name": "App hosting", "description": "Run web apps and APIs we build for clients." },
+    { "id": "data-store", "name": "Database", "description": "Store client records, leads, bookings, jobs, inventory." },
+    { "id": "auth-client", "name": "Client logins", "description": "Secure sign-in for business owners, staff and their customers." },
+    { "id": "widget-embed", "name": "Embeddable widgets", "description": "Script-tag widgets that run on WordPress, Squarespace, Webflow, Framer, Wix." },
+    { "id": "form-intake", "name": "Form submission API", "description": "Receive widget/form submissions with spam protection." },
+    { "id": "email-send", "name": "Transactional email", "description": "Confirmations, alerts, reminders — with SPF/DKIM on client domains." },
+    { "id": "email-marketing", "name": "Email campaigns", "description": "Lists, campaigns, follow-up sequences, unsubscribe handling." },
+    { "id": "background-jobs", "name": "Scheduled / background jobs", "description": "Run automations on a timer or after an event (e.g. review request 2 days after a job)." },
+    { "id": "scheduling", "name": "Scheduling & calendar sync", "description": "Availability rules, time zones, Google/Outlook calendar sync." },
+    { "id": "payments", "name": "Online payments & invoicing", "description": "Payment links, invoices, subscriptions, payment reminders." },
+    { "id": "pdf-gen", "name": "PDF generation", "description": "Quotes, invoices and reports as branded PDFs." },
+    { "id": "file-storage", "name": "File storage", "description": "Uploads and document sharing for portals and intake forms." },
+    { "id": "reporting", "name": "Dashboards & reporting", "description": "Charts and KPIs for owners." },
+    { "id": "integrations", "name": "Third-party integrations", "description": "Connect QuickBooks, Google Workspace, Square, HubSpot, etc. via APIs and webhooks." },
+    { "id": "referral-tracking", "name": "Referral tracking", "description": "Unique referral links, attribution and reward tracking." },
+    { "id": "ai", "name": "AI models", "description": "AI generation and conversation (Tessa, Collaborator, campaign generator, VisionWorkx builder)." },
+    { "id": "site-builders", "name": "Website editing", "description": "Skills/access to improve client sites on common builders." },
+    { "id": "monitoring", "name": "Uptime & error monitoring", "description": "Know when a client build breaks before they do." },
+    { "id": "backups", "name": "Backups", "description": "Automatic, tested backups of client data." },
+    { "id": "social", "name": "Social media publishing", "description": "Post and schedule to Facebook, Instagram, TikTok, YouTube." },
+    { "id": "code-hosting", "name": "Source control", "description": "Code repositories and deployment pipeline." }
+  ],
+  "tools": [
+    { "id": "vercel", "name": "Vercel", "type": "Hosting", "status": "In use", "usedBy": ["Revalor Admin", "VisionWorkx"], "provides": ["hosting"], "notes": "Admin runs at vision-workx.vercel.app/admin." },
+    { "id": "nextjs", "name": "Next.js", "type": "Framework", "status": "In use", "usedBy": ["Revalor Admin"], "provides": [], "notes": "Main web framework." },
+    { "id": "github", "name": "GitHub — Revalor01 org", "type": "Source control", "status": "In use", "usedBy": ["All products"], "provides": ["code-hosting"], "notes": "Repos include sanctum-web, revalor-admin, revalor-kids-hub, revalor-automation, VisionWorkx." },
+    { "id": "revalor-admin", "name": "Revalor Admin", "type": "Internal tool", "status": "In use", "usedBy": ["All products"], "provides": ["social", "email-marketing"], "notes": "Social automation per brand (FB/IG/TikTok/YouTube) and AI email campaign generator using live subscribers." },
+    { "id": "revalor-automation", "name": "revalor-automation / VisionWorkx Automation", "type": "Automation", "status": "In use", "usedBy": ["VisionWorkx"], "provides": ["email-send"], "notes": "Sends booking and lead emails. Confirm the email provider behind it and whether it supports scheduled jobs." },
+    { "id": "visionworkx", "name": "VisionWorkx builder", "type": "Product", "status": "In use", "usedBy": ["VisionWorkx"], "provides": ["form-intake"], "notes": "Pivoting from full app generation to embeddable widgets. Widget embed layer not built yet." },
+    { "id": "db-primary", "name": "Primary database", "type": "Database", "status": "To confirm", "usedBy": [], "provides": ["data-store"], "notes": "Which database do Sanctum, the admin and VisionWorkx use? Can it host multi-tenant client data?" },
+    { "id": "auth", "name": "Authentication provider", "type": "Auth", "status": "To confirm", "usedBy": [], "provides": ["auth-client"], "notes": "What handles sign-in for Sanctum and the kids apps (PIN dashboards)? Can it support client businesses and their customers?" },
+    { "id": "email-provider", "name": "Email sending provider", "type": "Email", "status": "To confirm", "usedBy": [], "provides": [], "notes": "Name the provider (e.g. Resend, SendGrid, Postmark). Needed to send from client domains." },
+    { "id": "ai-provider", "name": "AI model provider", "type": "AI", "status": "To confirm", "usedBy": ["Sanctum", "Proactive", "Revalor Admin"], "provides": ["ai"], "notes": "Powers Tessa, Collaborator and the campaign generator. Confirm provider and voice service." },
+    { "id": "payments-provider", "name": "Payment processor", "type": "Payments", "status": "To confirm", "usedBy": ["Chorebit", "FeelFlow", "MindBit"], "provides": [], "notes": "Kids apps take a card for the free trial — confirm the processor. Can it do client invoicing (e.g. Stripe Connect)?" },
+    { "id": "domain", "name": "revalorllc.com domain & DNS", "type": "Domain", "status": "In use", "usedBy": ["All products"], "provides": [], "notes": "" }
+  ]
+}
