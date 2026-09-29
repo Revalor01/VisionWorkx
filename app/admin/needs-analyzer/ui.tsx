@@ -48,6 +48,7 @@ export function NaShell({ active, items = [], children }: { active: string; item
   const nav: NavItem[] = [
     { key: "home", label: "Assessments", href: "/admin/needs-analyzer" },
     ...items,
+    { key: "website", label: "Website check", href: "/admin/needs-analyzer/website", internal: true },
     { key: "ecosystem", label: "Ecosystem", href: "/admin/needs-analyzer/ecosystem", internal: true },
     { key: "catalog", label: "Catalog & pricing", href: "/admin/needs-analyzer/catalog", internal: true },
   ].filter((n) => !(on && n.internal));

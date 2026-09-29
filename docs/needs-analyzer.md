@@ -10,15 +10,16 @@ meeting with no internet, online everywhere else, with a sync from the laptop.
 
 | What | Where |
 | --- | --- |
-| Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|internal`, `/ecosystem`, `/catalog` |
+| Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|internal`, `/website`, `/ecosystem`, `/catalog` |
 | Client proposal link | `/proposal/<token>` (public, only while the link is on) |
 | Questionnaire, scoring, pricing | `lib/needsAnalyzer/questions.ts`, `rules.ts` (ported from the offline `public/questions.js`, `public/rules.js`) |
+| Website check | `lib/needsAnalyzer/siteFetch.ts` (fetcher), `siteDetect.ts` (detection, prefill), `siteCheck.ts`, `pagespeed.ts`, `siteReview.ts` (AI review) |
 | Default catalog / ecosystem | `lib/needsAnalyzer/*.default.json` (copies of the offline defaults) |
-| Tables (main project) | `vw_na_assessments`, `vw_na_settings` — migrations `20240101000093`, `20240101000094` |
-| API | `/api/admin/needs-analyzer/*` (operator), `/api/needs-analyzer/sync` (sync secret) |
+| Tables (main project) | `vw_na_assessments`, `vw_na_settings`, `vw_na_site_checks` — migrations `20240101000093`, `20240101000094`, `20240101000095` |
+| API | `/api/admin/needs-analyzer/*` (operator, including `site-check`), `/api/needs-analyzer/sync` (sync secret) |
 | Laptop sync script | `scripts/needs-analyzer-sync.mjs` |
 
-Both tables have RLS on and no policies: only server code with the service role
+All three tables have RLS on and no policies: only server code with the service role
 can touch them, after checking the operator, the sync secret, or a share token.
 
 ## Keep the two apps in step
@@ -40,6 +41,72 @@ never fit scores, flags, effort, margin or consultant notes. It's `noindex`.
 The toggle (top right) hides Internal notes, the Consultant notes section,
 Ecosystem, Catalog & pricing and the admin header while the client is looking.
 It's remembered per browser.
+
+## Website check
+
+**Website check** in the Needs Analyzer nav (`/admin/needs-analyzer/website`,
+hidden in Client mode). Enter a business's address and it reads the home page
+plus up to 5 same-site pages whose links look useful (contact, booking, pricing,
+services, about), then reports:
+
+- the platform (WordPress, Squarespace, Wix, Webflow, Shopify, GoDaddy, Framer)
+  and the third-party tools it spotted;
+- what the site can do: contact form, online booking, pricing or instant quote,
+  reviews, live chat, email signup, analytics, tap-to-call, social links;
+- problems, ranked high / medium / low (no HTTPS, not set up for phones, no
+  enquiry form, slow, "Book" buttons with no booking tool, weak title, etc.);
+- which catalog modules the site points to.
+
+Each check is saved; the screen lists recent ones. From an assessment, the
+Business section of the questionnaire and Internal notes show the latest check
+with *Check website* / *Check again* / *View check*.
+
+**Prefill.** *Start assessment from this* creates an assessment with answers
+taken from the site (website, platform, lead sources, appointments/booking
+method, quotes, email list, current tools, Website observations). *Apply to
+assessment* fills only answers that are still empty (`applyPrefill` in
+`siteDetect.ts`), so nothing the operator entered is overwritten. The check only
+fills questionnaire answers; `rules.ts` and the scoring are untouched, so the
+plan still comes from the answers exactly as in the offline app.
+
+**Proposal.** Tick problems in a check to put them on the proposal. The Proposal
+tab and the client link show "What we found on <site>" with only the ticked
+problems (title and plain-English explanation), from the newest linked check
+that has any ticked. Untick them all and the section disappears. Page text,
+scores and the AI review never reach the client.
+
+**PageSpeed (optional).** With `GOOGLE_PAGESPEED_API_KEY` set (free key, Google
+Cloud → PageSpeed Insights API), each check also gets Google's mobile scores,
+which can add slow-on-phones, search-basics and accessibility problems. Google
+fetches the site from its own servers. Without the key it's skipped.
+
+**AI review (optional).** *Run AI review* on a check asks Claude Haiku 4.5 for a
+business summary, services, message clarity, calls to action, weak spots and
+talking points. It uses the page text saved with the check (no new fetch), runs
+only when clicked, costs about 1 cent and is logged to `ai_usage_log` as
+`needs_analyzer_site_review`. The page text is treated as untrusted data and the
+result is shown to the operator only.
+
+**Safety (SSRF).** The operator types the address, so `lib/needsAnalyzer/siteFetch.ts`
+only fetches `http`/`https` on ports 80/443, refuses usernames/passwords and
+`localhost`/`.local`/`.internal`-style names, and follows redirects by hand
+(at most 5) so every hop's hostname is checked to resolve only to public
+addresses: private, loopback, link-local (including `169.254.169.254`), CGNAT,
+reserved and non-global IPv6 are refused. Pages are capped at 2 MB and 8 seconds;
+DNS lookups at 3 seconds. Known residual risk: DNS could change between the check
+and the fetch's own lookup (DNS rebinding). Accepted for an operator-only tool;
+revisit before opening this to customers.
+
+**Known limits.** Detection is pattern matching on the page HTML: consistent
+and free, but anything a site builds only in the browser after load can be
+missed, and wording can mislead it (e.g. "book" text without a tool, or a
+testimonial quote that mentions pricing). Treat the report as a starting point
+for the conversation, not a verdict.
+
+**Table.** `vw_na_site_checks` (main project, migration `20240101000095`): the
+address entered and the final one, the linked assessment, the report, PageSpeed
+scores, the AI review, and `proposal_issues` (ids ticked for the proposal).
+RLS on, no policies, like the other `vw_na_*` tables.
 
 ## Syncing from the laptop
 
@@ -92,6 +159,15 @@ proposal URLs, including share tokens). File upload isn't built yet.
 ## QA
 
 `qa/products/visionworkx/needs-analyzer.qa.ts` checks from outside that the
-admin screens/API need the operator, the sync route needs the secret, and unknown
-proposal links 404. A full create → share → open → revoke test needs the runner
+admin screens/API (including the website check screen and its `site-check`
+APIs) need the operator, the sync route needs the secret, and unknown
+proposal links 404. Unit tests: `lib/needsAnalyzer/siteDetect.test.ts`
+(detection and prefill against sample pages) and `siteFetch.test.ts` (address
+checks and blocked ranges).
+
+Manual checks in `qa/products/visionworkx/manual.json` (area "Needs Analyzer"):
+the assessment → plan → proposal → client link flow; a website check of a real
+site (and that `localhost` / `169.254.169.254` are refused) starting an
+assessment; ticked problems appearing on the proposal and client link; and the
+AI review. A full create → share → open → revoke test needs the runner
 to get a main-project key or an operator session (a secrets change; ask first).

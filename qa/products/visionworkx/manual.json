@@ -28,5 +28,29 @@
     "area": "Booking",
     "title": "24-hour reminder email arrives",
     "instructions": "Book a time about 25 hours ahead with your real email. The next day, the reminder should arrive about 24 hours before, with a working change/cancel link."
+  },
+  {
+    "id": "visionworkx/manual/needs-analyzer-assessment-flow",
+    "area": "Needs Analyzer",
+    "title": "Assessment, plan, proposal and client link work end to end",
+    "instructions": "In /admin/needs-analyzer: + New assessment, fill a few sections, check the Build plan and Proposal update. Proposal → Turn on link, open it in a private window (proposal only, no internal notes), then Turn off and confirm the link now shows 404. Delete the test assessment afterwards."
+  },
+  {
+    "id": "visionworkx/manual/needs-analyzer-website-check",
+    "area": "Needs Analyzer",
+    "title": "Website check reports a real site and starts an assessment from it",
+    "instructions": "In /admin/needs-analyzer → Website check, check a real small-business site. The report should show the platform, what the site can and can't do, problems and modules that fit within about a minute. Try localhost or 169.254.169.254: it must refuse. Click Start assessment from this: the questionnaire opens with website, platform and Website observations filled in. Delete the test assessment afterwards."
+  },
+  {
+    "id": "visionworkx/manual/needs-analyzer-website-proposal",
+    "area": "Needs Analyzer",
+    "title": "Ticked website problems appear on the client proposal",
+    "instructions": "On an assessment with a website check: open the check, tick two problems. The assessment's Proposal tab and its client link both show 'What we found on <site>' with exactly those two. Untick them and the section disappears."
+  },
+  {
+    "id": "visionworkx/manual/needs-analyzer-ai-review",
+    "area": "Needs Analyzer",
+    "title": "AI review of a checked website",
+    "instructions": "On a website check, click Run AI review. Within ~30 seconds it shows a summary, services, message clarity, calls to action, weak spots and talking points. It costs about 1 cent (logged in AI Usage as needs_analyzer_site_review)."
   }
 ]
