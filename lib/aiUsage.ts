@@ -36,7 +36,8 @@ export type AiUsageSource =
   | "outreach_group_post"
   | "try_recommend"
   | "stability_analysis"
-  | "module_config";
+  | "module_config"
+  | "needs_analyzer_site_review";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a
 // serverless function can be frozen/killed right after it returns, so a

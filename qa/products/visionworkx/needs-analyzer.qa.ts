@@ -19,6 +19,14 @@ qa(
       expect((await request.post("/api/admin/needs-analyzer/assessments")).status()).toBe(403);
       expect((await request.put("/api/admin/needs-analyzer/settings/catalog", { data: {} })).status()).toBe(403);
     });
+    await test.step("website check screen and API refuse without the operator session", async () => {
+      await page.goto("/admin/needs-analyzer/website");
+      await expect(page).not.toHaveURL(/needs-analyzer/);
+      expect((await request.post("/api/admin/needs-analyzer/site-check", { data: { url: "example.com" } })).status()).toBe(403);
+      const id = "00000000-0000-4000-8000-000000000000";
+      expect((await request.patch(`/api/admin/needs-analyzer/site-check/${id}`, { data: { proposalIssues: [] } })).status()).toBe(403);
+      expect((await request.post(`/api/admin/needs-analyzer/site-check/${id}/ai`)).status()).toBe(403);
+    });
   },
 );
 
