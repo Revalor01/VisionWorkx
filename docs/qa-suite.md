@@ -110,6 +110,25 @@ with its own URL, and `QA_PRODUCT` limits a run to one product. Other Revalor
 products are tested black-box against their live URLs from this repo — their
 own repos aren't touched.
 
+## Billing tests (Stripe sandbox, preview only)
+`qa/products/visionworkx/billing.qa.ts` tests real billing against the
+**Vision Workx Stripe sandbox** (`acct_1UE7GCBedYJHvzis`, test mode):
+starting the 14-day trial through Stripe's hosted checkout (card 4242), a plan
+change syncing from Stripe, and cancellation pausing live forms.
+- They only run when the target is a **preview** (`QA_TARGET_ENV=preview`) and
+  `STRIPE_TEST_SECRET_KEY` is a test key; on production they skip. `qa/lib/stripe.ts`
+  refuses live keys.
+- Vercel **Preview** env has the sandbox keys, the six sandbox price IDs (lookup
+  keys `vw_<plan>_<monthly|annual>`), and `STRIPE_WEBHOOK_SECRET` = the Stripe
+  CLI's `stripe listen` signing secret.
+- In the workflow, `stripe listen --events … --forward-to <preview>/api/webhooks/stripe`
+  forwards sandbox webhooks to the preview for the run (the Vercel protection
+  bypass header is added). The run log ends with every delivery and its status.
+- Test workspaces start with no plan (`billingStatus: "none"`); every Stripe
+  customer a test makes is deleted afterwards.
+- To run: /admin/qa → VisionWorkx → *A preview deployment…* → paste a preview URL.
+- Deposits (Stripe Connect) aren't covered yet.
+
 ## Consumer web apps on the shared template (Sanctum, Proactive)
 Sanctum and Proactive are built from the same template (own Supabase project,
 tiers on `users_profile.subscription_tier`, `onboarding_state`, a localStorage
