@@ -13,6 +13,7 @@ qa(
 
     await test.step("parent creates and assigns a 15-point chore", async () => {
       await page.goto("/dashboard/chores");
+      await page.getByRole("button", { name: "+ New chore" }).click();
       const form = page.locator("form", { has: page.locator('input[name="title"]') });
       await form.locator('input[name="title"]').fill(chore);
       await form.locator('input[name="point_value"]').fill("15");
@@ -55,6 +56,7 @@ qa({ id: "chorebit/goals/kid-sets-goal", area: "Chores & points", title: "Kid se
   await kids.login(page, parent);
   await kids.enterKidMode(page, kid);
   const title = `QA bike ${Date.now().toString(36)}`;
+  await page.getByRole("button", { name: "+ Set a goal" }).click();
   const form = page.locator("form", { has: page.locator('input[name="target_points"]') });
   await form.locator('input[name="title"]').fill(title);
   await form.locator('input[name="target_points"]').fill("100");
