@@ -34,9 +34,11 @@ qa({ id: "proactive/payments/invalid-test-code-rejected", area: "Payments", titl
 qa({ id: "proactive/account/edit-profile", area: "Account", title: "Display name saves" }, async ({ page, proactiveUser }) => {
   const user = await proactiveUser();
   await proactiveLogin(page, user);
+  // The page fills the form from users_profile after it renders; anything typed before that
+  // read finishes is overwritten (display name reset to ""), so wait for the read first.
+  const profileLoaded = page.waitForResponse((r) => r.url().includes("/rest/v1/users_profile") && r.request().method() === "GET");
   await page.goto("/account/edit-profile");
-  // The page loads the saved profile after it renders; typing before that finishes gets overwritten.
-  await expect(page.locator("input[disabled]").first()).toHaveValue(user.email);
+  await profileLoaded;
   const displayName = `QA ${Date.now().toString(36)}`;
   await page.locator("label", { hasText: "Display name" }).locator("xpath=following-sibling::input[1]").fill(displayName);
   await page.getByRole("button", { name: "Save", exact: true }).click();

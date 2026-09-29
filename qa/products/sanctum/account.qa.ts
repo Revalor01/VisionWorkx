@@ -60,9 +60,11 @@ qa({ id: "sanctum/account/sms-opt-in", area: "Account", title: "SMS updates need
 qa({ id: "sanctum/account/edit-profile", area: "Account", title: "Display name saves" }, async ({ page, sanctumUser }) => {
   const user = await sanctumUser();
   await sanctumLogin(page, user);
+  // The page fills the form from users_profile after it renders; anything typed before that
+  // read finishes is overwritten (display name reset to ""), so wait for the read first.
+  const profileLoaded = page.waitForResponse((r) => r.url().includes("/rest/v1/users_profile") && r.request().method() === "GET");
   await page.goto("/account/edit-profile");
-  // The page loads the saved profile after it renders; typing before that finishes gets overwritten.
-  await expect(page.locator("input[disabled]").first()).toHaveValue(user.email);
+  await profileLoaded;
   const displayName = `QA ${Date.now().toString(36)}`;
   const field = page.locator("label", { hasText: "Display name" }).locator("xpath=following-sibling::input[1]");
   await field.fill(displayName);
