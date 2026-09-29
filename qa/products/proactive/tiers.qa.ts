@@ -5,7 +5,8 @@ import { mockCollaborator, proactiveLogin } from "../../lib/proactive";
 // the plus tier; Collaborator (the AI) is Premium.
 
 const ENTRY_ROUTES = [
-  { path: "/toolkit/decision-reflections", heading: /Guided Decision Reflections/i },
+  // Locked screen: "Guided Decision Reflections"; unlocked page: "Decision Reflections".
+  { path: "/toolkit/decision-reflections", heading: /Decision Reflections/i },
   { path: "/toolkit/clarity-report", heading: /Weekly Clarity Report/i },
   { path: "/toolkit/focus-session", heading: /Focus Sessions/i },
   { path: "/toolkit/resources/evaluation", heading: /Resource Evaluation/i },

@@ -110,6 +110,27 @@ with its own URL, and `QA_PRODUCT` limits a run to one product. Other Revalor
 products are tested black-box against their live URLs from this repo — their
 own repos aren't touched.
 
+## Consumer web apps on the shared template (Sanctum, Proactive)
+Sanctum and Proactive are built from the same template (own Supabase project,
+tiers on `users_profile.subscription_tier`, `onboarding_state`, a localStorage
+disclaimer flag, password login, AI chat via the Supabase function `chat`).
+`qa/lib/templateApp.ts` holds the shared helpers; `qa/lib/sanctum.ts` and
+`qa/lib/proactive.ts` configure it (env prefix, disclaimer key, tables that
+don't cascade). A future app on the same template is a new ~20-line file.
+
+## Proactive (web app)
+Tests in `qa/products/proactive/` run against https://proactive-zeta-three.vercel.app.
+Same fixture pattern as Sanctum (`proactiveUser({ tier })`, `proactiveLogin`,
+`mockCollaborator`). Proactive calls its plus tier **Entry**; Collaborator (the
+AI) is Premium and always simulated. Coverage: public pages, signed-out
+redirects, login, disclaimer, onboarding, Temperature Check, journal,
+Prioritization (read + Collaborator hand-off), decision tools open for Free,
+Entry gates, Insights cap, Collaborator upsell and chat, payment self-upgrade
+blocked, invalid test code, profile, admin refused. Proactive's own `e2e/`
+tests are ported. Manual: sign-up email, Stripe checkout, reminder email, a
+real Collaborator reply. Secrets: `PROACTIVE_SUPABASE_URL`,
+`PROACTIVE_SUPABASE_SERVICE_ROLE_KEY`.
+
 ## Sanctum (web app)
 Tests in `qa/products/sanctum/` run against https://sanctum-web-xi.vercel.app
 (the Sanctum **web** app). Helpers in `qa/lib/sanctum.ts` use plain REST calls
@@ -159,6 +180,7 @@ Without QA_REPORT_URL/QA_REPORT_SECRET the reporter does nothing.
 | GitHub secret | `QA_REPORT_SECRET` | same as Vercel |
 | GitHub secret | `MODULES_SUPABASE_URL`, `MODULES_SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY` | visionworkx-modules |
 | GitHub secret | `SANCTUM_SUPABASE_URL`, `SANCTUM_SUPABASE_SERVICE_ROLE_KEY` | Sanctum's Supabase project |
+| GitHub secret | `PROACTIVE_SUPABASE_URL`, `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY` | Proactive's Supabase project |
 | GitHub secret (optional) | `VERCEL_AUTOMATION_BYPASS_SECRET` | for protected previews |
 | GitHub variable (optional) | `QA_REPORT_URL` | defaults to https://vision-workx.vercel.app |
 
