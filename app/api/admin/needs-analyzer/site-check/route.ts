@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isOperator } from "@/lib/modules/adminGuard";
-import { naDb, UUID_RE } from "@/lib/needsAnalyzer/db";
+import { getAssessment, naDb, UUID_RE } from "@/lib/needsAnalyzer/db";
 import { runSiteCheck } from "@/lib/needsAnalyzer/siteCheck";
 import { SITE_CHECK_COLUMNS, toSiteCheck, type SiteCheckRow } from "@/lib/needsAnalyzer/siteChecks";
 import { SiteFetchError } from "@/lib/needsAnalyzer/siteFetch";
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body?.url !== "string") return NextResponse.json({ error: "Enter a website address" }, { status: 400 });
   const assessmentId = typeof body.assessmentId === "string" && UUID_RE.test(body.assessmentId) ? body.assessmentId : null;
+  if (assessmentId && !(await getAssessment(naDb(), assessmentId))) return NextResponse.json({ error: "That assessment no longer exists" }, { status: 400 });
 
   let result;
   try {

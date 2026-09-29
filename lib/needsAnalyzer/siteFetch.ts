@@ -12,6 +12,7 @@ import { isIP } from "node:net";
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 export const PAGE_TIMEOUT_MS = 8000;
 const MAX_REDIRECTS = 5;
+const DNS_TIMEOUT_MS = 3000;
 const USER_AGENT = "Mozilla/5.0 (compatible; RevalorSiteCheck/1.0; +https://products.revalorllc.com)";
 
 export class SiteFetchError extends Error {}
@@ -68,15 +69,14 @@ export function isBlockedAddress(ip: string): boolean {
   }
   if (kind === 6) {
     const a = ip.toLowerCase();
-    if (a === "::" || a === "::1") return true;
     const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(a);
     if (mapped) return isBlockedAddress(mapped[1]);
-    if (/^::ffff:[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(a)) return true; // hex-form mapped v4: refuse rather than decode
-    const first = parseInt(a.split(":")[0] || "0", 16);
-    if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
-    if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
-    if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
-    if (a.startsWith("64:ff9b:") || a.startsWith("2001:db8:") || a.startsWith("100::")) return true; // NAT64, documentation, discard
+    // Only global unicast (2000::/3) is public. Everything else -- loopback, the
+    // IPv4-compatible/mapped/translated forms, unique/site/link-local, multicast,
+    // NAT64 -- is refused outright rather than decoded.
+    const first = a.startsWith("::") ? 0 : parseInt(a.split(":")[0], 16);
+    if ((first & 0xe000) !== 0x2000) return true;
+    if (a.startsWith("2001:db8:") || a.startsWith("2002:") || /^2001:(0{1,4})?:/.test(a)) return true; // documentation, 6to4, Teredo
     return false;
   }
   return true; // not an IP at all
@@ -90,7 +90,10 @@ async function assertPublicHost(hostname: string) {
   }
   let addrs: { address: string }[];
   try {
-    addrs = await lookup(h, { all: true, verbatim: true });
+    addrs = await Promise.race([
+      lookup(h, { all: true, verbatim: true }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("DNS timeout")), DNS_TIMEOUT_MS)),
+    ]);
   } catch {
     throw new SiteFetchError(`Couldn't find ${h}. Check the spelling.`);
   }

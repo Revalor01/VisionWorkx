@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isOperator } from "@/lib/modules/adminGuard";
-import { naDb, UUID_RE } from "@/lib/needsAnalyzer/db";
+import { getAssessment, naDb, UUID_RE } from "@/lib/needsAnalyzer/db";
 import { readJson } from "@/lib/needsAnalyzer/validate";
 
 // Operator-only: update a saved website check.
@@ -32,6 +32,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.assessmentId !== undefined) {
     if (body.assessmentId !== null && !(typeof body.assessmentId === "string" && UUID_RE.test(body.assessmentId)))
       return NextResponse.json({ error: "Bad request" }, { status: 400 });
+    if (body.assessmentId !== null && !(await getAssessment(db, body.assessmentId as string)))
+      return NextResponse.json({ error: "That assessment no longer exists" }, { status: 400 });
     patch.assessment_id = body.assessmentId as string | null;
   }
   if (!Object.keys(patch).length) return NextResponse.json({ error: "Nothing to change" }, { status: 400 });

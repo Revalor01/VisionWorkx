@@ -50,12 +50,19 @@ describe("isBlockedAddress", () => {
       "::ffff:127.0.0.1",
       "::ffff:7f00:1",
       "2001:db8::1",
+      "::7f00:1",
+      "::127.0.0.1",
+      "::ffff:0:7f00:1",
+      "2002:7f00:1::1",
+      "2001:0:4136:e378::1",
+      "fec0::1",
+      "64:ff9b::7f00:1",
       "not-an-ip",
     ])
       expect(isBlockedAddress(ip), ip).toBe(true);
   });
 
   it("allows public addresses", () => {
-    for (const ip of ["8.8.8.8", "93.184.216.34", "172.32.0.1", "2606:4700:4700::1111", "::ffff:8.8.8.8"]) expect(isBlockedAddress(ip), ip).toBe(false);
+    for (const ip of ["8.8.8.8", "93.184.216.34", "172.32.0.1", "2606:4700:4700::1111", "2001:4860:4860::8888", "::ffff:8.8.8.8"]) expect(isBlockedAddress(ip), ip).toBe(false);
   });
 });
