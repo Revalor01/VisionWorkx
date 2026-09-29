@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sanctum/manual/signup-email-link",
+    "area": "Sign-in & onboarding",
+    "title": "Sign-up email link arrives and signs you in",
+    "instructions": "On https://sanctum-web-xi.vercel.app/auth/signup, sign up with a real inbox you control (e.g. you+sanctum@gmail.com). The email should arrive within a minute and clicking it should land on the disclaimer or onboarding. Afterwards remove the test account from Sanctum's admin page."
+  },
+  {
+    "id": "sanctum/manual/stripe-checkout",
+    "area": "Payments",
+    "title": "Upgrading through Stripe checkout unlocks the plan",
+    "instructions": "With a test account, go to Account → Manage plan and upgrade to Plus (Stripe test mode, card 4242 4242 4242 4242). After returning, the plan shows Plus and the Plus features open. Cancel the subscription afterwards."
+  },
+  {
+    "id": "sanctum/manual/daily-reminder-email",
+    "area": "Daily use",
+    "title": "Daily check-in reminder email arrives",
+    "instructions": "With a test account, turn on the daily reminder in Account → Notifications for a time a few minutes ahead. The reminder email should arrive at that time and its link should open the check-in screen."
+  },
+  {
+    "id": "sanctum/manual/tessa-real-reply",
+    "area": "Safety",
+    "title": "Tessa gives a sensible real reply",
+    "instructions": "The automated tests simulate Tessa (no real AI calls). Occasionally, with a Premium/test account, send Tessa an ordinary message and confirm the reply is sensible and on-brand."
+  }
+]
