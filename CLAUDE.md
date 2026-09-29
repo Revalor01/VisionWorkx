@@ -98,7 +98,9 @@ repos. Details: `docs/qa-suite.md`.
 (`NEEDS_ANALYZER_SYNC_SECRET`, script `scripts/needs-analyzer-sync.mjs`). Tables `vw_na_assessments`, `vw_na_settings`
 in the **main** project (RLS on, no policies; service role only). `lib/needsAnalyzer/questions.ts` and `rules.ts` must stay
 identical in behaviour to the offline app (Machine B owns it; don't edit that repo) — `rules.test.ts` pins the output, so a
-rules change here needs the same change there. Details: `docs/needs-analyzer.md`.
+rules change here needs the same change there. Website check: `/admin/needs-analyzer/website`, table `vw_na_site_checks`
+(same RLS pattern); it only prefills empty answers and never changes the scoring. Its fetcher `lib/needsAnalyzer/siteFetch.ts`
+is an SSRF surface: it must keep refusing private/internal addresses for every hop, redirects included. Details: `docs/needs-analyzer.md`.
 
 ## Agents — use them
 - Before opening any PR: run **release-checker**, **security-reviewer**, and (when the change
