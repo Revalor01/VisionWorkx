@@ -1,5 +1,5 @@
 import { expect, qa, test } from "../../lib/qa";
-import { cfhLogin, deleteCfhMember, findCfhUserByEmail, qaEmail } from "../../lib/cfh";
+import { cfhLogin, cfhRows, deleteCfhMember, findCfhUserByEmail, qaEmail } from "../../lib/cfh";
 
 // Christian Friends Hub — READ-ONLY tests (owner's decision): nothing is
 // posted where members could see it, and volunteer forms (which email the
@@ -42,6 +42,15 @@ qa({ id: "cfh/public/signed-out-redirected", area: "Public", title: "Signed-out 
 });
 
 qa({ id: "cfh/signup/wrong-access-code-refused", area: "Sign-up", title: "Sign-up with a wrong access code is refused and makes no account" }, async ({ page }) => {
+  // Admins can switch the access-code requirement off (Admin → sign-up code).
+  // When it's off there's nothing to refuse -- and submitting would create a real account.
+  const [settings] = await cfhRows<{ require_access_code: boolean | null }>("app_settings", "select=require_access_code&limit=1");
+  const required = settings?.require_access_code ?? true;
+  if (!required) {
+    await page.goto("/signup");
+    await expect(page.getByPlaceholder("Enter the code shared with members"), "no code box while the requirement is off").toHaveCount(0);
+  }
+  test.skip(!required, "The community access code is switched OFF in CFH Admin -- anyone can sign up right now");
   const email = qaEmail();
   try {
     await page.goto("/signup");

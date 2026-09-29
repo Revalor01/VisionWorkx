@@ -120,5 +120,6 @@ export async function cfhLogin(page: Page, member: CfhMember): Promise<void> {
   await page.locator('input[type="email"]').fill(member.email);
   await page.locator('input[type="password"]').fill(member.password);
   await page.getByRole("button", { name: "Log In", exact: true }).click();
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 20_000 });
+  // The app switches pages client-side (no full load event), so wait for the URL change only.
+  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 20_000, waitUntil: "commit" });
 }
