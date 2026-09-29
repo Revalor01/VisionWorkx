@@ -1,7 +1,8 @@
 import { timingSafeEqual } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
-import { QA_BUCKET, qaDb } from "@/lib/qa/db";
-import { artifactPath, countResults, finalRunStatus, PRODUCT_RE, stripAnsi, TEST_ID_RE } from "@/lib/qa/summary";
+import { after, NextRequest, NextResponse } from "next/server";
+import { QA_BUCKET, qaDb, type ResultStatus } from "@/lib/qa/db";
+import { nightlyEmail, sendQaEmail } from "@/lib/qa/notify";
+import { artifactPath, countResults, finalResults, finalRunStatus, PRODUCT_RE, stripAnsi, TEST_ID_RE } from "@/lib/qa/summary";
 
 // The Playwright runner (GitHub Actions) reports here -- never a browser.
 // Auth: Authorization: Bearer QA_REPORT_SECRET. Events:
@@ -136,7 +137,51 @@ export async function POST(req: NextRequest) {
     const counts = countResults(all ?? []);
     const runnerError = str(body.error, 2000);
     const status = runnerError && counts.passed + counts.failed === 0 ? "error" : finalRunStatus(counts, str(body.status, 20) ?? undefined);
-    await db.from("vw_qa_runs").update({ ...counts, status, error: runnerError, finished_at: now }).eq("id", runId).in("status", ["queued", "running"]);
+    const { data: finished } = await db
+      .from("vw_qa_runs")
+      .update({ ...counts, status, error: runnerError, finished_at: now })
+      .eq("id", runId)
+      .in("status", ["queued", "running"])
+      .select("id, product_slug, selection, created_at")
+      .maybeSingle();
+
+    // Nightly runs email the operator on failure (and once when back to green).
+    // Only on the first "end" for the run -- a repeat from the workflow's
+    // failure step doesn't match the status filter above.
+    if (finished?.selection === "nightly") {
+      const origin = req.nextUrl.origin;
+      after(async () => {
+        const failedIds = finalResults((all ?? []) as { test_id: string; status: ResultStatus; attempt: number }[])
+          .filter((r) => r.status === "failed" || r.status === "timed_out")
+          .map((r) => r.test_id);
+        const [{ data: steps }, { data: titles }, { data: prev }] = await Promise.all([
+          failedIds.length
+            ? db.from("vw_qa_results").select("test_id, error_step, attempt").eq("run_id", runId).in("test_id", failedIds).order("attempt", { ascending: false })
+            : Promise.resolve({ data: [] as { test_id: string; error_step: string | null }[] }),
+          failedIds.length ? db.from("vw_qa_tests").select("id, title").in("id", failedIds) : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+          db
+            .from("vw_qa_runs")
+            .select("status")
+            .eq("product_slug", finished.product_slug)
+            .eq("selection", "nightly")
+            .lt("created_at", finished.created_at)
+            .not("finished_at", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+        const email = nightlyEmail(
+          { id: runId, product_slug: finished.product_slug, status, ...counts, error: runnerError },
+          failedIds.map((id) => ({
+            title: titles?.find((t) => t.id === id)?.title ?? id,
+            error_step: steps?.find((s) => s.test_id === id)?.error_step ?? null,
+          })),
+          prev?.status ?? null,
+          `${origin}/admin/qa/runs/${runId}`,
+        );
+        if (email) await sendQaEmail(email);
+      });
+    }
     return NextResponse.json({ ok: true, status });
   }
 

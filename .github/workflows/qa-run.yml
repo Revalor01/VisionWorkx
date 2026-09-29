@@ -9,6 +9,10 @@ name: QA Run
 # Optional: VERCEL_AUTOMATION_BYPASS_SECRET (protected previews).
 # Repo variable (optional): QA_REPORT_URL, default https://vision-workx.vercel.app.
 on:
+  # Nightly: every test, against production, 11:00 UTC (7 am Eastern). A failing
+  # nightly run emails the operator (lib/qa/notify.ts); /admin/qa shows it as "nightly".
+  schedule:
+    - cron: "0 11 * * *"
   workflow_dispatch:
     inputs:
       run_id:
@@ -33,7 +37,7 @@ on:
         default: ""
 
 concurrency:
-  group: qa-${{ inputs.product }}-${{ inputs.run_id || github.run_id }}
+  group: qa-${{ inputs.product || 'visionworkx' }}-${{ inputs.run_id || github.run_id }}
 
 jobs:
   qa:
@@ -42,9 +46,10 @@ jobs:
     env:
       CI: "true"
       QA_RUN_ID: ${{ inputs.run_id }}
-      QA_PRODUCT: ${{ inputs.product }}
-      QA_TARGET_URL: ${{ inputs.target_url }}
-      QA_TARGET_ENV: ${{ inputs.target_env }}
+      # Scheduled runs get no inputs, so every value needs a default here.
+      QA_PRODUCT: ${{ inputs.product || 'visionworkx' }}
+      QA_TARGET_URL: ${{ inputs.target_url || 'https://modules.revalorllc.com' }}
+      QA_TARGET_ENV: ${{ inputs.target_env || 'production' }}
       QA_REPORT_URL: ${{ vars.QA_REPORT_URL || 'https://vision-workx.vercel.app' }}
       QA_REPORT_SECRET: ${{ secrets.QA_REPORT_SECRET }}
       MODULES_SUPABASE_URL: ${{ secrets.MODULES_SUPABASE_URL }}
