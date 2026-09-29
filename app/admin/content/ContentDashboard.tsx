@@ -244,7 +244,7 @@ export default function ContentDashboard({
         </a>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <AdminNavBar category="media" current="content" />
 
         <h1 className="text-2xl font-bold text-white mb-1">Content Engine</h1>

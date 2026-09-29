@@ -9,6 +9,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Admin screens are used mostly on laptops/monitors: fill the window up
+      // to this width (keep in step with revalor-admin's `admin-page`).
+      maxWidth: { admin: "1760px" },
       colors: {
         navy: {
           dark: "#1A3A5C",

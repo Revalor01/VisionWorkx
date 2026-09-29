@@ -70,10 +70,10 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
   return (
     <div className="min-h-screen bg-white">
       <AdminHeader badge="Modules" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
+      <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 pt-8">
         <AdminProductPills />
       </div>
-      <main className="mx-auto max-w-5xl space-y-8 p-6">
+      <main className="mx-auto max-w-admin space-y-8 px-4 py-6 sm:px-6 lg:px-10">
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Operator</p>
         <h1 className="text-2xl font-bold text-navy-dark">VisionWorkx modules — client workspaces</h1>
@@ -101,6 +101,8 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
         <button disabled={busy} className="rounded-lg bg-navy-dark px-4 py-2 text-sm font-semibold text-white sm:col-span-2 sm:justify-self-start">Create workspace</button>
       </form>
 
+      {/* Two workspaces side by side on wide monitors. */}
+      <div className="grid items-start gap-8 2xl:grid-cols-2">
       {initial.map((w) => (
         <section key={w.id} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -150,6 +152,7 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
           </div>
         </section>
       ))}
+      </div>
       </main>
     </div>
   );
