@@ -22,8 +22,11 @@ qa({ id: "mindbit/kid/wait-game", area: "Kid mode", title: "Kid plays The Wait G
   expect(rows).toEqual([{ game: "wait_game" }]);
 });
 
-qa({ id: "mindbit/quiz/page-loads", area: "Public", title: "The parent quiz page loads" }, async ({ page }) => {
-  const res = await page.goto("/quiz");
+// /quiz forwards to the quiz on the Revalor Kids hub (products.revalorllc.com/kids),
+// keeping ?src= so already-shared links stay attributed.
+qa({ id: "mindbit/quiz/page-loads", area: "Public", title: "Shared /quiz links reach the parent quiz (with ?src= kept)" }, async ({ page }) => {
+  const res = await page.goto("/quiz?src=qa");
   expect(res?.status()).toBeLessThan(400);
-  await expect(page.getByRole("heading").first()).toBeVisible();
+  expect(page.url()).toContain("src=qa");
+  await expect(page).toHaveTitle(/What Does Your Child Need Most/);
 });
