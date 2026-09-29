@@ -85,7 +85,7 @@ function Body({ initial, ecosystem }: { initial: Catalog; ecosystem: Ecosystem }
             return (
               <div key={slot} className="rounded-lg border border-zinc-200 p-3">
                 <div className={`mb-2 flex h-16 items-center justify-center rounded ${st.proposalDarkHeader || slot === "business" ? "bg-[#1f2a44]" : "bg-zinc-50"}`}>
-                  {url ? <img src={url} alt={label} className="max-h-14 max-w-full object-contain" /> : <span className="text-xs text-zinc-400">No logo</span>}
+                  {url ? <img referrerPolicy="no-referrer" src={url} alt={label} className="max-h-14 max-w-full object-contain" /> : <span className="text-xs text-zinc-400">No logo</span>}
                 </div>
                 <strong className="text-sm">{label}</strong>
                 <div className="mb-2 text-xs text-zinc-500">{where}</div>

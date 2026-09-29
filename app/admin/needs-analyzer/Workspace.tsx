@@ -320,7 +320,7 @@ function FieldInput({ f, value: v, onChange }: { f: Field; value: Assessment["an
 function ModuleLogo({ catalog, it }: { catalog: Catalog; it: { id: string; category: string } }) {
   const slot = moduleLogoSlot(catalog, it);
   const url = slot ? logoUrl(catalog, slot) : null;
-  return url ? <img src={url} alt="" className="h-5 w-5 rounded object-contain" /> : null;
+  return url ? <img referrerPolicy="no-referrer" src={url} alt="" className="h-5 w-5 rounded object-contain" /> : null;
 }
 
 function PlanView({

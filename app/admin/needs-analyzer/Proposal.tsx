@@ -25,7 +25,7 @@ export function Proposal({ answers: A, plan: P, catalog, prepared }: { answers: 
   const logoFor = (it: { id: string; category: string }) => {
     const slot = moduleLogoSlot(catalog, it);
     const url = slot ? logoUrl(catalog, slot) : null;
-    return url ? <img src={url} alt="" className="h-5 w-5 rounded object-contain" /> : null;
+    return url ? <img referrerPolicy="no-referrer" src={url} alt="" className="h-5 w-5 rounded object-contain" /> : null;
   };
 
   return (
@@ -34,7 +34,7 @@ export function Proposal({ answers: A, plan: P, catalog, prepared }: { answers: 
         className={`-mx-8 -mt-8 mb-8 flex flex-wrap items-center justify-between gap-4 rounded-t-xl border-b-4 border-[#b7862b] px-8 py-6 print:mx-0 print:mt-0 ${st.proposalDarkHeader ? "bg-[#1f2a44] text-white" : "bg-white"}`}
       >
         <div className="flex items-center gap-4">
-          {headerLogo && <img src={headerLogo} alt={co.name} className="h-14 w-auto max-w-[180px] object-contain" />}
+          {headerLogo && <img referrerPolicy="no-referrer" src={headerLogo} alt={co.name} className="h-14 w-auto max-w-[180px] object-contain" />}
           <div>
             <div className="text-xl font-bold">{co.name}</div>
             <div className={`text-sm ${st.proposalDarkHeader ? "text-white/75" : "text-zinc-500"}`}>
@@ -49,7 +49,7 @@ export function Proposal({ answers: A, plan: P, catalog, prepared }: { answers: 
             <div>{co.email}</div>
             <div>{co.website}</div>
           </div>
-          {badgeLogo && <img src={badgeLogo} alt={co.badge} className="h-14 w-auto object-contain" />}
+          {badgeLogo && <img referrerPolicy="no-referrer" src={badgeLogo} alt={co.badge} className="h-14 w-auto object-contain" />}
         </div>
       </header>
 

@@ -10,9 +10,11 @@ const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
 const isArr = Array.isArray;
 
 export async function readJson(req: Request, maxBytes = MAX_BODY_BYTES): Promise<unknown> {
-  const text = await req.text();
-  if (text.length > maxBytes) throw new Error("Too large");
-  return JSON.parse(text);
+  // Refuse on the declared size before reading, then check the real byte count.
+  if (Number(req.headers.get("content-length") || 0) > maxBytes) throw new Error("Too large");
+  const buf = await req.arrayBuffer();
+  if (buf.byteLength > maxBytes) throw new Error("Too large");
+  return JSON.parse(new TextDecoder().decode(buf));
 }
 
 export function isOverrides(o: unknown): o is Overrides {

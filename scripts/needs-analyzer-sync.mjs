@@ -32,6 +32,13 @@ const positional = args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== 
 const folder = path.resolve(positional[0] || ".");
 const site = opt("--url", "https://vision-workx.vercel.app").replace(/\/+$/, "");
 const dryRun = flag("--dry-run");
+// The secret goes to this address, so only https (or a local dev server).
+if (!/^https:\/\//i.test(site) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(site)) {
+  console.error(`
+  --url must start with https:// (got ${site})
+`);
+  process.exit(1);
+}
 
 function fail(msg) {
   console.error(`\n  ${msg}\n`);
