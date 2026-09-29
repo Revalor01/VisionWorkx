@@ -20,22 +20,23 @@ export default async function QaProductsPage() {
 
   return (
     <QaShell>
-      <div className="mb-6">
-        <div className="flex items-center gap-3">
+      <div className="mb-6 flex flex-col-reverse items-start justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
           <h1 className="text-2xl font-bold text-navy-dark">Automated tests</h1>
-          <Image
-            src="/revalor-automation-suite-logo.png"
-            alt="Revalor Automation"
-            width={56}
-            height={56}
-            className="h-14 w-14 rounded-lg object-cover shadow-sm"
-            priority
-          />
+          <p className="mt-1 max-w-xl text-sm text-zinc-500">
+            Real-browser tests for each Revalor product, run in GitHub Actions. Pick a product to choose tests, run them and see
+            what broke.
+          </p>
         </div>
-        <p className="mt-1 text-sm text-zinc-500">
-          Real-browser tests for each Revalor product, run in GitHub Actions. Pick a product to choose tests, run them and see
-          what broke.
-        </p>
+        {/* Right-aligned under the Operations nav row (which ends with Supabase Costs). */}
+        <Image
+          src="/revalor-automation-logo-light.png"
+          alt="Revalor Automation"
+          width={160}
+          height={160}
+          className="h-32 w-32 shrink-0 self-end object-contain sm:-mt-2 sm:h-40 sm:w-40"
+          priority
+        />
       </div>
       {error ? (
         <NotConfigured what="The QA tables aren't in the database yet" />
