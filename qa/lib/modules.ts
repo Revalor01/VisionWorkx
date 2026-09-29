@@ -82,6 +82,8 @@ export interface WorkspaceOptions {
   /** Where owner alerts go. Default: none, so nothing is emailed. Use resendTestAddress() to test emails. */
   notificationEmail?: string | null;
   plan?: "starter" | "growth" | "pro";
+  /** Default "comped" (no Stripe). "none" = no plan yet, for billing tests (billing sync skips comped workspaces). */
+  billingStatus?: "comped" | "none";
 }
 
 export interface TestWorkspace {
@@ -111,7 +113,7 @@ export async function createTestWorkspace(seed: string, opts: WorkspaceOptions =
       slug,
       domains: [QA_HOST],
       plan: opts.plan ?? "starter",
-      billing_status: "comped",
+      billing_status: opts.billingStatus ?? "comped",
       is_test: true,
       time_zone: "America/New_York",
       notification_email: opts.notificationEmail ?? null,

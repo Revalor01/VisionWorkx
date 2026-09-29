@@ -80,6 +80,8 @@ jobs:
       PROACTIVE_SUPABASE_URL: ${{ secrets.PROACTIVE_SUPABASE_URL }}
       PROACTIVE_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROACTIVE_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      # Stripe SANDBOX key for billing tests (preview runs only; qa/lib/stripe.ts refuses live keys).
+      STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -90,6 +92,20 @@ jobs:
       - run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      # Billing tests (VisionWorkx, preview only): forward the Stripe SANDBOX's
+      # webhooks to the preview being tested. The preview's STRIPE_WEBHOOK_SECRET
+      # is this CLI's signing secret (its fingerprint is printed to compare).
+      - name: Forward Stripe sandbox webhooks
+        if: matrix.product == 'visionworkx' && env.QA_TARGET_ENV == 'preview' && env.STRIPE_TEST_SECRET_KEY != ''
+        run: |
+          case "$STRIPE_TEST_SECRET_KEY" in sk_test_*|rk_test_*) ;; *) echo "STRIPE_TEST_SECRET_KEY is not a test key -- refusing"; exit 1;; esac
+          npm i -g @stripe/cli >/dev/null 2>&1
+          echo "stripe listen signing-secret fingerprint: $(stripe listen --print-secret --api-key "$STRIPE_TEST_SECRET_KEY" | tr -d '\r\n' | sha256sum | cut -c1-12)"
+          EXTRA=()
+          if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then EXTRA=(--headers "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET"); fi
+          nohup stripe listen --api-key "$STRIPE_TEST_SECRET_KEY" --forward-to "$QA_TARGET_URL/api/webhooks/stripe" "${EXTRA[@]}" > "$RUNNER_TEMP/stripe-listen.log" 2>&1 &
+          sleep 6
+          grep -v -i "whsec" "$RUNNER_TEMP/stripe-listen.log" | head -5
       - name: Sync test catalog
         # A catalog problem shouldn't stop the tests themselves from running.
         continue-on-error: true
