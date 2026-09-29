@@ -62,13 +62,19 @@ qa({ id: "sanctum/account/edit-profile", area: "Account", title: "Display name s
   await sanctumLogin(page, user);
   // The page fills the form from users_profile after it renders; anything typed before that
   // read finishes is overwritten (display name reset to ""), so wait for the read first.
-  const profileLoaded = page.waitForResponse((r) => r.url().includes("/rest/v1/users_profile") && r.request().method() === "GET");
+  const profileLoaded = page.waitForResponse((r) => r.url().includes("/rest/v1/users_profile") && r.url().includes("display_name") && r.request().method() === "GET");
   await page.goto("/account/edit-profile");
   await profileLoaded;
   const displayName = `QA ${Date.now().toString(36)}`;
   const field = page.locator("label", { hasText: "Display name" }).locator("xpath=following-sibling::input[1]");
   await field.fill(displayName);
+  // The page shows "Saved" even when nothing was written, so check the write itself.
+  const write = page.waitForResponse((r) => r.url().includes("/rest/v1/users_profile") && r.request().method() === "PATCH", { timeout: 10_000 });
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  const res = await write.catch(() => null);
+  expect(res, "Save sent no update to users_profile").not.toBeNull();
+  expect(res!.request().postData() ?? "", "the update carried the typed name").toContain(displayName);
+  expect(res!.status(), `update answered ${res!.status()}`).toBeLessThan(300);
   await expect(page.getByRole("button", { name: /Saved/ })).toBeVisible();
   const [profile] = await sanctumRows<{ display_name: string }>("users_profile", `id=eq.${user.id}&select=display_name`);
   expect(profile.display_name).toBe(displayName);
