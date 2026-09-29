@@ -23,8 +23,13 @@ export default async function QaProductsPage() {
       <div className={`${SECTION} flex flex-col-reverse items-start justify-between gap-4 sm:flex-row sm:items-center`}>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-navy-dark">Configure Your Tests for an Automation Run</h1>
-          <p className="mt-1 text-sm text-zinc-500 lg:whitespace-nowrap">
-            Real-browser tests for each Revalor product, run in GitHub Actions. Pick a product to choose tests, run them and see what broke.
+          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-zinc-600 lg:flex-nowrap lg:whitespace-nowrap">
+            {["Real functionality tests for each Revalor product", "Click a product section to configure", "Smoke and regression testing"].map((part, i) => (
+              <span key={part} className="flex items-center gap-2.5">
+                {i > 0 && <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[#B8860B]" />}
+                {part}
+              </span>
+            ))}
           </p>
           <TechLogos />
         </div>
@@ -41,7 +46,7 @@ export default async function QaProductsPage() {
       {error ? (
         <NotConfigured what="The QA tables aren't in the database yet" />
       ) : (
-        <div className={`${SECTION} grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {((products ?? []) as QaProduct[]).map((p) => {
             const productRuns = ((runs ?? []) as Pick<QaRun, "id" | "product_slug" | "status" | "passed" | "failed" | "created_at" | "finished_at">[]).filter(
               (r) => r.product_slug === p.slug,
@@ -54,7 +59,7 @@ export default async function QaProductsPage() {
               <Link
                 key={p.slug}
                 href={`/admin/qa/${p.slug}`}
-                className="rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-400 hover:shadow-sm"
+                className="rounded-xl border-2 border-[#B8860B] bg-white p-5 transition hover:bg-[#B8860B]/5 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-lg font-bold text-zinc-900">{p.name}</h2>
