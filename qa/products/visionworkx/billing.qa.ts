@@ -59,9 +59,10 @@ qa(
 
       await test.step("pay on Stripe's checkout page (test card 4242)", async () => {
         // Checkout lists several payment methods; pick Card.
-        const card = page.getByRole("radio", { name: "Card", exact: true });
+        // Stripe overlays its own styling on the radio, so a normal click never lands on it.
+        const card = page.locator("#payment-method-accordion-item-title-card");
         await expect(card).toBeVisible({ timeout: 20_000 });
-        await card.check();
+        await card.check({ force: true });
         // Stripe Link's "save my information" is on by default and wants a phone number: switch it off.
         const saveInfo = page.getByRole("checkbox", { name: /Save my information/ });
         if (await saveInfo.isChecked({ timeout: 3_000 }).catch(() => false)) await saveInfo.uncheck();
