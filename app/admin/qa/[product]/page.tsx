@@ -4,7 +4,7 @@ import { isOperator } from "@/lib/modules/adminGuard";
 import { qaDb, type QaProduct, type QaResult, type QaRun, type QaTest } from "@/lib/qa/db";
 import { finalResults, isStale, PRODUCT_RE } from "@/lib/qa/summary";
 import { qaDispatchConfigured } from "@/lib/qa/github";
-import { NotConfigured, QaShell, StatusBadge, timeAgo } from "../ui";
+import { NotConfigured, QaShell, SECTION, StatusBadge, timeAgo } from "../ui";
 import TestPicker from "./TestPicker";
 import ManualChecks, { type ManualCheck } from "./ManualChecks";
 
@@ -65,7 +65,7 @@ export default async function QaProductPage(props: { params: Promise<{ product: 
 
   return (
     <QaShell>
-      <div className="mb-6">
+      <div className={SECTION}>
         <Link href="/admin/qa" className="text-sm text-zinc-500 hover:underline">
           ← All products
         </Link>
@@ -82,7 +82,7 @@ export default async function QaProductPage(props: { params: Promise<{ product: 
 
       <ManualChecks checks={manualChecks} />
 
-      <section className="mt-10">
+      <section className={SECTION}>
         <h2 className="mb-3 text-lg font-bold text-zinc-900">Recent runs</h2>
         {runList.length === 0 ? (
           <p className="text-sm text-zinc-500">No runs yet.</p>

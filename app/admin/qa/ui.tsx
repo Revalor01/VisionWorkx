@@ -5,15 +5,43 @@ import type { ResultStatus, RunStatus } from "@/lib/qa/db";
 
 // Shared bits for the /admin/qa pages (server components).
 
+/** Gold-outlined section box, matching revalor-admin's dashboard sections. */
+export const SECTION = "mb-8 rounded-xl border-2 border-[#B8860B] bg-white p-4 sm:p-5";
+
 export function QaShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-zinc-50">
       <AdminHeader title="Revalor Test Automation Suite" badge="QA" />
       <main className="mx-auto max-w-admin px-4 py-8 sm:px-6 lg:px-10">
-        <AdminNavBar category="operations" current="qa" />
+        <div className={SECTION}>
+          <AdminNavBar category="operations" current="qa" boxed />
+        </div>
         {children}
       </main>
     </div>
+  );
+}
+
+const TECH = [
+  { slug: "supabase", name: "Supabase" },
+  { slug: "github", name: "GitHub" },
+  { slug: "stripe", name: "Stripe" },
+  { slug: "claude", name: "Claude" },
+  { slug: "vercel", name: "Vercel" },
+];
+
+/** The services the suite runs on (brand icons from Simple Icons, in public/logos). */
+export function TechLogos() {
+  return (
+    <ul className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3" aria-label="Built with">
+      {TECH.map((t) => (
+        <li key={t.slug} className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+          {/* eslint-disable-next-line @next/next/no-img-element -- tiny local SVGs */}
+          <img src={`/logos/${t.slug}.svg`} alt="" width={24} height={24} className="h-6 w-6" />
+          {t.name}
+        </li>
+      ))}
+    </ul>
   );
 }
 

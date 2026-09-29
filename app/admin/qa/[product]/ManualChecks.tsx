@@ -49,7 +49,7 @@ export default function ManualChecks({ checks }: { checks: ManualCheck[] }) {
 
   if (state.length === 0) return null;
   return (
-    <section className="mt-10">
+    <section className="mb-8 rounded-xl border-2 border-[#B8860B] bg-white p-4 sm:p-5">
       <h2 className="text-lg font-bold text-zinc-900">Manual checks</h2>
       <p className="mb-3 text-sm text-zinc-500">Things a robot can&apos;t do (real inboxes, Google&apos;s and Stripe&apos;s own screens). Record the result when you&apos;ve checked.</p>
       {error && (

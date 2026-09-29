@@ -86,7 +86,7 @@ export default function TestPicker({
   const btn = "rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50";
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+    <section className="mb-8 rounded-xl border-2 border-[#B8860B] bg-white p-4 sm:p-5">
       <div className="flex flex-wrap items-end gap-4">
         <label className="text-sm text-zinc-700">
           Run against

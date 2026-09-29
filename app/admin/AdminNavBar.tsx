@@ -35,12 +35,14 @@ const OPERATIONS_LINKS: NavLink[] = [
   { key: "supabase-costs", label: "Supabase Costs", href: `${REVALOR_ADMIN}/supabase-costs` },
 ];
 
-export default function AdminNavBar({ category, current }: { category: NavCategory; current: string }) {
+// `boxed` drops the bottom rule/spacing for when the bar sits inside its own
+// outlined section box (the /admin/qa pages).
+export default function AdminNavBar({ category, current, boxed = false }: { category: NavCategory; current: string; boxed?: boolean }) {
   const links = (category === "media" ? MEDIA_LINKS : OPERATIONS_LINKS).filter((l) => l.key !== current);
   const label = category === "media" ? "Media" : "Operations";
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mb-6 pb-4 border-b border-zinc-200">
+    <div className={`flex flex-wrap items-center gap-2 ${boxed ? "" : "mb-6 pb-4 border-b border-zinc-200"}`}>
       <h2 className="text-sm font-bold text-white bg-[#1A3A5C] rounded-full px-4 py-1 w-28 text-center shrink-0">
         {label}
       </h2>

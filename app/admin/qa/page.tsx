@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
 import { qaDb, type QaProduct, type QaRun } from "@/lib/qa/db";
 import { isStale } from "@/lib/qa/summary";
-import { NotConfigured, QaShell, StatusBadge, timeAgo } from "./ui";
+import { NotConfigured, QaShell, SECTION, StatusBadge, TechLogos, timeAgo } from "./ui";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +20,13 @@ export default async function QaProductsPage() {
 
   return (
     <QaShell>
-      <div className="mb-6 flex flex-col-reverse items-start justify-between gap-4 sm:flex-row sm:items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-dark">Automated tests</h1>
-          <p className="mt-1 max-w-xl text-sm text-zinc-500">
-            Real-browser tests for each Revalor product, run in GitHub Actions. Pick a product to choose tests, run them and see
-            what broke.
+      <div className={`${SECTION} flex flex-col-reverse items-start justify-between gap-4 sm:flex-row sm:items-center`}>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-navy-dark">Configure Your Tests for an Automation Run</h1>
+          <p className="mt-1 text-sm text-zinc-500 lg:whitespace-nowrap">
+            Real-browser tests for each Revalor product, run in GitHub Actions. Pick a product to choose tests, run them and see what broke.
           </p>
+          <TechLogos />
         </div>
         {/* Right-aligned under the Operations nav row (which ends with Supabase Costs). */}
         <Image
@@ -34,14 +34,14 @@ export default async function QaProductsPage() {
           alt="Revalor Automation"
           width={160}
           height={160}
-          className="h-32 w-32 shrink-0 self-end object-contain sm:-mt-2 sm:h-40 sm:w-40"
+          className="h-32 w-32 shrink-0 self-end object-contain sm:self-center sm:h-40 sm:w-40"
           priority
         />
       </div>
       {error ? (
         <NotConfigured what="The QA tables aren't in the database yet" />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`${SECTION} grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
           {((products ?? []) as QaProduct[]).map((p) => {
             const productRuns = ((runs ?? []) as Pick<QaRun, "id" | "product_slug" | "status" | "passed" | "failed" | "created_at" | "finished_at">[]).filter(
               (r) => r.product_slug === p.slug,
