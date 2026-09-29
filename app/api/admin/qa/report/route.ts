@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
   if (body.type === "catalog") {
     const product = str(body.product, 40);
     if (!product || !PRODUCT_RE.test(product) || !Array.isArray(body.tests)) return NextResponse.json({ error: "Bad catalog" }, { status: 400 });
+    // A product reporting for the first time registers itself (name/URL come
+    // from qa/products.json). Existing rows are left as they are.
+    const name = str(body.name, 80);
+    const baseUrl = str(body.url, 300);
+    if (name && baseUrl?.startsWith("https://")) {
+      await db.from("vw_qa_products").upsert({ slug: product, name, base_url: baseUrl }, { onConflict: "slug", ignoreDuplicates: true });
+    }
     const rows = body.tests
       .slice(0, 1000)
       .map((t) => (t && typeof t === "object" ? (t as Record<string, unknown>) : {}))

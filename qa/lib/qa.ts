@@ -1,5 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import { createQaUser, createTestWorkspace, type QaUser, type TestWorkspace, type WorkspaceOptions } from "./modules";
+import { createSanctumUser, deleteSanctumUser, type SanctumTier, type SanctumUser } from "./sanctum";
 
 // Every QA test is declared with qa(): it gives the test a stable id (used by
 // /admin/qa to pick, re-run and track it), an area heading, and tags.
@@ -27,10 +28,25 @@ interface Fixtures {
   qaWorkspace: TestWorkspace;
   /** A signed-up user with no workspace yet, deleted (with anything they create) after the test. */
   qaUser: QaUser;
+  /** Sanctum: makes throwaway users at a tier (onboarding skipped unless onboarded: false); all deleted after the test. */
+  sanctumUser: (opts?: { tier?: SanctumTier; onboarded?: boolean }) => Promise<SanctumUser>;
 }
 
 export const test = base.extend<Fixtures>({
   workspaceOptions: [{}, { option: true }],
+  // eslint-disable-next-line no-empty-pattern
+  sanctumUser: async ({}, use) => {
+    const made: string[] = [];
+    try {
+      await use(async (opts) => {
+        const u = await createSanctumUser(opts);
+        made.push(u.id);
+        return u;
+      });
+    } finally {
+      for (const id of made) await deleteSanctumUser(id);
+    }
+  },
   // eslint-disable-next-line no-empty-pattern
   qaUser: async ({}, use, testInfo) => {
     const u = await createQaUser(testInfo.testId);

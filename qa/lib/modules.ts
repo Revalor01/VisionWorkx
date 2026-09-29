@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { request as playwrightRequest, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 import { MODULES_AUTH_COOKIE } from "../../lib/modules/constants";
+import { targetFor } from "../products";
 
 // Test data in the VisionWorkx MODULES database. Everything created here is
 // tagged is_test (and comped, so no Stripe) and deleted afterwards; the
@@ -19,7 +20,7 @@ function env(name: string): string {
 }
 
 export function target(): string {
-  return (process.env.QA_TARGET_URL ?? "https://modules.revalorllc.com").replace(/\/$/, "");
+  return targetFor("visionworkx");
 }
 
 let admin: SupabaseClient | null = null;

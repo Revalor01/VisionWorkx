@@ -7,11 +7,13 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 const dry = process.argv.includes("--dry");
+const PRODUCTS = JSON.parse(readFileSync("qa/products.json", "utf8"));
 const out = execFileSync("npx", ["playwright", "test", "--list", "--reporter=json", "-c", "qa/playwright.config.ts"], {
   encoding: "utf8",
   maxBuffer: 64 * 1024 * 1024,
   shell: process.platform === "win32",
-  env: { ...process.env, QA_REPORT_URL: "", QA_REPORT_SECRET: "" },
+  // List every product (not just this run's), so each product's catalog stays complete.
+  env: { ...process.env, QA_REPORT_URL: "", QA_REPORT_SECRET: "", QA_PRODUCT: "" },
 });
 const report = JSON.parse(out.slice(out.indexOf("{")));
 
@@ -33,7 +35,7 @@ function walk(suite) {
     if (!byProduct.has(product)) byProduct.set(product, new Map());
     byProduct.get(product).set(id, test);
     // Tests with mobile: true also run on a phone-sized screen, tracked as "<id>--mobile".
-    if ((spec.tests ?? []).some((t) => t.projectName === "mobile")) {
+    if ((spec.tests ?? []).some((t) => t.projectName?.endsWith("-mobile"))) {
       byProduct.get(product).set(`${id}--mobile`, { ...test, id: `${id}--mobile`, title: `${test.title} (phone)`, tags: test.tags.filter((t) => t !== "smoke") });
     }
   }
@@ -65,7 +67,8 @@ for (const [product, tests] of byProduct) {
   const res = await fetch(`${url}/api/admin/qa/report`, {
     method: "POST",
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "catalog", product, tests: list }),
+    // name + url register the product in /admin/qa the first time it reports.
+    body: JSON.stringify({ type: "catalog", product, name: PRODUCTS[product]?.name, url: PRODUCTS[product]?.url, tests: list }),
   });
   console.log(`catalog ${product}: ${list.length} tests → ${res.status} ${await res.text()}`);
   if (!res.ok) process.exitCode = 1;

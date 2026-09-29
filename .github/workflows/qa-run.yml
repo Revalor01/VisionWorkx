@@ -1,16 +1,19 @@
 name: QA Run
 
 # Revalor QA suite (qa/, Playwright). Started from /admin/qa via the GitHub
-# API (workflow_dispatch) -- see lib/qa/github.ts. Results stream back to
-# /api/admin/qa/report as each test finishes; see docs/qa-suite.md.
+# API (workflow_dispatch) -- see lib/qa/github.ts -- and nightly on a schedule.
+# Results stream back to /api/admin/qa/report as each test finishes; see
+# docs/qa-suite.md.
 #
-# Repo secrets: QA_REPORT_SECRET, MODULES_SUPABASE_URL,
-# MODULES_SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY.
+# Repo secrets: QA_REPORT_SECRET; VisionWorkx: MODULES_SUPABASE_URL,
+# MODULES_SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY;
+# Sanctum: SANCTUM_SUPABASE_URL, SANCTUM_SUPABASE_SERVICE_ROLE_KEY.
 # Optional: VERCEL_AUTOMATION_BYPASS_SECRET (protected previews).
 # Repo variable (optional): QA_REPORT_URL, default https://vision-workx.vercel.app.
 on:
-  # Nightly: every test, against production, 11:00 UTC (7 am Eastern). A failing
-  # nightly run emails the operator (lib/qa/notify.ts); /admin/qa shows it as "nightly".
+  # Nightly: every test of every product (qa/products.json), against
+  # production, 11:00 UTC (7 am Eastern). A failing nightly run emails the
+  # operator (lib/qa/notify.ts); /admin/qa shows it as "nightly".
   schedule:
     - cron: "0 11 * * *"
   workflow_dispatch:
@@ -20,13 +23,13 @@ on:
         required: false
         default: ""
       product:
-        description: "Product slug"
+        description: "Product slug (blank = every product)"
         required: false
-        default: "visionworkx"
+        default: ""
       target_url:
-        description: "Site to test"
+        description: "Site to test (blank = the product's production URL)"
         required: false
-        default: "https://modules.revalorllc.com"
+        default: ""
       target_env:
         description: "production or preview"
         required: false
@@ -36,25 +39,43 @@ on:
         required: false
         default: ""
 
-concurrency:
-  group: qa-${{ inputs.product || 'visionworkx' }}-${{ inputs.run_id || github.run_id }}
-
 jobs:
+  products:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: qa/products.json
+          sparse-checkout-cone-mode: false
+      - id: list
+        run: echo "list=$(jq -c 'keys' qa/products.json)" >> "$GITHUB_OUTPUT"
+
   qa:
+    needs: products
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # One product when started from /admin/qa; every product in qa/products.json nightly.
+        product: ${{ fromJSON(inputs.product && format('["{0}"]', inputs.product) || needs.products.outputs.list) }}
+    concurrency:
+      group: qa-${{ matrix.product }}-${{ inputs.run_id || github.run_id }}
     env:
       CI: "true"
       QA_RUN_ID: ${{ inputs.run_id }}
-      # Scheduled runs get no inputs, so every value needs a default here.
-      QA_PRODUCT: ${{ inputs.product || 'visionworkx' }}
-      QA_TARGET_URL: ${{ inputs.target_url || 'https://modules.revalorllc.com' }}
+      QA_PRODUCT: ${{ matrix.product }}
+      QA_TARGET_URL: ${{ inputs.target_url }}
       QA_TARGET_ENV: ${{ inputs.target_env || 'production' }}
       QA_REPORT_URL: ${{ vars.QA_REPORT_URL || 'https://vision-workx.vercel.app' }}
       QA_REPORT_SECRET: ${{ secrets.QA_REPORT_SECRET }}
       MODULES_SUPABASE_URL: ${{ secrets.MODULES_SUPABASE_URL }}
       MODULES_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MODULES_SUPABASE_SERVICE_ROLE_KEY }}
       NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY }}
+      SANCTUM_SUPABASE_URL: ${{ secrets.SANCTUM_SUPABASE_URL }}
+      SANCTUM_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SANCTUM_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@v4

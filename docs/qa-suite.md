@@ -21,8 +21,9 @@ Actions and reported to **/admin/qa**.
   *QA Run* workflow in GitHub Actions.
 
 ## Nightly run
-Every day at 11:00 UTC (7 am Eastern) GitHub Actions runs **every** VisionWorkx
-test against production (the whole suite takes about a minute). It appears in
+Every day at 11:00 UTC (7 am Eastern) GitHub Actions runs **every** test of
+**every** product in `qa/products.json` against production (one job per
+product; each suite takes a minute or two). Each product's run appears in
 /admin/qa as *nightly*. If it fails, the operator gets an email listing the
 failed tests with a link to the run; the first green night after a red one sends
 a "green again" email. Normal green nights send nothing (`lib/qa/notify.ts`).
@@ -97,10 +98,39 @@ with the catalog and show on the product page with Passed / Failed / Skip
 buttons and a note (stored in `vw_qa_manual_checks`).
 
 ## Adding a product
-Insert a `vw_qa_products` row (slug, name, production base_url), then add
-`qa/products/<slug>/*.qa.ts`. Other Revalor products are tested black-box
-against their live URLs from this repo — their own repos aren't touched. Put
-product-specific sign-in/data helpers in `qa/lib/<slug>.ts`.
+1. Add it to `qa/products.json` (slug → name + production URL).
+2. Add `qa/products/<slug>/*.qa.ts` (and `manual.json`), with product-specific
+   sign-in/data helpers in `qa/lib/<slug>.ts`.
+3. Add its database secrets to GitHub and pass them in `qa-run.yml`'s `env:`.
+
+That's all: on its next run the catalog sync registers the product in
+/admin/qa (new card), and the nightly run picks it up from `products.json`.
+Each product gets its own Playwright projects (`<slug>` and `<slug>-mobile`)
+with its own URL, and `QA_PRODUCT` limits a run to one product. Other Revalor
+products are tested black-box against their live URLs from this repo — their
+own repos aren't touched.
+
+## Sanctum (web app)
+Tests in `qa/products/sanctum/` run against https://sanctum-web-xi.vercel.app
+(the Sanctum **web** app). Helpers in `qa/lib/sanctum.ts` use plain REST calls
+to Sanctum's own Supabase project.
+- The `sanctumUser` fixture makes throwaway `qa+…@example.com` users at a tier
+  (`free` / `plus` / `premium` / `test`), with onboarding skipped unless
+  `onboarded: false`; after the test it deletes them and everything they wrote
+  (check-ins and journal entries are deleted explicitly — those tables don't
+  cascade). The global setup sweeps leftovers older than 3 hours.
+- `sanctumLogin` logs in through the real login page and pre-accepts the 18+
+  disclaimer (except where a test checks the disclaimer itself).
+- **Tessa is always simulated** (`mockTessa`) — no real AI calls, no test
+  messages through the real model.
+- Phone numbers in tests are fictional 555-01xx numbers; the SMS opt-in test
+  turns SMS off again straight away.
+- Coverage: public pages, signed-out redirects, login, disclaimer, onboarding,
+  check-in, journal, crisis banner (journal + Tessa), crisis resources, plan
+  gates (free/Plus/Premium), payment self-upgrade blocked, invalid test code,
+  emergency contacts, SMS opt-in, profile, admin page refused. Sanctum's own
+  `e2e/` tests are ported here. Manual: sign-up email, Stripe checkout,
+  reminder email, a real Tessa reply.
 
 ## Test data
 Everything is created in the modules DB with `vw_workspaces.is_test = true`
@@ -128,6 +158,7 @@ Without QA_REPORT_URL/QA_REPORT_SECRET the reporter does nothing.
 | Vercel (Production) | `QA_GITHUB_TOKEN` | fine-grained PAT: this repo only, **Actions: read & write** |
 | GitHub secret | `QA_REPORT_SECRET` | same as Vercel |
 | GitHub secret | `MODULES_SUPABASE_URL`, `MODULES_SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY` | visionworkx-modules |
+| GitHub secret | `SANCTUM_SUPABASE_URL`, `SANCTUM_SUPABASE_SERVICE_ROLE_KEY` | Sanctum's Supabase project |
 | GitHub secret (optional) | `VERCEL_AUTOMATION_BYPASS_SECRET` | for protected previews |
 | GitHub variable (optional) | `QA_REPORT_URL` | defaults to https://vision-workx.vercel.app |
 

@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import type { FullResult, Reporter, TestCase, TestError, TestResult, TestStep } from "@playwright/test/reporter";
+import { targetFor } from "./products";
 
 // Sends results to /api/admin/qa/report as tests finish, then uploads each
 // failure's screenshot/trace/video to the signed URLs it gets back.
@@ -58,7 +59,7 @@ export default class QaReporter implements Reporter {
         type: "begin",
         runId: existing,
         product: process.env.QA_PRODUCT,
-        targetUrl: process.env.QA_TARGET_URL,
+        targetUrl: process.env.QA_PRODUCT ? targetFor(process.env.QA_PRODUCT) : process.env.QA_TARGET_URL,
         targetEnv: process.env.QA_TARGET_ENV,
         githubRunUrl: gh,
       });
@@ -71,7 +72,7 @@ export default class QaReporter implements Reporter {
     const idTag = test.tags.find((t) => /^@[a-z0-9-]+\//.test(t));
     if (!idTag) return; // not declared with qa()
     // The phone-sized re-run of a test is tracked as its own entry.
-    const testId = test.parent.project()?.name === "mobile" ? `${idTag.slice(1)}--mobile` : idTag.slice(1);
+    const testId = test.parent.project()?.name.endsWith("-mobile") ? `${idTag.slice(1)}--mobile` : idTag.slice(1);
     const attachments = result.attachments.filter(
       (a): a is typeof a & { name: Kind; path: string } => !!a.path && (a.name === "screenshot" || a.name === "trace" || a.name === "video"),
     );
