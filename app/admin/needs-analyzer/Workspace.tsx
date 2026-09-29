@@ -7,6 +7,8 @@ import { logoUrl, moduleLogoSlot } from "@/lib/needsAnalyzer/brand";
 import { SECTIONS, type Field } from "@/lib/needsAnalyzer/questions";
 import { computePlan, situation, type Plan, type PlanItem, type ScoredModule } from "@/lib/needsAnalyzer/rules";
 import { STATUSES, type Assessment, type Catalog, type Ecosystem, type Overrides } from "@/lib/needsAnalyzer/types";
+import { fmtDate } from "@/lib/needsAnalyzer/format";
+import { proposalFindings, type SiteCheck } from "@/lib/needsAnalyzer/siteChecks";
 import { Proposal } from "./Proposal";
 import {
   api,
@@ -37,6 +39,8 @@ interface Props {
   ecosystem: Ecosystem;
   initialTab?: string;
   initialSection?: string;
+  latestCheck: SiteCheck | null;
+  proposalCheck: SiteCheck | null;
 }
 
 export default function Workspace(props: Props) {
@@ -68,7 +72,16 @@ export default function Workspace(props: Props) {
   );
 }
 
-function Body({ initial, catalog, ecosystem, tab, section, go }: Props & { tab: Tab; section: string; go: (t: Tab, s?: string) => void }) {
+function Body({
+  initial,
+  catalog,
+  ecosystem,
+  tab,
+  section,
+  go,
+  latestCheck,
+  proposalCheck,
+}: Props & { tab: Tab; section: string; go: (t: Tab, s?: string) => void }) {
   const toast = useToast();
   const { on: clientMode } = useClientMode();
   const [a, setA] = useState(initial);
@@ -118,10 +131,12 @@ function Body({ initial, catalog, ecosystem, tab, section, go }: Props & { tab: 
 
   return (
     <>
-      {view === "q" && <Questionnaire a={a} update={update} section={section} go={go} title={title} saveState={saveState} />}
+      {view === "q" && (
+        <Questionnaire a={a} update={update} section={section} go={go} title={title} saveState={saveState} latestCheck={latestCheck} flush={flush} />
+      )}
       {view === "plan" && <PlanView a={a} plan={plan} catalog={catalog} update={update} go={go} saveState={saveState} />}
-      {view === "proposal" && <ProposalTab a={a} patchLocal={patchLocal} plan={plan} catalog={catalog} go={go} />}
-      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} />}
+      {view === "proposal" && <ProposalTab a={a} patchLocal={patchLocal} plan={plan} catalog={catalog} go={go} proposalCheck={proposalCheck} />}
+      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} />}
     </>
   );
 }
@@ -137,6 +152,8 @@ function Questionnaire({
   go,
   title,
   saveState,
+  latestCheck,
+  flush,
 }: {
   a: Assessment;
   update: (fn: (p: Assessment) => Assessment) => void;
@@ -144,6 +161,8 @@ function Questionnaire({
   go: (t: Tab, s?: string) => void;
   title: string;
   saveState: string;
+  latestCheck: SiteCheck | null;
+  flush: () => void;
 }) {
   const { on: clientMode } = useClientMode();
   const secs = SECTIONS.filter((s) => !(s.internal && clientMode));
@@ -185,6 +204,7 @@ function Questionnaire({
         <section className={CARD}>
           <h2 className="text-xl font-bold text-zinc-900">{sec.title}</h2>
           {sec.intro && <p className="mt-1 text-sm text-zinc-500">{sec.intro}</p>}
+          {sec.id === "business" && !clientMode && <WebsiteCheckBanner a={a} latestCheck={latestCheck} flush={flush} />}
           <div className="mt-4 space-y-5">
             {sec.fields.map((f) => (
               <FieldInput key={f.id} f={f} value={A[f.id]} onChange={(v) => setAnswer(f.id, v)} />
@@ -590,12 +610,14 @@ function ProposalTab({
   plan,
   catalog,
   go,
+  proposalCheck,
 }: {
   a: Assessment;
   patchLocal: (patch: Partial<Assessment>) => void;
   plan: Plan;
   catalog: Catalog;
   go: (t: Tab) => void;
+  proposalCheck: SiteCheck | null;
 }) {
   const toast = useToast();
   const { on: clientMode } = useClientMode();
@@ -672,14 +694,26 @@ function ProposalTab({
           )}
         </div>
       )}
-      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} />
+      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} />
     </>
   );
 }
 
 // ---------- internal notes ----------
 
-function InternalView({ a, plan: P, catalog, go }: { a: Assessment; plan: Plan; catalog: Catalog; go: (t: Tab, s?: string) => void }) {
+function InternalView({
+  a,
+  plan: P,
+  catalog,
+  go,
+  latestCheck,
+}: {
+  a: Assessment;
+  plan: Plan;
+  catalog: Catalog;
+  go: (t: Tab, s?: string) => void;
+  latestCheck: SiteCheck | null;
+}) {
   const m = moneyFmt(catalog);
   const A = a.answers;
   const flags = P.items.flatMap((i) => (i.flags || []).map((f) => ({ name: i.name, f })));
@@ -788,6 +822,8 @@ function InternalView({ a, plan: P, catalog, go }: { a: Assessment; plan: Plan; 
         </div>
       </div>
 
+      <WebsiteCheckCard a={a} check={latestCheck} catalog={catalog} />
+
       {flags.length > 0 && (
         <div className={CARD}>
           <h3 className="mb-2 font-semibold text-zinc-900">Flags</h3>
@@ -867,5 +903,96 @@ function InternalView({ a, plan: P, catalog, go }: { a: Assessment; plan: Plan; 
         </div>
       </div>
     </>
+  );
+}
+
+// ---------- website check ----------
+
+function websiteCheckHref(a: Assessment, run: boolean) {
+  const q = new URLSearchParams({ assessment: a.id });
+  const site = String(a.answers.website || "").trim();
+  if (site) q.set("url", site);
+  if (run && site) q.set("run", "1");
+  return `/admin/needs-analyzer/website?${q}`;
+}
+
+function WebsiteCheckBanner({ a, latestCheck, flush }: { a: Assessment; latestCheck: SiteCheck | null; flush: () => void }) {
+  const site = String(a.answers.website || "").trim();
+  const n = latestCheck?.report.issues.length ?? 0;
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900">
+      <span>
+        {latestCheck
+          ? `Website checked ${fmtDate(latestCheck.createdAt)}: ${n} problem${n === 1 ? "" : "s"} found.`
+          : site
+            ? "Check their website to fill in the platform, forms and booking answers automatically."
+            : "Enter their website below, then check it to fill in answers automatically."}
+      </span>
+      <span className="flex gap-2">
+        {latestCheck && (
+          <Link className={BTN} href={`/admin/needs-analyzer/website?check=${latestCheck.id}&assessment=${a.id}`}>
+            View check
+          </Link>
+        )}
+        {/* Save first, so a website that was just typed is stored before leaving. */}
+        <Link className={BTN_PRIMARY} href={websiteCheckHref(a, true)} onClick={flush}>
+          {latestCheck ? "Check again" : "Check website"}
+        </Link>
+      </span>
+    </div>
+  );
+}
+
+function WebsiteCheckCard({ a, check, catalog }: { a: Assessment; check: SiteCheck | null; catalog: Catalog }) {
+  const names = Object.fromEntries(catalog.modules.map((m) => [m.id, m.name]));
+  return (
+    <div className={CARD}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold text-zinc-900">Website check</h3>
+        <Link
+          href={check ? `/admin/needs-analyzer/website?check=${check.id}&assessment=${a.id}` : websiteCheckHref(a, true)}
+          className="text-sm text-teal-700 hover:underline"
+        >
+          {check ? "Open full report →" : "Check their website →"}
+        </Link>
+      </div>
+      {check ? (
+        <div className="mt-2 grid gap-4 text-sm md:grid-cols-3">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Site</div>
+            <div className="font-medium">{check.report.finalUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}</div>
+            <div className="text-zinc-500">
+              {check.report.platform ?? "Unknown platform"} · checked {fmtDate(check.createdAt)}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {check.report.capabilities.map((c) => (
+                <Badge key={c.key} tone={c.found ? "ok" : "bad"} title={c.detail}>
+                  {c.found ? "✓" : "✗"} {c.label}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Problems</div>
+            <ul className="list-disc pl-5">
+              {check.report.issues.slice(0, 6).map((i) => (
+                <li key={i.id}>{i.title}</li>
+              ))}
+            </ul>
+            {check.report.issues.length > 6 && <div className="text-zinc-500">+{check.report.issues.length - 6} more</div>}
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Modules the site points to</div>
+            <ul className="list-disc pl-5">
+              {check.report.suggestions.map((x) => (
+                <li key={x.moduleId}>{names[x.moduleId] ?? x.moduleId}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1 text-sm text-zinc-500">No website check yet.</p>
+      )}
+    </div>
   );
 }
