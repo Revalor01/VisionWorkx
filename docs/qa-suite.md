@@ -129,6 +129,26 @@ change syncing from Stripe, and cancellation pausing live forms.
 - To run: /admin/qa → VisionWorkx → *A preview deployment…* → paste a preview URL.
 - Deposits (Stripe Connect) aren't covered yet.
 
+## Kids apps (Chorebit, FeelFlow, MindBit)
+All three are built on one template, so `qa/lib/kidsSharedTests.ts` defines 9
+tests once and each app registers them (`qa/products/<app>/shared.qa.ts`):
+public pages, signed-out redirects, parent login (+phone), no plan → /start,
+add a kid with a PIN, kid-mode PIN check (+phone), the Free plan's 1-kid limit,
+blocked account → "Account paused", admin refused. Plus each app's own loop:
+- **Chorebit** — chore created & assigned → kid marks done → parent approves →
+  15 points in `points_ledger`/`kid_point_balances`; kid sets a savings goal.
+- **FeelFlow** — kid picks a mood monster, completes the challenge, check-in saved.
+- **MindBit** — kid plays The Wait Game, session saved; the quiz page loads
+  (submitting it emails the operator, so that's a manual check).
+
+`qa/lib/kidsApp.ts` makes throwaway `qa+…@example.com` parents (plan, an active
+subscription row so the dashboard opens, optional `blocked`), kids with PINs,
+and deletes everything afterwards — kid tables don't cascade from the parent,
+so it deletes children first. The `kids` fixture picks the app from the
+Playwright project. URLs: chorebit.vercel.app, **feelflow-eight.vercel.app**
+(feelflow.vercel.app is someone else's app), mindbit-one.vercel.app. Secrets:
+`<APP>_SUPABASE_URL`, `<APP>_SUPABASE_SERVICE_ROLE_KEY` (legacy `eyJ…` key).
+
 ## Consumer web apps on the shared template (Sanctum, Proactive)
 Sanctum and Proactive are built from the same template (own Supabase project,
 tiers on `users_profile.subscription_tier`, `onboarding_state`, a localStorage
