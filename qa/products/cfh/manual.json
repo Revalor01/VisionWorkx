@@ -1,0 +1,20 @@
+[
+  {
+    "id": "cfh/manual/signup-with-code",
+    "area": "Sign-up",
+    "title": "Sign-up with the real access code works",
+    "instructions": "On https://christian-friends-hub.vercel.app/signup, create an account with your own email and the current community access code. You should land in the hub. Afterwards remove the test account from Admin → Access."
+  },
+  {
+    "id": "cfh/manual/volunteer-request-notifies",
+    "area": "Volunteering",
+    "title": "A volunteer request reaches the coordinators",
+    "instructions": "Not automated because it emails the real coordinators/deacons. Tell them first, then submit a clearly marked test request on /volunteer and confirm the coordinator email arrives. Remove the request afterwards."
+  },
+  {
+    "id": "cfh/manual/post-prayer-request",
+    "area": "Members",
+    "title": "Posting a prayer request works",
+    "instructions": "Not automated because members would see it. Post a clearly marked test prayer request, confirm it appears on /prayer-requests, then delete it."
+  }
+]

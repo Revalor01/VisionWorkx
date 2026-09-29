@@ -129,6 +129,18 @@ change syncing from Stripe, and cancellation pausing live forms.
 - To run: /admin/qa → VisionWorkx → *A preview deployment…* → paste a preview URL.
 - Deposits (Stripe Connect) aren't covered yet.
 
+## Christian Friends Hub (read-only)
+https://christian-friends-hub.vercel.app — the Summit Bridge community hub.
+**Read-only by the owner's decision:** tests never post anything members could
+see (prayer requests, directory listings, …) and never submit volunteer forms,
+which email the real coordinators/deacons — those are manual checks. Coverage:
+public pages, signed-out redirects, a wrong access code refused at sign-up (no
+account made), member login (+phone), every member page opens (+phone), blocked
+account, admin pages refused. `qa/lib/cfh.ts` makes throwaway members directly
+(no access code) and deletes them **and their login-history rows**, so the
+admin activity/log pages stay free of test sign-ins. Secrets: `CFH_SUPABASE_URL`,
+`CFH_SUPABASE_SERVICE_ROLE_KEY`.
+
 ## Kids apps (Chorebit, FeelFlow, MindBit)
 All three are built on one template, so `qa/lib/kidsSharedTests.ts` defines 9
 tests once and each app registers them (`qa/products/<app>/shared.qa.ts`):

@@ -3,6 +3,7 @@ import { createQaUser, createTestWorkspace, type QaUser, type TestWorkspace, typ
 import { createSanctumUser, deleteSanctumUser, type SanctumTier, type SanctumUser } from "./sanctum";
 import { createProactiveUser, deleteProactiveUser, type ProactiveTier, type ProactiveUser } from "./proactive";
 import { kidsApp, kidsProductOf, type KidsApp, type KidsParent, type KidsPlan } from "./kidsApp";
+import { createCfhMember, deleteCfhMember, type CfhMember } from "./cfh";
 
 // Every QA test is declared with qa(): it gives the test a stable id (used by
 // /admin/qa to pick, re-run and track it), an area heading, and tags.
@@ -35,6 +36,8 @@ interface Fixtures {
   /** Proactive: same as sanctumUser, in Proactive's database. */
   proactiveUser: (opts?: { tier?: ProactiveTier; onboarded?: boolean }) => Promise<ProactiveUser>;
   /** Kids apps (Chorebit/FeelFlow/MindBit, from the project): helpers + throwaway parents, all deleted after the test. */
+  /** Christian Friends Hub: throwaway members (optionally blocked), deleted after the test with their login history. */
+  cfhMember: (opts?: { blocked?: boolean }) => Promise<CfhMember>;
   kids: KidsApp & { parent: (opts?: { plan?: KidsPlan; subscription?: "active" | "trialing" | null; blocked?: boolean }) => Promise<KidsParent> };
 }
 
@@ -52,6 +55,18 @@ export const test = base.extend<Fixtures>({
       });
     } finally {
       for (const id of made) await deleteSanctumUser(id);
+    }
+  },
+  cfhMember: async ({}, provide) => {
+    const made: CfhMember[] = [];
+    try {
+      await provide(async (opts) => {
+        const m = await createCfhMember(opts);
+        made.push(m);
+        return m;
+      });
+    } finally {
+      for (const m of made) await deleteCfhMember(m.id, m.email);
     }
   },
   kids: async ({}, provide, testInfo) => {

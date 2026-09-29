@@ -22,5 +22,9 @@
   "mindbit": {
     "name": "MindBit",
     "url": "https://mindbit-one.vercel.app"
+  },
+  "cfh": {
+    "name": "Christian Friends Hub",
+    "url": "https://christian-friends-hub.vercel.app"
   }
 }
