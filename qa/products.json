@@ -1,5 +1,26 @@
 {
-  "visionworkx": { "name": "VisionWorkx", "url": "https://modules.revalorllc.com" },
-  "sanctum": { "name": "Sanctum", "url": "https://sanctum-web-xi.vercel.app" },
-  "proactive": { "name": "Proactive", "url": "https://proactive-zeta-three.vercel.app" }
+  "visionworkx": {
+    "name": "VisionWorkx",
+    "url": "https://modules.revalorllc.com"
+  },
+  "sanctum": {
+    "name": "Sanctum",
+    "url": "https://sanctum-web-xi.vercel.app"
+  },
+  "proactive": {
+    "name": "Proactive",
+    "url": "https://proactive-zeta-three.vercel.app"
+  },
+  "chorebit": {
+    "name": "Chorebit",
+    "url": "https://chorebit.vercel.app"
+  },
+  "feelflow": {
+    "name": "FeelFlow",
+    "url": "https://feelflow-eight.vercel.app"
+  },
+  "mindbit": {
+    "name": "MindBit",
+    "url": "https://mindbit-one.vercel.app"
+  }
 }

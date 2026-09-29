@@ -1,0 +1,20 @@
+[
+  {
+    "id": "mindbit/manual/signup-email",
+    "area": "Parents",
+    "title": "Sign-up works end to end",
+    "instructions": "On https://mindbit-one.vercel.app/signup, sign up with a real inbox you control (e.g. you+mindbit@gmail.com). Confirm any email that arrives and that you land on the plan page. Afterwards remove the test account from MindBit's admin page."
+  },
+  {
+    "id": "mindbit/manual/stripe-checkout",
+    "area": "Plans",
+    "title": "Stripe checkout unlocks the Family plan",
+    "instructions": "With a test account on the plan page, subscribe to Family (Stripe test mode, card 4242 4242 4242 4242). You should land on the dashboard with Family shown on Billing. Cancel the subscription afterwards."
+  },
+  {
+    "id": "mindbit/manual/parent-quiz-submit",
+    "area": "Public",
+    "title": "Parent quiz: result email arrives",
+    "instructions": "Complete the quiz at https://mindbit-one.vercel.app/quiz with your own email. The result email should arrive, and you'll get the new-lead alert. (Not automated because every submission emails the operator.)"
+  }
+]
