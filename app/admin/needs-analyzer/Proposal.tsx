@@ -10,7 +10,25 @@ import type { Answers, Catalog } from "@/lib/needsAnalyzer/types";
 // client-safe content: no fit scores, flags, effort, margin or consultant notes.
 // No hooks, so it works as a server or client component.
 
-export function Proposal({ answers: A, plan: P, catalog, prepared }: { answers: Answers; plan: Plan; catalog: Catalog; prepared: string | Date }) {
+export interface SiteFindings {
+  site: string;
+  items: { title: string; detail: string }[];
+}
+
+export function Proposal({
+  answers: A,
+  plan: P,
+  catalog,
+  prepared,
+  siteFindings,
+}: {
+  answers: Answers;
+  plan: Plan;
+  catalog: Catalog;
+  prepared: string | Date;
+  /** Only the website-check issues the operator ticked for the proposal. */
+  siteFindings?: SiteFindings | null;
+}) {
   const co = catalog.company;
   const st = catalog.settings;
   const m = (n: number) => money(st.currency, n);
@@ -64,6 +82,18 @@ export function Proposal({ answers: A, plan: P, catalog, prepared }: { answers: 
           <ul className="list-disc space-y-1 pl-5">
             {sit.map((x) => (
               <li key={x}>{x}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {siteFindings && siteFindings.items.length > 0 && (
+        <>
+          <H2>What we found on {siteFindings.site}</H2>
+          <ul className="list-disc space-y-1 pl-5">
+            {siteFindings.items.map((f) => (
+              <li key={f.title}>
+                <strong>{f.title}.</strong> {f.detail}
+              </li>
             ))}
           </ul>
         </>
