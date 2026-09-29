@@ -20,6 +20,8 @@ qa({ id: "sanctum/account/emergency-contact", area: "Account", title: "Add and r
   });
 
   await test.step("remove", async () => {
+    // The app confirms with a browser dialog ("Remove … from your emergency contacts?").
+    page.once("dialog", (d) => void d.accept());
     await page.getByRole("button", { name: "Remove" }).first().click();
     await expect(page.getByText(name)).toBeHidden();
     await waitUntil(async () => (await sanctumRows("emergency_contacts", `user_id=eq.${user.id}&select=id`)).length === 0, "the contact to be deleted");
@@ -40,7 +42,10 @@ qa({ id: "sanctum/account/sms-opt-in", area: "Account", title: "SMS updates need
   await test.step("opt in", async () => {
     await page.getByRole("checkbox", { name: /I agree to receive SMS text messages/ }).check();
     await optIn.click();
-    await expect(page.getByText("SMS updates on")).toBeVisible();
+    const on = page.getByText("SMS updates on");
+    const appError = page.locator("p.text-error-base");
+    await expect(on.or(appError)).toBeVisible();
+    if (await appError.isVisible()) throw new Error(`The app refused the opt-in: "${await appError.innerText()}"`);
     const rows = await sanctumRows<{ phone: string }>("sms_opt_ins", `user_id=eq.${user.id}&select=phone`);
     expect(rows).toHaveLength(1);
   });

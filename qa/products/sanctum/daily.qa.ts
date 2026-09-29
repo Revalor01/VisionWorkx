@@ -21,6 +21,7 @@ qa({ id: "sanctum/daily/journal-entry", area: "Daily use", title: "A journal ent
   await page.getByRole("button", { name: "Save entry" }).click();
   await expect(page.getByText(text)).toBeVisible();
   await expect(page.getByText("You're not alone."), "an ordinary entry doesn't raise the crisis banner").toBeHidden();
-  const rows = await sanctumRows<{ entry_text: string }>("emotional_journal", `user_id=eq.${user.id}&select=entry_text`);
-  expect(rows.map((r) => r.entry_text)).toContain(text);
+  // Journal rows are private to their author (not readable with the admin key), so check persistence as the user.
+  await page.reload();
+  await expect(page.getByText(text), "the entry is still there after a reload").toBeVisible();
 });
