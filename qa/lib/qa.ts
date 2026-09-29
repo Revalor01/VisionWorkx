@@ -2,6 +2,7 @@ import { test as base, expect } from "@playwright/test";
 import { createQaUser, createTestWorkspace, type QaUser, type TestWorkspace, type WorkspaceOptions } from "./modules";
 import { createSanctumUser, deleteSanctumUser, type SanctumTier, type SanctumUser } from "./sanctum";
 import { createProactiveUser, deleteProactiveUser, type ProactiveTier, type ProactiveUser } from "./proactive";
+import { kidsApp, kidsProductOf, type KidsApp, type KidsParent, type KidsPlan } from "./kidsApp";
 
 // Every QA test is declared with qa(): it gives the test a stable id (used by
 // /admin/qa to pick, re-run and track it), an area heading, and tags.
@@ -33,6 +34,8 @@ interface Fixtures {
   sanctumUser: (opts?: { tier?: SanctumTier; onboarded?: boolean }) => Promise<SanctumUser>;
   /** Proactive: same as sanctumUser, in Proactive's database. */
   proactiveUser: (opts?: { tier?: ProactiveTier; onboarded?: boolean }) => Promise<ProactiveUser>;
+  /** Kids apps (Chorebit/FeelFlow/MindBit, from the project): helpers + throwaway parents, all deleted after the test. */
+  kids: KidsApp & { parent: (opts?: { plan?: KidsPlan; subscription?: "active" | "trialing" | null; blocked?: boolean }) => Promise<KidsParent> };
 }
 
 // Fixtures hand their value to the test with `provide` (Playwright calls it `use`,
@@ -49,6 +52,22 @@ export const test = base.extend<Fixtures>({
       });
     } finally {
       for (const id of made) await deleteSanctumUser(id);
+    }
+  },
+  kids: async ({}, provide, testInfo) => {
+    const app = kidsApp(kidsProductOf(testInfo.project.name));
+    const made: string[] = [];
+    try {
+      await provide({
+        ...app,
+        parent: async (opts) => {
+          const p = await app.createParent(opts);
+          made.push(p.id);
+          return p;
+        },
+      });
+    } finally {
+      for (const id of made) await app.deleteParent(id);
     }
   },
   proactiveUser: async ({}, provide) => {

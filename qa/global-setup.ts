@@ -1,6 +1,7 @@
 import { sweepStaleTestData } from "./lib/modules";
 import { sanctumConfigured, sweepStaleSanctumUsers } from "./lib/sanctum";
 import { proactiveConfigured, sweepStaleProactiveUsers } from "./lib/proactive";
+import { kidsApp } from "./lib/kidsApp";
 
 // Before each run: remove test data a crashed earlier run left behind, for
 // each product this run covers whose database is configured.
@@ -10,6 +11,7 @@ export default async function globalSetup() {
     ["visionworkx", !!(process.env.MODULES_SUPABASE_URL && process.env.MODULES_SUPABASE_SERVICE_ROLE_KEY), () => sweepStaleTestData()],
     ["sanctum", sanctumConfigured(), () => sweepStaleSanctumUsers()],
     ["proactive", proactiveConfigured(), () => sweepStaleProactiveUsers()],
+    ...(["chorebit", "feelflow", "mindbit"] as const).map((p): [string, boolean, () => Promise<void>] => [p, kidsApp(p).configured(), () => kidsApp(p).sweep()]),
   ];
   for (const [product, configured, sweep] of sweeps) {
     if (!configured || (only && only !== product)) continue;
