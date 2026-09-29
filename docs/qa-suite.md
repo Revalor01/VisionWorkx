@@ -20,6 +20,15 @@ Actions and reported to **/admin/qa**.
 - A run stuck in *queued* for 15 minutes shows "didn't start" — check the
   *QA Run* workflow in GitHub Actions.
 
+## Nightly run
+Every day at 11:00 UTC (7 am Eastern) GitHub Actions runs **every** VisionWorkx
+test against production (the whole suite takes about a minute). It appears in
+/admin/qa as *nightly*. If it fails, the operator gets an email listing the
+failed tests with a link to the run; the first green night after a red one sends
+a "green again" email. Normal green nights send nothing (`lib/qa/notify.ts`).
+If a scheduled run dies before it can report, GitHub's own failed-workflow email
+covers it. Change the time in the `schedule:` cron in `qa-run.yml`.
+
 ## Adding a test
 Create or edit `qa/products/<product>/<area>.qa.ts`:
 
