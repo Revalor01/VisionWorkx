@@ -8,7 +8,7 @@ import type { ResultStatus, RunStatus } from "@/lib/qa/db";
 export function QaShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-zinc-50">
-      <AdminHeader badge="QA" />
+      <AdminHeader title="Revalor Test Automation Suite" badge="QA" />
       <main className="mx-auto max-w-admin px-4 py-8 sm:px-6 lg:px-10">
         <AdminNavBar category="operations" current="qa" />
         {children}
