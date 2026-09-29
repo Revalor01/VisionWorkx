@@ -1,13 +1,19 @@
 name: Supabase keep-alive
 
-# Supabase's free plan pauses a project after 7 days without database
-# activity. This makes one small read against each free-plan project every
-# day so they stay active. If a project is paused or not answering, the run
-# fails and GitHub emails the repo owner.
+# Supabase's free plan pauses a project after 7 days without activity. This
+# makes one ordinary API read (PostgREST, the same kind of request the apps
+# make) against each free-plan project every day so they stay active. If a
+# project is paused or not answering, the run fails and GitHub emails the
+# repo owner.
 #
-# Per project: a matrix entry (ref + secret name) and a GitHub secret holding
-# that project's anon/public key (read-only; it's already public in the app's
-# browser code). Only that project's key is passed to its job.
+# Why not the Management API: revalor-admin's /api/cron/keepalive ran a
+# Management API `select 1` every day and Christian Friends Hub still got
+# paused (2026-09-28) -- those queries evidently don't count as activity.
+#
+# Per project: a matrix entry (name, ref, a table the anon key may query, the
+# secret name) and a GitHub secret with that project's anon/public key (it's
+# already public in the app's browser code). Only that project's key is
+# passed to its job. RLS may return no rows; the query still runs.
 on:
   schedule:
     - cron: "17 9 * * *" # daily, 09:17 UTC
@@ -15,39 +21,40 @@ on:
 
 jobs:
   ping:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
         include:
-          - ref: kkpwgnmhtcidnrnlwcll
+          - name: Chorebit
+            ref: kkpwgnmhtcidnrnlwcll
+            table: system_settings
             secret: SUPABASE_ANON_KEY_KKPWGNMHTCIDNRNLWCLL
-          - ref: uclbxwblhtiearljgats
+          - name: Christian Friends Hub
+            ref: uclbxwblhtiearljgats
+            table: announcements
             secret: SUPABASE_ANON_KEY_UCLBXWBLHTIEARLJGATS
     steps:
-      - name: Read from ${{ matrix.ref }}
+      - name: Read from ${{ matrix.name }}
         env:
+          NAME: ${{ matrix.name }}
           REF: ${{ matrix.ref }}
+          TABLE: ${{ matrix.table }}
           SECRET_NAME: ${{ matrix.secret }}
           KEY_RAW: ${{ secrets[matrix.secret] }}
         run: |
           # Strip a stray byte-order mark / whitespace if the secret was pasted with one.
           KEY=$(printf '%s' "$KEY_RAW" | sed $'s/^\xef\xbb\xbf//' | tr -d '\r\n ')
           if [ -z "$KEY" ]; then echo "::error::Missing GitHub secret $SECRET_NAME"; exit 1; fi
-          URL="https://$REF.supabase.co"
-          # The REST root lists the schema -- a real (read-only) query against the database.
-          CODE=$(curl -s -o root.json -w '%{http_code}' --max-time 30 "$URL/rest/v1/" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          # New-style publishable keys (sb_publishable_…) go in apikey only; legacy JWT anon keys also as a bearer token.
+          AUTH=(-H "apikey: $KEY")
+          case "$KEY" in eyJ*) AUTH+=(-H "Authorization: Bearer $KEY");; esac
+          CODE=$(curl -s -o out.json -w '%{http_code}' --max-time 30 "https://$REF.supabase.co/rest/v1/$TABLE?select=*&limit=1" "${AUTH[@]}")
           if [ "$CODE" != "200" ]; then
-            echo "::error::$REF answered HTTP $CODE -- it may be paused. Restore it at https://supabase.com/dashboard/project/$REF"
-            head -c 300 root.json; echo
+            echo "::error::$NAME ($REF) answered HTTP $CODE -- if it's paused, restore it at https://supabase.com/dashboard/project/$REF"
+            head -c 300 out.json; echo
             exit 1
           fi
-          # Also read one row from the first table, as an ordinary query (RLS may return nothing; that's fine).
-          TABLE=$(jq -r '.paths | keys[] | select(. != "/" and (startswith("/rpc/") | not))' root.json | head -1)
-          if [ -n "$TABLE" ]; then
-            T=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$URL/rest/v1${TABLE}?select=*&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
-            echo "$REF: schema read OK, ${TABLE#/} read -> HTTP $T"
-          else
-            echo "$REF: schema read OK"
-          fi
+          echo "$NAME: read $TABLE OK (HTTP 200)"
