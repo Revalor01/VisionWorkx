@@ -88,6 +88,8 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Sync test catalog
+        # A catalog problem shouldn't stop the tests themselves from running.
+        continue-on-error: true
         run: node qa/sync-catalog.mjs
       - name: Run tests
         env:
