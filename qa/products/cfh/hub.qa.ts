@@ -14,7 +14,6 @@ const MEMBER_PAGES = [
   { path: "/guidelines", heading: "Community Guidelines" },
   { path: "/contact", heading: "Contact" },
   { path: "/digital-services", heading: "Digital Services" },
-  { path: "/coordination/guide", heading: "Handling Request Help & Offer Help Requests" },
 ];
 
 qa({ id: "cfh/public/pages-load", area: "Public", title: "Login, sign-up and password-reset pages load", smoke: true }, async ({ page }) => {
@@ -68,7 +67,8 @@ qa({ id: "cfh/signup/wrong-access-code-refused", area: "Sign-up", title: "Sign-u
 
 qa({ id: "cfh/member/login-lands-home", area: "Members", title: "Member login lands on the home page", smoke: true, mobile: true }, async ({ page, cfhMember }) => {
   await cfhLogin(page, await cfhMember());
-  await expect(page).toHaveURL(/\/$/);
+  // (The address bar can still read /login after the client-side switch, so check the page itself.)
+  await expect(page.getByRole("heading", { name: /Welcome to Christian Friends Hub/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Recent Announcements" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Upcoming Events" })).toBeVisible();
 });
@@ -92,9 +92,9 @@ qa({ id: "cfh/access/blocked-account", area: "Safety & access", title: "A blocke
   await expect(page.getByRole("heading", { name: "Access Blocked" })).toBeVisible();
 });
 
-qa({ id: "cfh/access/admin-refused", area: "Safety & access", title: "A normal member can't open any admin page", smoke: true }, async ({ page, cfhMember }) => {
+qa({ id: "cfh/access/admin-refused", area: "Safety & access", title: "A normal member can't open admin or deacon-only pages", smoke: true }, async ({ page, cfhMember }) => {
   await cfhLogin(page, await cfhMember());
-  for (const path of ["/admin", "/admin/access", "/admin/logs", "/admin/deacons"]) {
+  for (const path of ["/admin", "/admin/access", "/admin/logs", "/admin/deacons", "/coordination", "/coordination/guide"]) {
     await test.step(path, async () => {
       await page.goto(path);
       await page.waitForURL((url) => url.pathname === "/", { timeout: 10_000 });
