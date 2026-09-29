@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
 import { qaDb, type QaResult, type QaRun, type QaTest } from "@/lib/qa/db";
 import { isStale } from "@/lib/qa/summary";
-import { duration, NotConfigured, QaShell, StatusBadge, timeAgo } from "../../ui";
+import { duration, NotConfigured, QaShell, SECTION, StatusBadge, timeAgo } from "../../ui";
 import AutoRefresh from "./AutoRefresh";
 
 export const dynamic = "force-dynamic";
@@ -47,42 +47,44 @@ export default async function QaRunPage(props: { params: Promise<{ id: string }>
   return (
     <QaShell>
       {live && !stale && <AutoRefresh seconds={5} />}
-      <Link href={`/admin/qa/${run.product_slug}`} className="text-sm text-zinc-500 hover:underline">
-        ← {run.product_slug}
-      </Link>
-      <div className="mt-1 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-navy-dark">Run {run.selection === "custom" ? `(${run.test_ids.length} picked)` : `(${run.selection})`}</h1>
-        <StatusBadge status={stale ? "stale" : run.status} />
-      </div>
-      <p className="mt-1 text-sm text-zinc-500">
-        {run.target_url} · started {timeAgo(run.created_at)} by {run.started_by ?? "—"}
-        {run.github_run_url && (
-          <>
-            {" · "}
-            <a href={run.github_run_url} target="_blank" rel="noopener noreferrer" className="text-navy hover:underline">
-              GitHub Actions log →
-            </a>
-          </>
-        )}
-      </p>
-
-      <div className="mt-4 flex gap-6 text-sm">
-        <span className="font-semibold text-emerald-700">{run.passed} passed</span>
-        <span className="font-semibold text-red-700">{run.failed} failed</span>
-        <span className="text-zinc-500">{run.skipped} skipped</span>
-      </div>
-
-      {run.status === "queued" && !stale && <p className="mt-4 text-sm text-zinc-600">Waiting for GitHub Actions to pick this up (usually under a minute)…</p>}
-      {run.status === "running" && <p className="mt-4 text-sm text-zinc-600">Running — results appear as each test finishes.</p>}
-      {stale && (
-        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          This run never reported back. Check the QA workflow in GitHub Actions — it may have failed to start, or the runner&apos;s secrets
-          aren&apos;t set.
+      <div className={SECTION}>
+        <Link href={`/admin/qa/${run.product_slug}`} className="text-sm text-zinc-500 hover:underline">
+          ← {run.product_slug}
+        </Link>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold text-navy-dark">Run {run.selection === "custom" ? `(${run.test_ids.length} picked)` : `(${run.selection})`}</h1>
+          <StatusBadge status={stale ? "stale" : run.status} />
+        </div>
+        <p className="mt-1 text-sm text-zinc-500">
+          {run.target_url} · started {timeAgo(run.created_at)} by {run.started_by ?? "—"}
+          {run.github_run_url && (
+            <>
+              {" · "}
+              <a href={run.github_run_url} target="_blank" rel="noopener noreferrer" className="text-navy hover:underline">
+                GitHub Actions log →
+              </a>
+            </>
+          )}
         </p>
-      )}
-      {run.error && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{run.error}</p>}
 
-      <ul className="mt-6 space-y-3">
+        <div className="mt-4 flex gap-6 text-sm">
+          <span className="font-semibold text-emerald-700">{run.passed} passed</span>
+          <span className="font-semibold text-red-700">{run.failed} failed</span>
+          <span className="text-zinc-500">{run.skipped} skipped</span>
+        </div>
+
+        {run.status === "queued" && !stale && <p className="mt-4 text-sm text-zinc-600">Waiting for GitHub Actions to pick this up (usually under a minute)…</p>}
+        {run.status === "running" && <p className="mt-4 text-sm text-zinc-600">Running — results appear as each test finishes.</p>}
+        {stale && (
+          <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            This run never reported back. Check the QA workflow in GitHub Actions — it may have failed to start, or the runner&apos;s secrets
+            aren&apos;t set.
+          </p>
+        )}
+        {run.error && <p className="mt-4 whitespace-pre-wrap rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{run.error}</p>}
+      </div>
+
+      <ul className={`${SECTION} space-y-3`}>
         {sorted.map((r) => {
           const t = titles.get(r.test_id);
           const bad = r.status === "failed" || r.status === "timed_out";
