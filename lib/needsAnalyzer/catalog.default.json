@@ -1,0 +1,439 @@
+{
+  "company": {
+    "name": "Revalor Consulting",
+    "tagline": "Software for the Human Condition",
+    "consultant": "",
+    "email": "admin@revalorllc.com",
+    "website": "products.revalorllc.com",
+    "badge": "Veteran-Owned Business"
+  },
+  "settings": {
+    "currency": "$",
+    "clientHourValue": 35,
+    "internalRate": 60,
+    "closeRate": 25,
+    "includeThreshold": 45,
+    "proposalValidDays": 30,
+    "discountPct": 0
+  },
+  "phases": {
+    "1": {
+      "name": "Phase 1 — Quick wins",
+      "timing": "1–3 weeks"
+    },
+    "2": {
+      "name": "Phase 2 — Core systems",
+      "timing": "3–8 weeks"
+    },
+    "3": {
+      "name": "Phase 3 — Custom build",
+      "timing": "6–12 weeks"
+    }
+  },
+  "modules": [
+    {
+      "id": "vw-lead",
+      "name": "Lead Capture Widget",
+      "category": "VisionWorkx",
+      "phase": 1,
+      "setup": 400,
+      "monthly": 29,
+      "effortHours": 6,
+      "hoursSavedPerWeek": 1,
+      "active": true,
+      "description": "A lead form built for their business, dropped onto their existing website with one line of code. Every lead lands in one place.",
+      "requires": [
+        "widget-embed",
+        "form-intake",
+        "data-store",
+        "email-send"
+      ]
+    },
+    {
+      "id": "vw-booking",
+      "name": "Online Booking Widget",
+      "category": "VisionWorkx",
+      "phase": 1,
+      "setup": 600,
+      "monthly": 39,
+      "effortHours": 10,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "Customers book available times directly from the website — no phone tag or email back-and-forth.",
+      "requires": [
+        "widget-embed",
+        "scheduling",
+        "data-store",
+        "email-send"
+      ]
+    },
+    {
+      "id": "vw-quote",
+      "name": "Quote / Estimate Calculator",
+      "category": "VisionWorkx",
+      "phase": 1,
+      "setup": 750,
+      "monthly": 29,
+      "effortHours": 12,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "Visitors get an instant ballpark price on the website and leave their details — pre-qualified leads, less time writing quotes.",
+      "requires": [
+        "widget-embed",
+        "form-intake",
+        "data-store",
+        "email-send"
+      ]
+    },
+    {
+      "id": "vw-intake",
+      "name": "Client Intake Form",
+      "category": "VisionWorkx",
+      "phase": 1,
+      "setup": 400,
+      "monthly": 19,
+      "effortHours": 6,
+      "hoursSavedPerWeek": 1,
+      "active": true,
+      "description": "New clients complete intake details online before the first visit, so nothing is re-typed or lost on paper.",
+      "requires": [
+        "widget-embed",
+        "form-intake",
+        "data-store",
+        "file-storage"
+      ]
+    },
+    {
+      "id": "vw-auto",
+      "name": "VisionWorkx Automation",
+      "category": "VisionWorkx",
+      "phase": 1,
+      "setup": 0,
+      "monthly": 0,
+      "effortHours": 2,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "Included with every widget: instant confirmation to the customer and an alert to the owner the moment a lead or booking arrives.",
+      "requires": [
+        "email-send",
+        "background-jobs"
+      ]
+    },
+    {
+      "id": "vw-dashboard",
+      "name": "Lead & Booking Dashboard",
+      "category": "VisionWorkx",
+      "phase": 2,
+      "setup": 500,
+      "monthly": 29,
+      "effortHours": 8,
+      "hoursSavedPerWeek": 1.5,
+      "active": true,
+      "description": "A simple dashboard showing every lead and booking, its status, and what needs follow-up — a lightweight CRM without the learning curve.",
+      "requires": [
+        "data-store",
+        "auth-client",
+        "reporting"
+      ]
+    },
+    {
+      "id": "auto-reminders",
+      "name": "Appointment Reminders",
+      "category": "Automation",
+      "phase": 1,
+      "setup": 250,
+      "monthly": 19,
+      "effortHours": 4,
+      "hoursSavedPerWeek": 1,
+      "active": true,
+      "description": "Automatic email reminders before each appointment to cut no-shows and last-minute cancellations.",
+      "requires": [
+        "email-send",
+        "background-jobs",
+        "scheduling"
+      ]
+    },
+    {
+      "id": "auto-reviews",
+      "name": "Review Request Automation",
+      "category": "Automation",
+      "phase": 1,
+      "setup": 300,
+      "monthly": 19,
+      "effortHours": 4,
+      "hoursSavedPerWeek": 0.5,
+      "active": true,
+      "description": "After each job or visit, customers automatically get a friendly request to leave a Google review.",
+      "requires": [
+        "email-send",
+        "background-jobs"
+      ]
+    },
+    {
+      "id": "auto-referral",
+      "name": "Referral Program",
+      "category": "Automation",
+      "phase": 2,
+      "setup": 500,
+      "monthly": 29,
+      "effortHours": 8,
+      "hoursSavedPerWeek": 0.5,
+      "active": true,
+      "description": "Happy customers get a personal referral link; referrals are tracked and rewarded automatically.",
+      "requires": [
+        "data-store",
+        "email-send",
+        "referral-tracking"
+      ]
+    },
+    {
+      "id": "auto-nurture",
+      "name": "Follow-up & Reactivation Emails",
+      "category": "Automation",
+      "phase": 2,
+      "setup": 600,
+      "monthly": 39,
+      "effortHours": 10,
+      "hoursSavedPerWeek": 1,
+      "active": true,
+      "description": "Automatic follow-up for quotes that went quiet, plus check-ins that bring past customers back.",
+      "requires": [
+        "email-marketing",
+        "background-jobs",
+        "data-store"
+      ]
+    },
+    {
+      "id": "proactive",
+      "name": "Proactive Leadership Coaching",
+      "category": "Revalor Product",
+      "phase": 2,
+      "setup": 0,
+      "monthly": 29,
+      "effortHours": 1,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Revalor's AI leadership coach for the owner and managers — daily prompts and a coach to talk through hard decisions. Price is per leader.",
+      "requires": [
+        "ai"
+      ]
+    },
+    {
+      "id": "cb-invoicing",
+      "name": "Invoicing & Online Payments Setup",
+      "category": "Custom Build",
+      "phase": 2,
+      "setup": 1200,
+      "monthly": 39,
+      "effortHours": 16,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "Professional invoices with a pay-online link, automatic payment reminders, and a clear view of who owes what.",
+      "requires": [
+        "payments",
+        "pdf-gen",
+        "email-send"
+      ]
+    },
+    {
+      "id": "cb-integration",
+      "name": "Integration Bridge",
+      "category": "Custom Build",
+      "phase": 2,
+      "setup": 1500,
+      "monthly": 49,
+      "effortHours": 20,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "Connects the tools they already use so data flows automatically instead of being copied by hand.",
+      "requires": [
+        "integrations",
+        "background-jobs"
+      ]
+    },
+    {
+      "id": "cb-spreadsheet",
+      "name": "Spreadsheet-to-App Migration",
+      "category": "Custom Build",
+      "phase": 2,
+      "setup": 2000,
+      "monthly": 49,
+      "effortHours": 30,
+      "hoursSavedPerWeek": 3,
+      "active": true,
+      "description": "Turns the spreadsheets that run the business into a simple, shared app with forms, permissions and no broken formulas.",
+      "requires": [
+        "data-store",
+        "auth-client",
+        "hosting"
+      ]
+    },
+    {
+      "id": "cb-reporting",
+      "name": "Owner Dashboard & Reporting",
+      "category": "Custom Build",
+      "phase": 2,
+      "setup": 2000,
+      "monthly": 49,
+      "effortHours": 28,
+      "hoursSavedPerWeek": 1,
+      "active": true,
+      "description": "One screen with the numbers that matter — leads, bookings, revenue, and trends — updated automatically.",
+      "requires": [
+        "data-store",
+        "reporting",
+        "auth-client"
+      ]
+    },
+    {
+      "id": "cb-jobs",
+      "name": "Job / Work Order Tracker",
+      "category": "Custom Build",
+      "phase": 3,
+      "setup": 3500,
+      "monthly": 79,
+      "effortHours": 50,
+      "hoursSavedPerWeek": 4,
+      "active": true,
+      "description": "Track every job from request to completion: who is assigned, status, notes and photos, all in one place.",
+      "requires": [
+        "data-store",
+        "auth-client",
+        "file-storage",
+        "hosting"
+      ]
+    },
+    {
+      "id": "cb-staff",
+      "name": "Staff Scheduling Board",
+      "category": "Custom Build",
+      "phase": 3,
+      "setup": 2500,
+      "monthly": 59,
+      "effortHours": 35,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "A shared schedule for the team with shift changes and notifications — no more group-text chaos.",
+      "requires": [
+        "data-store",
+        "auth-client",
+        "scheduling",
+        "email-send"
+      ]
+    },
+    {
+      "id": "cb-inventory",
+      "name": "Inventory Manager",
+      "category": "Custom Build",
+      "phase": 3,
+      "setup": 3000,
+      "monthly": 79,
+      "effortHours": 45,
+      "hoursSavedPerWeek": 3,
+      "active": true,
+      "description": "Know what is in stock, get low-stock alerts, and see what sells — built around how they actually stock and sell.",
+      "requires": [
+        "data-store",
+        "auth-client",
+        "reporting"
+      ]
+    },
+    {
+      "id": "cb-quote-engine",
+      "name": "Custom Pricing & Quote Engine",
+      "category": "Custom Build",
+      "phase": 3,
+      "setup": 3000,
+      "monthly": 49,
+      "effortHours": 40,
+      "hoursSavedPerWeek": 3,
+      "active": true,
+      "description": "Their real pricing rules turned into software: accurate, consistent quotes generated in minutes and sent as a professional PDF.",
+      "requires": [
+        "data-store",
+        "pdf-gen",
+        "email-send"
+      ]
+    },
+    {
+      "id": "cb-portal",
+      "name": "Customer Portal",
+      "category": "Custom Build",
+      "phase": 3,
+      "setup": 4500,
+      "monthly": 99,
+      "effortHours": 60,
+      "hoursSavedPerWeek": 3,
+      "active": true,
+      "description": "A private login where customers see status, share documents, and view history — fewer 'just checking in' calls.",
+      "requires": [
+        "auth-client",
+        "data-store",
+        "file-storage",
+        "email-send",
+        "hosting"
+      ]
+    },
+    {
+      "id": "cb-unique",
+      "name": "Custom Workflow Build",
+      "category": "Custom Build",
+      "phase": 3,
+      "setup": 5000,
+      "monthly": 99,
+      "effortHours": 70,
+      "hoursSavedPerWeek": 3,
+      "active": true,
+      "description": "Purpose-built software for the part of their business that off-the-shelf tools don't handle. Final scope set during discovery.",
+      "requires": [
+        "data-store",
+        "hosting",
+        "auth-client"
+      ]
+    },
+    {
+      "id": "svc-site",
+      "name": "Website Enhancement",
+      "category": "Service",
+      "phase": 1,
+      "setup": 1500,
+      "monthly": 0,
+      "effortHours": 20,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Refresh key pages, fix mobile issues and add clear calls to action so the new tools have a solid home.",
+      "requires": [
+        "site-builders"
+      ]
+    },
+    {
+      "id": "svc-discovery",
+      "name": "Discovery & Fixed-Scope Spec",
+      "category": "Service",
+      "phase": 3,
+      "setup": 750,
+      "monthly": 0,
+      "effortHours": 10,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Working sessions to map the workflow and agree a fixed scope and price before any custom build starts.",
+      "requires": []
+    },
+    {
+      "id": "svc-maint",
+      "name": "Care & Maintenance Plan",
+      "category": "Service",
+      "phase": 3,
+      "setup": 0,
+      "monthly": 149,
+      "effortHours": 2,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Hosting oversight, updates, backups, small changes and priority support for everything we build.",
+      "requires": [
+        "monitoring",
+        "backups"
+      ]
+    }
+  ]
+}
