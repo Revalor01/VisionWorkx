@@ -35,6 +35,8 @@ qa({ id: "proactive/account/edit-profile", area: "Account", title: "Display name
   const user = await proactiveUser();
   await proactiveLogin(page, user);
   await page.goto("/account/edit-profile");
+  // The page loads the saved profile after it renders; typing before that finishes gets overwritten.
+  await expect(page.locator("input[disabled]").first()).toHaveValue(user.email);
   const displayName = `QA ${Date.now().toString(36)}`;
   await page.locator("label", { hasText: "Display name" }).locator("xpath=following-sibling::input[1]").fill(displayName);
   await page.getByRole("button", { name: "Save", exact: true }).click();

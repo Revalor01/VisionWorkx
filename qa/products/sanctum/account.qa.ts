@@ -61,6 +61,8 @@ qa({ id: "sanctum/account/edit-profile", area: "Account", title: "Display name s
   const user = await sanctumUser();
   await sanctumLogin(page, user);
   await page.goto("/account/edit-profile");
+  // The page loads the saved profile after it renders; typing before that finishes gets overwritten.
+  await expect(page.locator("input[disabled]").first()).toHaveValue(user.email);
   const displayName = `QA ${Date.now().toString(36)}`;
   const field = page.locator("label", { hasText: "Display name" }).locator("xpath=following-sibling::input[1]");
   await field.fill(displayName);
