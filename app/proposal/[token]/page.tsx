@@ -45,7 +45,7 @@ export default async function SharedProposalPage({ params }: { params: Promise<{
       <div className="mx-auto mb-4 flex max-w-[850px] justify-end print:hidden">
         <PrintButton />
       </div>
-      <Proposal answers={assessment.answers} plan={plan} catalog={catalog} prepared={data.updated_at} siteFindings={siteFindings} />
+      <Proposal answers={assessment.answers} plan={plan} catalog={catalog} prepared={data.updated_at} siteFindings={siteFindings} websiteBuild={assessment.overrides.websiteBuild} />
     </main>
   );
 }

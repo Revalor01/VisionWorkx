@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { logoUrl, moduleLogoSlot } from "@/lib/needsAnalyzer/brand";
 import { fmtDate, money } from "@/lib/needsAnalyzer/format";
 import { situation, type Plan } from "@/lib/needsAnalyzer/rules";
-import type { Answers, Catalog } from "@/lib/needsAnalyzer/types";
+import type { Answers, Catalog, WebsiteBuild } from "@/lib/needsAnalyzer/types";
+import { websiteBuildSummary } from "@/lib/needsAnalyzer/websiteBuild";
 
 // The client-facing proposal. Rendered inside /admin/needs-analyzer/<id> (Proposal
 // tab) and on the public /proposal/<token> page, so it must only ever show
@@ -21,6 +22,7 @@ export function Proposal({
   catalog,
   prepared,
   siteFindings,
+  websiteBuild,
 }: {
   answers: Answers;
   plan: Plan;
@@ -28,6 +30,8 @@ export function Proposal({
   prepared: string | Date;
   /** Only the website-check issues the operator ticked for the proposal. */
   siteFindings?: SiteFindings | null;
+  /** The build runbook from the Website builder tab; a client-safe summary shows when the operator opted in. */
+  websiteBuild?: WebsiteBuild | null;
 }) {
   const co = catalog.company;
   const st = catalog.settings;
@@ -40,6 +44,8 @@ export function Proposal({
   const goals = (A.goals as string[] | undefined) || [];
   const phase1 = P.phases.find((p) => p.key === "1");
   const bizName = String(A.bizName || "");
+  const web = websiteBuildSummary(websiteBuild ?? undefined, catalog);
+  const webCustom = (websiteBuild?.clientSummary || "").trim();
   const logoFor = (it: { id: string; category: string }) => {
     const slot = moduleLogoSlot(catalog, it);
     const url = slot ? logoUrl(catalog, slot) : null;
@@ -198,6 +204,32 @@ export function Proposal({
           </ul>
           <p className="mt-2 text-sm text-zinc-500">Estimates are based on what you shared during our conversation, not a guarantee.</p>
         </>
+      )}
+
+      {web && (
+        <section className="break-inside-avoid-page">
+          <H2>Your website</H2>
+          {webCustom ? (
+            <p>{webCustom}</p>
+          ) : (
+            <>
+              <p>{web.approach}</p>
+              {web.domain && <p className="mt-2">{web.domain}</p>}
+              {web.included.length > 0 && (
+                <p className="mt-2">
+                  <strong>Included:</strong> {web.included.join(", ")}.
+                </p>
+              )}
+              {web.maintenance && <p className="mt-2">{web.maintenance}</p>}
+              {web.timeline && (
+                <p className="mt-2">
+                  <strong>Timeline:</strong> {web.timeline}.
+                </p>
+              )}
+              {web.handoff && <p className="mt-2">{web.handoff}</p>}
+            </>
+          )}
+        </section>
       )}
 
       <H2>Next steps</H2>

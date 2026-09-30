@@ -24,12 +24,61 @@ export interface PriceOverride {
   qty?: number;
 }
 
+/** The build path chosen for the client's website. */
+export type BuildPath = "builder" | "custom";
+
+/** Online-only build runbook, kept per assessment in `overrides.websiteBuild`. It
+ * never affects module scoring; it records how the client's website gets built and
+ * feeds an optional client-safe section of the proposal. Stored as JSON, so the
+ * offline laptop app carries it through sync unchanged. */
+export interface WebsiteBuild {
+  /** "" while undecided; a builder site in the client's account, or a Revalor-hosted custom build. */
+  path?: BuildPath | "";
+  /** Builder path: which platform (Squarespace / Wix / WordPress / Webflow, or free text). */
+  builderTool?: string;
+  // Domain
+  domain?: string;
+  registrar?: string;
+  /** The domain must be registered in the client's name, never Revalor's. */
+  domainOwnedByClient?: boolean;
+  /** How Revalor gets in — invite or delegated DNS, never the client's password. */
+  accessMethod?: string;
+  /** The client already runs email on the domain, so the MX records must not be touched. */
+  hasExistingEmail?: boolean;
+  dnsDone?: boolean;
+  // Business pieces every site should have
+  pieces?: {
+    agreement?: boolean;
+    privacyPolicy?: boolean;
+    analytics?: boolean;
+    accessibility?: boolean;
+    mobileTested?: boolean;
+  };
+  // Handoff checklist
+  handoff?: {
+    domainRecorded?: boolean;
+    hostingLogin?: boolean;
+    dnsRecords?: boolean;
+    accessList?: boolean;
+  };
+  // Effort and commercials
+  buildDays?: string;
+  /** Monthly retainer for the custom (Revalor-hosted) path; also shown in the proposal. */
+  monthlyMaintenance?: number;
+  timelineNotes?: string;
+  // Proposal
+  showInProposal?: boolean;
+  /** Optional operator text; when empty the proposal builds a summary from the fields above. */
+  clientSummary?: string;
+}
+
 export interface Overrides {
   excluded?: string[];
   added?: string[];
   prices?: Record<string, PriceOverride>;
   custom?: CustomItem[];
   discountPct?: number;
+  websiteBuild?: WebsiteBuild;
 }
 
 export const STATUSES = ["Draft", "Proposal sent", "Won", "Lost"] as const;

@@ -6,10 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { logoUrl, moduleLogoSlot } from "@/lib/needsAnalyzer/brand";
 import { SECTIONS, type Field } from "@/lib/needsAnalyzer/questions";
 import { computePlan, situation, type Plan, type PlanItem, type ScoredModule } from "@/lib/needsAnalyzer/rules";
-import { STATUSES, type Assessment, type Catalog, type Ecosystem, type Overrides } from "@/lib/needsAnalyzer/types";
+import { STATUSES, type Assessment, type Catalog, type Ecosystem, type Overrides, type WebsiteBuild } from "@/lib/needsAnalyzer/types";
 import { fmtDate } from "@/lib/needsAnalyzer/format";
 import { proposalFindings, type SiteCheck } from "@/lib/needsAnalyzer/siteChecks";
 import { Proposal } from "./Proposal";
+import WebsiteBuilder from "./WebsiteBuilder";
 import {
   api,
   Badge,
@@ -30,8 +31,8 @@ import {
   type NavItem,
 } from "./ui";
 
-type Tab = "q" | "plan" | "proposal" | "internal";
-const TABS: Tab[] = ["q", "plan", "proposal", "internal"];
+type Tab = "q" | "plan" | "proposal" | "builder" | "internal";
+const TABS: Tab[] = ["q", "plan", "proposal", "builder", "internal"];
 
 interface Props {
   initial: Assessment;
@@ -62,6 +63,7 @@ export default function Workspace(props: Props) {
     { key: "q", label: "Questionnaire", onClick: () => go("q") },
     { key: "plan", label: "Build plan", onClick: () => go("plan") },
     { key: "proposal", label: "Proposal", onClick: () => go("proposal") },
+    { key: "builder", label: "Website builder", onClick: () => go("builder"), internal: true },
     { key: "internal", label: "Internal notes", onClick: () => go("internal"), internal: true },
   ];
 
@@ -121,11 +123,18 @@ function Body({
     setA(aRef.current);
   }, []);
 
+  // Website builder writes into overrides.websiteBuild, so it autosaves like the plan.
+  const setWb = useCallback(
+    (patch: Partial<WebsiteBuild>) =>
+      update((p) => ({ ...p, overrides: { ...(p.overrides || {}), websiteBuild: { ...(p.overrides?.websiteBuild || {}), ...patch } } })),
+    [update],
+  );
+
   // Save straight away when switching tabs, like the offline app does on navigation.
   useEffect(() => flush(), [tab, flush]);
 
-  // Internal notes aren't reachable in client mode.
-  const view = clientMode && tab === "internal" ? "plan" : tab;
+  // Internal notes and the website builder aren't reachable in client mode.
+  const view = clientMode && (tab === "internal" || tab === "builder") ? "plan" : tab;
   const plan = useMemo(() => computePlan(a, catalog, ecosystem), [a, catalog, ecosystem]);
   const title = String(a.answers.bizName || "") || "New assessment";
 
@@ -136,6 +145,7 @@ function Body({
       )}
       {view === "plan" && <PlanView a={a} plan={plan} catalog={catalog} update={update} go={go} saveState={saveState} />}
       {view === "proposal" && <ProposalTab a={a} patchLocal={patchLocal} plan={plan} catalog={catalog} go={go} proposalCheck={proposalCheck} />}
+      {view === "builder" && <WebsiteBuilder wb={a.overrides?.websiteBuild || {}} setWb={setWb} catalog={catalog} go={go} saveState={saveState} />}
       {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} />}
     </>
   );
@@ -694,7 +704,7 @@ function ProposalTab({
           )}
         </div>
       )}
-      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} />
+      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} />
     </>
   );
 }
