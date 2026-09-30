@@ -21,6 +21,8 @@ export function isOverrides(o: unknown): o is Overrides {
   if (!isObject(o)) return false;
   if ((o.excluded !== undefined && !isArr(o.excluded)) || (o.added !== undefined && !isArr(o.added))) return false;
   if (o.custom !== undefined && !(isArr(o.custom) && o.custom.every((c) => isObject(c) && typeof c.id === "string"))) return false;
+  // websiteBuild is a free-form JSON runbook (see types.ts); only its shape at the top matters here.
+  if (o.websiteBuild !== undefined && !isObject(o.websiteBuild)) return false;
   return o.prices === undefined || isObject(o.prices);
 }
 

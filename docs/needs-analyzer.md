@@ -10,7 +10,7 @@ meeting with no internet, online everywhere else, with a sync from the laptop.
 
 | What | Where |
 | --- | --- |
-| Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|internal`, `/website`, `/ecosystem`, `/catalog` |
+| Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|builder\|internal`, `/website`, `/ecosystem`, `/catalog` |
 | Client proposal link | `/proposal/<token>` (public, only while the link is on) |
 | Questionnaire, scoring, pricing | `lib/needsAnalyzer/questions.ts`, `rules.ts` (ported from the offline `public/questions.js`, `public/rules.js`) |
 | Website check | `lib/needsAnalyzer/siteFetch.ts` (fetcher), `siteDetect.ts` (detection, prefill), `siteCheck.ts`, `pagespeed.ts`, `siteReview.ts` (AI review) |
@@ -107,6 +107,36 @@ for the conversation, not a verdict.
 address entered and the final one, the linked assessment, the report, PageSpeed
 scores, the AI review, and `proposal_issues` (ids ticked for the proposal).
 RLS on, no policies, like the other `vw_na_*` tables.
+
+## Website builder
+
+**Website builder** tab (operator only, hidden in Client mode like Internal notes)
+is the runbook for actually building the client's website. It captures, per
+assessment:
+
+- **Build path** — a standard builder in the client's own account (Squarespace,
+  Wix, WordPress, Webflow) or a custom Next.js/Vercel site Revalor builds and
+  hosts. The custom path takes a **monthly retainer** and carries the Vercel
+  "Hobby is non-commercial only" caveat.
+- **Domain & DNS** — domain, registrar, client ownership, access method, and a
+  reminder not to touch the **MX records** when the client already runs email on
+  the domain.
+- **Pieces every site needs** and a **handoff checklist**.
+- **Effort & timeline** — `buildDays` is operator-only effort; `timelineNotes` is
+  the only build-timing text the client ever sees.
+
+State lives in `overrides.websiteBuild` (see `lib/needsAnalyzer/types.ts`), an
+**online-only** JSON field — no new table or migration. It never affects module
+scoring, so `rules.ts`/`rules.test.ts` and the offline app are untouched; the
+laptop app carries the field through sync unchanged. The presets, copy and the
+client-safe proposal summary are in `lib/needsAnalyzer/websiteBuild.ts`
+(`websiteBuildSummary`, guarded by `websiteBuild.test.ts`).
+
+With **Show in client proposal** ticked, a client-safe **"Your website"** section
+is added to `Proposal.tsx` (both the admin Proposal tab and the public
+`/proposal/<token>` link) — the operator's chosen path, domain ownership, what
+Revalor maintains and the monthly retainer, and handoff. It never shows effort or
+margin. An optional `clientSummary` overrides the auto-generated wording.
 
 ## Syncing from the laptop
 
