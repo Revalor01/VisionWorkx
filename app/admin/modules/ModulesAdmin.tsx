@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { embedSnippet } from "@/lib/modules/install";
 import { MODULE_TYPES } from "@/lib/modules/constants";
@@ -34,6 +35,17 @@ const MODULE_TYPE_LABELS: Record<string, string> = {
   quote_calculator: "Quote calculator",
   intake_form: "Intake form",
 };
+
+// One distinct hue per module type for the Modules Sold chart, pulled from the
+// on-brand navy + promote.* palette (tailwind.config.ts). Set inline rather
+// than as Tailwind classes so the per-type mapping is a single source of truth.
+const MODULE_TYPE_COLORS: Record<string, string> = {
+  lead_capture: "#2E6DA4", // navy
+  booking: "#e8b84b", // gold
+  quote_calculator: "#3ecf8e", // green
+  intake_form: "#7c5cfc", // purple
+};
+const BAR_FALLBACK_COLOR = "#2E6DA4";
 
 function formatUsd(n: number): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -74,16 +86,24 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
         <AdminProductPills />
       </div>
       <main className="mx-auto max-w-admin space-y-8 px-4 py-6 sm:px-6 lg:px-10">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Operator</p>
-        <h1 className="text-2xl font-bold text-navy-dark">VisionWorkx modules — client workspaces</h1>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Operator</p>
+          <h1 className="text-2xl font-bold text-navy-dark">VisionWorkx modules — client workspaces</h1>
+        </div>
+        <Link
+          href="/admin/modules/instructions"
+          className="rounded-lg border border-[#b8860b] px-3 py-1.5 text-sm font-semibold text-[#8a6d3b] hover:bg-[#b8860b]/10"
+        >
+          Instructions →
+        </Link>
       </div>
       {msg && <p role="status" className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">{msg}</p>}
 
       <ModuleStatsSection stats={stats} />
 
       <form
-        className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-5 sm:grid-cols-2"
+        className="grid gap-3 rounded-2xl border border-[#b8860b] bg-white p-5 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -104,7 +124,7 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
       {/* Two workspaces side by side on wide monitors. */}
       <div className="grid items-start gap-8 2xl:grid-cols-2">
       {initial.map((w) => (
-        <section key={w.id} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
+        <section key={w.id} className="space-y-4 rounded-2xl border border-[#b8860b] bg-white p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-bold">{w.name} <span className="text-sm font-normal text-gray-500">/{w.slug} · {w.plan} · {w.billing_status}</span>
               {w.self_serve && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">Self-serve</span>}
@@ -183,8 +203,12 @@ function ModuleTypeBarChart({ counts }: { counts: ModuleTypeCounts }) {
             <div className="mb-1 text-sm font-semibold text-navy-dark">{count}</div>
             <div
               title={`${MODULE_TYPE_LABELS[type] ?? type}: ${count}`}
-              className="rounded-t-[4px] bg-navy"
-              style={{ width: BAR_WIDTH_PX, height: Math.max(4, Math.round((count / max) * CHART_HEIGHT_PX)) }}
+              className="rounded-t-[4px]"
+              style={{
+                width: BAR_WIDTH_PX,
+                height: Math.max(4, Math.round((count / max) * CHART_HEIGHT_PX)),
+                backgroundColor: MODULE_TYPE_COLORS[type] ?? BAR_FALLBACK_COLOR,
+              }}
             />
           </div>
         ))}
@@ -203,7 +227,7 @@ function ModuleTypeBarChart({ counts }: { counts: ModuleTypeCounts }) {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl border border-[#b8860b] bg-white p-4">
       <div className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</div>
       <div className="mt-1 text-2xl font-semibold text-navy-dark">{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-gray-400">{sub}</div>}
@@ -233,13 +257,13 @@ function ModuleStatsSection({ stats }: { stats: ModulesAdminStats }) {
         <StatCard label="Pending" value={formatUsd(stats.totalPendingCents / 100)} sub="checkout started, not yet paid" />
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="rounded-2xl border border-[#b8860b] bg-white p-5">
         <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">Modules Sold</div>
         <p className="mb-4 text-xs text-gray-400">Every module ever created, by type, across all client workspaces.</p>
         <ModuleTypeBarChart counts={stats.modulesByType} />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="overflow-x-auto rounded-2xl border border-[#b8860b] bg-white p-5">
         <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
           Est. AI cost per module type
         </div>
