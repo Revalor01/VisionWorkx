@@ -26,5 +26,9 @@
   "cfh": {
     "name": "Christian Friends Hub",
     "url": "https://christian-friends-hub.vercel.app"
+  },
+  "revalor-products": {
+    "name": "Revalor Products site",
+    "url": "https://products.revalorllc.com"
   }
 }

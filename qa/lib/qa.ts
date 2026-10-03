@@ -22,6 +22,8 @@ export interface QaMeta {
   mobile?: boolean;
   /** Extra setup the test needs (shown as a badge), e.g. "stripe-test", "google-qa". */
   requires?: string[];
+  /** Skipped in the nightly run (e.g. it sends real emails); runs when started from /admin/qa. */
+  onDemand?: boolean;
 }
 
 interface Fixtures {
@@ -121,10 +123,18 @@ const ID_RE = /^[a-z0-9-]+(\/[a-z0-9-]+){2,}$/;
 
 export function qa(meta: QaMeta, body: Parameters<typeof test>[2]) {
   if (!ID_RE.test(meta.id)) throw new Error(`Bad QA test id "${meta.id}" (want product/area/name, lowercase-dashes)`);
-  test(
+  // On-demand tests are registered as skipped in the nightly run (GitHub sets
+  // GITHUB_EVENT_NAME=schedule); runs started from /admin/qa include them.
+  const register = meta.onDemand && process.env.GITHUB_EVENT_NAME === "schedule" ? test.skip : test;
+  register(
     meta.title,
     {
-      tag: [`@${meta.id}`, ...(meta.smoke ? ["@smoke"] : []), ...(meta.mobile ? ["@mobile"] : [])],
+      tag: [
+        `@${meta.id}`,
+        ...(meta.smoke ? ["@smoke"] : []),
+        ...(meta.mobile ? ["@mobile"] : []),
+        ...(meta.onDemand ? ["@on-demand"] : []),
+      ],
       annotation: [{ type: "area", description: meta.area }, ...(meta.requires ?? []).map((r) => ({ type: "requires", description: r }))],
     },
     body,

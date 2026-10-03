@@ -129,6 +129,28 @@ change syncing from Stripe, and cancellation pausing live forms.
 - To run: /admin/qa → VisionWorkx → *A preview deployment…* → paste a preview URL.
 - Deposits (Stripe Connect) aren't covered yet.
 
+## Revalor Products site (AI quiz)
+https://products.revalorllc.com (repo revalor-products) — the homepage quiz
+promo, the free guides, the AI quiz, its follow-up emails, tips and unsubscribe.
+Leads live in this repo's **main** project (`vw_ai_quiz_leads`), so the suite
+needs `PRODUCTS_SUPABASE_URL` / `PRODUCTS_SUPABASE_SERVICE_ROLE_KEY` (the main
+project's URL and service-role key), `PRODUCTS_CRON_SECRET` (revalor-products'
+`CRON_SECRET`) and, for the real-unsubscribe step, `PRODUCTS_UNSUB_SECRET`
+(revalor-products' `VW_WAITLIST_UNSUB_SECRET`). Tests skip what they can't reach.
+- Test leads always use `delivered+aiquiz-…@resend.dev` (`qa/lib/revalorProducts.ts`);
+  revalor-products never sends the call alert to info@ for `@resend.dev`
+  addresses. Each test deletes its leads; `global-setup.ts` sweeps leftovers.
+- Follow-up and tip tests drive the real routes with their `?email=` option,
+  so real leads are never touched.
+- **On-demand tests** (`onDemand: true` in `qa()`) send emails, so they're
+  registered as skipped in the nightly run and only run when started from
+  /admin/qa: the business call request, the follow-up series and the tip.
+  The nightly run sends one email (the quiz's Email 1).
+- The quiz API allows 5 submissions per IP per 10 minutes; the suite submits at
+  most 3 times per run.
+- Manual checks: Email 1 in a real inbox, the call alert, the PDF QR codes,
+  unsubscribing from a real email.
+
 ## Christian Friends Hub (read-only)
 https://christian-friends-hub.vercel.app — the Summit Bridge community hub.
 **Read-only by the owner's decision:** tests never post anything members could

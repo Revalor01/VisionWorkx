@@ -1,0 +1,26 @@
+[
+  {
+    "id": "revalor-products/manual/email-1-real-inbox",
+    "area": "AI quiz",
+    "title": "Email 1 arrives in a real inbox and looks right",
+    "instructions": "Take the quiz at https://products.revalorllc.com/ai-quiz?src=test with your own email. Email 1 should arrive within a few minutes (check spam): both guide links open, the result line matches your level, and the footer shows the Middletown, DE address and an Unsubscribe link. Afterwards delete your row from vw_ai_quiz_leads or set call_booked_at so the follow-ups stop."
+  },
+  {
+    "id": "revalor-products/manual/call-alert",
+    "area": "AI quiz",
+    "title": "A call request alerts info@revalorllc.com",
+    "instructions": "Automated tests use Resend test addresses, which never trigger the alert. Take the quiz with your own email, pick a business in Q2 and tick the free-call box. info@revalorllc.com should get 'AI quiz: free call request' with your answers, and replying should go to the address you used."
+  },
+  {
+    "id": "revalor-products/manual/pdf-qr-codes",
+    "area": "Guides",
+    "title": "The QR codes in both guides open the consulting page",
+    "instructions": "Open https://products.revalorllc.com/guides/ai-basics.pdf and ai-next-level.pdf, go to the last page and scan each QR code with a phone. Each should open products.revalorllc.com/consulting."
+  },
+  {
+    "id": "revalor-products/manual/unsubscribe-from-real-email",
+    "area": "Emails",
+    "title": "Unsubscribe from a real email works",
+    "instructions": "In an AI quiz email you received, click Unsubscribe, then the Unsubscribe button. You should see \"You're unsubscribed.\" and your row's unsubscribed_at should be set."
+  }
+]
