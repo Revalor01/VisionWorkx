@@ -51,6 +51,11 @@ Management API). **Never alter, rename or drop them, or change their RLS policie
   `system_scan_findings`, `video_config`, `video_jobs`
 - Any `rv_*` table (revalor-admin's prefix; its migrations live in the revalor-admin repo).
 
+**Tables this repo owns that other apps use** (changes go through migrations here, but tell the user
+first — other apps depend on them): `vw_ai_quiz_leads` (revalor-products writes it; revalor-admin reads it
+and may set only `call_booked_at`) and `vw_email_send_log` (revalor-products inserts; revalor-admin `/costs`
+reads).
+
 ## Shared admin sign-in (ADMIN_SSO_SECRET)
 This repo is the **hub** of the shared admin SSO used by every Revalor admin app:
 `lib/adminSso.ts` signs/verifies tickets and the session cookie, `app/api/admin/sso/issue`
@@ -90,7 +95,8 @@ Real-browser Playwright tests for every Revalor product live in `qa/products/<pr
 Actions (`.github/workflows/qa-run.yml`) and are picked/run/reviewed at **/admin/qa** (tables `vw_qa_*`, main project).
 When you add or change a user-facing feature, add or update its `qa()` test in the same PR (stable id
 `<product>/<area>/<name>`; `smoke: true` for the critical path). Test data must use the `qaWorkspace` fixture
-(is_test, deleted after) — never real workspaces. Other products are tested black-box from here; don't edit their
+(is_test, deleted after) — never real workspaces. Tests that send real emails get `onDemand: true` (skipped nightly,
+run from /admin/qa). Other products are tested black-box from here; don't edit their
 repos. Details: `docs/qa-suite.md`.
 
 ## Needs Analyzer (online copy of Machine B's offline app)

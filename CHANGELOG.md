@@ -4,6 +4,9 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- `vw_ai_quiz_leads` gains `last_tip_id` / `last_tip_sent_at` for revalor-products' AI quiz tips (migration `20240101000097_vw_ai_quiz_tips.sql`).
+- New table `vw_email_send_log` (main project, RLS on with no policies): one row per email sent (app, kind, is_test; no address or content). Written by revalor-products, read by revalor-admin's `/costs`. Needs migration `20240101000098_vw_email_send_log.sql`.
+- QA: new product `revalor-products` (11 tests + 4 manual checks: AI quiz, emails, tips, homepage promo). New `onDemand` flag in `qa()` skips email-sending tests in the nightly run; they run when started from /admin/qa. Needs GitHub secrets `PRODUCTS_SUPABASE_URL`, `PRODUCTS_SUPABASE_SERVICE_ROLE_KEY`, `PRODUCTS_CRON_SECRET`, `PRODUCTS_UNSUB_SECRET` (passed in `qa-run.yml`).
 - New table `vw_ai_quiz_leads` (main project, RLS on with no policies) for the Revalor AI quiz on products.revalorllc.com: one row per email with the 9 answers, score and level (explorer / builder / power_user), the `?src=` source, consent time and nurture-email progress (guides sent, step 0–4, next send, call alert/booked, unsubscribed). Written server-side by revalor-products; revalor-admin will read it for a Leads dashboard. Needs migration `20240101000096_vw_ai_quiz_leads.sql`.
 - `/admin/modules` restyle: each section card now has a gold/brown (`#b8860b`) outline, and the **Modules Sold** bar chart gives every module type its own color (lead capture navy, booking gold, quote calculator green, intake form purple) instead of one shared hue.
 - New operator page at `/admin/modules/instructions` (operator only) explaining how to read and use the modules admin page — the stat cards, the Modules Sold chart, the cost table, and creating/managing client workspaces and modules; linked from an "Instructions →" button in the modules page header.
