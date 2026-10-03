@@ -67,6 +67,7 @@ export async function getLead(email: string): Promise<QuizLead | null> {
 
 /** Inserts a finished-quiz lead directly (no form, no Email 1). */
 export async function insertLead(email: string, extra: Partial<Record<string, unknown>> = {}): Promise<QuizLead> {
+  assertTestEmail(email);
   const { data, error } = await db()
     .from("vw_ai_quiz_leads")
     .insert({
@@ -92,13 +93,18 @@ export async function insertLead(email: string, extra: Partial<Record<string, un
   return data as QuizLead;
 }
 
+function assertTestEmail(email: string): void {
+  if (!email.startsWith(TEST_PREFIX) || !email.endsWith("@resend.dev")) throw new Error(`refusing to touch non-test lead ${email}`);
+}
+
 export async function updateLead(email: string, patch: Record<string, unknown>): Promise<void> {
+  assertTestEmail(email);
   const { error } = await db().from("vw_ai_quiz_leads").update(patch).eq("email", email);
   if (error) throw new Error(`vw_ai_quiz_leads update failed: ${error.message}`);
 }
 
 export async function deleteLead(email: string): Promise<void> {
-  if (!email.startsWith(TEST_PREFIX) || !email.endsWith("@resend.dev")) throw new Error(`refusing to delete non-test lead ${email}`);
+  assertTestEmail(email);
   await db().from("vw_ai_quiz_leads").delete().eq("email", email);
 }
 
