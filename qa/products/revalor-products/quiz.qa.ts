@@ -1,6 +1,6 @@
 import { expect, qa, test } from "../../lib/qa";
 import { type Page } from "@playwright/test";
-import { VALID_ANSWERS, deleteLead, getLead, productsDbConfigured, quizTestEmail } from "../../lib/revalorProducts";
+import { VALID_ANSWERS, countTestEmailsLogged, deleteLead, getLead, productsDbConfigured, quizTestEmail } from "../../lib/revalorProducts";
 
 // The AI quiz at /ai-quiz. Submissions use Resend test inboxes, so Email 1
 // goes nowhere real and no call alert reaches info@revalorllc.com. The quiz
@@ -38,6 +38,7 @@ qa(
   async ({ page }) => {
     test.skip(!productsDbConfigured(), "PRODUCTS_SUPABASE_* not set");
     const email = quizTestEmail("take");
+    const started = new Date().toISOString();
     try {
       await test.step("answer as a personal user (no call question)", async () => {
         await answerToContactStep(page, { business: false });
@@ -54,6 +55,9 @@ qa(
         const lead = await getLead(email);
         expect(lead).toMatchObject({ score: 5, level: "builder", source: "qa", wants_call: false, is_business_owner: false, nurture_step: 1 });
         expect(lead?.next_email_at, "Email 2 scheduled").not.toBeNull();
+      });
+      await test.step("Email 1 counted for the admin costs page", async () => {
+        expect(await countTestEmailsLogged("email-1", started)).toBeGreaterThanOrEqual(1);
       });
     } finally {
       if (productsDbConfigured()) await deleteLead(email);

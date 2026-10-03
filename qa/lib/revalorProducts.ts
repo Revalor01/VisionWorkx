@@ -111,6 +111,19 @@ export async function sweepStaleQuizLeads(): Promise<void> {
     .lt("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
 }
 
+/** Test sends of one kind logged in vw_email_send_log (the admin costs page's email count) since a time. */
+export async function countTestEmailsLogged(kind: string, sinceIso: string): Promise<number> {
+  const { count, error } = await db()
+    .from("vw_email_send_log")
+    .select("id", { count: "exact", head: true })
+    .eq("app", "ai-quiz")
+    .eq("kind", kind)
+    .eq("is_test", true)
+    .gte("sent_at", sinceIso);
+  if (error) throw new Error(`vw_email_send_log read failed: ${error.message}`);
+  return count ?? 0;
+}
+
 /** Bearer header for the cron and tips routes. */
 export function cronHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${env("CRON_SECRET")}` };
