@@ -49,3 +49,13 @@ export async function generateAndSavePostImage(
 export function statusAfterAutoImage(status: SocialContent["status"]): SocialContent["status"] {
   return status === "draft" || status === "approved" ? "scheduled" : status;
 }
+
+// Failed automatic tries allowed before the job gives up on a post.
+export const MAX_AUTO_IMAGE_ATTEMPTS = 3;
+
+// What a failed automatic try writes: one more attempt, and auto_image off
+// once the limit is reached so the post shows "needs an image" again.
+export function afterFailedAutoImage(attempts: number): { auto_image_attempts: number; auto_image?: false } {
+  const next = attempts + 1;
+  return next >= MAX_AUTO_IMAGE_ATTEMPTS ? { auto_image_attempts: next, auto_image: false } : { auto_image_attempts: next };
+}

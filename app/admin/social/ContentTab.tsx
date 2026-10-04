@@ -708,6 +708,14 @@ function ContentCard({
             </button>
           </>
         )}
+        {c.auto_image && !c.image_path && (
+          <span
+            className="text-xs rounded-full bg-violet-100 text-violet-700 px-2 py-0.5"
+            title="An image is made automatically before this post publishes"
+          >
+            Auto image
+          </span>
+        )}
         {c.status === "scheduled" && c.scheduled_at && (
           <span className="text-xs text-slate-500">Scheduled for {new Date(c.scheduled_at).toLocaleString()}</span>
         )}
