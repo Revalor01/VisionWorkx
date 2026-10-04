@@ -38,8 +38,11 @@ export async function publishPost(
     // platform (see lib/social/shortLinks + app/go/[code]). Facebook
     // unfurls it into a preview card; YouTube descriptions are clickable.
     // Instagram/TikTok captions aren't clickable — no link there.
-    if (brand.website_url && (post.platform === "facebook" || post.platform === "youtube")) {
-      const destination = withUtm(brand.website_url, {
+    // A campaign post's own link_url (e.g. the AI quiz with ?src=) wins over
+    // the brand website.
+    const linkTarget = post.link_url || brand.website_url;
+    if (linkTarget && (post.platform === "facebook" || post.platform === "youtube")) {
+      const destination = withUtm(linkTarget, {
         source: post.platform,
         medium: "social",
         campaign: brand.slug ?? undefined,

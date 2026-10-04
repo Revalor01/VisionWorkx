@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { SocialBrand, SocialContent, SocialContentStatus, SocialPlatform, SocialVideoAsset } from "@/lib/database.types";
 import MediaSpendCard from "./MediaSpendCard";
+import ImportPostsModal from "./ImportPostsModal";
 
 const STATUS_STYLE: Record<SocialContentStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
@@ -26,6 +27,15 @@ function dayKey(d: Date): string {
 
 // new Date("YYYY-MM-DD") parses as UTC midnight, which can render as the
 // previous day in timezones behind UTC — build the Date from local parts.
+// A stored time as a datetime-local value ("YYYY-MM-DDTHH:mm", local time), so an
+// imported draft's planned time is pre-filled next to Schedule.
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${dayKey(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function parseDayKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -45,6 +55,7 @@ export default function ContentTab({
   setVideoAssets: React.Dispatch<React.SetStateAction<SocialVideoAsset[]>>;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [brandId, setBrandId] = useState(brands[0]?.id ?? "");
   const [platforms, setPlatforms] = useState<SocialPlatform[]>(["facebook", "instagram"]);
   const [postCount, setPostCount] = useState(7);
@@ -213,6 +224,13 @@ export default function ContentTab({
             </button>
           </div>
           <button
+            onClick={() => setImportOpen(true)}
+            disabled={brands.length === 0}
+            className="px-4 py-2 rounded-lg border border-[#1A3A5C] text-[#1A3A5C] text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-40"
+          >
+            Import posts
+          </button>
+          <button
             onClick={() => setModalOpen(true)}
             disabled={brands.length === 0}
             className="px-4 py-2 rounded-lg bg-[#1A3A5C] text-white text-sm font-medium hover:bg-[#15304a] transition-colors disabled:opacity-40"
@@ -373,6 +391,16 @@ export default function ContentTab({
             </div>
           )}
         </div>
+      )}
+
+      {importOpen && (
+        <ImportPostsModal
+          onClose={() => setImportOpen(false)}
+          onImported={(rows) => {
+            setContent((prev) => [...rows, ...prev]);
+            setImportOpen(false);
+          }}
+        />
       )}
 
       {modalOpen && (
@@ -664,13 +692,16 @@ function ContentCard({
           <>
             <input
               type="datetime-local"
-              value={scheduleDrafts[c.id] ?? ""}
+              value={scheduleDrafts[c.id] ?? toLocalInput(c.scheduled_at)}
               onChange={(e) => setScheduleDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))}
               className="text-xs border border-slate-300 rounded-lg px-2 py-1"
             />
             <button
-              onClick={() => scheduleDrafts[c.id] && updateStatus(c.id, "scheduled", new Date(scheduleDrafts[c.id]).toISOString())}
-              disabled={!scheduleDrafts[c.id]}
+              onClick={() => {
+                const when = scheduleDrafts[c.id] ?? toLocalInput(c.scheduled_at);
+                if (when) updateStatus(c.id, "scheduled", new Date(when).toISOString());
+              }}
+              disabled={!(scheduleDrafts[c.id] ?? toLocalInput(c.scheduled_at))}
               className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-40"
             >
               Schedule
