@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { afterFailedAutoImage, generateAndSavePostImage, MAX_AUTO_IMAGE_ATTEMPTS, statusAfterAutoImage } from "@/lib/social/postImage";
+import { internalBaseUrl, MAX_AUTO_IMAGE_ATTEMPTS } from "@/lib/social/postImage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// Every 10 minutes (vercel.json): generates images for posts that opted in
-// (auto_image) and still have none, a few per run so each run stays well
-// inside maxDuration. Only posts with a future publish time are picked — a
-// post that's already due without an image is left alone (it stays a draft
-// and never publishes). A failure counts an attempt; after
-// MAX_AUTO_IMAGE_ATTEMPTS the job turns auto_image off and moves on, so a post
-// that always fails can't keep spending or block the others.
+// Every 10 minutes (vercel.json): picks up to PER_RUN posts that opted in
+// (auto_image), have no image yet and a future publish time, and asks
+// /api/internal/social-image/<id> to make each one's image. The work runs as
+// its own request there (see that route for why). A post that's already due
+// without an image is left alone (it stays a draft and never publishes). A
+// failure counts an attempt and saves the reason in failure_reason; after
+// MAX_AUTO_IMAGE_ATTEMPTS the post drops out, so it can't keep spending or
+// block the others.
 const PER_RUN = 3;
 
 export async function GET(req: NextRequest) {
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   const service = createServiceClient();
   const { data: posts, error } = await service
     .from("social_content")
-    .select("id, brand_id, hook, caption, platform, status, auto_image_attempts")
+    .select("id")
     .eq("auto_image", true)
     .lt("auto_image_attempts", MAX_AUTO_IMAGE_ATTEMPTS)
     .is("image_path", null)
@@ -37,29 +38,25 @@ export async function GET(req: NextRequest) {
     .limit(PER_RUN);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const results: { id: string; ok: boolean; error?: string }[] = [];
-  for (const post of posts ?? []) {
-    try {
-      await generateAndSavePostImage(service, post);
-      const next = statusAfterAutoImage(post.status);
-      if (next !== post.status) {
-        await service
-          .from("social_content")
-          .update({ status: next, updated_at: new Date().toISOString() })
-          .eq("id", post.id)
-          .eq("status", post.status); // don't override a change made meanwhile
+  const base = internalBaseUrl();
+  // In parallel: each call is its own request (up to 120s), so three in a row
+  // could outlast this run's maxDuration.
+  const results = await Promise.all(
+    (posts ?? []).map(async ({ id }) => {
+      try {
+        const res = await fetch(`${base}/api/internal/social-image/${id}`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${secret}` },
+          cache: "no-store",
+        });
+        return { id, status: res.status, body: (await res.json().catch(() => null)) as unknown };
+      } catch (err) {
+        // The call itself failed (network); the post is untouched and retried next run.
+        console.error(`[social-images] ${id}: internal call failed:`, (err as Error).message);
+        return { id, status: 0, body: { error: (err as Error).message } as unknown };
       }
-      results.push({ id: post.id, ok: true });
-    } catch (err) {
-      console.error(`[social-images] ${post.id}:`, (err as Error).message);
-      const { error: countError } = await service
-        .from("social_content")
-        .update({ ...afterFailedAutoImage(post.auto_image_attempts), updated_at: new Date().toISOString() })
-        .eq("id", post.id);
-      if (countError) console.error(`[social-images] ${post.id}: attempt not recorded:`, countError.message);
-      results.push({ id: post.id, ok: false, error: (err as Error).message });
-    }
-  }
+    })
+  );
 
   return NextResponse.json({ processed: results.length, results });
 }

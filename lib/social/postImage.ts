@@ -59,3 +59,60 @@ export function afterFailedAutoImage(attempts: number): { auto_image_attempts: n
   const next = attempts + 1;
   return next >= MAX_AUTO_IMAGE_ATTEMPTS ? { auto_image_attempts: next, auto_image: false } : { auto_image_attempts: next };
 }
+
+// The production address the cron calls back into (see /api/internal/social-image).
+// Vercel's production domain skips deployment protection; falls back to the app URL.
+export function internalBaseUrl(env: Record<string, string | undefined> = process.env): string {
+  const prod = env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (prod) return `https://${prod.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+  return (env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app").replace(/\/$/, "");
+}
+
+// Trims an error for social_content.failure_reason so the card can show why
+// an automatic image failed.
+export function imageFailureReason(message: string): string {
+  return `Automatic image failed: ${message}`.slice(0, 500);
+}
+
+// One automatic image for one opted-in post: generate, then schedule an
+// Instagram draft; on failure count the attempt and save the reason. Re-checks
+// the post first so a stale or duplicate call does nothing.
+export async function runAutoImage(
+  service: ReturnType<typeof createServiceClient>,
+  id: string
+): Promise<{ ok: boolean; skipped?: string; error?: string }> {
+  const { data: post, error } = await service
+    .from("social_content")
+    .select("id, brand_id, hook, caption, platform, status, auto_image, auto_image_attempts, image_path, video_asset_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!post) return { ok: false, skipped: "not found" };
+  if (!post.auto_image || post.image_path || post.video_asset_id || post.auto_image_attempts >= MAX_AUTO_IMAGE_ATTEMPTS) {
+    return { ok: true, skipped: "nothing to do" };
+  }
+
+  try {
+    await generateAndSavePostImage(service, post);
+    const next = statusAfterAutoImage(post.status);
+    await service
+      .from("social_content")
+      .update({ status: next, failure_reason: null, updated_at: new Date().toISOString() })
+      .eq("id", post.id)
+      .eq("status", post.status); // don't override a change made meanwhile
+    return { ok: true };
+  } catch (err) {
+    const message = (err as Error).message;
+    console.error(`[social-images] ${post.id}:`, message);
+    const { error: countError } = await service
+      .from("social_content")
+      .update({
+        ...afterFailedAutoImage(post.auto_image_attempts),
+        failure_reason: imageFailureReason(message),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+    if (countError) console.error(`[social-images] ${post.id}: attempt not recorded:`, countError.message);
+    return { ok: false, error: message };
+  }
+}
