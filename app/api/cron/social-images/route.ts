@@ -52,10 +52,11 @@ export async function GET(req: NextRequest) {
       results.push({ id: post.id, ok: true });
     } catch (err) {
       console.error(`[social-images] ${post.id}:`, (err as Error).message);
-      await service
+      const { error: countError } = await service
         .from("social_content")
         .update({ ...afterFailedAutoImage(post.auto_image_attempts), updated_at: new Date().toISOString() })
         .eq("id", post.id);
+      if (countError) console.error(`[social-images] ${post.id}: attempt not recorded:`, countError.message);
       results.push({ id: post.id, ok: false, error: (err as Error).message });
     }
   }
