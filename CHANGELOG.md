@@ -4,6 +4,7 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Social: **Import posts** on `/admin/social` — paste a campaign of finished posts (`{ brand, posts: [...] }`), preview, then import via admin-only `POST /api/social/content/import` (max 50; `?dry=1` previews). Facebook posts are scheduled; Instagram posts land as drafts on their planned time (Schedule is pre-filled) until an image is generated. New nullable `social_content.link_url` (migration `20240101000099_social_content_link_url.sql`, https only): when set, a Facebook/YouTube post's tracked short link points there instead of the brand website.
 - `vw_ai_quiz_leads` gains `last_tip_id` / `last_tip_sent_at` for revalor-products' AI quiz tips (migration `20240101000097_vw_ai_quiz_tips.sql`).
 - New table `vw_email_send_log` (main project, RLS on with no policies): one row per email sent (app, kind, is_test; no address or content). Written by revalor-products, read by revalor-admin's `/costs`. Needs migration `20240101000098_vw_email_send_log.sql`.
 - QA: new product `revalor-products` (11 tests + 4 manual checks: AI quiz, emails, tips, homepage promo). New `onDemand` flag in `qa()` skips email-sending tests in the nightly run; they run when started from /admin/qa. Needs GitHub secrets `PRODUCTS_SUPABASE_URL`, `PRODUCTS_SUPABASE_SERVICE_ROLE_KEY`, `PRODUCTS_CRON_SECRET`, `PRODUCTS_UNSUB_SECRET` (passed in `qa-run.yml`).

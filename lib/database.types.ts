@@ -1442,6 +1442,7 @@ export type Database = {
           failure_reason: string | null;
           risk_level: SocialRiskLevel | null;
           generated_by: SocialContentGeneratedBy;
+          link_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1458,6 +1459,7 @@ export type Database = {
           scheduled_at?: string | null;
           risk_level?: SocialRiskLevel | null;
           generated_by?: SocialContentGeneratedBy;
+          link_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1474,6 +1476,7 @@ export type Database = {
           failure_reason?: string | null;
           risk_level?: SocialRiskLevel | null;
           generated_by?: SocialContentGeneratedBy;
+          link_url?: string | null;
           updated_at?: string;
         };
         Relationships: [];
