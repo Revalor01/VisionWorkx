@@ -19,3 +19,10 @@ qa({ id: "visionworkx/social/images-cron-requires-secret", area: "Social", title
   const wrong = await request.get("/api/cron/social-images", { headers: { authorization: "Bearer not-the-secret" } });
   expect(wrong.status()).toBe(401);
 });
+
+qa({ id: "visionworkx/social/internal-image-requires-secret", area: "Social", title: "Internal image route needs the cron secret" }, async ({ request }) => {
+  const id = "00000000-0000-4000-8000-000000000000";
+  expect((await request.post(`/api/internal/social-image/${id}`)).status()).toBe(401);
+  const wrong = await request.post(`/api/internal/social-image/${id}`, { headers: { authorization: "Bearer not-the-secret" } });
+  expect(wrong.status()).toBe(401);
+});

@@ -593,6 +593,9 @@ function ContentCard({
       {c.hashtags.length > 0 && (
         <p className="text-xs text-slate-400 mb-3">{c.hashtags.map((h) => `#${h}`).join(" ")}</p>
       )}
+      {c.status !== "failed" && !c.image_path && c.failure_reason?.startsWith("Automatic image failed") && (
+        <p className="text-xs text-red-600 mb-2">{c.failure_reason}</p>
+      )}
       {c.status === "failed" && c.failure_reason && (
         <p className="text-xs text-red-600 mb-2">Failed: {c.failure_reason}</p>
       )}
