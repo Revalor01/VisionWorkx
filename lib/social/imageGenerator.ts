@@ -43,7 +43,7 @@ export async function generateContentImage(params: {
   const aspectRatio = ASPECT_RATIO_BY_PLATFORM[params.platform];
   const shape = SHAPE_DESCRIPTION_BY_PLATFORM[params.platform];
 
-  const prompt = `A clean, modern social media graphic promoting "${params.brandName}", a software product. ${
+  const prompt = `A clean, modern social media graphic for "${params.brandName}". ${
     params.brandVoiceNotes ? `Brand tone: ${params.brandVoiceNotes}. ` : ""
   }Visual theme: ${subject}. Style: professional, bold, high-contrast, social-media-ready ${shape} image with strong visual focus. Do not render any text, words, or letters in the image — visual only, no typography.`;
 

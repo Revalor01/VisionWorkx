@@ -10,7 +10,10 @@ type PreviewPost = {
   linkUrl: string | null;
   scheduledAt: string;
   status: "scheduled" | "draft";
+  autoImage: boolean;
 };
+
+type AutoImagesMode = "instagram" | "all" | "none";
 
 // Paste a campaign of finished posts ({ brand, posts: [...] }), check the
 // preview, then import. See lib/social/campaignImport.ts for the format.
@@ -25,6 +28,7 @@ export default function ImportPostsModal({
   const [preview, setPreview] = useState<{ brand: string; posts: PreviewPost[] } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [autoImages, setAutoImages] = useState<AutoImagesMode>("instagram");
 
   async function send(dry: boolean) {
     setErrors([]);
@@ -40,7 +44,10 @@ export default function ImportPostsModal({
       const res = await fetch(`/api/social/content/import${dry ? "?dry=1" : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed),
+        // The box's choice wins over any autoImages in the pasted file.
+        body: JSON.stringify(
+          parsed && typeof parsed === "object" && !Array.isArray(parsed) ? { ...parsed, autoImages } : parsed
+        ),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -66,8 +73,22 @@ export default function ImportPostsModal({
         <h3 className="text-lg font-bold text-[#1A3A5C] mb-1">Import posts</h3>
         <p className="text-xs text-slate-500 mb-3">
           Paste a campaign file. Facebook posts are scheduled straight away. Instagram posts arrive as drafts on their
-          planned time: generate an image for each, then click Schedule.
+          planned time and are scheduled once they have an image.
         </p>
+
+        <label className="block text-xs font-medium text-slate-500 mb-1">Generate images automatically</label>
+        <select
+          value={autoImages}
+          onChange={(e) => {
+            setAutoImages(e.target.value as AutoImagesMode);
+            setPreview(null);
+          }}
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3"
+        >
+          <option value="instagram">Instagram posts (needed to publish)</option>
+          <option value="all">Instagram and Facebook posts</option>
+          <option value="none">None — I&apos;ll click Generate image myself</option>
+        </select>
 
         {errors.length > 0 && (
           <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">
@@ -96,7 +117,10 @@ export default function ImportPostsModal({
                   <div className="flex gap-2 text-xs text-slate-500 mb-1">
                     <span className="capitalize font-medium text-[#1A3A5C]">{p.platform}</span>
                     <span>{new Date(p.scheduledAt).toLocaleString()}</span>
-                    <span>{p.status === "scheduled" ? "scheduled" : "draft — needs an image"}</span>
+                    <span>
+                      {p.status === "scheduled" ? "scheduled" : p.autoImage ? "draft — image made automatically, then scheduled" : "draft — needs an image"}
+                      {p.status === "scheduled" && p.autoImage ? " · image made automatically" : ""}
+                    </span>
                   </div>
                   <p className="text-slate-700 whitespace-pre-wrap line-clamp-3">{p.caption}</p>
                   {p.linkUrl && <p className="text-xs text-sky-700 mt-1 break-all">{p.linkUrl}</p>}

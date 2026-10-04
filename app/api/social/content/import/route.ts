@@ -7,7 +7,7 @@ import type { Database } from "@/lib/database.types";
 type ContentInsert = Database["public"]["Tables"]["social_content"]["Insert"];
 
 // Imports finished posts (e.g. the AI quiz campaign) into social_content.
-// Body: { brand, posts: [{ platform, caption, hook?, hashtags?, linkUrl?, scheduledAt }] }.
+// Body: { brand, autoImages?: "instagram" | "all" | "none", posts: [{ platform, caption, hook?, hashtags?, linkUrl?, scheduledAt }] }.
 // ?dry=1 validates and returns the preview without saving.
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   if (!brand) return NextResponse.json({ error: `No Social brand named "${result.brand}"` }, { status: 400 });
 
   if (req.nextUrl.searchParams.get("dry") === "1") {
-    return NextResponse.json({ brand: brand.name, posts: result.posts });
+    return NextResponse.json({ brand: brand.name, autoImages: result.autoImages, posts: result.posts });
   }
 
   const rows: ContentInsert[] = result.posts.map((p) => ({
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     scheduled_at: p.scheduledAt,
     status: p.status,
     generated_by: "manual",
+    auto_image: p.autoImage,
   }));
   const { data, error } = await service.from("social_content").insert(rows).select("*");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

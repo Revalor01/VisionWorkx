@@ -3,7 +3,8 @@
 // resolves the brand and inserts. Facebook posts are scheduled straight away;
 // Instagram posts land as drafts on their planned time, because Instagram
 // can't publish without an image and a failed publish pauses the brand's
-// autonomy — the operator generates the image, then clicks Schedule.
+// autonomy. With autoImages (default "instagram"), /api/cron/social-images
+// makes the image and schedules the draft; otherwise the operator does.
 
 export const MAX_IMPORT_POSTS = 50;
 const IMPORT_PLATFORMS = ["facebook", "instagram"] as const;
@@ -26,10 +27,19 @@ export interface CampaignPost {
   linkUrl: string | null;
   scheduledAt: string; // ISO
   status: "scheduled" | "draft";
+  autoImage: boolean;
+}
+
+// Which imported posts get an image made automatically by /api/cron/social-images.
+export type AutoImagesMode = "instagram" | "all" | "none";
+const AUTO_IMAGES_MODES: AutoImagesMode[] = ["instagram", "all", "none"];
+
+export function wantsAutoImage(platform: ImportPlatform, mode: AutoImagesMode): boolean {
+  return mode === "all" || (mode === "instagram" && platform === "instagram");
 }
 
 export type ValidationResult =
-  | { ok: true; brand: string; posts: CampaignPost[] }
+  | { ok: true; brand: string; autoImages: AutoImagesMode; posts: CampaignPost[] }
   | { ok: false; errors: string[] };
 
 const HASHTAG = /^[A-Za-z0-9_]{1,100}$/;
@@ -42,7 +52,9 @@ export function validateCampaign(input: unknown, now: number = Date.now()): Vali
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return { ok: false, errors: ['Expected an object like { "brand": "...", "posts": [...] }'] };
   }
-  const { brand, posts } = input as { brand?: unknown; posts?: unknown };
+  const { brand, posts, autoImages: rawMode } = input as { brand?: unknown; posts?: unknown; autoImages?: unknown };
+  const autoImages: AutoImagesMode = rawMode === undefined ? "instagram" : (rawMode as AutoImagesMode);
+  if (!AUTO_IMAGES_MODES.includes(autoImages)) errors.push('"autoImages" must be "instagram", "all" or "none"');
 
   if (typeof brand !== "string" || !brand.trim()) errors.push('"brand" (name or slug) is required');
   if (!Array.isArray(posts) || posts.length === 0) {
@@ -111,11 +123,12 @@ export function validateCampaign(input: unknown, now: number = Date.now()): Vali
       linkUrl,
       scheduledAt: Number.isNaN(at) ? "" : new Date(at).toISOString(),
       status: p === "facebook" ? "scheduled" : "draft",
+      autoImage: wantsAutoImage(p, autoImages),
     });
   });
 
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, brand: (brand as string).trim(), posts: out };
+  return { ok: true, brand: (brand as string).trim(), autoImages, posts: out };
 }
 
 function isHttpsUrl(s: string): boolean {
