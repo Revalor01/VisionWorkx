@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findBrand, validateCampaign } from "./campaignImport";
+import { findBrand, validateCampaign, wantsAutoImage } from "./campaignImport";
 
 const NOW = Date.parse("2026-10-04T12:00:00Z");
 const LATER = "2026-10-12T10:00:00-04:00";
@@ -59,6 +59,26 @@ describe("validateCampaign", () => {
     expect(validateCampaign({ posts: [fb()] }, NOW).ok).toBe(false);
     expect(validateCampaign({ brand: "x", posts: [] }, NOW).ok).toBe(false);
     expect(validateCampaign([], NOW).ok).toBe(false);
+  });
+});
+
+describe("autoImages", () => {
+  const two = { brand: "x", posts: [fb(), { platform: "instagram", caption: "c", scheduledAt: LATER }] };
+  it("defaults to Instagram only", () => {
+    const r = validateCampaign(two, NOW);
+    expect(r.ok && r.posts.map((p) => p.autoImage)).toEqual([false, true]);
+  });
+  it("honours all / none and rejects other values", () => {
+    const all = validateCampaign({ ...two, autoImages: "all" }, NOW);
+    expect(all.ok && all.posts.every((p) => p.autoImage)).toBe(true);
+    const none = validateCampaign({ ...two, autoImages: "none" }, NOW);
+    expect(none.ok && none.posts.some((p) => p.autoImage)).toBe(false);
+    expect(validateCampaign({ ...two, autoImages: "yes" }, NOW).ok).toBe(false);
+  });
+  it("wantsAutoImage matches the mode", () => {
+    expect(wantsAutoImage("facebook", "instagram")).toBe(false);
+    expect(wantsAutoImage("facebook", "all")).toBe(true);
+    expect(wantsAutoImage("instagram", "none")).toBe(false);
   });
 });
 

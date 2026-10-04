@@ -1443,6 +1443,8 @@ export type Database = {
           risk_level: SocialRiskLevel | null;
           generated_by: SocialContentGeneratedBy;
           link_url: string | null;
+          auto_image: boolean;
+          auto_image_attempts: number;
           created_at: string;
           updated_at: string;
         };
@@ -1460,6 +1462,8 @@ export type Database = {
           risk_level?: SocialRiskLevel | null;
           generated_by?: SocialContentGeneratedBy;
           link_url?: string | null;
+          auto_image?: boolean;
+          auto_image_attempts?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -1477,6 +1481,8 @@ export type Database = {
           risk_level?: SocialRiskLevel | null;
           generated_by?: SocialContentGeneratedBy;
           link_url?: string | null;
+          auto_image?: boolean;
+          auto_image_attempts?: number;
           updated_at?: string;
         };
         Relationships: [];

@@ -5,6 +5,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/cron/social-images",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/cron/blog-generate",
       "schedule": "0 13 * * 1"
     },

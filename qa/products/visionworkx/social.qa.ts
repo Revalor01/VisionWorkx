@@ -13,3 +13,9 @@ qa(
     expect((await request.post("/api/social/content/import?dry=1", { data: {} })).status()).toBe(401);
   },
 );
+
+qa({ id: "visionworkx/social/images-cron-requires-secret", area: "Social", title: "Automatic image job needs the cron secret" }, async ({ request }) => {
+  expect((await request.get("/api/cron/social-images")).status()).toBe(401);
+  const wrong = await request.get("/api/cron/social-images", { headers: { authorization: "Bearer not-the-secret" } });
+  expect(wrong.status()).toBe(401);
+});
