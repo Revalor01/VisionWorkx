@@ -11,6 +11,9 @@ import { api, Badge, BTN, CARD, Stat, useToast, type Tone } from "./ui";
 // to show on the client proposal (only when the check belongs to an assessment).
 
 const SEV_TONE: Record<string, Tone> = { high: "bad", medium: "warn", low: "plain" };
+// VisionWorkx-module install compatibility (operator-only), by verdict.
+const MODULES_TONE: Record<string, string> = { yes: "text-green-700", caveat: "text-amber-700", limited: "text-orange-700", unknown: "text-zinc-600" };
+const MODULES_ICON: Record<string, string> = { yes: "✅", caveat: "⚠️", limited: "🟠", unknown: "❓" };
 const scoreTone = (n: number | null) => (n === null ? "" : n >= 90 ? "!text-emerald-700" : n >= 50 ? "!text-amber-700" : "!text-red-700");
 
 export function SiteReportView({
@@ -67,6 +70,12 @@ export function SiteReportView({
               {r.hosting && <> · Hosted on <strong>{r.hosting}</strong></>}
               {r.frameworks && r.frameworks.length > 0 && <> · Framework <strong>{r.frameworks.join(" · ")}</strong></>}
             </p>
+            {r.modulesInstall && (
+              <p className={`mt-1 text-sm font-medium ${MODULES_TONE[r.modulesInstall.verdict] ?? "text-zinc-600"}`}>
+                {MODULES_ICON[r.modulesInstall.verdict] ?? ""} VisionWorkx modules: <strong>{r.modulesInstall.label}</strong>
+                <span className="font-normal text-zinc-500"> — {r.modulesInstall.note}</span>
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {r.tools.map((t) => (

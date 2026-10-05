@@ -60,7 +60,10 @@ time. It then reports:
   inferred from a curated allow-list of infra response headers; any front-end
   frameworks it can fingerprint (best-effort — Next.js, Nuxt, SvelteKit, Astro,
   Remix, Gatsby, Angular, Vue, Svelte, React, jQuery; can list more than one);
-  plus the third-party tools it spotted;
+  whether a **VisionWorkx module can be installed** on the site (operator-only:
+  ✅ yes / ⚠️ caveat e.g. Squarespace Business plan / 🟠 limited e.g. Wix, Google
+  Sites iframe-only / ❓ unknown — inferred from the platform, since install is a
+  one-line `<script>` embed); plus the third-party tools it spotted;
 - what the site can do: contact form, online booking, pricing or instant quote,
   reviews, live chat, email signup, analytics, tap-to-call, social links;
 - problems, ranked high / medium / low (no HTTPS, not set up for phones, no

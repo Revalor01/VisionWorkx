@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageSpeedIssues, parsePageSpeed } from "./pagespeed";
-import { analyzeSite, applyPrefill, detectFrameworks, detectHosting, generatorMeta, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
+import { analyzeSite, applyPrefill, assessModulesInstall, detectFrameworks, detectHosting, generatorMeta, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
 import { proposalFindings, pickProposalCheck } from "./siteChecks";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
@@ -114,6 +114,35 @@ describe("platform detection", () => {
 
   it("is null for a hand-coded site with no markers", () => {
     expect(analyzeSite("x", [page(`<html><body><h1>Hand coded</h1></body></html>`)]).platform).toBeNull();
+  });
+});
+
+describe("assessModulesInstall", () => {
+  it("is yes for builders/CMSes that allow custom HTML", () => {
+    expect(assessModulesInstall("WordPress").verdict).toBe("yes");
+    expect(assessModulesInstall("Shopify").verdict).toBe("yes");
+    expect(assessModulesInstall("Webflow").verdict).toBe("yes");
+  });
+
+  it("is yes when a framework is detected even if the platform is unknown", () => {
+    expect(assessModulesInstall(null, ["Next.js"]).verdict).toBe("yes");
+  });
+
+  it("flags Squarespace/Carrd as a caveat and Wix/GoDaddy/Google Sites as limited", () => {
+    expect(assessModulesInstall("Squarespace").verdict).toBe("caveat");
+    expect(assessModulesInstall("Carrd").verdict).toBe("caveat");
+    expect(assessModulesInstall("Wix").verdict).toBe("limited");
+    expect(assessModulesInstall("GoDaddy builder").verdict).toBe("limited");
+    expect(assessModulesInstall("Google Sites").verdict).toBe("limited");
+  });
+
+  it("keeps builder restrictions even when a framework is also detected (Wix is React under the hood)", () => {
+    expect(assessModulesInstall("Wix", ["React"]).verdict).toBe("limited");
+  });
+
+  it("is unknown when nothing is recognised, and surfaces on the report", () => {
+    expect(assessModulesInstall(null, []).verdict).toBe("unknown");
+    expect(analyzeSite("x", [page("<html><body>hi</body></html>")]).modulesInstall.verdict).toBe("unknown");
   });
 });
 

@@ -50,6 +50,7 @@ export interface SiteReport {
   platform: string | null;
   hosting: string | null;
   frameworks: string[];
+  modulesInstall: ModulesInstall;
   tools: string[];
   capabilities: Capability[];
   issues: SiteIssue[];
@@ -162,6 +163,51 @@ export function detectFrameworks(html: string): string[] {
   const out: string[] = [];
   for (const [name, re] of FRAMEWORKS) if (re.test(html)) out.push(name);
   return out;
+}
+
+// Can a VisionWorkx embeddable module (a one-line <script> from
+// modules.revalorllc.com) be installed on this site? It comes down to whether
+// the platform lets you add custom HTML/JS. Frameworks and hand-coded sites
+// always can; no-code builders vary. Operator-facing on the website check.
+export type ModulesInstallVerdict = "yes" | "caveat" | "limited" | "unknown";
+export interface ModulesInstall {
+  verdict: ModulesInstallVerdict;
+  label: string;
+  note: string;
+}
+
+const MODULES_YES = new Set([
+  "WordPress", "Webflow", "Shopify", "Weebly", "Duda", "HubSpot CMS", "Ghost",
+  "Joomla", "Drupal", "Framer", "Gatsby", "Next.js", "Hugo", "Jekyll",
+]);
+const MODULES_CAVEAT: Record<string, string> = {
+  Squarespace: "Needs a Business plan or higher (Code Injection / an Embed block) — the Personal plan can't inject code.",
+  Carrd: "Add it with an Embed element (Carrd Pro).",
+};
+const MODULES_LIMITED: Record<string, string> = {
+  Wix: "Only via Wix's Embed / Custom Element, which runs in a sandboxed iframe — the module works as a self-contained widget but can't be placed inline or as floating UI.",
+  "GoDaddy builder": "Custom-HTML section only on higher tiers, and placement is restricted.",
+  "Google Sites": "Only Google Sites' iframe Embed — no custom page JavaScript, so the module shows boxed, not inline.",
+};
+const MODULES_YES_NOTE = "Add the one-line embed <script> via a Custom HTML / Embed block or the site footer.";
+
+/**
+ * Whether a VisionWorkx module can be installed on the checked site, from its
+ * platform (and detected frameworks). Builder restrictions are checked before
+ * the "yes" cases, since e.g. Wix sites are React under the hood but still
+ * sandbox embeds.
+ */
+export function assessModulesInstall(platform: string | null, frameworks: string[] = []): ModulesInstall {
+  if (platform && platform in MODULES_LIMITED) return { verdict: "limited", label: "Limited", note: MODULES_LIMITED[platform] };
+  if (platform && platform in MODULES_CAVEAT) return { verdict: "caveat", label: "Yes, with a caveat", note: MODULES_CAVEAT[platform] };
+  if ((platform && MODULES_YES.has(platform)) || frameworks.length > 0) return { verdict: "yes", label: "Can be installed", note: MODULES_YES_NOTE };
+  return {
+    verdict: "unknown",
+    label: "Likely — needs a quick check",
+    note: platform
+      ? `Should work on any site where you can add a <script> tag; confirm how custom HTML is added on ${platform}.`
+      : "Should work on any site where you can add a <script> tag; confirm with the owner or their developer.",
+  };
 }
 
 const FORM_EMBEDS: Sig[] = [
@@ -386,6 +432,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
   const platform = PLATFORMS.find(([, re]) => re.test(all))?.[0] ?? generatorMeta(all);
   const hosting = detectHosting(home?.headers);
   const frameworks = detectFrameworks(all);
+  const modulesInstall = assessModulesInstall(platform, frameworks);
 
   const forms = pages.map((p) => leadForms(p.html));
   const formCount = forms.reduce((n, f) => n + f.count, 0);
@@ -504,6 +551,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
     platform,
     hosting,
     frameworks,
+    modulesInstall,
     tools: [...new Set([...formEmbeds, ...booking, ...reviews, ...chat, ...email, ...analytics])],
     capabilities,
     issues: issues.sort((a, b) => ORDER[a.severity] - ORDER[b.severity]),
