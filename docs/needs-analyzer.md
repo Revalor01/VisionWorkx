@@ -51,8 +51,14 @@ booking, pricing, services, about) — up to `MAX_EXTRA_PAGES` pages (default 12
 tunable via `NEEDS_ANALYZER_MAX_PAGES`, hard-capped at 20), fetched a few at a
 time. It then reports:
 
-- the platform (WordPress, Squarespace, Wix, Webflow, Shopify, GoDaddy, Framer)
-  and the third-party tools it spotted;
+- the platform / what built the site — WordPress, Squarespace, Wix, Webflow,
+  Shopify, GoDaddy, Framer, Weebly, Duda, HubSpot, Ghost, Joomla, Drupal, Carrd,
+  Google Sites, Gatsby, Next.js, Hugo, Jekyll — and, when none of those is
+  fingerprinted, whatever the page's own `<meta name="generator">` declares
+  (otherwise "unknown / custom"); where it's hosted/served (Cloudflare, Vercel,
+  Netlify, AWS CloudFront, Fastly, GitHub Pages, Azure, or the web server),
+  inferred from a curated allow-list of infra response headers; plus the
+  third-party tools it spotted;
 - what the site can do: contact form, online booking, pricing or instant quote,
   reviews, live chat, email signup, analytics, tap-to-call, social links;
 - problems, ranked high / medium / low (no HTTPS, not set up for phones, no

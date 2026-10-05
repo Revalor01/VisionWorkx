@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageSpeedIssues, parsePageSpeed } from "./pagespeed";
-import { analyzeSite, applyPrefill, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
+import { analyzeSite, applyPrefill, detectHosting, generatorMeta, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
 import { proposalFindings, pickProposalCheck } from "./siteChecks";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
@@ -88,6 +88,54 @@ describe("interestingLinks", () => {
     const html = `<a href="/contact-us">Contact</a><a href="/pricing">Prices</a><a href="https://other.example/book">Book</a>
       <a href="/blog/post">Blog</a><a href="/files/menu.pdf">Services PDF</a><a href="/contact-us#form">Contact again</a><a href="/about">About us</a>`;
     expect(interestingLinks(html, "https://example.com/")).toEqual(["https://example.com/contact-us", "https://example.com/pricing", "https://example.com/about"]);
+  });
+});
+
+describe("platform detection", () => {
+  it("fingerprints newer builders / CMSes", () => {
+    const drupal = `<html><head><meta name="generator" content="Drupal 10 (https://www.drupal.org)"></head><body>hi</body></html>`;
+    expect(analyzeSite("x", [page(drupal)]).platform).toBe("Drupal");
+    const hubspot = `<html><body><script src="https://js.hs-scripts.com/123.js"></script></body></html>`;
+    expect(analyzeSite("x", [page(hubspot)]).platform).toBe("HubSpot CMS");
+    const weebly = `<html><body><link href="https://cdn2.editmysite.com/x.css"></body></html>`;
+    expect(analyzeSite("x", [page(weebly)]).platform).toBe("Weebly");
+  });
+
+  it("falls back to the <meta generator> value when no known platform matches", () => {
+    const html = `<html><head><meta name="generator" content="ProphetCMS 4.2"></head><body>hi</body></html>`;
+    expect(analyzeSite("x", [page(html)]).platform).toBe("ProphetCMS 4.2");
+  });
+
+  it("generatorMeta reads the value regardless of attribute order, strips a trailing URL, caps length, null when absent", () => {
+    expect(generatorMeta(`<meta content="Joomla! - Open Source CMS (https://joomla.org)" name="generator">`)).toBe("Joomla! - Open Source CMS");
+    expect(generatorMeta(`<html><body>no meta</body></html>`)).toBeNull();
+    expect(generatorMeta(`<meta name="generator" content="${"A".repeat(100)}">`)).toHaveLength(60);
+  });
+
+  it("is null for a hand-coded site with no markers", () => {
+    expect(analyzeSite("x", [page(`<html><body><h1>Hand coded</h1></body></html>`)]).platform).toBeNull();
+  });
+});
+
+describe("detectHosting", () => {
+  it("names the CDN/edge from infra response headers", () => {
+    expect(detectHosting({ "cf-ray": "abc123" })).toBe("Cloudflare");
+    expect(detectHosting({ "x-vercel-id": "iad1::abc" })).toBe("Vercel");
+    expect(detectHosting({ "x-nf-request-id": "abc" })).toBe("Netlify");
+    expect(detectHosting({ "x-amz-cf-id": "abc" })).toBe("AWS CloudFront");
+    expect(detectHosting({ "x-github-request-id": "abc" })).toBe("GitHub Pages");
+  });
+
+  it("falls back to the web server, and is null when nothing is recognisable", () => {
+    expect(detectHosting({ server: "nginx/1.25.3" })).toBe("Nginx");
+    expect(detectHosting({ server: "Apache" })).toBe("Apache");
+    expect(detectHosting({})).toBeNull();
+    expect(detectHosting({ server: "SomethingWeird/9" })).toBeNull();
+  });
+
+  it("surfaces on the report from the home page's headers", () => {
+    const r = analyzeSite("x", [page("<html><body>hi</body></html>", { headers: { "cf-ray": "1" } })]);
+    expect(r.hosting).toBe("Cloudflare");
   });
 });
 

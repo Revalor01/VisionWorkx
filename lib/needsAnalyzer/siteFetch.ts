@@ -109,6 +109,24 @@ export interface FetchedPage {
   html: string; // empty for non-HTML responses
   truncated: boolean;
   redirects: string[];
+  // Curated infra response headers for hosting/CDN detection (siteDetect.detectHosting).
+  headers: Record<string, string>;
+}
+
+// A deliberate allow-list, so we never persist cookies or other sensitive
+// response headers into the saved check — only infra/CDN hints.
+const HOSTING_HEADER_KEYS = [
+  "server", "via", "x-powered-by", "x-vercel-id", "x-vercel-cache", "cf-ray",
+  "cf-cache-status", "x-served-by", "x-cache", "x-amz-cf-id", "x-amz-cf-pop",
+  "x-github-request-id", "x-nf-request-id", "x-fastly-request-id", "x-azure-ref",
+];
+function hostingHeaders(res: Response): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of HOSTING_HEADER_KEYS) {
+    const v = res.headers.get(k);
+    if (v) out[k] = v.slice(0, 200);
+  }
+  return out;
 }
 
 async function readCapped(res: Response): Promise<{ text: string; truncated: boolean }> {
@@ -163,6 +181,6 @@ export async function fetchPage(start: URL): Promise<FetchedPage> {
     const isHtml = /html|xml/i.test(contentType) || !contentType;
     const { text, truncated } = isHtml ? await readCapped(res) : { text: "", truncated: false };
     if (!isHtml) await res.body?.cancel().catch(() => {});
-    return { url: start.href, finalUrl: url.href, status: res.status, ms: Date.now() - t0, contentType, html: text, truncated, redirects };
+    return { url: start.href, finalUrl: url.href, status: res.status, ms: Date.now() - t0, contentType, html: text, truncated, redirects, headers: hostingHeaders(res) };
   }
 }
