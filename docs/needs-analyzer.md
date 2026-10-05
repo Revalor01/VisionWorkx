@@ -46,8 +46,10 @@ It's remembered per browser.
 
 **Website check** in the Needs Analyzer nav (`/admin/needs-analyzer/website`,
 hidden in Client mode). Enter a business's address and it reads the home page
-plus up to 5 same-site pages whose links look useful (contact, booking, pricing,
-services, about), then reports:
+plus the site's navigation "tabs" and other useful same-site links (contact,
+booking, pricing, services, about) — up to `MAX_EXTRA_PAGES` pages (default 12,
+tunable via `NEEDS_ANALYZER_MAX_PAGES`, hard-capped at 20), fetched a few at a
+time. It then reports:
 
 - the platform (WordPress, Squarespace, Wix, Webflow, Shopify, GoDaddy, Framer)
   and the third-party tools it spotted;
