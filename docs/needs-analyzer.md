@@ -53,7 +53,10 @@ services, about), then reports:
   Shopify, GoDaddy, Framer, Weebly, Duda, HubSpot, Ghost, Joomla, Drupal, Carrd,
   Google Sites, Gatsby, Next.js, Hugo, Jekyll — and, when none of those is
   fingerprinted, whatever the page's own `<meta name="generator">` declares
-  (otherwise "unknown / custom") — plus the third-party tools it spotted;
+  (otherwise "unknown / custom"); where it's hosted/served (Cloudflare, Vercel,
+  Netlify, AWS CloudFront, Fastly, GitHub Pages, Azure, or the web server),
+  inferred from a curated allow-list of infra response headers; plus the
+  third-party tools it spotted;
 - what the site can do: contact form, online booking, pricing or instant quote,
   reviews, live chat, email signup, analytics, tap-to-call, social links;
 - problems, ranked high / medium / low (no HTTPS, not set up for phones, no

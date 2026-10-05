@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageSpeedIssues, parsePageSpeed } from "./pagespeed";
-import { analyzeSite, applyPrefill, generatorMeta, interestingLinks, type PageInput } from "./siteDetect";
+import { analyzeSite, applyPrefill, detectHosting, generatorMeta, interestingLinks, type PageInput } from "./siteDetect";
 import { proposalFindings, pickProposalCheck } from "./siteChecks";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
@@ -114,6 +114,28 @@ describe("platform detection", () => {
 
   it("is null for a hand-coded site with no markers", () => {
     expect(analyzeSite("x", [page(`<html><body><h1>Hand coded</h1></body></html>`)]).platform).toBeNull();
+  });
+});
+
+describe("detectHosting", () => {
+  it("names the CDN/edge from infra response headers", () => {
+    expect(detectHosting({ "cf-ray": "abc123" })).toBe("Cloudflare");
+    expect(detectHosting({ "x-vercel-id": "iad1::abc" })).toBe("Vercel");
+    expect(detectHosting({ "x-nf-request-id": "abc" })).toBe("Netlify");
+    expect(detectHosting({ "x-amz-cf-id": "abc" })).toBe("AWS CloudFront");
+    expect(detectHosting({ "x-github-request-id": "abc" })).toBe("GitHub Pages");
+  });
+
+  it("falls back to the web server, and is null when nothing is recognisable", () => {
+    expect(detectHosting({ server: "nginx/1.25.3" })).toBe("Nginx");
+    expect(detectHosting({ server: "Apache" })).toBe("Apache");
+    expect(detectHosting({})).toBeNull();
+    expect(detectHosting({ server: "SomethingWeird/9" })).toBeNull();
+  });
+
+  it("surfaces on the report from the home page's headers", () => {
+    const r = analyzeSite("x", [page("<html><body>hi</body></html>", { headers: { "cf-ray": "1" } })]);
+    expect(r.hosting).toBe("Cloudflare");
   });
 });
 

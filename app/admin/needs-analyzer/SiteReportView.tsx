@@ -64,6 +64,7 @@ export function SiteReportView({
             </h2>
             <p className="text-sm text-zinc-500">
               Checked {fmtDate(check.createdAt)} · {r.pages.length} page{r.pages.length === 1 ? "" : "s"} read · Built on <strong>{r.platform ?? "unknown / custom"}</strong>
+              {r.hosting && <> · Hosted on <strong>{r.hosting}</strong></>}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">

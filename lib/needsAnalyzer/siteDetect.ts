@@ -14,6 +14,9 @@ export interface PageInput {
   ms: number;
   html: string;
   truncated: boolean;
+  // Curated infra response headers (see siteFetch). Optional so test fixtures
+  // and older callers don't have to supply them.
+  headers?: Record<string, string>;
 }
 
 export type Severity = "high" | "medium" | "low";
@@ -45,6 +48,7 @@ export interface SiteReport {
   checkedAt: string;
   pages: { url: string; status: number; ms: number }[];
   platform: string | null;
+  hosting: string | null;
   tools: string[];
   capabilities: Capability[];
   issues: SiteIssue[];
@@ -101,6 +105,38 @@ export function generatorMeta(html: string): string | null {
     .trim()
     .slice(0, 60);
   return clean || null;
+}
+
+/**
+ * Where the site is served from, inferred from the curated infra response
+ * headers (siteFetch.FetchedPage.headers). CDN/edge first (what the visitor
+ * actually hits), then a fallback to the raw Server header's product name. A
+ * best-effort hint, null when nothing recognisable is present.
+ */
+export function detectHosting(headers: Record<string, string> = {}): string | null {
+  const h = (k: string) => (headers[k] ?? "").toLowerCase();
+  const has = (k: string) => k in headers;
+  const server = h("server");
+  const via = h("via");
+
+  if (has("cf-ray") || server.includes("cloudflare")) return "Cloudflare";
+  if (has("x-vercel-id") || has("x-vercel-cache") || server.includes("vercel")) return "Vercel";
+  if (has("x-nf-request-id") || server.includes("netlify")) return "Netlify";
+  if (has("x-amz-cf-id") || via.includes("cloudfront")) return "AWS CloudFront";
+  if (has("x-fastly-request-id") || (has("x-served-by") && h("x-served-by").includes("cache") && (via.includes("varnish") || has("x-cache")))) return "Fastly";
+  if (has("x-github-request-id") || server.includes("github.com")) return "GitHub Pages";
+  if (has("x-azure-ref") || server.includes("windows-azure") || server.includes("microsoft-iis")) return "Microsoft Azure / IIS";
+  if (server.includes("amazons3")) return "Amazon S3";
+  if (server.includes("gse")) return "Google";
+
+  // Fallback: the web-server product from the Server header (nginx, Apache, …).
+  if (server) {
+    const name = server.split("/")[0].trim();
+    for (const known of ["nginx", "apache", "litespeed", "openresty", "caddy"]) {
+      if (name.includes(known)) return known.charAt(0).toUpperCase() + known.slice(1);
+    }
+  }
+  return null;
 }
 
 const FORM_EMBEDS: Sig[] = [
@@ -279,6 +315,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
   const text = pages.map((p) => visibleText(p.html)).join("\n\n");
 
   const platform = PLATFORMS.find(([, re]) => re.test(all))?.[0] ?? generatorMeta(all);
+  const hosting = detectHosting(home?.headers);
 
   const forms = pages.map((p) => leadForms(p.html));
   const formCount = forms.reduce((n, f) => n + f.count, 0);
@@ -395,6 +432,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
     checkedAt: now.toISOString(),
     pages: pages.map((p) => ({ url: p.finalUrl, status: p.status, ms: p.ms })),
     platform,
+    hosting,
     tools: [...new Set([...formEmbeds, ...booking, ...reviews, ...chat, ...email, ...analytics])],
     capabilities,
     issues: issues.sort((a, b) => ORDER[a.severity] - ORDER[b.severity]),
