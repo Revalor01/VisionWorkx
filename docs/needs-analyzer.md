@@ -49,8 +49,11 @@ hidden in Client mode). Enter a business's address and it reads the home page
 plus up to 5 same-site pages whose links look useful (contact, booking, pricing,
 services, about), then reports:
 
-- the platform (WordPress, Squarespace, Wix, Webflow, Shopify, GoDaddy, Framer)
-  and the third-party tools it spotted;
+- the platform / what built the site — WordPress, Squarespace, Wix, Webflow,
+  Shopify, GoDaddy, Framer, Weebly, Duda, HubSpot, Ghost, Joomla, Drupal, Carrd,
+  Google Sites, Gatsby, Next.js, Hugo, Jekyll — and, when none of those is
+  fingerprinted, whatever the page's own `<meta name="generator">` declares
+  (otherwise "unknown / custom") — plus the third-party tools it spotted;
 - what the site can do: contact form, online booking, pricing or instant quote,
   reviews, live chat, email signup, analytics, tap-to-call, social links;
 - problems, ranked high / medium / low (no HTTPS, not set up for phones, no

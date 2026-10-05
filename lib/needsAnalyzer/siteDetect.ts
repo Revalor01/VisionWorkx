@@ -58,6 +58,10 @@ export interface SiteReport {
 
 type Sig = [name: string, re: RegExp];
 
+// Order matters: specific site builders / CMSes first, then general
+// frameworks, so e.g. a WordPress site on a Next.js front end still reads as
+// WordPress. Anything not matched here falls back to the page's own
+// <meta name="generator"> value (see generatorMeta), then "unknown / custom".
 const PLATFORMS: [option: string, re: RegExp][] = [
   ["WordPress", /wp-content\/|wp-includes\/|<meta[^>]+generator[^>]+wordpress/i],
   ["Squarespace", /static1\.squarespace\.com|squarespace-cdn\.com|<meta[^>]+generator[^>]+squarespace/i],
@@ -66,7 +70,38 @@ const PLATFORMS: [option: string, re: RegExp][] = [
   ["Shopify", /cdn\.shopify\.com|shopify\.theme|myshopify\.com/i],
   ["GoDaddy builder", /img1\.wsimg\.com|<meta[^>]+generator[^>]+(godaddy|starfield)/i],
   ["Framer", /framerusercontent\.com|<meta[^>]+generator[^>]+framer/i],
+  ["Weebly", /editmysite\.com|weeblysite\.com|<meta[^>]+generator[^>]+weebly/i],
+  ["Duda", /\.multiscreensite\.com|irp-cdn\.multiscreensite|<meta[^>]+generator[^>]+duda/i],
+  ["HubSpot CMS", /\.hs-sites\.com|hubspotusercontent|hs-scripts\.com|<meta[^>]+generator[^>]+hubspot/i],
+  ["Ghost", /<meta[^>]+generator[^>]+ghost/i],
+  ["Joomla", /<meta[^>]+generator[^>]+joomla|\/media\/jui\/|option=com_/i],
+  ["Drupal", /<meta[^>]+generator[^>]+drupal|drupal-settings-json|data-drupal-|\/sites\/(all|default)\/files\//i],
+  ["Carrd", /\.carrd\.co|<meta[^>]+generator[^>]+carrd/i],
+  ["Google Sites", /sites\.google\.com\/(view|site)\/|gstatic\.com\/_\/atari/i],
+  ["Gatsby", /id=["']___gatsby|<meta[^>]+generator[^>]+gatsby/i],
+  ["Next.js", /\/_next\/static\/|<meta[^>]+generator[^>]+next\.js/i],
+  ["Hugo", /<meta[^>]+generator[^>]+hugo/i],
+  ["Jekyll", /<meta[^>]+generator[^>]+jekyll/i],
 ];
+
+/**
+ * The page's declared <meta name="generator"> value (e.g. "Drupal 10",
+ * "Joomla! - Open Source Content Management", "Hugo 0.120"), cleaned up and
+ * capped. Used as a fallback when no known platform above is fingerprinted, so
+ * "unknown / custom" sites still report whatever built them when they say so.
+ */
+export function generatorMeta(html: string): string | null {
+  const tag = /<meta\b[^>]*\bname=["']generator["'][^>]*>/i.exec(html)?.[0];
+  if (!tag) return null;
+  const content = /\bcontent=["']([^"']+)["']/i.exec(tag)?.[1];
+  if (!content) return null;
+  const clean = content
+    .replace(/\s*\(https?:\/\/[^)]*\)\s*$/i, "") // drop a trailing "(https://…)"
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+  return clean || null;
+}
 
 const FORM_EMBEDS: Sig[] = [
   ["Typeform", /typeform\.com/i],
@@ -243,7 +278,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
   const homeHtml = home?.html ?? "";
   const text = pages.map((p) => visibleText(p.html)).join("\n\n");
 
-  const platform = PLATFORMS.find(([, re]) => re.test(all))?.[0] ?? null;
+  const platform = PLATFORMS.find(([, re]) => re.test(all))?.[0] ?? generatorMeta(all);
 
   const forms = pages.map((p) => leadForms(p.html));
   const formCount = forms.reduce((n, f) => n + f.count, 0);
