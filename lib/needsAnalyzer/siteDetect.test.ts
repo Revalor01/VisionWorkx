@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageSpeedIssues, parsePageSpeed } from "./pagespeed";
-import { analyzeSite, applyPrefill, detectHosting, generatorMeta, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
+import { analyzeSite, applyPrefill, detectFrameworks, detectHosting, generatorMeta, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
 import { proposalFindings, pickProposalCheck } from "./siteChecks";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
@@ -114,6 +114,27 @@ describe("platform detection", () => {
 
   it("is null for a hand-coded site with no markers", () => {
     expect(analyzeSite("x", [page(`<html><body><h1>Hand coded</h1></body></html>`)]).platform).toBeNull();
+  });
+});
+
+describe("detectFrameworks", () => {
+  it("fingerprints front-end frameworks from the HTML", () => {
+    expect(detectFrameworks(`<script id="__NEXT_DATA__" type="application/json">{}</script>`)).toEqual(["Next.js"]);
+    expect(detectFrameworks(`<div id="__nuxt"></div>`)).toEqual(["Nuxt"]);
+    expect(detectFrameworks(`<app-root ng-version="17.0.1"></app-root>`)).toEqual(["Angular"]);
+    expect(detectFrameworks(`<div data-server-rendered="true"></div>`)).toEqual(["Vue.js"]);
+    expect(detectFrameworks(`<div data-reactroot></div>`)).toEqual(["React"]);
+    expect(detectFrameworks(`<script src="/assets/jquery-3.6.0.min.js"></script>`)).toEqual(["jQuery"]);
+  });
+
+  it("can report more than one, in priority order, and none for plain HTML", () => {
+    const html = `<div id="__nuxt"></div><script src="/js/jquery.js"></script>`;
+    expect(detectFrameworks(html)).toEqual(["Nuxt", "jQuery"]);
+    expect(detectFrameworks(`<html><body><h1>Plain</h1></body></html>`)).toEqual([]);
+  });
+
+  it("surfaces on the report", () => {
+    expect(analyzeSite("x", [page(`<script id="__NEXT_DATA__">{}</script>`)]).frameworks).toEqual(["Next.js"]);
   });
 });
 
