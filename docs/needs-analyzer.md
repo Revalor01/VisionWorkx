@@ -57,8 +57,10 @@ time. It then reports:
   fingerprinted, whatever the page's own `<meta name="generator">` declares
   (otherwise "unknown / custom"); where it's hosted/served (Cloudflare, Vercel,
   Netlify, AWS CloudFront, Fastly, GitHub Pages, Azure, or the web server),
-  inferred from a curated allow-list of infra response headers; plus the
-  third-party tools it spotted;
+  inferred from a curated allow-list of infra response headers; any front-end
+  frameworks it can fingerprint (best-effort — Next.js, Nuxt, SvelteKit, Astro,
+  Remix, Gatsby, Angular, Vue, Svelte, React, jQuery; can list more than one);
+  plus the third-party tools it spotted;
 - what the site can do: contact form, online booking, pricing or instant quote,
   reviews, live chat, email signup, analytics, tap-to-call, social links;
 - problems, ranked high / medium / low (no HTTPS, not set up for phones, no

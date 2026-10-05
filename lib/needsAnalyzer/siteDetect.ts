@@ -49,6 +49,7 @@ export interface SiteReport {
   pages: { url: string; status: number; ms: number }[];
   platform: string | null;
   hosting: string | null;
+  frameworks: string[];
   tools: string[];
   capabilities: Capability[];
   issues: SiteIssue[];
@@ -137,6 +138,30 @@ export function detectHosting(headers: Record<string, string> = {}): string | nu
     }
   }
   return null;
+}
+
+// Front-end frameworks, best-effort from the static HTML (bundlers/minifiers
+// can strip these markers, so this misses more than the platform/host checks).
+// Meta-frameworks first; a site can legitimately match several.
+const FRAMEWORKS: Sig[] = [
+  ["Next.js", /__NEXT_DATA__|\/_next\/(static|data|image)/i],
+  ["Nuxt", /id=["']__nuxt["']|window\.__NUXT__|\/_nuxt\//i],
+  ["SvelteKit", /\/_app\/immutable\/|__sveltekit_/i],
+  ["Astro", /data-astro-(?:cid|source)|astro-island/i],
+  ["Remix", /__remixContext|window\.__remixManifest/i],
+  ["Gatsby", /id=["']___gatsby["']|\/page-data\/[^"']*page-data\.json/i],
+  ["Angular", /ng-version=|_nghost-|_ngcontent-/i],
+  ["Vue.js", /data-server-rendered=["']true|data-v-app|window\.__VUE__|data-v-[0-9a-f]{8}/i],
+  ["Svelte", /class=["'][^"']*\bsvelte-[a-z0-9]{4,}\b|data-svelte-h=/i],
+  ["React", /data-reactroot|data-reactid/i],
+  ["jQuery", /\/jquery[-.][\d.]+(?:\.min)?\.js|\/jquery\.js/i],
+];
+
+/** Front-end frameworks fingerprinted in the HTML, in priority order. Best-effort. */
+export function detectFrameworks(html: string): string[] {
+  const out: string[] = [];
+  for (const [name, re] of FRAMEWORKS) if (re.test(html)) out.push(name);
+  return out;
 }
 
 const FORM_EMBEDS: Sig[] = [
@@ -360,6 +385,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
 
   const platform = PLATFORMS.find(([, re]) => re.test(all))?.[0] ?? generatorMeta(all);
   const hosting = detectHosting(home?.headers);
+  const frameworks = detectFrameworks(all);
 
   const forms = pages.map((p) => leadForms(p.html));
   const formCount = forms.reduce((n, f) => n + f.count, 0);
@@ -477,6 +503,7 @@ export function analyzeSite(inputUrl: string, pages: PageInput[], now = new Date
     pages: pages.map((p) => ({ url: p.finalUrl, status: p.status, ms: p.ms })),
     platform,
     hosting,
+    frameworks,
     tools: [...new Set([...formEmbeds, ...booking, ...reviews, ...chat, ...email, ...analytics])],
     capabilities,
     issues: issues.sort((a, b) => ORDER[a.severity] - ORDER[b.severity]),
