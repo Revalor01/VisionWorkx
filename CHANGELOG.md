@@ -4,6 +4,8 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Needs Analyzer website check now shows (operator-only) whether a **VisionWorkx module can be installed** on the assessed site — ✅ yes / ⚠️ caveat (e.g. Squarespace needs a Business plan, Carrd Pro) / 🟠 limited (Wix, GoDaddy, Google Sites — sandboxed iframe embeds only) / ❓ unknown — since install is a one-line `<script>` embed and it comes down to whether the platform allows custom HTML/JS (any detected framework or hand-coded site ⇒ yes). New `assessModulesInstall()` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested. Not shown on the client proposal.
+
 - Needs Analyzer website check now also fingerprints the **front-end framework** ("Framework …", can list several, e.g. "Next.js"): Next.js, Nuxt, SvelteKit, Astro, Remix, Gatsby, Angular, Vue, Svelte, React, jQuery. Best-effort from the static HTML (bundlers can strip the markers), shown next to "Built on"/"Hosted on". New `detectFrameworks()` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested.
 
 - Needs Analyzer **website check** now reads the site's navigation "tabs" (every primary page linked from the header/`<nav>`, keyword or not) in addition to keyword-matched links, up to `MAX_EXTRA_PAGES` pages (default 12, overridable via `NEEDS_ANALYZER_MAX_PAGES`, hard-capped at 20), fetched in small concurrency-limited batches. Previously it only followed up to 5 keyword-matched links, so sites whose tabs aren't keyword-named (Menu, Gallery, Team, FAQ…) were effectively analyzed home-page-only. Same-origin + SSRF safety unchanged (every page still goes through the per-hop-checked fetcher); scoring still prefill-only. New `pagesToCrawl`/`navRegions` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested.
