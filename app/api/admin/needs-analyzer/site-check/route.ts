@@ -9,7 +9,7 @@ import { readJson } from "@/lib/needsAnalyzer/validate";
 // Operator-only: check a website and save the result (optionally linked to an assessment).
 // Body: { url, assessmentId? }. The fetcher refuses private/internal addresses.
 export const runtime = "nodejs";
-export const maxDuration = 60; // home page + up to 5 pages, PageSpeed in parallel
+export const maxDuration = 60; // home page + nav tabs/linked pages (MAX_EXTRA_PAGES), PageSpeed in parallel
 
 export async function POST(req: NextRequest) {
   if (!(await isOperator())) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
