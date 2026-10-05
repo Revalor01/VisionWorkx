@@ -277,17 +277,26 @@ function leadForms(html: string): { count: number; insecureAction: boolean } {
   return { count, insecureAction };
 }
 
-/** Same-site links worth following for the check (contact, booking, pricing, services, about). */
-export function interestingLinks(html: string, base: string, max = 5): string[] {
-  const baseUrl = new URL(base);
-  const out: string[] = [];
-  const seen = new Set([baseUrl.origin + baseUrl.pathname.replace(/\/$/, "")]);
+const WANT_PAGE = /contact|book|schedul|appoint|reserv|pricing|price|rates|packages|quote|estimate|services|about/i;
+
+// Pulls same-site page links out of a chunk of HTML into `out`, applying the
+// same safety/relevance filters every time: same-origin only, http(s) only (so
+// mailto:/tel:/javascript: are dropped), no asset files, de-duped by path, up
+// to `max` total. An optional `filter(href, text)` narrows which links qualify.
+function collectLinks(
+  html: string,
+  baseUrl: URL,
+  seen: Set<string>,
+  out: string[],
+  max: number,
+  filter?: (href: string, text: string) => boolean,
+): void {
   const re = /<a\b[^>]*href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
-  const want = /contact|book|schedul|appoint|reserv|pricing|price|rates|packages|quote|estimate|services|about/i;
   for (const m of html.matchAll(re)) {
+    if (out.length >= max) break;
     const href = m[2];
     const text = visibleText(m[3]).slice(0, 60);
-    if (!want.test(href) && !want.test(text)) continue;
+    if (filter && !filter(href, text)) continue;
     let u: URL;
     try {
       u = new URL(href, baseUrl);
@@ -301,8 +310,43 @@ export function interestingLinks(html: string, base: string, max = 5): string[] 
     seen.add(key);
     u.hash = "";
     out.push(u.href);
-    if (out.length >= max) break;
   }
+}
+
+/** The site's primary navigation regions (header / <nav> / role="navigation"). */
+function navRegions(html: string): string {
+  const blocks: string[] = [];
+  for (const re of [
+    /<nav\b[\s\S]*?<\/nav>/gi,
+    /<header\b[\s\S]*?<\/header>/gi,
+    /<(?:ul|div)\b[^>]*role=["']navigation["'][\s\S]*?<\/(?:ul|div)>/gi,
+  ]) {
+    for (const m of html.matchAll(re)) blocks.push(m[0]);
+  }
+  return blocks.join("\n");
+}
+
+/** Same-site links worth following for the check (contact, booking, pricing, services, about). */
+export function interestingLinks(html: string, base: string, max = 5): string[] {
+  const baseUrl = new URL(base);
+  const out: string[] = [];
+  const seen = new Set([baseUrl.origin + baseUrl.pathname.replace(/\/$/, "")]);
+  collectLinks(html, baseUrl, seen, out, max, (href, text) => WANT_PAGE.test(href) || WANT_PAGE.test(text));
+  return out;
+}
+
+/**
+ * Pages to crawl for the check, beyond the home page: the site's nav "tabs"
+ * first (every primary page, keyword or not), then keyword-matched links from
+ * anywhere on the page (e.g. a "Book now" button in the hero), de-duped and
+ * capped at `max`. Same-origin and asset filters are enforced in collectLinks.
+ */
+export function pagesToCrawl(html: string, base: string, max = 12): string[] {
+  const baseUrl = new URL(base);
+  const out: string[] = [];
+  const seen = new Set([baseUrl.origin + baseUrl.pathname.replace(/\/$/, "")]);
+  collectLinks(navRegions(html), baseUrl, seen, out, max); // nav tabs — any same-site link in the menu
+  collectLinks(html, baseUrl, seen, out, max, (href, text) => WANT_PAGE.test(href) || WANT_PAGE.test(text));
   return out;
 }
 

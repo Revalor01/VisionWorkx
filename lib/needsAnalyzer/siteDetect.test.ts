@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pageSpeedIssues, parsePageSpeed } from "./pagespeed";
-import { analyzeSite, applyPrefill, detectHosting, generatorMeta, interestingLinks, type PageInput } from "./siteDetect";
+import { analyzeSite, applyPrefill, detectHosting, generatorMeta, interestingLinks, pagesToCrawl, type PageInput } from "./siteDetect";
 import { proposalFindings, pickProposalCheck } from "./siteChecks";
 
 const NOW = new Date("2026-09-29T12:00:00Z");
@@ -136,6 +136,48 @@ describe("detectHosting", () => {
   it("surfaces on the report from the home page's headers", () => {
     const r = analyzeSite("x", [page("<html><body>hi</body></html>", { headers: { "cf-ray": "1" } })]);
     expect(r.hosting).toBe("Cloudflare");
+  });
+});
+
+describe("pagesToCrawl", () => {
+  it("follows every nav tab (keyword or not) plus keyword links outside the nav", () => {
+    const html = `
+      <header><nav>
+        <a href="/">Home</a>
+        <a href="/menu">Menu</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/about">About</a>
+        <a href="https://facebook.com/x">Facebook</a>
+      </nav></header>
+      <main>
+        <a href="/book-now">Book now</a>
+        <a href="/blog/post-1">A blog post</a>
+        <a href="/files/menu.pdf">PDF</a>
+      </main>`;
+    const got = pagesToCrawl(html, "https://example.com/");
+    // Nav tabs first (Menu/Gallery/About — Home is the base, dropped), then the
+    // keyword "Book now" from the body. Off-site, PDF and the non-keyword blog
+    // link are excluded.
+    expect(got).toEqual([
+      "https://example.com/menu",
+      "https://example.com/gallery",
+      "https://example.com/about",
+      "https://example.com/book-now",
+    ]);
+  });
+
+  it("respects the max cap and de-dupes across nav + body", () => {
+    const html = `<nav>
+        <a href="/a">A</a><a href="/b">B</a><a href="/c">C</a><a href="/d">D</a>
+      </nav>
+      <a href="/about">About</a><a href="/b">B again</a>`;
+    const got = pagesToCrawl(html, "https://example.com/", 3);
+    expect(got).toEqual(["https://example.com/a", "https://example.com/b", "https://example.com/c"]);
+  });
+
+  it("falls back to keyword links when there is no nav/header", () => {
+    const html = `<a href="/pricing">Pricing</a><a href="/random">Random</a>`;
+    expect(pagesToCrawl(html, "https://example.com/")).toEqual(["https://example.com/pricing"]);
   });
 });
 

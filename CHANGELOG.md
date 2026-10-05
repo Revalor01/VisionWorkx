@@ -4,6 +4,7 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Needs Analyzer **website check** now reads the site's navigation "tabs" (every primary page linked from the header/`<nav>`, keyword or not) in addition to keyword-matched links, up to `MAX_EXTRA_PAGES` pages (default 12, overridable via `NEEDS_ANALYZER_MAX_PAGES`, hard-capped at 20), fetched in small concurrency-limited batches. Previously it only followed up to 5 keyword-matched links, so sites whose tabs aren't keyword-named (Menu, Gallery, Team, FAQ…) were effectively analyzed home-page-only. Same-origin + SSRF safety unchanged (every page still goes through the per-hop-checked fetcher); scoring still prefill-only. New `pagesToCrawl`/`navRegions` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested.
 - Needs Analyzer website check "Built on" now recognises far more site platforms — added Weebly, Duda, HubSpot, Ghost, Joomla, Drupal, Carrd, Google Sites, Gatsby, Next.js, Hugo, Jekyll to the existing set — and, when no known builder is fingerprinted, falls back to the page's own `<meta name="generator">` value (e.g. "Drupal 10") instead of just "unknown / custom". New `generatorMeta()` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested.
 - Needs Analyzer website check now also reports **where the site is hosted/served** ("Hosted on …": Cloudflare, Vercel, Netlify, AWS CloudFront, Fastly, GitHub Pages, Azure, or the web server), inferred from a curated allow-list of infra response headers captured by the fetcher (`detectHosting()`; no cookies or sensitive headers are stored). Unit-tested.
 
