@@ -69,6 +69,53 @@ export default function ContentTab({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // "Generate next N days" batch
+  const [batchDays, setBatchDays] = useState(10);
+  const [batchPerDay, setBatchPerDay] = useState(1);
+  const [batchVideos, setBatchVideos] = useState(1);
+  const [batchPreview, setBatchPreview] = useState<{ estimate: { totalUsd: number; videoUsd: number; videos: number }; remaining: number; cap: number; monthToDate: number | null } | null>(null);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchMsg, setBatchMsg] = useState("");
+
+  async function refreshContent() {
+    const res = await fetch("/api/social/content");
+    const body = await res.json();
+    if (res.ok) setContent(body.content ?? []);
+  }
+
+  async function runBatch(preview: boolean) {
+    if (!brandId) {
+      setBatchMsg("Pick a brand first.");
+      return;
+    }
+    setBatchBusy(true);
+    setBatchMsg("");
+    try {
+      const res = await fetch("/api/social/content/batch-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandId, days: batchDays, perDay: batchPerDay, videoCount: batchVideos, preview }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      if (preview) {
+        setBatchPreview(body);
+      } else {
+        const r = body.result;
+        setBatchPreview(null);
+        setBatchMsg(
+          r.skipped
+            ? `Nothing generated (${r.skipped}).`
+            : `Queued ${r.posts} posts for ${r.brandName}: ${r.scheduled} scheduled, ${r.draft} draft, ${r.heroVideosQueued} hero video(s) and ${r.imagesQueued} image(s) rendering in the background.`,
+        );
+        await refreshContent();
+      }
+    } catch (err) {
+      setBatchMsg((err as Error).message);
+    } finally {
+      setBatchBusy(false);
+    }
+  }
 
   function togglePlatform(p: SocialPlatform) {
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -241,6 +288,50 @@ export default function ContentTab({
       </div>
 
       <MediaSpendCard focus="image" />
+
+      <div className="bg-white border border-green-600 rounded-xl p-4 mb-6">
+        <h3 className="text-sm font-semibold text-[#1A3A5C] mb-2">Generate next N days (batch)</h3>
+        <p className="text-xs text-slate-500 mb-3">
+          Queues a future-dated content calendar for the selected brand. Captions generate now; images and hero videos
+          render in the background (within the monthly budget cap). Per-brand rules apply — e.g. Revalor Kids is
+          image-first and capped at ~1 video/week.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-medium text-slate-600">
+            Brand
+            <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className="mt-1 block border border-slate-300 rounded-lg px-2 py-1.5 text-sm">
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Days (7–15)
+            <input type="number" min={7} max={15} value={batchDays} onChange={(e) => setBatchDays(Math.min(15, Math.max(7, Number(e.target.value) || 7)))} className="mt-1 block w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Posts/day (1–3)
+            <input type="number" min={1} max={3} value={batchPerDay} onChange={(e) => setBatchPerDay(Math.min(3, Math.max(1, Number(e.target.value) || 1)))} className="mt-1 block w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Hero videos
+            <input type="number" min={0} value={batchVideos} onChange={(e) => setBatchVideos(Math.max(0, Number(e.target.value) || 0))} className="mt-1 block w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-sm" />
+          </label>
+          <button type="button" onClick={() => runBatch(true)} disabled={batchBusy || !brandId} className="px-3 py-2 rounded-lg border border-[#1A3A5C] text-[#1A3A5C] text-sm font-medium hover:bg-blue-50 disabled:opacity-40">
+            {batchBusy ? "…" : "Preview cost"}
+          </button>
+          <button type="button" onClick={() => runBatch(false)} disabled={batchBusy || !brandId} className="px-3 py-2 rounded-lg bg-[#1A3A5C] text-white text-sm font-medium hover:bg-[#15304a] disabled:opacity-40">
+            {batchBusy ? "Working…" : "Generate"}
+          </button>
+        </div>
+        {batchPreview && (
+          <p className="mt-3 text-xs text-slate-600">
+            Est. cost <strong>${batchPreview.estimate.totalUsd.toFixed(2)}</strong> ({batchPreview.estimate.videos} video(s) at ${batchPreview.estimate.videoUsd.toFixed(2)}).{" "}
+            {batchPreview.monthToDate === null ? "Monthly spend unavailable." : <>Spent this month ${batchPreview.monthToDate.toFixed(2)} of ${batchPreview.cap.toFixed(0)} — <strong>${batchPreview.remaining.toFixed(2)} left</strong>.</>}
+          </p>
+        )}
+        {batchMsg && <p className="mt-3 text-xs text-slate-700">{batchMsg}</p>}
+      </div>
 
       {view === "list" ? (
         <>
