@@ -143,3 +143,15 @@ export function productFactsForBrand(brandName: string): string | null {
   const facts = (BRAND_PRODUCTS[brandName] ?? []).map(formatProductKnowledge).filter((f): f is string => f !== null);
   return facts.length > 0 ? facts.join("\n\n") : null;
 }
+
+// A concise one-line-per-product summary (name + what it actually is), for
+// grounding generated *media* prompts in the real Revalor product line
+// (products.revalorllc.com) without the full feature list. null when the brand
+// has no product mapping.
+export function productSummaryForBrand(brandName: string): string | null {
+  const lines = (BRAND_PRODUCTS[brandName] ?? [])
+    .map((p) => PRODUCT_KNOWLEDGE[p])
+    .filter((k): k is ProductKnowledge => k !== null)
+    .map((k) => `${k.name}: ${k.whatItDoes.split(". ")[0]}`);
+  return lines.length > 0 ? lines.join("; ") : null;
+}
