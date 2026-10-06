@@ -45,6 +45,7 @@ export default function VideoTab({
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<Record<string, string>>({});
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   async function togglePreview(asset: SocialVideoAsset, which: "raw" | "final") {
     const key = `${asset.id}:${which}`;
@@ -132,6 +133,22 @@ export default function VideoTab({
           : v
       )
     );
+  }
+
+  async function deleteAsset(id: string) {
+    if (!window.confirm("Delete this video permanently? It will be unlinked from any posts and removed from storage. Posts already published stay live on their platform.")) return;
+    setDeleting(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/social/video-assets/${id}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setVideoAssets((prev) => prev.filter((v) => v.id !== id));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDeleting(null);
+    }
   }
 
   function brandName(id: string) {
@@ -268,6 +285,16 @@ export default function VideoTab({
                   <option key={s} value={s}>{STATUS_LABEL[s]}</option>
                 ))}
               </select>
+            )}
+            {asset.status !== "generating" && (
+              <button
+                type="button"
+                onClick={() => deleteAsset(asset.id)}
+                disabled={deleting === asset.id}
+                className="mt-2 w-full text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                {deleting === asset.id ? "Deleting…" : "Delete video"}
+              </button>
             )}
           </div>
         ))}

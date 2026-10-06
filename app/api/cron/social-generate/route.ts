@@ -7,6 +7,7 @@ import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { PLATFORMS_REQUIRING_MEDIA } from "@/lib/social/publishPost";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
+import { brandMediaPolicy } from "@/lib/social/brandMediaPolicy";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
 
 export const runtime = "nodejs";
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
         riskLevel: post.riskLevel,
         bannedWords: brand.banned_words,
         autonomyMode: brand.autonomy_mode as "manual" | "semi_autonomous" | "fully_autonomous",
+        audience: brandMediaPolicy(brand.name).audience,
       });
 
       if (status === "reject") {
