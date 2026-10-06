@@ -50,3 +50,11 @@ Snapshot 2026-09-25 (read-only): 10 `apps` rows (6 deployed, 4 failed), 20 profi
 **Tenant schemas:** any app deletion must use the existing teardown (unexpose from
 PostgREST `db_schema` **before** dropping the `app_<hex8>` schema). A plain `DROP SCHEMA`
 503s the entire REST API (see `/api/cron/db-health`).
+
+## Retired 2026-10-06
+
+With 0 apps left, the old builder's scheduled jobs and the old /admin dashboard's API routes were removed (the data tables are kept as history):
+
+- Crons removed from `vercel.json` (and their routes): `reap-stuck-builds`, `preview-cleanup`, `app-insights`, `app-automations`, `trial-ending` (old-builder `subscriptions`: none in Stripe — Modules trial reminders come from Stripe). Earlier the same day: `canary-build` and the Golden Canary workflow.
+- Admin API routes removed: `build-notice`, `enhance`, `redeploy`, `payments-test-mode`, `delete-app`, `delete-user`, `grant-beta-access`, `revoke-beta-access`, `payments`, `stability-analysis` (+ `lib/apps/productStability.ts`, `lib/apps/stabilityAnalysisTypes.ts`).
+- Kept: `db-health`, `anthropic-health`, marketing/lifecycle/mobile/content/social crons, all Modules crons.

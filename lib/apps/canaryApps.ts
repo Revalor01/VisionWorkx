@@ -5,8 +5,8 @@
 // email domain, so this can't false-positive on a genuine customer.
 //
 // Single source of truth: this check used to be duplicated (once in
-// lib/apps/productStability.ts, once as a raw LIKE pattern in
-// canary-build/route.ts) — exactly the kind of drift that let canary
+// the since-removed lib/apps/productStability.ts, once as a raw LIKE
+// pattern in canary-build/route.ts) — exactly the kind of drift that let canary
 // rows leak into /admin's real-app stats undetected for a while (fixed
 // in PR #46). Consolidated here so nothing drifts again.
 export const CANARY_EMAIL_SUFFIX = "@visionworkx.internal";
