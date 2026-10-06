@@ -4,6 +4,8 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Social content: **VisionWorkx and Revalor LLC** posts now occasionally (~1 in 4) include a soft call-to-action to Revalor's free AI quiz (`https://products.revalorllc.com/ai-quiz?src=<platform>` for lead attribution). Applies to all content generation (daily autonomous cron + future batches). Deliberately **not** for Revalor Kids or Revalor Wellness. New `lib/social/aiQuizCta.ts`, unit-tested.
+
 - Needs Analyzer website check now shows (operator-only) whether a **VisionWorkx module can be installed** on the assessed site — ✅ yes / ⚠️ caveat (e.g. Squarespace needs a Business plan, Carrd Pro) / 🟠 limited (Wix, GoDaddy, Google Sites — sandboxed iframe embeds only) / ❓ unknown — since install is a one-line `<script>` embed and it comes down to whether the platform allows custom HTML/JS (any detected framework or hand-coded site ⇒ yes). New `assessModulesInstall()` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested. Not shown on the client proposal.
 
 - Needs Analyzer website check now also fingerprints the **front-end framework** ("Framework …", can list several, e.g. "Next.js"): Next.js, Nuxt, SvelteKit, Astro, Remix, Gatsby, Angular, Vue, Svelte, React, jQuery. Best-effort from the static HTML (bundlers can strip the markers), shown next to "Built on"/"Hosted on". New `detectFrameworks()` in `lib/needsAnalyzer/siteDetect.ts`, unit-tested.
