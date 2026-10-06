@@ -35,7 +35,7 @@ Snapshot 2026-09-25 (read-only): 10 `apps` rows (6 deployed, 4 failed), 20 profi
 
 | Resource | Recommendation | Decision |
 |---|---|---|
-| Cron `canary-build` (nightly real builds, ~$230/mo Anthropic) | Stopped by the flag | Done with this change |
+| Cron `canary-build` (nightly real builds, ~$230/mo Anthropic) | Stopped by the flag; then **retired** 2026-10-06 — cron entry and the manual Golden Canary workflow removed, last 3 pending runs marked cancelled (migration `20240101000101_retire_build_canary.sql`). The route stays, still gated by the flag. | Done |
 | Crons `reap-stuck-builds`, `anthropic-health` | Keep for now; remove once no builds can run | |
 | Crons `app-insights`, `app-automations` | Keep while deployed apps exist | |
 | Cron `preview-cleanup` | Keep (removes stale previews) | |

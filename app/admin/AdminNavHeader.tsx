@@ -10,8 +10,8 @@ import type { ReactNode } from "react";
 // `title` replaces the "Vision Workx" wordmark for pages that aren't
 // VisionWorkx-specific (e.g. the Revalor Test Automation Suite at /admin/qa).
 //
-// `extra` is a slot for a page-specific control (e.g. AdminDashboard's
-// auto-refresh toggle) rendered before the shared links.
+// `extra` is a slot for a page-specific control (e.g. the /admin leads
+// dashboard's auto-refresh toggle) rendered before the shared links.
 export function AdminHeader({ badge = "Admin", title = "Vision Workx", extra }: { badge?: string; title?: string; extra?: ReactNode }) {
   return (
     <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
@@ -69,8 +69,7 @@ export function AdminHeader({ badge = "Admin", title = "Vision Workx", extra }: 
 }
 
 // The "Products" pill row -- jumps to another Revalor admin panel via the
-// shared SSO ticket issuer. Same links AdminDashboard's Overview already
-// used; just named and reusable now.
+// shared SSO ticket issuer. Shared by every VisionWorkx admin page.
 export function AdminProductPills() {
   return (
     <div className="flex flex-wrap items-center gap-2 mb-6 pb-4 border-b border-zinc-200">
