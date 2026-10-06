@@ -28,3 +28,23 @@ export function pickPostingSlots(count: number, now: Date = new Date()): string[
 
   return slots;
 }
+
+// Spread `perDay` posts across the next `days` days (starting tomorrow, so
+// nothing lands in the past) at the preferred hours. One ISO slot per post, in
+// order; length = days * min(perDay, PREFERRED_HOURS_UTC.length). Used by the
+// batch generator to future-date a 7-15 day content queue.
+export function scheduleOverDays(opts: { days: number; perDay: number; now?: Date }): string[] {
+  const base = opts.now ?? new Date();
+  const days = Math.max(1, Math.floor(opts.days));
+  const perDay = Math.min(PREFERRED_HOURS_UTC.length, Math.max(1, Math.floor(opts.perDay)));
+  const slots: string[] = [];
+  for (let d = 1; d <= days; d++) {
+    for (let h = 0; h < perDay; h++) {
+      const slot = new Date(base);
+      slot.setUTCDate(slot.getUTCDate() + d);
+      slot.setUTCHours(PREFERRED_HOURS_UTC[h], 0, 0, 0);
+      slots.push(slot.toISOString());
+    }
+  }
+  return slots;
+}
