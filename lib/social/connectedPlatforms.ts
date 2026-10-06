@@ -1,5 +1,6 @@
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
 import type { createServiceClient } from "@/lib/supabase";
+import { isKidsBrand } from "@/lib/social/brandMediaPolicy";
 
 type Service = ReturnType<typeof createServiceClient>;
 
@@ -52,6 +53,9 @@ export async function tiktokContentOverride(
   platforms: SocialPlatform[]
 ): Promise<Partial<Record<SocialPlatform, { brandName: string; voiceNotes: string | null }>> | undefined> {
   if (!platforms.includes("tiktok") || brand.name === SHARED_TIKTOK_BRAND_NAME) return undefined;
+  // Never re-voice a kids brand as the shared (Revalor LLC / VisionWorkx) TikTok
+  // identity — kids content must always stay about the kids products.
+  if (isKidsBrand(brand.name)) return undefined;
   const { data: shared } = await service
     .from("social_brands")
     .select("name, voice_notes")
