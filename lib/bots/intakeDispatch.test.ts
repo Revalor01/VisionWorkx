@@ -20,7 +20,7 @@ function mockFetch(impl: (url: string, init: RequestInit) => Response | Promise<
 
 describe("dispatchIntakeFormSubmitted", () => {
   beforeEach(() => {
-    vi.stubEnv("BOTS_INTAKE_KEY", "test-intake-key");
+    vi.stubEnv("BOTS_INTAKE_KEY_VISIONWORKX", "test-intake-key");
     vi.stubEnv("BOTS_INTAKE_URL", "https://intake.test/api/bots/intake");
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -33,7 +33,7 @@ describe("dispatchIntakeFormSubmitted", () => {
   });
 
   it("no-ops (does not fetch) when the key is not configured", async () => {
-    vi.stubEnv("BOTS_INTAKE_KEY", "");
+    vi.stubEnv("BOTS_INTAKE_KEY_VISIONWORKX", "");
     const fetchFn = mockFetch(() => new Response("{}", { status: 201 }));
     const res = await dispatchIntakeFormSubmitted(payload);
     expect(res).toEqual({ ok: false, reason: "not_configured" });

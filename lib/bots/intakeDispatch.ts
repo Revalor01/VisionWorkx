@@ -18,7 +18,7 @@ import {
 //  - it never throws; every failure comes back as a typed result and is logged.
 //
 // Env (set on Machine 2 / VisionWorkx; never commit the key):
-//   BOTS_INTAKE_KEY  — the per-source secret for source "visionworkx"
+//   BOTS_INTAKE_KEY_VISIONWORKX — the per-source secret for source "visionworkx"
 //                      (sent as the `x-revalor-intake-key` header). Required.
 //   BOTS_INTAKE_URL  — override the endpoint; defaults to production below.
 
@@ -37,10 +37,10 @@ export type DispatchResult =
 export async function dispatchIntakeFormSubmitted(
   payload: IntakeFormSubmittedPayload,
 ): Promise<DispatchResult> {
-  const key = process.env.BOTS_INTAKE_KEY;
+  const key = process.env.BOTS_INTAKE_KEY_VISIONWORKX;
   if (!key) {
     // Not an error: the integration is simply off until the key is set.
-    console.warn("[bots/intake] BOTS_INTAKE_KEY not set — skipping dispatch.");
+    console.warn("[bots/intake] BOTS_INTAKE_KEY_VISIONWORKX not set — skipping dispatch.");
     return { ok: false, reason: "not_configured" };
   }
   const url = process.env.BOTS_INTAKE_URL || DEFAULT_INTAKE_URL;
