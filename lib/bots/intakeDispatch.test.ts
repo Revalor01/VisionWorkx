@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { dispatchIntakeFormSubmitted } from "./intakeDispatch";
 import type { IntakeFormSubmittedPayload, IntakeRequestBody } from "./contract";
 
@@ -73,5 +75,76 @@ describe("dispatchIntakeFormSubmitted", () => {
     });
     const res = await dispatchIntakeFormSubmitted(payload);
     expect(res).toMatchObject({ ok: false, reason: "network_error" });
+  });
+
+  it("retries once and succeeds after a transient failure", async () => {
+    let n = 0;
+    const fetchFn = mockFetch(() => {
+      n += 1;
+      return n === 1
+        ? new Response("boom", { status: 500 })
+        : new Response(JSON.stringify({ task_id: "retry-1" }), { status: 201 });
+    });
+    const res = await dispatchIntakeFormSubmitted(payload);
+    expect(res).toEqual({ ok: true, taskId: "retry-1" });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+// Integration test: a real local HTTP server standing in for the intake
+// endpoint, so we exercise actual fetch + headers + retry, not just a mock.
+describe("dispatchIntakeFormSubmitted against a local mock endpoint", () => {
+  let server: Server;
+  let received: { headers: Record<string, string | string[] | undefined>; body: IntakeRequestBody } | null;
+  let count: number;
+  let respond: (attempt: number) => { status: number; body: string };
+
+  beforeEach(async () => {
+    received = null;
+    count = 0;
+    respond = () => ({ status: 201, body: JSON.stringify({ task_id: "server-task-1" }) });
+    server = createServer((req, res) => {
+      let data = "";
+      req.on("data", (c) => (data += c));
+      req.on("end", () => {
+        count += 1;
+        received = { headers: req.headers, body: JSON.parse(data || "{}") as IntakeRequestBody };
+        const r = respond(count);
+        res.writeHead(r.status, { "content-type": "application/json" });
+        res.end(r.body);
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const port = (server.address() as AddressInfo).port;
+    vi.stubEnv("BOTS_INTAKE_KEY_VISIONWORKX", "local-key");
+    vi.stubEnv("BOTS_INTAKE_URL", `http://127.0.0.1:${port}/api/bots/intake`);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("posts the contract envelope with the auth header and gets a task id", async () => {
+    const res = await dispatchIntakeFormSubmitted(payload);
+    expect(res).toEqual({ ok: true, taskId: "server-task-1" });
+    expect(received?.headers["x-revalor-intake-key"]).toBe("local-key");
+    expect(received?.body.type).toBe("intake.form_submitted");
+    expect(received?.body.source).toBe("visionworkx");
+    expect(received?.body.payload.company).toBe("Acme Salon");
+    expect(count).toBe(1);
+  });
+
+  it("retries once against the server and recovers from a transient 500", async () => {
+    respond = (attempt) =>
+      attempt === 1
+        ? { status: 500, body: "nope" }
+        : { status: 201, body: JSON.stringify({ task_id: "server-task-2" }) };
+    const res = await dispatchIntakeFormSubmitted(payload);
+    expect(res).toEqual({ ok: true, taskId: "server-task-2" });
+    expect(count).toBe(2);
   });
 });

@@ -20,12 +20,17 @@ export type IntakeTaskType = "intake.form_submitted";
 
 export type IntakeFormAnswer = { question: string; answer: string };
 
-/** Payload for `type: "intake.form_submitted"` (source "visionworkx"). */
+/**
+ * Payload for `type: "intake.form_submitted"` (source "visionworkx").
+ *
+ * company / contact_name / contact_email are optional: a form that doesn't
+ * collect one simply omits it — we never invent a value (see 2B of the spec).
+ */
 export type IntakeFormSubmittedPayload = {
   form_id: string;
-  company: string;
-  contact_name: string;
-  contact_email: string;
+  company?: string;
+  contact_name?: string;
+  contact_email?: string;
   answers: IntakeFormAnswer[];
   submitted_at: string; // ISO 8601
   page_url: string;
