@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logAiUsage } from "@/lib/aiUsage";
 import { extractJson } from "@/lib/social/extractJson";
 import { productFactsForBrand } from "@/lib/social/productKnowledge";
+import { aiQuizCtaInstruction } from "@/lib/social/aiQuizCta";
 import type { SocialPlatform } from "@/lib/database.types";
 
 export interface GeneratedPost {
@@ -54,11 +55,12 @@ export async function generateContentCalendar(params: {
     : "";
 
   const productFacts = productFactsForBrand(brandName);
+  const quizCta = aiQuizCtaInstruction(brandName);
 
   const userPrompt = `Brand: ${brandName}
 Voice notes: ${voiceNotes || "(none provided — use a confident, clear, founder-built tone)"}
 ${productFacts ? `Current product facts for ${brandName} (source of truth — from products.revalorllc.com):\n${productFacts}\n` : ""}Platforms to generate for: ${platforms.join(", ")}
-${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
+${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}${quizCta ? `${quizCta}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
