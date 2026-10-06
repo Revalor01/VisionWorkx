@@ -69,10 +69,6 @@
       "schedule": "*/10 * * * *"
     },
     {
-      "path": "/api/cron/canary-build",
-      "schedule": "0 5 * * *"
-    },
-    {
       "path": "/api/cron/trial-ending",
       "schedule": "0 14 * * *"
     },
