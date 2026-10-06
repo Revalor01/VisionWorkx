@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { modulesConfigured, modulesServerClient, modulesServiceClient } from "@/lib/modules/supabase";
 import { ipHash } from "@/lib/modules/http";
 import { normalizeHost } from "@/lib/modules/domains";
 import { selfServeEnabled, SITE_BUILDERS, TERMS_VERSION } from "@/lib/modules/selfServe";
 import { createAccountAndSendLink } from "@/lib/modules/startSignIn";
+import { dispatchIntakeFormSubmitted } from "@/lib/bots/intakeDispatch";
 
 // Self-serve signup. Supabase's own public signup stays DISABLED: accounts are
 // only created here, after validation + rate limiting, via the admin API. The
@@ -108,5 +109,25 @@ export async function POST(req: NextRequest) {
       ? NextResponse.json({ error: "We couldn't create your account just now. Please try again." }, { status: 500 })
       : NextResponse.json({ error: "We couldn't send your sign-in link. Please try again in a minute." }, { status: 502 });
   }
+
+  // Genuine signup (new or existing account) — not the honeypot and not a
+  // validation failure, both of which returned above. Tell the Revalor Bots
+  // intake endpoint a form came in, after the response so the visitor never
+  // waits on it (and it no-ops cleanly if BOTS_INTAKE_KEY isn't configured).
+  after(() =>
+    dispatchIntakeFormSubmitted({
+      form_id: "start",
+      company: businessName,
+      contact_name: name,
+      contact_email: email,
+      answers: [
+        { question: "Website", answer: website ?? "" },
+        { question: "Built with", answer: builder },
+      ].filter((a) => a.answer),
+      submitted_at: new Date().toISOString(),
+      page_url: new URL("/start", req.nextUrl.origin).toString(),
+    }),
+  );
+
   return NextResponse.json({ ok: true });
 }
