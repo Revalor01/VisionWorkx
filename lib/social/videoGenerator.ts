@@ -21,6 +21,12 @@ export interface GeneratedContentVideo {
   mediaType: string;
 }
 
+// Kling generates native audio that can say the brand name; it defaults to the
+// wrong "REV-a-lor". Guide it to the correct pronunciation. Applies to every
+// Revalor brand (they all contain "Revalor").
+export const PRONUNCIATION =
+  `If the brand name is spoken aloud, pronounce "Revalor" as "re-VAL-or" (like the word "valor" with "re" in front), never "REV-a-lor".`;
+
 // The creative prompt for a content video, chosen by the brand's media policy
 // and grounded in the real Revalor product line (products.revalorllc.com, via
 // productSummaryForBrand). Video models largely ignore negative instructions
@@ -42,7 +48,7 @@ export function buildContentVideoPrompt(params: {
   const grounding = products
     ? `The Revalor product(s) this represents (source: products.revalorllc.com) — ${products}. Depict only the actual app/experience accurately; show no other company or product, and invent nothing. `
     : "";
-  const noText = "Do not render any text, words, or letters in the video.";
+  const noText = `${PRONUNCIATION} Do not render any text, words, or letters in the video.`;
 
   let body: string;
   if (videoStyle === "kids") {
@@ -90,7 +96,7 @@ export async function generateStudioVideo(params: {
 }): Promise<GeneratedContentVideo> {
   const duration = Math.min(STUDIO_MAX_DURATION, Math.max(STUDIO_MIN_DURATION, Math.round(params.durationSeconds)));
 
-  const prompt = `A short, cinematic social media video promoting a software app (not a physical product) - people watching need to come away understanding this is software (a mobile/web app or digital tool), not something they'd buy off a shelf. Never depict physical goods, packaging, pills, powders, bottles, or any supplement/nutrition/fitness product. ${params.prompt} Do not render any text, words, or letters in the video.`;
+  const prompt = `A short, cinematic social media video promoting a software app (not a physical product) - people watching need to come away understanding this is software (a mobile/web app or digital tool), not something they'd buy off a shelf. Never depict physical goods, packaging, pills, powders, bottles, or any supplement/nutrition/fitness product. ${params.prompt} ${PRONUNCIATION} Do not render any text, words, or letters in the video.`;
 
   const result = await generateVideo({
     model: STUDIO_VIDEO_MODEL,
