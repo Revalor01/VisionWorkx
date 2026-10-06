@@ -4,8 +4,8 @@
 // engines act on:
 //   - event-driven pairs  → revalor-automation's poller (separate repo),
 //     which reads automation_events written by the per-app trigger
-//   - timeBased pairs      → /api/cron/app-automations in THIS repo, which
-//     scans the tenant's own tables on a schedule
+//   - timeBased pairs      → /api/cron/app-automations in THIS repo (retired
+//     2026-10-06 with the frozen app builder; nothing runs these now)
 //
 // Keep the event-driven action_type strings in sync with
 // revalor-automation/lib/actions.mjs.
