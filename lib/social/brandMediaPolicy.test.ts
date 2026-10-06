@@ -56,6 +56,14 @@ describe("buildContentVideoPrompt", () => {
     }
   });
 
+  it("every template guides the Revalor pronunciation (re-VAL-or, not REV-a-lor)", () => {
+    for (const brandName of ["Revalor Kids", "Revalor Wellness", "VisionWorkx"]) {
+      const p = buildContentVideoPrompt({ ...base, brandName });
+      expect(p).toMatch(/re-VAL-or/);
+      expect(p).toMatch(/never "REV-a-lor"/);
+    }
+  });
+
   it("grounds the prompt in the brand's real products (products.revalorllc.com)", () => {
     const kids = buildContentVideoPrompt({ ...base, brandName: "Revalor Kids" });
     expect(kids).toMatch(/products\.revalorllc\.com/i);
