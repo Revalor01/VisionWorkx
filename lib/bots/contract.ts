@@ -20,15 +20,24 @@ export type IntakeTaskType = "intake.form_submitted";
 
 export type IntakeFormAnswer = { question: string; answer: string };
 
-/** Payload for `type: "intake.form_submitted"` (source "visionworkx"). */
+/**
+ * Payload for `type: "intake.form_submitted"` (source "visionworkx").
+ *
+ * company / contact_name / contact_email are optional: a form that doesn't
+ * collect one simply omits it — we never invent a value (see 2B of the spec).
+ */
 export type IntakeFormSubmittedPayload = {
   form_id: string;
-  company: string;
-  contact_name: string;
-  contact_email: string;
+  company?: string;
+  contact_name?: string;
+  contact_email?: string;
   answers: IntakeFormAnswer[];
   submitted_at: string; // ISO 8601
   page_url: string;
+  // true for a known test/QA submission (e.g. a sandbox email address). Machine
+  // 1 parks these so they never reach the consulting bot as a real lead. Omit
+  // (rather than send false) for a normal submission.
+  is_test?: boolean;
 };
 
 /** The JSON envelope POSTed to the intake endpoint. */

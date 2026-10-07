@@ -1,5 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { createPreviewApp, runPreviewGenerate } from "@/lib/apps/preview";
+import { dispatchIntakeFormSubmitted, isTestSubmission } from "@/lib/bots/intakeDispatch";
+import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import { fullAppGenerationEnabled, generationPausedResponse } from "@/lib/featureFlags";
 
@@ -87,6 +89,29 @@ export async function POST(req: NextRequest) {
       // Runs after the response is sent; `after()` prevents the function
       // from freezing mid-generation.
       after(() => runPreviewGenerate(id));
+      // Forward this inbound lead to the Revalor Bots intake endpoint (Machine 1),
+      // after the response so the visitor never waits on it and the preview it
+      // already created is unaffected if the call fails. No contact name is
+      // collected on this form, so it's omitted (not invented).
+      const isTest = isTestSubmission(email);
+      after(() =>
+        dispatchIntakeFormSubmitted({
+          form_id: "try",
+          company: intake.businessName,
+          contact_email: email,
+          answers: [
+            { question: "Business type", answer: intake.businessType },
+            { question: "Location", answer: intake.location },
+            { question: "What it needs to do", answer: intake.description ?? "" },
+            { question: "App type", answer: intake.category },
+            { question: "Also", answer: (intake.secondaryCategories ?? []).join(", ") },
+            { question: "Staff need their own logins", answer: intake.features.includes(TEAM_ACCESS_FEATURE) ? "Yes" : "" },
+          ].filter((a) => a.answer),
+          submitted_at: new Date().toISOString(),
+          page_url: new URL("/try", req.nextUrl.origin).toString(),
+          ...(isTest ? { is_test: true } : {}),
+        }),
+      );
     }
     return NextResponse.json({ token, resumed, testMode }, { status: resumed ? 200 : 201 });
   } catch (err) {

@@ -25,6 +25,20 @@ import {
 const DEFAULT_INTAKE_URL = "https://revalor-admin.vercel.app/api/bots/intake";
 const TIMEOUT_MS = 5000;
 
+// Reserved, non-deliverable domains this org uses for test/QA submissions:
+// Resend's sandbox (delivered+x@resend.dev) and IANA's example.com
+// (qa+x@example.com), plus the reserved .test TLD. A real customer never signs
+// up with these, so a submission from one can be tagged is_test (see the
+// contract's is_test field) for Machine 1 to park instead of treating as a lead.
+const TEST_EMAIL_DOMAINS = new Set(["resend.dev", "example.com"]);
+
+export function isTestSubmission(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const domain = email.trim().toLowerCase().split("@")[1] ?? "";
+  if (!domain) return false;
+  return TEST_EMAIL_DOMAINS.has(domain) || domain === "test" || domain.endsWith(".test");
+}
+
 export type DispatchResult =
   | { ok: true; taskId: string }
   | {
@@ -33,6 +47,39 @@ export type DispatchResult =
       status?: number;
       error?: string;
     };
+
+// One POST attempt with its own 5s timeout. Returns a typed result and never
+// throws or logs — the caller owns logging and the retry decision.
+async function attemptOnce(url: string, key: string, body: IntakeRequestBody): Promise<DispatchResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-revalor-intake-key": key,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { ok: false, reason: "http_error", status: res.status, error: text.slice(0, 200) };
+    }
+
+    const data = (await res.json().catch(() => null)) as IntakeAccepted | null;
+    if (!data || typeof data.task_id !== "string") {
+      return { ok: false, reason: "bad_response", status: res.status };
+    }
+    return { ok: true, taskId: data.task_id };
+  } catch (err) {
+    return { ok: false, reason: "network_error", error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function dispatchIntakeFormSubmitted(
   payload: IntakeFormSubmittedPayload,
@@ -51,38 +98,20 @@ export async function dispatchIntakeFormSubmitted(
     payload,
   };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-revalor-intake-key": key,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(`[bots/intake] dispatch rejected: ${res.status} ${text.slice(0, 200)}`);
-      return { ok: false, reason: "http_error", status: res.status, error: text.slice(0, 200) };
-    }
-
-    const data = (await res.json().catch(() => null)) as IntakeAccepted | null;
-    if (!data || typeof data.task_id !== "string") {
-      console.error("[bots/intake] dispatch got a 2xx with no task_id");
-      return { ok: false, reason: "bad_response", status: res.status };
-    }
-
-    console.log(`[bots/intake] dispatched ${body.type} (${payload.form_id}) -> task ${data.task_id}`);
-    return { ok: true, taskId: data.task_id };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[bots/intake] dispatch failed:", message);
-    return { ok: false, reason: "network_error", error: message };
-  } finally {
-    clearTimeout(timer);
+  // Try once, retry once on any failure. This runs post-response (via after()),
+  // so the extra attempt's latency never reaches the visitor whose submission
+  // already succeeded.
+  let result = await attemptOnce(url, key, body);
+  if (!result.ok) {
+    const status = "status" in result && result.status ? ` ${result.status}` : "";
+    console.warn(`[bots/intake] ${payload.form_id} dispatch failed (${result.reason}${status}) — retrying once`);
+    result = await attemptOnce(url, key, body);
   }
+
+  if (result.ok) {
+    console.log(`[bots/intake] dispatched ${body.type} (${payload.form_id}) -> task ${result.taskId}`);
+  } else {
+    console.error(`[bots/intake] ${payload.form_id} dispatch failed after retry: ${result.reason}`);
+  }
+  return result;
 }
