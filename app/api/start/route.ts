@@ -4,7 +4,7 @@ import { ipHash } from "@/lib/modules/http";
 import { normalizeHost } from "@/lib/modules/domains";
 import { selfServeEnabled, SITE_BUILDERS, TERMS_VERSION } from "@/lib/modules/selfServe";
 import { createAccountAndSendLink } from "@/lib/modules/startSignIn";
-import { dispatchIntakeFormSubmitted } from "@/lib/bots/intakeDispatch";
+import { dispatchIntakeFormSubmitted, isTestSubmission } from "@/lib/bots/intakeDispatch";
 
 // Self-serve signup. Supabase's own public signup stays DISABLED: accounts are
 // only created here, after validation + rate limiting, via the admin API. The
@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
   // validation failure, both of which returned above. Tell the Revalor Bots
   // intake endpoint a form came in, after the response so the visitor never
   // waits on it (and it no-ops cleanly if BOTS_INTAKE_KEY isn't configured).
+  const isTest = isTestSubmission(email);
   after(() =>
     dispatchIntakeFormSubmitted({
       form_id: "start",
@@ -126,6 +127,7 @@ export async function POST(req: NextRequest) {
       ].filter((a) => a.answer),
       submitted_at: new Date().toISOString(),
       page_url: new URL("/start", req.nextUrl.origin).toString(),
+      ...(isTest ? { is_test: true } : {}),
     }),
   );
 

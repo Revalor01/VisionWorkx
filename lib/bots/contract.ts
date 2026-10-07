@@ -34,6 +34,10 @@ export type IntakeFormSubmittedPayload = {
   answers: IntakeFormAnswer[];
   submitted_at: string; // ISO 8601
   page_url: string;
+  // true for a known test/QA submission (e.g. a sandbox email address). Machine
+  // 1 parks these so they never reach the consulting bot as a real lead. Omit
+  // (rather than send false) for a normal submission.
+  is_test?: boolean;
 };
 
 /** The JSON envelope POSTed to the intake endpoint. */

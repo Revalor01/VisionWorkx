@@ -25,6 +25,20 @@ import {
 const DEFAULT_INTAKE_URL = "https://revalor-admin.vercel.app/api/bots/intake";
 const TIMEOUT_MS = 5000;
 
+// Reserved, non-deliverable domains this org uses for test/QA submissions:
+// Resend's sandbox (delivered+x@resend.dev) and IANA's example.com
+// (qa+x@example.com), plus the reserved .test TLD. A real customer never signs
+// up with these, so a submission from one can be tagged is_test (see the
+// contract's is_test field) for Machine 1 to park instead of treating as a lead.
+const TEST_EMAIL_DOMAINS = new Set(["resend.dev", "example.com"]);
+
+export function isTestSubmission(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const domain = email.trim().toLowerCase().split("@")[1] ?? "";
+  if (!domain) return false;
+  return TEST_EMAIL_DOMAINS.has(domain) || domain === "test" || domain.endsWith(".test");
+}
+
 export type DispatchResult =
   | { ok: true; taskId: string }
   | {

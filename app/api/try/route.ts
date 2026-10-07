@@ -1,6 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { createPreviewApp, runPreviewGenerate } from "@/lib/apps/preview";
-import { dispatchIntakeFormSubmitted } from "@/lib/bots/intakeDispatch";
+import { dispatchIntakeFormSubmitted, isTestSubmission } from "@/lib/bots/intakeDispatch";
 import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 import { fullAppGenerationEnabled, generationPausedResponse } from "@/lib/featureFlags";
@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
       // after the response so the visitor never waits on it and the preview it
       // already created is unaffected if the call fails. No contact name is
       // collected on this form, so it's omitted (not invented).
+      const isTest = isTestSubmission(email);
       after(() =>
         dispatchIntakeFormSubmitted({
           form_id: "try",
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
           ].filter((a) => a.answer),
           submitted_at: new Date().toISOString(),
           page_url: new URL("/try", req.nextUrl.origin).toString(),
+          ...(isTest ? { is_test: true } : {}),
         }),
       );
     }

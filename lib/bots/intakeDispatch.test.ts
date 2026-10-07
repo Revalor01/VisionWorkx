@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { dispatchIntakeFormSubmitted } from "./intakeDispatch";
+import { dispatchIntakeFormSubmitted, isTestSubmission } from "./intakeDispatch";
 import type { IntakeFormSubmittedPayload, IntakeRequestBody } from "./contract";
 
 const payload: IntakeFormSubmittedPayload = {
@@ -146,5 +146,27 @@ describe("dispatchIntakeFormSubmitted against a local mock endpoint", () => {
     const res = await dispatchIntakeFormSubmitted(payload);
     expect(res).toEqual({ ok: true, taskId: "server-task-2" });
     expect(count).toBe(2);
+  });
+
+  it("forwards is_test through to the endpoint when set", async () => {
+    const res = await dispatchIntakeFormSubmitted({ ...payload, is_test: true });
+    expect(res.ok).toBe(true);
+    expect(received?.body.payload.is_test).toBe(true);
+  });
+});
+
+describe("isTestSubmission", () => {
+  it("flags reserved sandbox/QA email domains", () => {
+    expect(isTestSubmission("delivered+qa@resend.dev")).toBe(true);
+    expect(isTestSubmission("qa+signup@example.com")).toBe(true);
+    expect(isTestSubmission("owner@qa-site.revalor.test")).toBe(true);
+    expect(isTestSubmission("DANA@RESEND.DEV")).toBe(true);
+  });
+  it("does not flag real submitter emails", () => {
+    expect(isTestSubmission("dana@acmesalon.com")).toBe(false);
+    expect(isTestSubmission("owner@gmail.com")).toBe(false);
+    expect(isTestSubmission("")).toBe(false);
+    expect(isTestSubmission(undefined)).toBe(false);
+    expect(isTestSubmission("not-an-email")).toBe(false);
   });
 });
