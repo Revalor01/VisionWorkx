@@ -1,9 +1,11 @@
 // Cost model for the batch content generator. Video (Kling) is the dominant
 // cost, so the whole feature is sized around it and bounded by a hard monthly
-// cap. Rates are the Vercel AI Gateway actuals we observe (~$0.84 per Kling
-// 10s pro+audio clip); all env-overridable. Pure — no I/O.
+// cap. Content videos now use Kling v3.0 (~$3.36 per 10s pro+audio clip, at
+// $0.336/s) — up from ~$0.84 on v2.6 — so at the default $25 cap that's ~7
+// videos/month; raise SOCIAL_MEDIA_MONTHLY_BUDGET_USD for more. All
+// env-overridable. Pure — no I/O.
 
-export const VIDEO_USD = Number(process.env.SOCIAL_VIDEO_USD) || 0.84;
+export const VIDEO_USD = Number(process.env.SOCIAL_VIDEO_USD) || 3.36;
 export const IMAGE_USD = Number(process.env.SOCIAL_IMAGE_USD) || 0.05;
 // Captions are one batched Sonnet call per ~14 posts — pennies; a per-post
 // figure just keeps the estimate honest rather than showing $0.
