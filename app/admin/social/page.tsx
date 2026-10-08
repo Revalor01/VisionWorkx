@@ -6,7 +6,8 @@ import { ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
 import SocialDashboard from "./SocialDashboard";
 import type { VideoJobCalendarRow } from "./CalendarTab";
 
-export default async function AdminSocialPage() {
+export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -61,6 +62,7 @@ export default async function AdminSocialPage() {
       initialCampaigns={campaigns ?? []}
       initialVideoJobs={videoJobs ?? []}
       initialLinkedInPosts={linkedInPosts ?? []}
+      initialTab={tab}
     />
   );
 }
