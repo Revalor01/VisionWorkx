@@ -2,10 +2,13 @@ import { experimental_generateVideo as generateVideo } from "ai";
 import { brandMediaPolicy } from "@/lib/social/brandMediaPolicy";
 import { productSummaryForBrand } from "@/lib/social/productKnowledge";
 
-// Same model/gateway as recapVideoGenerator.ts — Kling v2.6, routed through
-// Vercel AI Gateway. Real cost: ~$0.84/video at 10s/9:16/pro-with-audio
-// (checked via the existing spend dashboard before adding this).
-const VIDEO_MODEL = "klingai/kling-v2.6-t2v";
+// Content videos use Kling v3.0 (same model as Media Studio below), routed
+// through Vercel AI Gateway — the newer model is a clear quality step up over
+// v2.6, which produced flat, same-looking b-roll. Real cost: ~$3.36/video at
+// 10s/9:16/pro-with-audio ($0.336/s), ~4x the old v2.6 clip; the monthly cap
+// in lib/social/mediaCost.ts bounds total spend. (Weekly recap videos in
+// recapVideoGenerator.ts still use v2.6 and are unaffected.)
+const VIDEO_MODEL = "klingai/kling-v3.0-t2v";
 
 // Kling v2.6 only accepts duration 5 or 10 — Media Studio needs a real
 // length control (3-15s, any value), so it uses v3.0 instead. Same
