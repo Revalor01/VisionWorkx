@@ -17,6 +17,9 @@ import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon, LinkedInIcon } fr
 
 type Tab = "brands" | "content" | "video" | "studio" | "linkedin" | "inbox" | "calendar" | "performance" | "recap" | "help";
 
+const ADMIN_TABS: Tab[] = ["brands", "content", "video", "studio", "linkedin", "inbox", "calendar", "performance", "recap", "help"];
+const PUBLIC_TABS: Tab[] = ["video", "studio"];
+
 export default function SocialDashboard({
   isAdmin,
   initialBrands,
@@ -27,6 +30,7 @@ export default function SocialDashboard({
   initialCampaigns,
   initialVideoJobs,
   initialLinkedInPosts,
+  initialTab,
 }: {
   isAdmin: boolean;
   initialBrands: SocialBrand[];
@@ -37,8 +41,13 @@ export default function SocialDashboard({
   initialCampaigns: CampaignCalendarRow[];
   initialVideoJobs: VideoJobCalendarRow[];
   initialLinkedInPosts: LinkedInPost[];
+  // Optional starting tab from ?tab= (e.g. a deep link to the LinkedIn tab).
+  initialTab?: string;
 }) {
-  const [tab, setTab] = useState<Tab>(isAdmin ? "brands" : "video");
+  const [tab, setTab] = useState<Tab>(() => {
+    const allowed = isAdmin ? ADMIN_TABS : PUBLIC_TABS;
+    return initialTab && (allowed as string[]).includes(initialTab) ? (initialTab as Tab) : isAdmin ? "brands" : "video";
+  });
   const [brands, setBrands] = useState(initialBrands);
   const [content, setContent] = useState(initialContent);
   const [videoAssets, setVideoAssets] = useState(initialVideoAssets);
@@ -48,9 +57,7 @@ export default function SocialDashboard({
   const openInboxCount = inboxItems.filter((i) => i.status === "open" && i.classification === "requires_human").length;
   const pausedBrandCount = brands.filter((b) => b.autonomy_paused_at).length;
 
-  const TABS: Tab[] = isAdmin
-    ? ["brands", "content", "video", "studio", "linkedin", "inbox", "calendar", "performance", "recap", "help"]
-    : ["video", "studio"];
+  const TABS: Tab[] = isAdmin ? ADMIN_TABS : PUBLIC_TABS;
 
   return (
     <div className="min-h-screen bg-blue-50">
