@@ -22,7 +22,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   const built = buildStoredConfig(type as string, body.config, auth.workspace.time_zone);
   if ("error" in built) return NextResponse.json({ error: built.error }, { status: 400 });
   const config = built.config;
-  const fallbackName = type === "quote_calculator" ? "Quote calculator" : type === "booking" ? "Online booking" : "Lead capture form";
+  const fallbackName =
+    type === "quote_calculator" ? "Quote calculator" : type === "booking" ? "Online booking" : type === "receptionist" ? "AI receptionist" : "Lead capture form";
   const name = (typeof body.name === "string" && body.name.trim() ? body.name.trim() : config.title || fallbackName).slice(0, 120);
 
   const db = modulesServiceClient();

@@ -61,6 +61,8 @@
             f.el.style.height = Math.max(80, Math.min(4000, Math.round(d.height))) + "px";
           } else if (d.type === "vw:redirect" && typeof d.url === "string" && /^https:\/\//.test(d.url)) {
             window.location.assign(d.url);
+          } else if (d.type === "vw:chat-close" && f.close) {
+            f.close();
           }
         }
       } catch (err) {}
@@ -127,7 +129,7 @@
       .then(function (r) { if (!r.ok) throw new Error("config " + r.status); return r.json(); })
       .then(function (m) {
         // File uploads, quote calculators and booking need the full iframe form; fall back to it.
-        if (m.quote || m.booking || m.type === "quote_calculator" || m.type === "booking" || (m.config.fields || []).some(function (f) { return f.type === "file"; })) {
+        if (m.quote || m.booking || m.type === "quote_calculator" || m.type === "booking" || m.type === "receptionist" || (m.config.fields || []).some(function (f) { return f.type === "file"; })) {
           // Only remove the wrapper we created; never a site's own data-target element.
           if (!script.getAttribute("data-target") && box.parentNode) box.parentNode.removeChild(box);
           return mountIframe(script, id, origin);
@@ -186,6 +188,54 @@
       .catch(function (e) { log("couldn't load module " + id + " (" + (e && e.message) + ")"); });
   }
 
+  /* ---------- AI receptionist: floating chat button + panel ---------- */
+  var CHAT_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+
+  function mountChat(script, id, origin) {
+    if (document.getElementById("vwc-btn-" + id)) return;
+    var btn = el("button", { id: "vwc-btn-" + id, type: "button", "aria-label": script.getAttribute("data-title") || "Chat with us", "aria-expanded": "false" });
+    btn.innerHTML = CHAT_ICON;
+    btn.style.cssText = "position:fixed;right:20px;bottom:20px;z-index:2147483000;width:58px;height:58px;border:0;border-radius:50%;" +
+      "background:#1b2542;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.22)";
+    var frame = null;
+    var open = false;
+    function size() {
+      if (!frame) return;
+      var small = window.innerWidth < 480;
+      frame.style.cssText = small
+        ? "position:fixed;inset:0;width:100%;height:100%;z-index:2147483001;border:0;background:#fff;color-scheme:normal"
+        : "position:fixed;right:20px;bottom:90px;z-index:2147483001;width:380px;max-width:calc(100vw - 24px);height:600px;max-height:calc(100vh - 110px);" +
+          "border:0;border-radius:16px;background:#fff;box-shadow:0 12px 40px rgba(0,0,0,.25);color-scheme:normal";
+      frame.style.display = open ? "block" : "none";
+    }
+    function close() {
+      open = false; size(); btn.setAttribute("aria-expanded", "false");
+      try { btn.focus(); } catch (e) {}
+    }
+    btn.addEventListener("click", function () {
+      if (!frame) {
+        frame = document.createElement("iframe");
+        frame.src = origin + "/m/" + id + "?panel=1&src=" + encodeURIComponent(location.href.slice(0, 480));
+        frame.title = script.getAttribute("data-title") || "Chat with us";
+        frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+        document.body.appendChild(frame);
+        (frames[id] = frames[id] || []).push({ el: frame, origin: origin, close: close });
+        listen();
+      }
+      open = !open; size(); btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    window.addEventListener("resize", size);
+    document.body.appendChild(btn);
+    // Brand colour from the public config (falls back to navy if it can't load).
+    fetch(origin + "/api/m/" + id + "/config", { credentials: "omit" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        var c = m && m.brand && m.brand.color;
+        if (c && /^#[0-9a-fA-F]{6}$/.test(c)) { btn.style.background = c; btn.style.color = ink(c); }
+      })
+      .catch(function () {});
+  }
+
   function load() {
     var scripts = document.querySelectorAll("script[data-module]");
     for (var i = 0; i < scripts.length; i++) {
@@ -197,7 +247,8 @@
         if (!ID_RE.test(id)) { log("invalid data-module: " + id); continue; }
         var origin = originOf(s);
         if (!origin) continue;
-        if (s.getAttribute("data-mode") === "shadow") mountShadow(s, id, origin);
+        if (s.getAttribute("data-widget") === "chat") mountChat(s, id, origin);
+        else if (s.getAttribute("data-mode") === "shadow") mountShadow(s, id, origin);
         else mountIframe(s, id, origin);
       } catch (e) { log("embed failed: " + (e && e.message)); }
     }

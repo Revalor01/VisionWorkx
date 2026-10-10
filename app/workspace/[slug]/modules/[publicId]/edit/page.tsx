@@ -2,6 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { requireWorkspace } from "@/lib/modules/workspace";
 import { parseBrand, parseFormConfig } from "@/lib/modules/config";
 import FormBuilder from "@/components/modules/FormBuilder";
+import ReceptionistEditor from "@/components/modules/ReceptionistEditor";
+import { isReceptionistModule, parseReceptionistConfig } from "@/lib/receptionist/config";
+import { bookingModulesFor } from "@/lib/receptionist/owner";
 import { isQuoteModule, parseQuotePricing } from "@/lib/modules/quote";
 import { isBookingModule, parseBookingSetup } from "@/lib/modules/booking";
 
@@ -15,6 +18,19 @@ export default async function EditLeadFormPage(props: { params: Promise<{ slug: 
     .eq("workspace_id", workspace.id)
     .eq("public_id", publicId)
     .maybeSingle();
+  if (mod && isReceptionistModule(mod.type)) {
+    return (
+      <ReceptionistEditor
+        slug={workspace.slug}
+        businessName={workspace.name}
+        logoUrl={workspace.logo_url}
+        workspaceBrand={parseBrand(workspace.brand)}
+        hasDomains={workspace.domains.length > 0}
+        bookingModules={await bookingModulesFor(supabase, workspace.id)}
+        existing={{ publicId: mod.public_id, name: mod.name, status: mod.status, config: parseReceptionistConfig(mod.config) }}
+      />
+    );
+  }
   if (!mod || (mod.type !== "lead_capture" && mod.type !== "intake_form" && !isQuoteModule(mod.type) && !isBookingModule(mod.type))) notFound();
   const quote = isQuoteModule(mod.type);
   const booking = isBookingModule(mod.type);

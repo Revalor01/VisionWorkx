@@ -248,6 +248,7 @@ export default function SubmissionsBoard(props: {
                   </div>
                 )}
               </dl>
+              {str(open.data.channel).includes("AI receptionist") && <Transcript key={open.id} slug={props.slug} submissionId={open.id} />}
               <label htmlFor="sub-notes" className="block text-sm font-semibold text-gray-700">
                 Notes
               </label>
@@ -298,6 +299,42 @@ export default function SubmissionsBoard(props: {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The AI receptionist conversation behind a lead, loaded on demand. */
+function Transcript({ slug, submissionId }: { slug: string; submissionId: string }) {
+  const [state, setState] = useState<{ status: "idle" | "loading" | "error" } | { status: "done"; messages: { role: string; content: string }[] }>({ status: "idle" });
+  async function load() {
+    setState({ status: "loading" });
+    try {
+      const res = await fetch(`/api/workspace/${slug}/receptionist/transcript?submission=${submissionId}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error();
+      setState({ status: "done", messages: body.messages ?? [] });
+    } catch {
+      setState({ status: "error" });
+    }
+  }
+  if (state.status !== "done") {
+    return (
+      <div className="mb-4">
+        <button type="button" onClick={load} disabled={state.status === "loading"} className="text-sm font-semibold text-navy hover:underline disabled:opacity-60">
+          {state.status === "loading" ? "Loading conversation…" : "View the conversation"}
+        </button>
+        {state.status === "error" && <p className="mt-1 text-xs text-red-600">Couldn&apos;t load the conversation.</p>}
+      </div>
+    );
+  }
+  return (
+    <div className="mb-4 max-h-80 space-y-2 overflow-y-auto rounded-xl bg-gray-50 p-3 text-sm" aria-label="Conversation">
+      {state.messages.length === 0 && <p className="text-gray-500">No messages saved.</p>}
+      {state.messages.map((m, i) => (
+        <p key={i} className={m.role === "visitor" ? "text-gray-900" : "text-gray-600"}>
+          <span className="font-semibold">{m.role === "visitor" ? "Customer" : "Receptionist"}:</span> {m.content}
+        </p>
+      ))}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getModuleByPublicId } from "@/lib/modules/data";
 import { modulesConfigured } from "@/lib/modules/supabase";
 import ModuleForm from "@/components/modules/ModuleForm";
+import ChatWidget from "@/components/modules/ChatWidget";
 import { resolveBrand } from "@/lib/modules/config";
 import { billingAllowsService } from "@/lib/modules/plans";
 
@@ -13,10 +14,10 @@ export const metadata: Metadata = { title: "Form", robots: { index: false, follo
 
 export default async function ModuleFramePage(props: {
   params: Promise<{ moduleId: string }>;
-  searchParams: Promise<{ src?: string }>;
+  searchParams: Promise<{ src?: string; panel?: string }>;
 }) {
   const { moduleId } = await props.params;
-  const { src } = await props.searchParams;
+  const { src, panel } = await props.searchParams;
   const mod = modulesConfigured() ? await getModuleByPublicId(moduleId) : null;
 
   if (!mod || mod.status !== "live" || !billingAllowsService(mod.billingStatus)) {
@@ -26,6 +27,22 @@ export default async function ModuleFramePage(props: {
       </p>
     );
   }
+  const sourceUrl = typeof src === "string" && /^https?:\/\//.test(src) ? src.slice(0, 500) : null;
+  if (mod.type === "receptionist" && mod.receptionist) {
+    return (
+      <ChatWidget
+        publicId={mod.publicId}
+        businessName={mod.workspaceName}
+        logoUrl={mod.logoUrl}
+        brand={resolveBrand(mod.brand, mod.config.style)}
+        title={mod.config.title}
+        intro={mod.config.intro}
+        greeting={mod.receptionist.greeting}
+        sourceUrl={sourceUrl}
+        panel={panel === "1"}
+      />
+    );
+  }
   if (mod.type !== "lead_capture" && mod.type !== "intake_form" && mod.type !== "quote_calculator" && mod.type !== "booking") {
     return (
       <p style={{ font: "14px system-ui, sans-serif", color: "#6a7285", padding: 16, margin: 0 }}>
@@ -33,7 +50,6 @@ export default async function ModuleFramePage(props: {
       </p>
     );
   }
-  const sourceUrl = typeof src === "string" && /^https?:\/\//.test(src) ? src.slice(0, 500) : null;
   return (
     <ModuleForm
       publicId={mod.publicId}

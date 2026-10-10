@@ -16,6 +16,12 @@ const RATES: Record<string, { input: number; output: number }> = {
   "claude-haiku-4-5": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
 };
 
+/** Cost of one call at the rates above; null for a model not in the table. */
+export function aiCostUsd(model: string, inputTokens: number, outputTokens: number): number | null {
+  const rate = RATES[model];
+  return rate ? inputTokens * rate.input + outputTokens * rate.output : null;
+}
+
 // One tag per direct-Anthropic-call site across the ecosystem — see each
 // call site for what it does. Shared with revalor-admin's copy of this file.
 export type AiUsageSource =
@@ -37,7 +43,9 @@ export type AiUsageSource =
   | "try_recommend"
   | "stability_analysis"
   | "module_config"
-  | "needs_analyzer_site_review";
+  | "needs_analyzer_site_review"
+  | "receptionist_chat"
+  | "receptionist_setup";
 
 // Fire-and-forget-shaped but awaited by callers (not detached) — a
 // serverless function can be frozen/killed right after it returns, so a
@@ -50,8 +58,7 @@ export async function logAiUsage(params: {
   /** Set for build-related calls so cost can be attributed to one app. */
   appId?: string | null;
 }): Promise<void> {
-  const rate = RATES[params.model];
-  const costUsd = rate ? params.inputTokens * rate.input + params.outputTokens * rate.output : null;
+  const costUsd = aiCostUsd(params.model, params.inputTokens, params.outputTokens);
 
   const service = createServiceClient();
   const { error } = await service.from("ai_usage_log").insert({

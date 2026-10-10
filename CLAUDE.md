@@ -89,6 +89,10 @@ Automation (A6): emails are SENT by revalor-automation (modules DB, `vw_automati
 schema (`20260926000003_vw_automation.sql`), the `/workspace/<slug>/emails` page (usage vs plan, send log, owner
 template editing via `PUT /api/workspace/[slug]/templates`; defaults mirrored in `lib/modules/emailDefaults.ts`
 — keep in sync with revalor-automation `lib/vw/templates.mjs`), and `email_usage` in the modules directory.
+AI receptionist: module type `receptionist`, code in `lib/receptionist/*`, public chat at `/api/m/[id]/chat`
+(embed `data-widget="chat"`), tables `vw_receptionist_*` (members read their own workspace only, service role writes).
+It answers only from the owner's facts and books only through a live booking module in the same workspace.
+Leads are ordinary submissions. Details, including the limits and abuse caps: `docs/receptionist.md`.
 
 ## QA suite — every new feature ships with its tests
 Real-browser Playwright tests for every Revalor product live in `qa/products/<product>/*.qa.ts`, run in GitHub

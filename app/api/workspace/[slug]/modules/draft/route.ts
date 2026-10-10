@@ -3,6 +3,7 @@ import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { formFromPrompt } from "@/lib/modules/formFromPrompt";
 import { quoteFromPrompt } from "@/lib/modules/quoteFromPrompt";
+import { receptionistFromPrompt } from "@/lib/receptionist/draft";
 import { currentPeriod, limitsFor } from "@/lib/modules/plans";
 
 // "Describe your form" -> an editable draft. Nothing is saved here.
@@ -20,8 +21,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   const description = typeof body.description === "string" ? body.description.trim() : "";
+  // The receptionist needs more facts than a form, so it gets a longer description.
+  const maxLen = body.kind === "receptionist" ? 2000 : 800;
   if (description.length < 8) return NextResponse.json({ error: "Describe the form in a sentence or two." }, { status: 400 });
-  if (description.length > 800) return NextResponse.json({ error: "Keep the description under 800 characters." }, { status: 400 });
+  if (description.length > maxLen) return NextResponse.json({ error: `Keep the description under ${maxLen} characters.` }, { status: 400 });
 
   const db = modulesServiceClient();
   const { data: monthly } = await db.rpc("vw_rate_check", {
@@ -41,6 +44,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
     return NextResponse.json({ error: "You've drafted a lot of forms this hour — try again a bit later, or edit the current draft by hand." }, { status: 429 });
   }
 
+  if (body.kind === "receptionist") {
+    const { config, fromAi } = await receptionistFromPrompt({ description, businessName: auth.workspace.name });
+    return NextResponse.json({
+      config,
+      fromAi,
+      note: fromAi ? null : "We couldn't draft that automatically, so fill in the details below yourself.",
+    });
+  }
   if (body.kind === "quote") {
     const { config, fromAi } = await quoteFromPrompt({ description, businessName: auth.workspace.name });
     return NextResponse.json({
