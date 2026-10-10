@@ -39,11 +39,12 @@ export async function POST(req: NextRequest) {
   const conv = await voiceConversation(call.call_id, mod, call.from_number ?? null);
 
   if (body.event === "call_ended") {
-    const { data: existing } = await db.from("vw_receptionist_calls").select("ended_at, outcome").eq("provider_call_id", call.call_id).single();
-    if (existing?.ended_at) return NextResponse.json({ ok: true }); // a retry — already recorded
+    const { data: existing } = await db.from("vw_receptionist_calls").select("outcome").eq("provider_call_id", call.call_id).single();
     const seconds = Math.max(0, Math.round((call.duration_ms ?? 0) / 1000));
     const transcript = callTranscript(call);
-    await db
+    // The update is the lock: only the first delivery (ended_at still null) gets a row back,
+    // so a retried or replayed webhook can't count minutes or store the transcript twice.
+    const { data: claimed } = await db
       .from("vw_receptionist_calls")
       .update({
         duration_seconds: seconds,
@@ -52,7 +53,10 @@ export async function POST(req: NextRequest) {
         started_at: call.start_timestamp ? new Date(call.start_timestamp).toISOString() : undefined,
         ended_at: new Date(call.end_timestamp ?? Date.now()).toISOString(),
       })
-      .eq("provider_call_id", call.call_id);
+      .eq("provider_call_id", call.call_id)
+      .is("ended_at", null)
+      .select("id");
+    if (!claimed?.length) return NextResponse.json({ ok: true }); // already recorded
     if (transcript.length) {
       await db.from("vw_receptionist_messages").insert(transcript.map((m) => ({ conversation_id: conv.conversationId, workspace_id: mod.workspaceId, ...m })));
       await db

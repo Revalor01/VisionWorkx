@@ -12,7 +12,7 @@ export interface PlanLimits {
   storageBytes: number;
   aiDraftsPerMonth: number;
   chatsPerMonth: number; // AI receptionist chat conversations; soft limit up to SUBMISSION_HARD_FACTOR
-  voiceMinutesPerMonth: number; // AI receptionist phone minutes; hard stop at 100% (real per-minute cost)
+  voiceMinutesPerMonth: number; // AI receptionist phone minutes; at 100% calls are short message-only, refused past 120%
 }
 
 const GB = 1024 ** 3;
@@ -72,8 +72,9 @@ export function gateChat(countBefore: number, included: number): ChatGate {
 }
 
 /**
- * Voice is a hard cap (every minute costs real money): true while the
- * workspace is under its included minutes. `secondsUsed` = this month so far.
+ * Voice cap (every minute costs real money): true while the workspace is
+ * under its included minutes. `secondsUsed` = this month so far. Over it,
+ * calls are limited to taking a short message (see lib/receptionist/voice).
  */
 export function voiceAllowed(secondsUsed: number, includedMinutes: number): boolean {
   return includedMinutes > 0 && secondsUsed < includedMinutes * 60;

@@ -5,6 +5,7 @@ import { parseBookingSetup } from "@/lib/modules/booking";
 import { parseReceptionistSetup } from "../config";
 import { beginMessage, llmParams, retellProvider, VOICE_MODEL } from "./retell";
 import { callOutcome, callTranscript, type RetellCall } from "./calls";
+import { capState } from "./server";
 import type { AgentSpec } from "./provider";
 
 const setup = parseReceptionistSetup({ about: "Family plumbing in Austin.", greeting: "How can I help?", transferPhone: "(512) 555-0123" });
@@ -76,5 +77,15 @@ describe("call payloads", () => {
     expect(callOutcome(call({ ...spoke, disconnection_reason: "call_transfer" }), null)).toBe("transferred");
     expect(callOutcome(call(spoke), null)).toBe("answered");
     expect(callOutcome(call({ transcript_object: [{ role: "agent", content: "Hi!" }] }), null)).toBe("abandoned");
+  });
+});
+
+describe("voice minutes cap", () => {
+  it("answers normally under the plan, takes short messages at 100%, refuses past 120%", () => {
+    expect(capState(99 * 60, 100)).toBe("ok");
+    expect(capState(100 * 60, 100)).toBe("capped");
+    expect(capState(119 * 60, 100)).toBe("capped");
+    expect(capState(120 * 60, 100)).toBe("refuse");
+    expect(capState(0, 0)).toBe("refuse");
   });
 });

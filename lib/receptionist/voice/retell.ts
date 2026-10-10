@@ -77,7 +77,7 @@ export function llmParams(spec: AgentSpec, base = origin()): LlmCreateParams {
 
 export function retellProvider(): VoiceProvider {
   return {
-    async syncAgent(spec, agentId) {
+    async syncAgent(spec, agentId, opts) {
       const r = client();
       const params = llmParams(spec);
       if (agentId) {
@@ -88,8 +88,10 @@ export function retellProvider(): VoiceProvider {
           return agentId;
         }
       }
+      if (opts?.updateOnly) throw new Error(`agent ${agentId ?? "(none)"} has no Retell LLM to update`);
       const llm = await r.llm.create(params);
-      const agent = await r.agent.create({
+      const agent = await r.agent
+        .create({
         agent_name: `VW receptionist — ${spec.businessName}`.slice(0, 120),
         response_engine: { type: "retell-llm", llm_id: llm.llm_id },
         voice_id: process.env.RETELL_VOICE_ID || "retell-Cimo",
@@ -100,7 +102,11 @@ export function retellProvider(): VoiceProvider {
         end_call_after_silence_ms: SILENCE_HANGUP_MS,
         data_storage_retention_days: TRANSCRIPT_RETENTION_DAYS,
         timezone: spec.timeZone,
-      });
+        })
+        .catch(async (err) => {
+          await r.llm.delete(llm.llm_id).catch(() => {}); // don't leave an orphaned LLM behind
+          throw err;
+        });
       return agent.agent_id;
     },
 

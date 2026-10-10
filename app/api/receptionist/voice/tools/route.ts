@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
+import { billingAllowsService } from "@/lib/modules/plans";
 import { linkedBooking, realToolDeps, toolContext } from "@/lib/receptionist/server";
 import { runTool, TOOL_NAMES } from "@/lib/receptionist/tools";
 import { voiceEnabled } from "@/lib/receptionist/voice/provider";
@@ -31,7 +32,9 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Unknown tool.", { status: 200 });
   }
   const found = await receptionistForNumber(body.call.to_number);
-  if (!found) return new NextResponse("This line isn't set up. Apologise and end the call.", { status: 200 });
+  if (!found || found.mod.status !== "live" || !billingAllowsService(found.mod.billingStatus)) {
+    return new NextResponse("This line isn't available. Apologise and end the call.", { status: 200 });
+  }
   const { mod } = found;
   const from = typeof body.call.from_number === "string" ? body.call.from_number : null;
 

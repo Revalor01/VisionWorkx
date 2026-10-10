@@ -48,17 +48,45 @@ export async function agentSpecFor(mod: PublicModule): Promise<AgentSpec> {
 export const LIMIT_NOTE =
   "IMPORTANT: this business's phone minutes for the month are used up. Don't book or chat at length: politely take a message (name, phone number, what they need) with take_message, then say goodbye and end the call within about a minute.";
 
-export type InboundDecision = { reject: true } | { reject: false; dynamicVariables: Record<string, string>; metadata: Record<string, string> };
+/** Past this share of the included minutes, calls are refused outright (bounds our cost). */
+export const VOICE_CEILING = 1.2;
+/** Capped calls (message-taking only) are cut off after this long. */
+export const CAPPED_CALL_MS = 2 * 60_000;
+const CALLS_PER_NUMBER_HOUR = 60;
+const CALLS_PER_CALLER_HOUR = 6;
 
-/** Decides, before the phone rings through, whether and how the receptionist answers. */
-export async function inboundDecision(toNumber: string, now = new Date()): Promise<InboundDecision> {
+export type InboundDecision =
+  | { reject: true }
+  | { reject: false; capped: boolean; dynamicVariables: Record<string, string>; metadata: Record<string, string> };
+
+/** Pure: the minutes-cap part of the decision (exported for tests). */
+export function capState(secondsUsed: number, includedMinutes: number): "ok" | "capped" | "refuse" {
+  if (voiceAllowed(secondsUsed, includedMinutes)) return "ok";
+  return secondsUsed < includedMinutes * 60 * VOICE_CEILING ? "capped" : "refuse";
+}
+
+/**
+ * Decides, before the phone rings through, whether and how the receptionist
+ * answers: only live, paying workspaces; per-number and per-caller call rate
+ * limits; at 100% of the plan's minutes calls are limited to a short message
+ * (and cut off after CAPPED_CALL_MS); past VOICE_CEILING they're refused.
+ */
+export async function inboundDecision(toNumber: string, fromNumber: string | null, now = new Date()): Promise<InboundDecision> {
   const found = await receptionistForNumber(toNumber);
   if (!found || found.mod.status !== "live" || !billingAllowsService(found.mod.billingStatus)) return { reject: true };
+  const db = modulesServiceClient();
+  const [perNumber, perCaller] = await Promise.all([
+    db.rpc("vw_rate_check", { p_key: `rcall:${toNumber}`, max_hits: CALLS_PER_NUMBER_HOUR, window_seconds: 3600 }),
+    fromNumber ? db.rpc("vw_rate_check", { p_key: `rcaller:${toNumber}:${fromNumber}`, max_hits: CALLS_PER_CALLER_HOUR, window_seconds: 3600 }) : Promise.resolve({ data: true }),
+  ]);
+  if (perNumber.data !== true || perCaller.data !== true) return { reject: true }; // fail closed: every call costs money
   const usage = await usageThisMonth(found.mod.workspaceId);
-  const capped = !voiceAllowed(usage.voice_seconds, limitsFor(found.mod.plan).voiceMinutesPerMonth);
+  const state = capState(usage.voice_seconds, limitsFor(found.mod.plan).voiceMinutesPerMonth);
+  if (state === "refuse") return { reject: true };
   return {
     reject: false,
-    dynamicVariables: { now_text: nowText(found.mod.timeZone, now), limit_note: capped ? LIMIT_NOTE : "" },
+    capped: state === "capped",
+    dynamicVariables: { now_text: nowText(found.mod.timeZone, now), limit_note: state === "capped" ? LIMIT_NOTE : "" },
     metadata: { workspace_id: found.mod.workspaceId, module_id: found.mod.id },
   };
 }
@@ -74,7 +102,7 @@ export async function syncVoiceAgent(publicId: string): Promise<void> {
     .eq("status", "active")
     .maybeSingle();
   if (!number?.provider_agent_id) return;
-  await provider().syncAgent(await agentSpecFor(mod), number.provider_agent_id);
+  await provider().syncAgent(await agentSpecFor(mod), number.provider_agent_id, { updateOnly: true });
 }
 
 /** Adds a finished call's seconds to the month and sends the 80%/100% alerts once. */

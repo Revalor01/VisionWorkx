@@ -14,8 +14,12 @@ export interface AgentSpec {
 }
 
 export interface VoiceProvider {
-  /** Creates the agent, or updates it in place when `agentId` is given. Returns the agent id. */
-  syncAgent(spec: AgentSpec, agentId?: string | null): Promise<string>;
+  /**
+   * Creates the agent, or updates it in place when `agentId` is given. Returns
+   * the agent id. With `updateOnly`, never creates a new one (throws instead),
+   * so a number can't silently drift onto an orphaned agent.
+   */
+  syncAgent(spec: AgentSpec, agentId?: string | null, opts?: { updateOnly?: boolean }): Promise<string>;
   /** Buys a US number (optionally in an area code) wired to the agent. Returns E.164. */
   buyNumber(input: { agentId: string; areaCode: number | null; nickname: string }): Promise<string>;
   /** Releases a number and deletes its agent. Safe to call twice. */

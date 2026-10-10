@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   const { data: existing } = await db.from("vw_receptionist_numbers").select("phone_e164").eq("workspace_id", auth.workspace.id).eq("status", "active").maybeSingle();
   if (existing) return NextResponse.json({ error: "You already have a number.", phone: existing.phone_e164 }, { status: 409 });
   const { data: allowed } = await db.rpc("vw_rate_check", { p_key: `rnum:${auth.workspace.id}`, max_hits: 3, window_seconds: 86400 });
-  if (allowed === false) return NextResponse.json({ error: "You've changed numbers a few times today — try again tomorrow." }, { status: 429 });
+  if (allowed !== true) return NextResponse.json({ error: "You've changed numbers a few times today — try again tomorrow." }, { status: 429 }); // fail closed: costs money
 
   const voice = provider();
   let agentId: string | null = null;
