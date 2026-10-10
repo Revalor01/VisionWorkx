@@ -4,7 +4,9 @@ import { parseBrand, parseFormConfig } from "@/lib/modules/config";
 import FormBuilder from "@/components/modules/FormBuilder";
 import ReceptionistEditor from "@/components/modules/ReceptionistEditor";
 import { isReceptionistModule, parseReceptionistConfig } from "@/lib/receptionist/config";
-import { bookingModulesFor } from "@/lib/receptionist/owner";
+import { bookingModulesFor, voicePanelFor } from "@/lib/receptionist/owner";
+import { voiceEnabled } from "@/lib/receptionist/voice/provider";
+import { currentPeriod, limitsFor } from "@/lib/modules/plans";
 import { isQuoteModule, parseQuotePricing } from "@/lib/modules/quote";
 import { isBookingModule, parseBookingSetup } from "@/lib/modules/booking";
 
@@ -27,6 +29,7 @@ export default async function EditLeadFormPage(props: { params: Promise<{ slug: 
         workspaceBrand={parseBrand(workspace.brand)}
         hasDomains={workspace.domains.length > 0}
         bookingModules={await bookingModulesFor(supabase, workspace.id)}
+        voice={await voicePanelFor(supabase, workspace.id, limitsFor(workspace.plan).voiceMinutesPerMonth, voiceEnabled(), currentPeriod())}
         existing={{ publicId: mod.public_id, name: mod.name, status: mod.status, config: parseReceptionistConfig(mod.config) }}
       />
     );

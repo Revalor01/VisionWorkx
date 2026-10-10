@@ -66,7 +66,7 @@ export function realToolDeps(businessName: string, conversationKey: string): Too
     now: () => new Date(),
     claimSave: async (kind) => {
       const { data } = await db().rpc("vw_rate_check", { p_key: `rsave:${kind}:${conversationKey}`, max_hits: 1, window_seconds: 7 * 86400 });
-      return data !== false;
+      return data === true; // fail closed: a save we can't count isn't allowed
     },
     busyRanges: (ws, from, to) => busyRanges(ws, from, to),
     reserveSlot,

@@ -3,7 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase";
 import { testWorkspaceIds } from "@/lib/modules/testWorkspaces";
 import { embedSnippet } from "@/lib/modules/install";
-import { currentPeriod as currentAutomationPeriod, limitsFor } from "@/lib/modules/plans";
+import { currentPeriod as currentAutomationPeriod, limitsFor, monthStartIso } from "@/lib/modules/plans";
 
 // Read-only directory of VisionWorkx client workspaces and modules for
 // revalor-admin's "VisionWorkx Clients" section. Machine-to-machine: bearer
@@ -25,13 +25,20 @@ export async function GET(req: NextRequest) {
   const db = modulesServiceClient();
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
   const period = currentAutomationPeriod();
-  const [{ data: ws }, { data: mods }, { data: members }, { data: subs }, { data: usage }] = await Promise.all([
+  const monthStart = monthStartIso();
+  const [{ data: ws }, { data: mods }, { data: members }, { data: subs }, { data: usage }, { data: rUsage }, { data: rCalls }, { data: rChats }] = await Promise.all([
     db.from("vw_workspaces").select("id, name, slug, domains, plan, billing_status, trial_ends_at, current_period_end, time_zone, self_serve, install_requested_at, created_at").order("created_at", { ascending: false }),
     db.from("vw_modules").select("public_id, workspace_id, type, name, status, created_at, updated_at"),
     db.from("vw_workspace_members").select("workspace_id, role"),
     db.from("vw_submissions").select("workspace_id, created_at").gte("created_at", since),
     db.from("vw_email_usage").select("workspace_id, sent_count").eq("period", period),
+    // AI receptionist: this month's chats/minutes and what they cost us (calls: Retell; chats: Claude).
+    db.from("vw_receptionist_usage").select("workspace_id, chats, voice_seconds").eq("period", period),
+    db.from("vw_receptionist_calls").select("workspace_id, cost_usd").gte("started_at", monthStart),
+    db.from("vw_receptionist_conversations").select("workspace_id, cost_usd").eq("channel", "chat").gte("started_at", monthStart),
   ]);
+  const sumCost = (rows: { workspace_id: string; cost_usd: number | string }[] | null, id: string) =>
+    Number((rows ?? []).filter((r) => r.workspace_id === id).reduce((n, r) => n + Number(r.cost_usd), 0).toFixed(4));
   const origin = process.env.NEXT_PUBLIC_MODULES_EMBED_ORIGIN ?? "https://modules.revalorllc.com";
   const testIds = await testWorkspaceIds(db);
   const workspaces = (ws ?? []).filter((w) => !testIds.has(w.id)).map((w) => {
@@ -64,6 +71,15 @@ export async function GET(req: NextRequest) {
         staff: (members ?? []).filter((m) => m.workspace_id === w.id && m.role === "staff").length,
       },
       submissions_30d: wsSubs.length,
+      receptionist_usage: {
+        period,
+        chats: (rUsage ?? []).find((u) => u.workspace_id === w.id)?.chats ?? 0,
+        chat_limit: limitsFor(w.plan).chatsPerMonth,
+        voice_minutes: Math.ceil(((rUsage ?? []).find((u) => u.workspace_id === w.id)?.voice_seconds ?? 0) / 60),
+        voice_minute_limit: limitsFor(w.plan).voiceMinutesPerMonth,
+        chat_cost_usd: sumCost(rChats, w.id),
+        voice_cost_usd: sumCost(rCalls, w.id),
+      },
       email_usage: {
         period,
         sent: (usage ?? []).find((u) => u.workspace_id === w.id)?.sent_count ?? 0,

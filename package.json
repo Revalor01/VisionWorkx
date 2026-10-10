@@ -24,6 +24,7 @@
     "react": "^19",
     "react-dom": "^19",
     "resend": "^6.16.0",
+    "retell-sdk": "^6.2.5",
     "sharp": "^0.35.3",
     "stripe": "^22.3.0"
   },

@@ -92,7 +92,9 @@ template editing via `PUT /api/workspace/[slug]/templates`; defaults mirrored in
 AI receptionist: module type `receptionist`, code in `lib/receptionist/*`, public chat at `/api/m/[id]/chat`
 (embed `data-widget="chat"`), tables `vw_receptionist_*` (members read their own workspace only, service role writes).
 It answers only from the owner's facts and books only through a live booking module in the same workspace.
-Leads are ordinary submissions. Details, including the limits and abuse caps: `docs/receptionist.md`.
+Leads are ordinary submissions. Phone calls run on Retell: code in `lib/receptionist/voice/*`, Retell-signed
+webhooks at `/api/receptionist/voice/{inbound,tools,webhook}`, env vars `RETELL_API_KEY` and optional `RETELL_VOICE_ID`.
+Voice is off unless `RECEPTIONIST_VOICE_ENABLED=true`. Details, including the limits and abuse caps: `docs/receptionist.md`.
 
 ## QA suite — every new feature ships with its tests
 Real-browser Playwright tests for every Revalor product live in `qa/products/<product>/*.qa.ts`, run in GitHub
