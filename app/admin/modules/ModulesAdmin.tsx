@@ -34,6 +34,7 @@ const MODULE_TYPE_LABELS: Record<string, string> = {
   booking: "Booking",
   quote_calculator: "Quote calculator",
   intake_form: "Intake form",
+  receptionist: "AI receptionist",
 };
 
 // One distinct hue per module type for the Modules Sold chart, pulled from the
@@ -44,6 +45,7 @@ const MODULE_TYPE_COLORS: Record<string, string> = {
   booking: "#e8b84b", // gold
   quote_calculator: "#3ecf8e", // green
   intake_form: "#7c5cfc", // purple
+  receptionist: "#e2557b", // rose
 };
 const BAR_FALLBACK_COLOR = "#2E6DA4";
 
@@ -163,7 +165,7 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
                     <option value="draft">draft</option><option value="live">live</option><option value="paused">paused</option>
                   </select>
                 </div>
-                <code className="mt-2 block break-all rounded bg-gray-50 p-2 text-xs">{embedSnippet(m.public_id)}</code>
+                <code className="mt-2 block break-all rounded bg-gray-50 p-2 text-xs">{embedSnippet(m.public_id, undefined, m.type)}</code>
               </div>
             ))}
             <button disabled={busy} className="rounded-lg border px-3 py-2 text-sm" onClick={() => run({ action: "create_module", workspace_id: w.id, type: "lead_capture", name: "Lead capture form" }, "Module created (draft).")}>

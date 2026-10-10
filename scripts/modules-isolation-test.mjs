@@ -108,6 +108,30 @@ try {
   const bCalIns = await b.client.from("vw_calendar_connections").insert({ workspace_id: wsB.id, refresh_token_enc: "x" });
   check("members can't create calendar connections", !!bCalIns.error);
 
+  // ── AI receptionist: members read their own conversations only; hidden columns; no client writes ──
+  const { data: recA } = await admin.from("vw_modules").insert({ workspace_id: wsA.id, type: "receptionist", name: "A receptionist" }).select("id").single();
+  const { data: convA } = await admin
+    .from("vw_receptionist_conversations")
+    .insert({ workspace_id: wsA.id, module_id: recA.id, channel: "chat", visitor_hash: "secret-hash", cost_usd: 0.01 })
+    .select("id")
+    .single();
+  await admin.from("vw_receptionist_messages").insert({ conversation_id: convA.id, workspace_id: wsA.id, role: "visitor", content: "Secret question" });
+  const aConv = await a.client.from("vw_receptionist_conversations").select("id").eq("id", convA.id);
+  check("owner A sees A's receptionist conversation", aConv.data?.length === 1);
+  const aHash = await a.client.from("vw_receptionist_conversations").select("visitor_hash").eq("id", convA.id);
+  check("visitor token hash not readable by client logins", !!aHash.error);
+  const aCost = await a.client.from("vw_receptionist_conversations").select("cost_usd").eq("id", convA.id);
+  check("AI cost columns not readable by client logins", !!aCost.error);
+  const bConv = await b.client.from("vw_receptionist_conversations").select("id").eq("id", convA.id);
+  const bMsg = await b.client.from("vw_receptionist_messages").select("id").eq("conversation_id", convA.id);
+  check("user B can't see A's receptionist conversations or messages", (bConv.data ?? []).length === 0 && (bMsg.data ?? []).length === 0);
+  const anonMsg = await anon.from("vw_receptionist_messages").select("id");
+  check("anonymous can't read receptionist messages", (anonMsg.data ?? []).length === 0);
+  const aMsgIns = await a.client.from("vw_receptionist_messages").insert({ conversation_id: convA.id, workspace_id: wsA.id, role: "assistant", content: "forged" });
+  check("members can't write receptionist messages", !!aMsgIns.error);
+  const aUsage = await a.client.rpc("vw_receptionist_add_usage", { p_workspace: wsA.id, p_period: "2026-01", p_chats: -100, p_voice_seconds: 0 });
+  check("receptionist usage function is server-only", !!aUsage.error);
+
   // ── self-serve signup ──
   const signup = await anon.auth.signUp({ email: `${tag}-direct@example.com`, password: pw });
   if (signup.data?.user?.id) created.users.push(signup.data.user.id);

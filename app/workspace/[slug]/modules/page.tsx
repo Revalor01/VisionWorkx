@@ -12,6 +12,7 @@ const TYPE_LABEL: Record<string, string> = {
   booking: "Online booking",
   quote_calculator: "Quote calculator",
   intake_form: "Intake form",
+  receptionist: "AI receptionist",
 };
 const STATUS_PILL: Record<string, string> = {
   live: "bg-emerald-50 text-emerald-700",
@@ -52,16 +53,17 @@ export default async function WorkspaceModulesPage(props: { params: Promise<{ sl
       )}
 
       {(mods ?? []).map((m) => {
-        const snippet = embedSnippet(m.public_id);
+        const snippet = embedSnippet(m.public_id, undefined, m.type);
+        const isReceptionist = m.type === "receptionist";
         return (
           <section key={m.id} className="rounded-2xl border border-gray-200 bg-white p-6" aria-labelledby={`mod-${m.id}`}>
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <h2 id={`mod-${m.id}`} className="text-lg font-bold text-navy-dark">{m.name}</h2>
               <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{TYPE_LABEL[m.type] ?? m.type}</span>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL[m.status] ?? ""}`}>{m.status}</span>
-              {role === "owner" && (m.type === "lead_capture" || m.type === "intake_form" || m.type === "quote_calculator" || m.type === "booking") && (
+              {role === "owner" && (m.type === "lead_capture" || m.type === "intake_form" || m.type === "quote_calculator" || m.type === "booking" || isReceptionist) && (
                 <Link href={`/workspace/${workspace.slug}/modules/${m.public_id}/edit`} className="ml-auto text-sm font-semibold text-navy hover:underline">
-                  Edit form
+                  {isReceptionist ? "Edit receptionist" : "Edit form"}
                 </Link>
               )}
             </div>
@@ -94,6 +96,13 @@ export default async function WorkspaceModulesPage(props: { params: Promise<{ sl
               </div>
               <div className="min-w-0">
                 <p className="mb-2 text-sm font-semibold text-gray-700">Preview</p>
+                {isReceptionist ? (
+                  <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+                    Adds a chat button to the bottom-right corner of every page you paste it on. Paste it once, just before{" "}
+                    <code>&lt;/body&gt;</code> or in your site builder&apos;s site-wide code area.
+                    {role === "owner" && " Use Edit receptionist → Test it to try a conversation."}
+                  </p>
+                ) : (
                 <div className="rounded-xl bg-gray-50 p-4">
                   <ModuleForm
                     publicId={m.public_id}
@@ -107,7 +116,8 @@ export default async function WorkspaceModulesPage(props: { params: Promise<{ sl
                     preview
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">Preview only — submitting here doesn&apos;t save anything.</p>
+                )}
+                {!isReceptionist && <p className="mt-2 text-xs text-gray-500">Preview only — submitting here doesn&apos;t save anything.</p>}
               </div>
             </div>
           </section>

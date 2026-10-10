@@ -1,7 +1,9 @@
 import { EMBED_ORIGIN } from "./constants";
 
-export function embedSnippet(publicId: string, origin = EMBED_ORIGIN): string {
-  return `<script src="${origin}/embed.js" data-module="${publicId}" async></script>`;
+export function embedSnippet(publicId: string, origin = EMBED_ORIGIN, type?: string): string {
+  // The AI receptionist is a floating chat button, so it can go anywhere on the page.
+  const widget = type === "receptionist" ? ' data-widget="chat"' : "";
+  return `<script src="${origin}/embed.js" data-module="${publicId}"${widget} async></script>`;
 }
 
 // Plain-English install steps per site builder. `autoHeight: false` means the

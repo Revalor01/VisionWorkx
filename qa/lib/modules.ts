@@ -234,7 +234,7 @@ export interface CreatedModule {
 /** Inserts a module directly (skipping the builder UI); live unless told otherwise. */
 export async function createModule(
   workspaceId: string,
-  type: "lead_capture" | "quote_calculator" | "booking",
+  type: "lead_capture" | "quote_calculator" | "booking" | "receptionist",
   config: Record<string, unknown>,
   status: "live" | "draft" = "live",
 ): Promise<CreatedModule> {
@@ -266,13 +266,13 @@ export const NAME_FIELD = { id: "name", label: "Full name", type: "text", requir
 export const EMAIL_FIELD = { id: "email", label: "Email", type: "email", required: true, maxLength: 254 };
 
 /** Opens the fake customer site with a module's embed snippet on it. */
-export async function openHostPage(page: Page, publicId: string, host = QA_HOST): Promise<void> {
+export async function openHostPage(page: Page, publicId: string, host = QA_HOST, extraAttrs = ""): Promise<void> {
   await page.route(`https://${host}/**`, (route) =>
     route.fulfill({
       contentType: "text/html",
       body: `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QA host site</title></head><body>
 <h1>QA host site</h1>
-<script src="${target()}/embed.js" data-module="${publicId}" async></script>
+<script src="${target()}/embed.js" data-module="${publicId}"${extraAttrs ? ` ${extraAttrs}` : ""} async></script>
 </body></html>`,
     }),
   );

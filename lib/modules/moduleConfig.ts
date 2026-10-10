@@ -1,13 +1,14 @@
 import { parseFormConfig, type FormConfig } from "./config";
 import { DEFAULT_QUOTE, isQuoteModule, parseQuotePricing, QUOTE_KEY_PREFIX, type QuotePricing } from "./quote";
 import { BOOKING_KEY_PREFIX, DEFAULT_BOOKING, isBookingModule, parseBookingSetup, type BookingSetup } from "./booking";
+import { isReceptionistModule, parseReceptionistConfig, receptionistConfigError, type ReceptionistSetup } from "@/lib/receptionist/config";
 
 // Browser-safe: used by the owner builder as well as the server.
 
-export const CREATABLE_TYPES = ["lead_capture", "quote_calculator", "booking"] as const;
+export const CREATABLE_TYPES = ["lead_capture", "quote_calculator", "booking", "receptionist"] as const;
 export type CreatableType = (typeof CREATABLE_TYPES)[number];
 
-export type StoredConfig = FormConfig & { quote?: QuotePricing; booking?: BookingSetup };
+export type StoredConfig = FormConfig & { quote?: QuotePricing; booking?: BookingSetup; receptionist?: ReceptionistSetup };
 
 /**
  * Sanitise an owner-supplied config for a module type before it's stored.
@@ -15,6 +16,12 @@ export type StoredConfig = FormConfig & { quote?: QuotePricing; booking?: Bookin
  * are ordinary form fields (no payment-on-submit for calculators).
  */
 export function buildStoredConfig(type: string, raw: unknown, workspaceTimeZone = "America/New_York"): { config: StoredConfig } | { error: string } {
+  if (isReceptionistModule(type)) {
+    // Lead fields are fixed and there's no payment; only the header and the facts are the owner's.
+    const config = parseReceptionistConfig(raw);
+    const err = receptionistConfigError(config);
+    return err ? { error: err } : { config };
+  }
   const form = parseFormConfig(raw);
   if (isBookingModule(type)) {
     const booking = parseBookingSetup((raw as { booking?: unknown } | null)?.booking, workspaceTimeZone);

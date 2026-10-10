@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
           status: m.status,
           created_at: m.created_at,
           updated_at: m.updated_at,
-          install_snippet: embedSnippet(m.public_id, origin),
+          install_snippet: embedSnippet(m.public_id, origin, m.type),
         })),
     };
   });
