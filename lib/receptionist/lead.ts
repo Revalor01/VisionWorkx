@@ -1,6 +1,8 @@
 import { after } from "next/server";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { sendWebhook } from "@/lib/modules/webhook";
+import { gateSubmission, limitsFor } from "@/lib/modules/plans";
+import { sendUsageAlert, submissionsThisMonth } from "@/lib/modules/usage";
 
 // Saves a receptionist lead (or booking) as an ordinary submission, so it shows
 // on the owner's board, in exports and in the bookings list, and fires the same
@@ -12,6 +14,7 @@ import { sendWebhook } from "@/lib/modules/webhook";
 export interface LeadInput {
   workspaceId: string;
   workspaceName: string;
+  plan: string;
   /** The module the submission belongs to (the receptionist, or the linked booking module for bookings). */
   moduleId: string;
   modulePublicId: string;
@@ -22,8 +25,11 @@ export interface LeadInput {
   sourceUrl: string | null;
 }
 
-export async function createLead(input: LeadInput): Promise<{ ok: true; submissionId: string } | { ok: false }> {
+export async function createLead(input: LeadInput): Promise<{ ok: true; submissionId: string } | { ok: false; reason?: "limit" }> {
   const db = modulesServiceClient();
+  // Same plan soft limit as the public submit route (pause at 150% of included submissions).
+  const gate = gateSubmission(await submissionsThisMonth(input.workspaceId), limitsFor(input.plan).submissionsPerMonth);
+  if (!gate.allow) return { ok: false, reason: "limit" };
   const { data: sub, error } = await db
     .from("vw_submissions")
     .insert({ workspace_id: input.workspaceId, module_id: input.moduleId, data: input.values, source_url: input.sourceUrl })
@@ -58,5 +64,12 @@ export async function createLead(input: LeadInput): Promise<{ ok: true; submissi
     await db.from("vw_webhook_deliveries").insert({ workspace_id: input.workspaceId, submission_id: sub.id, status_code: r.status, error: r.error });
   });
 
+  if (gate.alert) {
+    const alert = gate.alert;
+    after(async () => {
+      const { data: ws } = await db.from("vw_workspaces").select("slug, notification_email").eq("id", input.workspaceId).single();
+      if (ws) await sendUsageAlert({ id: input.workspaceId, name: input.workspaceName, slug: ws.slug, plan: input.plan, notification_email: ws.notification_email }, alert);
+    });
+  }
   return { ok: true, submissionId: sub.id };
 }

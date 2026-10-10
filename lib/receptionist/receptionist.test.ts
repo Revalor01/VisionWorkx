@@ -116,6 +116,7 @@ function ctx(withBooking = true): ToolContext {
   return {
     channel: "chat",
     workspaceId: "ws1",
+    plan: "starter",
     workspaceName: "Acme",
     sourceUrl: null,
     receptionist: { id: "rec1", publicId: "m_rec", name: "Receptionist" },
@@ -126,8 +127,15 @@ function ctx(withBooking = true): ToolContext {
 
 function deps(over: Partial<ToolDeps> = {}) {
   const leads: unknown[] = [];
+  const claimed = new Set<string>();
   const d: ToolDeps = {
     now: () => NOW,
+    // Mirrors the DB-enforced cap: one booking and one message per conversation.
+    claimSave: async (kind) => {
+      if (claimed.has(kind)) return false;
+      claimed.add(kind);
+      return true;
+    },
     busyRanges: async () => [],
     reserveSlot: async () => ({ ok: true, bookingId: "b1", token: "tok" }),
     createLead: async (input) => {
@@ -186,6 +194,25 @@ describe("receptionist tools", () => {
     const r = await runTool("book_appointment", { service_id: "estimate", start: "2026-10-12T16:00:00.000Z", name: "Pat", phone: "5125550123" }, ctx(), d);
     expect(r.isError).toBe(true);
     expect(d.cancelReservation).toHaveBeenCalledWith("b1");
+  });
+
+  it("saves at most one message and one booking per conversation, however the model is steered", async () => {
+    const { d, leads } = deps();
+    const a = await runTool("take_message", { name: "Pat", phone: "5125550123", message: "One" }, ctx(), d);
+    const b = await runTool("take_message", { name: "Eve", email: "victim@example.com", message: "Two" }, ctx(), d);
+    expect(a.outcome).toBe("message");
+    expect(b.isError).toBe(true);
+    const c = await runTool("book_appointment", { service_id: "estimate", start: "2026-10-12T16:00:00.000Z", name: "Pat", phone: "5125550123" }, ctx(), d);
+    const e = await runTool("book_appointment", { service_id: "estimate", start: "2026-10-12T17:00:00.000Z", name: "Eve", email: "victim@example.com" }, ctx(), d);
+    expect(c.outcome).toBe("booked");
+    expect(e.isError).toBe(true);
+    expect(leads).toHaveLength(2);
+  });
+
+  it("passes the plan through so leads respect the submissions limit", async () => {
+    const { d } = deps({ createLead: async () => ({ ok: false, reason: "limit" }) });
+    const r = await runTool("take_message", { name: "Pat", phone: "5125550123", message: "Hi" }, ctx(), d);
+    expect(r).toMatchObject({ isError: true, content: expect.stringContaining("contact the business directly") });
   });
 
   it("refuses booking tools when no booking module is linked", async () => {

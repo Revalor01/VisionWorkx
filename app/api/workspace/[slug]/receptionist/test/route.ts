@@ -49,7 +49,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
   const config = parseReceptionistConfig(body.config);
   // A linked booking module must be a booking module in THIS workspace (draft is fine for testing).
   const linked = config.receptionist.bookingModuleId ? await getModuleByPublicId(config.receptionist.bookingModuleId) : null;
-  const booking = linked && linked.workspaceId === auth.workspace.id && linked.booking && linked.booking.services.length > 0 ? linked : null;
+  const booking =
+    linked && linked.workspaceId === auth.workspace.id && linked.type === "booking" && linked.booking && linked.booking.services.length > 0 ? linked : null;
 
   const deps: ToolDeps = {
     now: () => new Date(),
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
       return isSlotAvailable(setup, service, start, busy, new Date()) ? { ok: true, bookingId: "test", token: "test" } : { ok: false, reason: "unavailable" };
     },
     createLead: async () => ({ ok: true, submissionId: "test" }),
+    claimSave: async () => true,
     afterBooking: async () => {},
     manageUrl: () => "(test — no link)",
     cancelReservation: async () => {},
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
     ctx: {
       channel: "chat",
       workspaceId: auth.workspace.id,
+      plan: auth.workspace.plan,
       workspaceName: auth.workspace.name,
       sourceUrl: null,
       receptionist: { id: "test", publicId: "test", name: config.title },

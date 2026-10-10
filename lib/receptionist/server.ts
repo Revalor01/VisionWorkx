@@ -36,6 +36,7 @@ export function toolContext(mod: PublicModule, booking: PublicModule | null, cha
   return {
     channel,
     workspaceId: mod.workspaceId,
+    plan: mod.plan,
     workspaceName: mod.workspaceName,
     sourceUrl,
     receptionist: { id: mod.id, publicId: mod.publicId, name: mod.config.title || "AI receptionist" },
@@ -55,10 +56,18 @@ export function systemPromptFor(mod: PublicModule, booking: PublicModule | null,
   });
 }
 
-export function realToolDeps(businessName: string): ToolDeps {
+/**
+ * `conversationKey` scopes the save caps (a chat conversation id, or a phone
+ * call id): one booking and one message each, enforced in the database.
+ */
+export function realToolDeps(businessName: string, conversationKey: string): ToolDeps {
   const db = () => modulesServiceClient();
   return {
     now: () => new Date(),
+    claimSave: async (kind) => {
+      const { data } = await db().rpc("vw_rate_check", { p_key: `rsave:${kind}:${conversationKey}`, max_hits: 1, window_seconds: 7 * 86400 });
+      return data !== false;
+    },
     busyRanges: (ws, from, to) => busyRanges(ws, from, to),
     reserveSlot,
     createLead,

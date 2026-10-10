@@ -26,11 +26,14 @@ export const TOOL_NAMES = ["check_availability", "book_appointment", "take_messa
 export type ToolName = (typeof TOOL_NAMES)[number];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SAVE_FAILED = "Saving didn't work. Apologise and ask them to contact the business directly.";
 const MAX_SLOTS = 8;
 
 export interface ToolContext {
   channel: Channel;
   workspaceId: string;
+  /** Workspace plan (leads count toward the plan's submissions, like forms). */
+  plan: string;
   workspaceName: string;
   sourceUrl: string | null;
   receptionist: { id: string; publicId: string; name: string };
@@ -44,7 +47,13 @@ export interface ToolDeps {
   now: () => Date;
   busyRanges: (workspaceId: string, from: Date, to: Date) => Promise<Busy[]>;
   reserveSlot: (input: { workspaceId: string; moduleId: string; setup: BookingSetup; service: BookingService; start: Date; customerTz: string | null }) => Promise<BookResult>;
-  createLead: (input: LeadInput) => Promise<{ ok: true; submissionId: string } | { ok: false }>;
+  createLead: (input: LeadInput) => Promise<{ ok: true; submissionId: string } | { ok: false; reason?: "limit" }>;
+  /**
+   * Claims one of this conversation's saves (server-enforced: at most one
+   * booking and one message per conversation, however the model is steered).
+   * false = already used.
+   */
+  claimSave: (kind: "booking" | "message") => Promise<boolean>;
   afterBooking: (input: { bookingId: string; submissionId: string; token: string; start: Date; service: BookingService; setup: BookingSetup; values: Record<string, string> }) => Promise<void>;
   manageUrl: (token: string) => string;
   cancelReservation: (bookingId: string) => Promise<void>;
@@ -132,9 +141,13 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
     const message = s(input.message, 4000);
     const contact = contactValues(input, ctx, message);
     if (!contact.ok) return { content: contact.error, isError: true };
+    if (!(await deps.claimSave("message"))) {
+      return { content: "A message was already saved in this conversation. Tell them the team has it and will follow up; don't save another.", isError: true };
+    }
     const lead = await deps.createLead({
       workspaceId: ctx.workspaceId,
       workspaceName: ctx.workspaceName,
+      plan: ctx.plan,
       moduleId: ctx.receptionist.id,
       modulePublicId: ctx.receptionist.publicId,
       moduleType: "receptionist",
@@ -143,7 +156,7 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
       fields: RECEPTIONIST_FIELDS.map((f) => ({ id: f.id, label: f.label, type: f.type })),
       sourceUrl: ctx.sourceUrl,
     });
-    if (!lead.ok) return { content: "Saving the message failed. Apologise and ask them to contact the business directly.", isError: true };
+    if (!lead.ok) return { content: SAVE_FAILED, isError: true };
     return { content: "Message saved. The team has been notified.", submissionId: lead.submissionId, outcome: "message" };
   }
 
@@ -173,6 +186,9 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
     const contact = contactValues(input, ctx, notes ? `Booked ${service.name}. Notes: ${notes}` : `Booked ${service.name}.`);
     if (!contact.ok) return { content: contact.error, isError: true };
 
+    if (!(await deps.claimSave("booking"))) {
+      return { content: "An appointment was already booked in this conversation. Only one booking per conversation — offer to take a message for anything else.", isError: true };
+    }
     const r = await deps.reserveSlot({ workspaceId: ctx.workspaceId, moduleId: ctx.booking.id, setup, service, start, customerTz: null });
     if (!r.ok) {
       return {
@@ -187,6 +203,7 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
     const lead = await deps.createLead({
       workspaceId: ctx.workspaceId,
       workspaceName: ctx.workspaceName,
+      plan: ctx.plan,
       moduleId: ctx.booking.id,
       modulePublicId: ctx.booking.publicId,
       moduleType: "booking",
@@ -197,7 +214,7 @@ export async function runTool(name: string, input: Record<string, unknown>, ctx:
     });
     if (!lead.ok) {
       await deps.cancelReservation(r.bookingId); // don't leave a slot held for a booking that didn't save
-      return { content: "Booking failed. Offer to take a message instead.", isError: true };
+      return { content: SAVE_FAILED, isError: true };
     }
     await deps.afterBooking({ bookingId: r.bookingId, submissionId: lead.submissionId, token: r.token, start, service, setup, values });
     return {

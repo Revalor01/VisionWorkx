@@ -12,7 +12,12 @@ import { addUsage, linkedBooking, realToolDeps, systemPromptFor, toolContext, us
 
 // Public: one chat turn with a workspace's AI receptionist. Same order as the
 // submit route — cheap checks first, Claude last:
-//   size -> JSON -> module -> origin -> honeypot -> rate limit -> conversation/plan gate -> turn.
+//   size -> JSON -> module -> origin -> honeypot -> rate limits -> conversation/plan gate -> caps -> turn.
+// Abuse/cost controls (the origin check alone isn't protection — anyone can
+// forge it): per-IP and per-module rate limits, at most NEW_CHATS_PER_IP_HOUR
+// new conversations per visitor, a chat only counts toward the plan after a
+// real reply, MAX_TURNS and MAX_CONVERSATION_USD per conversation, and a daily
+// turn cap per workspace.
 // A conversation is identified by its id plus a random token only the
 // visitor's browser holds (we store its sha256), so nobody can read or
 // continue someone else's chat.
@@ -21,7 +26,10 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 const MAX_BYTES = 8 * 1024;
 const MAX_MESSAGE = 1000;
-const MAX_MESSAGES = 40; // 20 visitor turns per conversation
+const MAX_TURNS = 20; // visitor messages per conversation
+const MAX_CONVERSATION_USD = 0.15; // per-conversation Claude spend cap
+const NEW_CHATS_PER_IP_HOUR = 5;
+const TURNS_PER_WORKSPACE_DAY = 1000;
 const HISTORY = 20;
 const UUID_RE = /^[0-9a-f-]{36}$/;
 
@@ -31,6 +39,10 @@ function sameHash(a: string, b: string): boolean {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);
+}
+
+function limitReply(followUp: string): string {
+  return `We've covered a lot! To keep going, please contact us directly — ${followUp.charAt(0).toLowerCase()}${followUp.slice(1)}`;
 }
 
 export async function OPTIONS(req: NextRequest, props: { params: Promise<{ moduleId: string }> }) {
@@ -89,6 +101,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
   // Continue an existing conversation (id + token), or start a new one (counts toward the plan).
   let conv: { id: string; submission_id: string | null; message_count: number; tokens_in: number; tokens_out: number; cost_usd: number };
   let newToken: string | null = null;
+  let chatAlert: "chats_80" | "chats_100" | null = null;
   const convId = typeof body.conversationId === "string" && UUID_RE.test(body.conversationId) ? body.conversationId : null;
   const token = typeof body.token === "string" && body.token.length === 64 ? body.token : null;
   if (convId && token) {
@@ -103,20 +116,21 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
       return json(req, domains, { error: "This chat has expired — refresh the page to start a new one.", code: "expired" }, 404);
     }
     conv = { ...data, cost_usd: Number(data.cost_usd) };
-    if (conv.message_count >= MAX_MESSAGES) {
-      return json(req, domains, {
-        conversationId: conv.id,
-        reply: `We've covered a lot! To keep going, please leave your details and ${mod.receptionist.followUp.charAt(0).toLowerCase()}${mod.receptionist.followUp.slice(1)}`,
-        limit: true,
-      });
+    if (conv.message_count >= MAX_TURNS * 2 || conv.cost_usd >= MAX_CONVERSATION_USD) {
+      return json(req, domains, { conversationId: conv.id, reply: limitReply(mod.receptionist.followUp), limit: true });
     }
   } else {
+    const { data: newOk } = await db.rpc("vw_rate_check", { p_key: `rcnew:${mod.publicId}:${ip}`, max_hits: NEW_CHATS_PER_IP_HOUR, window_seconds: 3600 });
+    if (newOk === false) {
+      return json(req, domains, { error: "You've started a lot of chats — please continue your current one or try again later." }, 429, { "Retry-After": "3600" });
+    }
     const usage = await usageThisMonth(mod.workspaceId);
     const gate = gateChat(usage.chats, limitsFor(mod.plan).chatsPerMonth);
     if (!gate.allow) {
       after(() => sendUsageAlert(alertWs, "chats_150"));
       return json(req, domains, { error: "Chat is unavailable right now. Please contact the business directly.", code: "paused" }, 503);
     }
+    chatAlert = gate.alert;
     newToken = randomBytes(32).toString("hex");
     const { data, error } = await db
       .from("vw_receptionist_conversations")
@@ -128,9 +142,15 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
       return json(req, domains, { error: "Something went wrong — please try again." }, 500);
     }
     conv = { id: data.id, submission_id: null, message_count: 0, tokens_in: 0, tokens_out: 0, cost_usd: 0 };
-    await addUsage(mod.workspaceId, 1, 0);
-    if (gate.alert) after(() => sendUsageAlert(alertWs, gate.alert!));
   }
+
+  // Atomic per-conversation turn cap (parallel requests can't slip past it) + daily cap per workspace.
+  const [turnOk, dayOk] = await Promise.all([
+    db.rpc("vw_rate_check", { p_key: `rcturn:${conv.id}`, max_hits: MAX_TURNS, window_seconds: 7 * 86400 }),
+    db.rpc("vw_rate_check", { p_key: `rcday:${mod.workspaceId}`, max_hits: TURNS_PER_WORKSPACE_DAY, window_seconds: 86400 }),
+  ]);
+  if (turnOk.data === false) return json(req, domains, { conversationId: conv.id, reply: limitReply(mod.receptionist.followUp), limit: true });
+  if (dayOk.data === false) return json(req, domains, { error: "Chat is busy right now. Please contact the business directly.", code: "paused" }, 503);
 
   const { data: past } = await db
     .from("vw_receptionist_messages")
@@ -150,8 +170,17 @@ export async function POST(req: NextRequest, props: { params: Promise<{ moduleId
     message,
     canBook: !!booking,
     ctx: toolContext(mod, booking, "chat", sourceUrl),
-    deps: realToolDeps(mod.workspaceName),
+    deps: realToolDeps(mod.workspaceName, conv.id),
   });
+
+  // A new chat counts toward the plan only once it got a real reply.
+  if (newToken && !turn.failed) {
+    await addUsage(mod.workspaceId, 1, 0);
+    if (chatAlert) {
+      const alert = chatAlert;
+      after(() => sendUsageAlert(alertWs, alert));
+    }
+  }
 
   const cost = aiCostUsd(RECEPTIONIST_MODEL, turn.tokensIn, turn.tokensOut) ?? 0;
   const submissionId = turn.saved[turn.saved.length - 1]?.submissionId ?? conv.submission_id;
