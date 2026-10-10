@@ -122,6 +122,10 @@ try {
   check("visitor token hash not readable by client logins", !!aHash.error);
   const aCost = await a.client.from("vw_receptionist_conversations").select("cost_usd").eq("id", convA.id);
   check("AI cost columns not readable by client logins", !!aCost.error);
+  await admin.from("vw_receptionist_calls").insert({ workspace_id: wsA.id, conversation_id: convA.id, provider_call_id: `${tag}-call`, cost_usd: 0.25 });
+  const aCallCost = await a.client.from("vw_receptionist_calls").select("cost_usd").eq("provider_call_id", `${tag}-call`);
+  const aCall = await a.client.from("vw_receptionist_calls").select("duration_seconds").eq("provider_call_id", `${tag}-call`);
+  check("call cost not readable by client logins (owner still sees the call)", !!aCallCost.error && aCall.data?.length === 1);
   const bConv = await b.client.from("vw_receptionist_conversations").select("id").eq("id", convA.id);
   const bMsg = await b.client.from("vw_receptionist_messages").select("id").eq("conversation_id", convA.id);
   check("user B can't see A's receptionist conversations or messages", (bConv.data ?? []).length === 0 && (bMsg.data ?? []).length === 0);
