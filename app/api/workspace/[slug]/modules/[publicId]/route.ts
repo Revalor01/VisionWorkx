@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/modules/ownerApi";
 import { modulesServiceClient } from "@/lib/modules/supabase";
 import { buildStoredConfig } from "@/lib/modules/moduleConfig";
 import { billingAllowsService } from "@/lib/modules/plans";
+import { syncVoiceAgent } from "@/lib/receptionist/voice/server";
+import { voiceEnabled } from "@/lib/receptionist/voice/provider";
 
 // Owners edit a form's name/config or publish/pause it.
 export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: string; publicId: string }> }) {
@@ -73,5 +75,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ slug: s
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Couldn't save." }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // An AI receptionist with a phone number: push the new facts to its voice agent.
+  if (patch.config !== undefined && voiceEnabled()) {
+    after(() => syncVoiceAgent(publicId).catch((err) => console.error("[modules] voice agent sync failed:", err instanceof Error ? err.message : err)));
+  }
   return NextResponse.json({ ok: true, status: data.status });
 }

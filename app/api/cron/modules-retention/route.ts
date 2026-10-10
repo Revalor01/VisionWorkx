@@ -4,6 +4,7 @@ import { modulesConfigured, modulesServiceClient } from "@/lib/modules/supabase"
 import { UPLOAD_BUCKET } from "@/lib/modules/constants";
 import { stripe } from "@/lib/modules/billing";
 import { retentionDecision } from "@/lib/modules/retention";
+import { retellProvider } from "@/lib/receptionist/voice/retell";
 
 // Daily: delete Modules workspaces whose subscription ended 30+ days ago
 // (Terms §10, Privacy §6). Stripe is re-checked for every workspace before
@@ -94,6 +95,12 @@ export async function GET(req: NextRequest) {
           const { error: rmErr } = await db.storage.from(UPLOAD_BUCKET).remove(files.slice(i, i + 100));
           if (rmErr) throw new Error(`remove files: ${rmErr.message}`);
         }
+      }
+      // Release the AI receptionist's phone number first, so it stops costing money.
+      const { data: numbers } = await db.from("vw_receptionist_numbers").select("phone_e164, provider_agent_id").eq("workspace_id", ws.id).eq("status", "active");
+      for (const n of numbers ?? []) {
+        if (!process.env.RETELL_API_KEY) throw new Error("phone number can't be released (RETELL_API_KEY not set)");
+        await retellProvider().release({ phone: n.phone_e164, agentId: n.provider_agent_id });
       }
       const { error: delErr } = await db.from("vw_workspaces").delete().eq("id", ws.id).eq("billing_status", "canceled");
       if (delErr) throw new Error(`delete workspace: ${delErr.message}`);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ChatWidget, { type SendFn } from "@/components/modules/ChatWidget";
 import { resolveBrand, type Brand } from "@/lib/modules/config";
+import type { VoicePanelData } from "@/lib/receptionist/owner";
 import {
   defaultReceptionistConfig,
   parseReceptionistConfig,
@@ -30,6 +31,8 @@ export default function ReceptionistEditor(props: {
   hasDomains: boolean;
   bookingModules: { publicId: string; name: string; status: string }[];
   existing?: { publicId: string; name: string; status: string; config: ReceptionistConfig };
+  /** Phone receptionist panel (edit page only; absent until the receptionist is saved). */
+  voice?: VoicePanelData;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(props.existing ? "edit" : "describe");
@@ -316,6 +319,18 @@ export default function ReceptionistEditor(props: {
             </label>
             <p className="text-xs text-gray-500">Messages and bookings arrive in your Submissions with the full conversation, and you get the usual email alert.</p>
           </section>
+
+          {props.voice?.enabled && publicId && (
+            <PhoneSection
+              slug={props.slug}
+              publicId={publicId}
+              voice={props.voice}
+              transferPhone={r.transferPhone ?? ""}
+              onTransferPhone={(v) => setR({ transferPhone: v || null })}
+              inputClass={input}
+              labelClass={label}
+            />
+          )}
         </div>
 
         <div className="lg:sticky lg:top-4 lg:self-start">
@@ -343,5 +358,107 @@ export default function ReceptionistEditor(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Phone number, call forwarding and minutes for the phone receptionist. */
+function PhoneSection(props: {
+  slug: string;
+  publicId: string;
+  voice: VoicePanelData;
+  transferPhone: string;
+  onTransferPhone: (v: string) => void;
+  inputClass: string;
+  labelClass: string;
+}) {
+  const router = useRouter();
+  const [areaCode, setAreaCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [confirmRelease, setConfirmRelease] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const { phone, minutesUsed, minutesIncluded } = props.voice;
+  const pretty = phone ? `(${phone.slice(2, 5)}) ${phone.slice(5, 8)}-${phone.slice(8)}` : "";
+
+  async function call(method: "POST" | "DELETE") {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/workspace/${props.slug}/receptionist/number`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        ...(method === "POST" ? { body: JSON.stringify({ moduleId: props.publicId, areaCode }) } : {}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "That didn't work — please try again.");
+      setMsg({ kind: "ok", text: method === "POST" ? "Your number is ready. Call it to try your receptionist." : "Number released." });
+      setConfirmRelease(false);
+      router.refresh();
+    } catch (e) {
+      setMsg({ kind: "err", text: e instanceof Error ? e.message : "That didn't work — please try again." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5" aria-labelledby="re-phone">
+      <h2 id="re-phone" className="font-bold text-gray-900">Phone</h2>
+      <p className="text-xs text-gray-500">
+        Your receptionist can also answer phone calls — same facts, same bookings and messages. Calls start with &ldquo;you&apos;ve reached your AI assistant, this call may be
+        transcribed.&rdquo; Your plan includes {minutesIncluded.toLocaleString()} minutes a month; after that, callers can only leave a message.
+      </p>
+      {phone ? (
+        <>
+          <p className="text-lg font-bold text-navy-dark">{pretty}</p>
+          <p className="text-sm text-gray-600">
+            {minutesUsed.toLocaleString()} of {minutesIncluded.toLocaleString()} minutes used this month.
+          </p>
+          <details className="rounded-xl border border-gray-200">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-gray-800">Send your existing business line here</summary>
+            <div className="space-y-1 border-t border-gray-100 px-3 py-3 text-sm text-gray-700">
+              <p>Keep your number and have unanswered or after-hours calls go to your receptionist with your phone company&apos;s call forwarding:</p>
+              <ul className="ml-5 list-disc space-y-0.5">
+                <li>Most mobile carriers: forward when busy/unanswered in your phone&apos;s Call settings → Call forwarding, to {pretty}.</li>
+                <li>Most landlines/VoIP (RingCentral, Google Voice, Ooma…): set &ldquo;forward when no answer&rdquo; to {pretty} in the provider&apos;s settings.</li>
+              </ul>
+              <p className="text-xs text-gray-500">Or put {pretty} on your website as your main number.</p>
+            </div>
+          </details>
+          {confirmRelease ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-red-700">Release {pretty}? You can&apos;t get this exact number back.</span>
+              <button type="button" onClick={() => call("DELETE")} disabled={busy} className="rounded-lg border border-red-300 bg-red-50 px-3 py-1 font-semibold text-red-700 disabled:opacity-60">
+                {busy ? "Releasing…" : "Yes, release it"}
+              </button>
+              <button type="button" onClick={() => setConfirmRelease(false)} className="text-gray-600 hover:underline">
+                Keep it
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmRelease(true)} className="text-sm font-semibold text-red-600 hover:underline">
+              Release this number
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className={props.labelClass} htmlFor="re-area">
+            Area code <span className="font-normal text-gray-500">(optional)</span>
+            <input id="re-area" inputMode="numeric" maxLength={3} className={`${props.inputClass} w-28`} value={areaCode} onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, ""))} />
+          </label>
+          <button type="button" onClick={() => call("POST")} disabled={busy} className="rounded-xl bg-navy-dark px-4 py-2 text-sm font-semibold text-white hover:bg-navy disabled:opacity-50">
+            {busy ? "Getting your number…" : "Get a phone number"}
+          </button>
+        </div>
+      )}
+      <label className={props.labelClass} htmlFor="re-transfer">
+        Transfer callers to <span className="font-normal text-gray-500">(optional — your cell, for urgent calls or when they ask for a person)</span>
+        <input id="re-transfer" type="tel" className={props.inputClass} value={props.transferPhone} placeholder="(512) 555-0123" onChange={(e) => props.onTransferPhone(e.target.value)} />
+      </label>
+      <p className="text-xs text-gray-500">Click Save after changing the transfer number or any facts — the phone receptionist updates within a minute.</p>
+      <p role="status" aria-live="polite" className={`text-sm ${msg?.kind === "err" ? "text-red-600" : "text-emerald-700"}`}>
+        {msg?.text ?? ""}
+      </p>
+    </section>
   );
 }
