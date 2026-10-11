@@ -5,9 +5,12 @@ import { createServiceClient } from "@/lib/supabase";
 // so cross-product stats have to go through the Management API's SQL
 // endpoint rather than a local Supabase client. Same technique the Ops
 // Dashboard already uses for storage-size aggregation.
-export const CHOREBIT_REF = "kkpwgnmhtcidnrnlwcll";
-export const FEELFLOW_REF = "duiyxiransdeqokwldqy";
-export const MINDBIT_REF = "uftlgnmvjjmuedotrewz";
+// Chorebit, FeelFlow and MindBit share one Supabase project (2026-10-11),
+// each in its own schema.
+export const REVALOR_KIDS_REF = "uzxspbwpgcmyemqpbgkf";
+export const CHOREBIT_REF = REVALOR_KIDS_REF;
+export const FEELFLOW_REF = REVALOR_KIDS_REF;
+export const MINDBIT_REF = REVALOR_KIDS_REF;
 
 export async function runManagementQuery(projectRef: string, sql: string): Promise<Record<string, unknown>[]> {
   const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
@@ -57,15 +60,15 @@ export async function computeWeeklyStats(): Promise<WeeklyStats> {
 
   const [chorebitFamilies, chorebitKids, chorebitChores, feelflowFamilies, feelflowKids, feelflowCheckins, mindbitFamilies, mindbitKids, mindbitSessions] =
     await Promise.all([
-      countSince(CHOREBIT_REF, "profiles", "created_at", since),
-      countSince(CHOREBIT_REF, "kids", "created_at", since),
-      countSince(CHOREBIT_REF, "chore_assignments", "created_at", since),
-      countSince(FEELFLOW_REF, "profiles", "created_at", since),
-      countSince(FEELFLOW_REF, "kids", "created_at", since),
-      countSince(FEELFLOW_REF, "mood_checkins", "created_at", since),
-      countSince(MINDBIT_REF, "profiles", "created_at", since),
-      countSince(MINDBIT_REF, "kids", "created_at", since),
-      countSince(MINDBIT_REF, "game_sessions", "created_at", since),
+      countSince(CHOREBIT_REF, "chorebit.profiles", "created_at", since),
+      countSince(CHOREBIT_REF, "chorebit.kids", "created_at", since),
+      countSince(CHOREBIT_REF, "chorebit.chore_assignments", "created_at", since),
+      countSince(FEELFLOW_REF, "feelflow.profiles", "created_at", since),
+      countSince(FEELFLOW_REF, "feelflow.kids", "created_at", since),
+      countSince(FEELFLOW_REF, "feelflow.mood_checkins", "created_at", since),
+      countSince(MINDBIT_REF, "mindbit.profiles", "created_at", since),
+      countSince(MINDBIT_REF, "mindbit.kids", "created_at", since),
+      countSince(MINDBIT_REF, "mindbit.game_sessions", "created_at", since),
     ]);
 
   return {

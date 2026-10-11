@@ -7,7 +7,7 @@ import type { MarketingProduct } from "@/lib/database.types";
 // pulling in lib/supabase.ts (which imports next/headers) would break that
 // client bundle. Project refs are plain literals for the same reason,
 // mirroring revalor-admin/lib/lines.ts's convention — they must match
-// CHOREBIT_REF / FEELFLOW_REF / MINDBIT_REF in lib/social/weeklyStats.ts.
+// REVALOR_KIDS_REF in lib/social/weeklyStats.ts.
 export interface MarketingChannels {
   email: boolean;
   push: boolean;
@@ -18,7 +18,15 @@ export interface MarketingChannels {
 // directly). "remote" = a separate Supabase project only reachable via the
 // Management API's SQL endpoint (see lib/social/weeklyStats.ts's
 // runManagementQuery, same technique used here).
-export type MarketingAudienceSource = { kind: "local" } | { kind: "remote"; projectRef: string };
+// `schema`: for a product sharing its Supabase project with others (Revalor
+// Kids — chorebit / feelflow / mindbit in one project, one shared auth.users),
+// its audience is the users with a profile in <schema>.profiles, and its
+// sms_opt_ins live in <schema>.sms_opt_ins. Omitted = the whole project.
+export type MarketingAudienceSource = { kind: "local" } | { kind: "remote"; projectRef: string; schema?: string };
+
+// The shared "Revalor Kids" Supabase project (2026-10-11). Must match
+// REVALOR_KIDS_REF in lib/social/weeklyStats.ts and revalor-admin/lib/lines.ts.
+const REVALOR_KIDS_PROJECT_REF = "uzxspbwpgcmyemqpbgkf";
 
 export interface MarketingProductConfig {
   slug: MarketingProduct;
@@ -45,19 +53,19 @@ export const MARKETING_PRODUCTS: MarketingProductConfig[] = [
     slug: "chorebit",
     name: "Chorebit",
     channels: { email: true, push: true, sms: true },
-    audienceSource: { kind: "remote", projectRef: "kkpwgnmhtcidnrnlwcll" },
+    audienceSource: { kind: "remote", projectRef: REVALOR_KIDS_PROJECT_REF, schema: "chorebit" },
   },
   {
     slug: "feelflow",
     name: "FeelFlow",
     channels: { email: true, push: true, sms: true },
-    audienceSource: { kind: "remote", projectRef: "duiyxiransdeqokwldqy" },
+    audienceSource: { kind: "remote", projectRef: REVALOR_KIDS_PROJECT_REF, schema: "feelflow" },
   },
   {
     slug: "mindbit",
     name: "MindBit",
     channels: { email: true, push: true, sms: true },
-    audienceSource: { kind: "remote", projectRef: "uftlgnmvjjmuedotrewz" },
+    audienceSource: { kind: "remote", projectRef: REVALOR_KIDS_PROJECT_REF, schema: "mindbit" },
   },
   {
     slug: "sanctum",

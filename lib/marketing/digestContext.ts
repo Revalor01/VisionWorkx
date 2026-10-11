@@ -47,7 +47,7 @@ async function countNewUsers(
 
   const rows = await runManagementQuery(
     audienceSource.projectRef,
-    `select count(*) as count from auth.users where created_at >= '${since}'`
+    `select count(*) as count from ${audienceSource.schema ? `${audienceSource.schema}.profiles` : "auth.users"} where created_at >= '${since}'`
   );
   return Number(rows[0]?.count ?? 0);
 }

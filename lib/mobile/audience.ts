@@ -50,7 +50,8 @@ export async function getSmsAudience(product: MarketingProduct): Promise<SmsAudi
   // unmigrated product break every other product's audience count.
   let rows: Record<string, unknown>[];
   try {
-    rows = await runManagementQuery(audienceSource.projectRef, "SELECT user_id, phone FROM sms_opt_ins");
+    const table = audienceSource.schema ? `${audienceSource.schema}.sms_opt_ins` : "sms_opt_ins";
+    rows = await runManagementQuery(audienceSource.projectRef, `SELECT user_id, phone FROM ${table}`);
   } catch {
     return [];
   }
