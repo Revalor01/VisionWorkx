@@ -14,6 +14,9 @@ name: Supabase keep-alive
 # secret name) and a GitHub secret with that project's anon/public key (it's
 # already public in the app's browser code). Only that project's key is
 # passed to its job. RLS may return no rows; the query still runs.
+#
+# 2026-10-11: Chorebit moved into the shared Revalor Kids project (Pro, never
+# auto-paused), so its old free project is no longer pinged.
 on:
   schedule:
     - cron: "17 9 * * *" # daily, 09:17 UTC
@@ -28,10 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Chorebit
-            ref: kkpwgnmhtcidnrnlwcll
-            table: system_settings
-            secret: SUPABASE_ANON_KEY_KKPWGNMHTCIDNRNLWCLL
           - name: Christian Friends Hub
             ref: uclbxwblhtiearljgats
             table: announcements

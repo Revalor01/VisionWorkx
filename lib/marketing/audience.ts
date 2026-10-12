@@ -50,7 +50,12 @@ export async function fetchProductUsersWithActivity(product: MarketingProduct): 
     return all;
   }
 
-  const rows = await runManagementQuery(audienceSource.projectRef, "SELECT id, email, created_at, last_sign_in_at FROM auth.users");
+  // Shared project (schema set): only this product's members, not every login.
+  // The schema is a code constant from lib/marketing/products.ts, never user input.
+  const sql = audienceSource.schema
+    ? `SELECT u.id, u.email, u.created_at, u.last_sign_in_at FROM auth.users u JOIN ${audienceSource.schema}.profiles p ON p.id = u.id`
+    : "SELECT id, email, created_at, last_sign_in_at FROM auth.users";
+  const rows = await runManagementQuery(audienceSource.projectRef, sql);
   return rows
     .filter((r): r is { id: string; email: string; created_at: string; last_sign_in_at: string | null } => typeof r.email === "string" && !!r.email)
     .map((r) => ({ id: r.id, email: r.email, createdAt: r.created_at, lastSignInAt: r.last_sign_in_at ?? null }));
