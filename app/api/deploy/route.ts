@@ -5,6 +5,7 @@ import { HEX_COLOR_RE, hexToRgbTriplet } from "@/lib/color";
 import { logAiUsage } from "@/lib/aiUsage";
 import { finalizeRevision } from "@/lib/apps/redeploy";
 import { parseFileList, parseFileMap, serializeFileMap } from "@/lib/apps/fileMap";
+import { canUseFullAppGeneration, generationPausedResponse } from "@/lib/featureFlags";
 import { repairGenerated } from "@/lib/apps/repairGenerated";
 import { modelForApp } from "@/lib/apps/canaryApps";
 import { validateRawOutput } from "@/lib/apps/validateGenerated";
@@ -970,6 +971,18 @@ CREATE TRIGGER emit_automation_event
     console.warn(`[api/deploy] Missing files detected, attempting repair: ${missingImports.join(", ")}`);
     files = await repairMissingFiles(files, missingImports, appId);
     missingImports = findMissingLocalImports(files);
+    if (missingImports.length === 0) {
+      // Save the repair as the pending build right away (as preflight does
+      // for its own repairs), so the post-preflight handoff and the
+      // build-failure retry — which both re-read the stored source — start
+      // from the repaired files instead of paying for the same Claude repair
+      // again. Promoted to generated_code only when the deploy succeeds.
+      // (A failed deploy still clears pending_generated_code; the
+      // full-app-generation gate in POST keeps that path closed for now.)
+      await supabasePatch("apps", appId, {
+        pending_generated_code: serializeFileMap(Object.fromEntries(files.map((f) => [f.path, f.content]))),
+      }).catch((e) => console.error("[api/deploy] persist missing-file repair failed:", e));
+    }
     if (missingImports.length > 0) {
       throw new Error(
         `Generated code is incomplete — missing files even after repair attempt: ${missingImports.join(", ")}`
@@ -1537,6 +1550,19 @@ export async function POST(req: NextRequest) {
       // No account yet (Phase 5b preview) — notify the visitor who started it.
       userEmail = appData.preview_email;
     }
+  }
+
+  // Full-app generation freeze (lib/featureFlags.ts): deploying a generated
+  // app is part of building one, so it's gated the same way as
+  // /api/generate — off unless FULL_APP_GENERATION=true, except for the
+  // operator. Internal dispatches are checked against the app owner (or
+  // preview visitor) resolved above. This is what keeps the missing-file
+  // repair (step 4b, a paid Claude call) from running while the builder is
+  // frozen — it ran ~280 times in Sept 2026, mostly re-paying for the same
+  // apps (see revalor-agents HANDOFF.md "Repair loop").
+  if (!canUseFullAppGeneration(userEmail)) {
+    console.warn(`[api/deploy] blocked for ${appId.slice(0, 8)}: full-app generation is paused`);
+    return generationPausedResponse();
   }
 
   // Internal dispatches — the initial post-generation trigger, the
