@@ -75,6 +75,7 @@ export type SocialInboxStatus = "open" | "resolved";
 export type SocialAutonomyMode = "manual" | "semi_autonomous" | "fully_autonomous";
 export type SocialRiskLevel = "low" | "medium" | "high";
 export type SocialContentGeneratedBy = "manual" | "autonomous" | "content_engine";
+export type SocialContentSource = "internal" | "competitor_watch";
 export type SocialAutonomyFlagKind = "banned_word" | "high_risk" | "publish_failure" | "inbox_escalation" | "needs_media";
 export type LinkedInPostStatus = "draft" | "approved" | "posted";
 export type LinkedInProduct = "visionworkx" | "proactive" | "revalor_consulting" | "revalor";
@@ -1445,6 +1446,9 @@ export type Database = {
           link_url: string | null;
           auto_image: boolean;
           auto_image_attempts: number;
+          source: SocialContentSource;
+          source_idea_id: string | null;
+          competitor_flag: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1464,6 +1468,9 @@ export type Database = {
           link_url?: string | null;
           auto_image?: boolean;
           auto_image_attempts?: number;
+          source?: SocialContentSource;
+          source_idea_id?: string | null;
+          competitor_flag?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1483,6 +1490,9 @@ export type Database = {
           link_url?: string | null;
           auto_image?: boolean;
           auto_image_attempts?: number;
+          source?: SocialContentSource;
+          source_idea_id?: string | null;
+          competitor_flag?: string | null;
           updated_at?: string;
         };
         Relationships: [];

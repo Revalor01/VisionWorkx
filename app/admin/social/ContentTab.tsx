@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { SocialBrand, SocialContent, SocialContentStatus, SocialPlatform, SocialVideoAsset } from "@/lib/database.types";
 import MediaSpendCard from "./MediaSpendCard";
 import ImportPostsModal from "./ImportPostsModal";
@@ -62,6 +63,10 @@ export default function ContentTab({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | SocialContentStatus>("all");
+  const [competitorOnly, setCompetitorOnly] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const router = useRouter();
   const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, string>>({});
   const [view, setView] = useState<"list" | "calendar">("list");
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -218,7 +223,33 @@ export default function ContentTab({
     return brands.find((b) => b.id === id)?.name ?? "—";
   }
 
-  const filtered = content.filter((c) => statusFilter === "all" || c.status === statusFilter);
+  const filtered = content.filter(
+    (c) =>
+      (statusFilter === "all" || c.status === statusFilter) &&
+      (!competitorOnly || c.source === "competitor_watch")
+  );
+
+  async function importCompetitorWatch() {
+    setImportBusy(true);
+    setImportMsg("");
+    try {
+      const res = await fetch("/api/cron/social-competitor-intake", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      const skipped = body.skipped?.length ? `, ${body.skipped.length} skipped` : "";
+      const warnings = body.warnings?.length ? `, ${body.warnings.length} with warnings` : "";
+      setImportMsg(`Imported ${body.imported} draft(s), ${body.flagged} flagged${skipped}${warnings}.`);
+      if (body.imported > 0) {
+        setCompetitorOnly(true); // show what was just imported
+        setStatusFilter("all"); // fresh rows are status 'draft'; don't let a non-draft status filter hide them
+        router.refresh(); // re-run the server fetch so the new drafts appear
+      }
+    } catch (err) {
+      setImportMsg((err as Error).message);
+    } finally {
+      setImportBusy(false);
+    }
+  }
 
   // ── Calendar derived state ──────────────────────────────────────
   const postsByDay = useMemo(() => {
@@ -341,7 +372,7 @@ export default function ContentTab({
 
       {view === "list" ? (
         <>
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 items-center flex-wrap">
             {(["all", "draft", "approved", "scheduled", "posted", "failed"] as const).map((s) => (
               <button
                 key={s}
@@ -353,7 +384,24 @@ export default function ContentTab({
                 {s}
               </button>
             ))}
+            <span className="w-px h-5 bg-slate-200 mx-1" aria-hidden />
+            <button
+              onClick={() => setCompetitorOnly((v) => !v)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                competitorOnly ? "bg-violet-600 text-white" : "bg-white border border-violet-400 text-violet-700"
+              }`}
+            >
+              Competitor Watch
+            </button>
+            <button
+              onClick={importCompetitorWatch}
+              disabled={importBusy}
+              className="ml-auto px-3 py-1.5 rounded-full text-xs font-medium border border-violet-400 text-violet-700 hover:bg-violet-50 disabled:opacity-40"
+            >
+              {importBusy ? "Importing…" : "Import from Competitor Watch"}
+            </button>
           </div>
+          {importMsg && <p className="mb-4 text-xs text-slate-700">{importMsg}</p>}
 
           {filtered.length === 0 ? (
             <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
@@ -690,6 +738,19 @@ function ContentCard({
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[c.status]}`}>
             {c.status}
           </span>
+          {c.source === "competitor_watch" && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+              From Competitor Watch
+            </span>
+          )}
+          {c.competitor_flag && (
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700"
+              title="This draft names a tracked competitor — review before approving."
+            >
+              ⚠ mentions {c.competitor_flag}
+            </span>
+          )}
         </div>
         <button onClick={() => deleteContent(c.id)} className="text-xs text-red-600 hover:underline">
           Delete
