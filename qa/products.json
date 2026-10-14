@@ -30,5 +30,9 @@
   "revalor-products": {
     "name": "Revalor Products site",
     "url": "https://products.revalorllc.com"
+  },
+  "elevate": {
+    "name": "Elevate",
+    "url": "https://elevate-pink-iota.vercel.app"
   }
 }
