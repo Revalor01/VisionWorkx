@@ -237,9 +237,11 @@ export default function ContentTab({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       const skipped = body.skipped?.length ? `, ${body.skipped.length} skipped` : "";
-      setImportMsg(`Imported ${body.imported} draft(s), ${body.flagged} flagged${skipped}.`);
+      const warnings = body.warnings?.length ? `, ${body.warnings.length} with warnings` : "";
+      setImportMsg(`Imported ${body.imported} draft(s), ${body.flagged} flagged${skipped}${warnings}.`);
       if (body.imported > 0) {
         setCompetitorOnly(true); // show what was just imported
+        setStatusFilter("all"); // fresh rows are status 'draft'; don't let a non-draft status filter hide them
         router.refresh(); // re-run the server fetch so the new drafts appear
       }
     } catch (err) {

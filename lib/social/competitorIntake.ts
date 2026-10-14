@@ -119,7 +119,7 @@ export function planCompetitorImport(
   return plan;
 }
 
-export type CompetitorIntakeResult = { imported: number; flagged: number; skipped: SkippedImport[] };
+export type CompetitorIntakeResult = { imported: number; flagged: number; skipped: SkippedImport[]; warnings: string[] };
 
 // Pull every Competitor Watch idea marked ready-for-social that hasn't already
 // become a draft, and create one social_content DRAFT per idea in the mapped
@@ -137,7 +137,7 @@ export async function importCompetitorIdeas(service: Service): Promise<Competito
     .order("created_at", { ascending: true })
     .returns<CompetitorPostIdea[]>();
   if (ideasError) throw new Error(`Reading competitor post ideas: ${ideasError.message}`);
-  if (!ideas || ideas.length === 0) return { imported: 0, flagged: 0, skipped: [] };
+  if (!ideas || ideas.length === 0) return { imported: 0, flagged: 0, skipped: [], warnings: [] };
 
   const { data: brands, error: brandsError } = await service.from("social_brands").select("id, name");
   if (brandsError) throw new Error(`Reading social_brands: ${brandsError.message}`);
@@ -157,7 +157,7 @@ export async function importCompetitorIdeas(service: Service): Promise<Competito
   }
 
   const plan = planCompetitorImport(ideas, brandIdByName, namesByProduct);
-  const result: CompetitorIntakeResult = { imported: 0, flagged: 0, skipped: [...plan.skipped] };
+  const result: CompetitorIntakeResult = { imported: 0, flagged: 0, skipped: [...plan.skipped], warnings: [] };
 
   for (const { ideaId, product, payload } of plan.inserts) {
     const { data: inserted, error: insertError } = await service
@@ -177,17 +177,20 @@ export async function importCompetitorIdeas(service: Service): Promise<Competito
       .from("rv_competitor_post_ideas")
       .update({ social_content_id: inserted.id, updated_at: new Date().toISOString() })
       .eq("id", ideaId);
+    // The draft exists regardless of the back-link, so it IS imported — count
+    // it once here. Anything after a successful insert is non-fatal reporting.
+    result.imported++;
+    if (payload.competitor_flag) result.flagged++;
+
     if (linkError) {
       // The draft exists and the unique index still guards re-import, so this is
       // not fatal: no duplicate draft is ever created. The idea keeps a null
       // social_content_id, so a later run will retry the back-link (the insert
-      // is skipped by the unique index) until it succeeds — recorded here so the
-      // operator can see it, not a data-integrity problem.
-      result.skipped.push({ ideaId, product, reason: `Draft created but back-link failed: ${linkError.message}` });
+      // is skipped by the unique index) until it succeeds. Record it as a
+      // warning, not a skip — the draft was imported, so it must not also be
+      // counted as skipped (that would double-count this idea).
+      result.warnings.push(`Idea ${ideaId} (${product}): draft created but back-link failed: ${linkError.message}`);
     }
-
-    result.imported++;
-    if (payload.competitor_flag) result.flagged++;
   }
 
   return result;
