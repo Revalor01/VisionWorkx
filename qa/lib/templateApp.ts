@@ -27,6 +27,8 @@ export interface TemplateApp {
   disclaimerKey: string;
   /** Per-user tables that DON'T cascade when the auth user is deleted. */
   nonCascading: string[];
+  /** The signup trigger already creates the onboarding_state row (Elevate), so mark it complete instead of inserting one. */
+  onboardingRowFromSignup?: boolean;
 }
 
 export function templateApp(app: TemplateApp) {
@@ -79,7 +81,12 @@ export function templateApp(app: TemplateApp) {
       await waitUntil(async () => (await rows("users_profile", `id=eq.${id}&select=id`)).length > 0, "the profile row");
       await ok(await api(`/rest/v1/users_profile?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ subscription_tier: tier }) }), "set tier");
       if (opts.onboarded !== false) {
-        await ok(await api("/rest/v1/onboarding_state", { method: "POST", body: JSON.stringify({ user_id: id, completed: true }) }), "skip onboarding");
+        if (app.onboardingRowFromSignup) {
+          await waitUntil(async () => (await rows("onboarding_state", `user_id=eq.${id}&select=user_id`)).length > 0, "the onboarding row");
+          await ok(await api(`/rest/v1/onboarding_state?user_id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ completed: true }) }), "skip onboarding");
+        } else {
+          await ok(await api("/rest/v1/onboarding_state", { method: "POST", body: JSON.stringify({ user_id: id, completed: true }) }), "skip onboarding");
+        }
       }
     } catch (err) {
       await deleteUser(id);

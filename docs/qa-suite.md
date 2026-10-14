@@ -183,12 +183,12 @@ Playwright project. URLs: chorebit.vercel.app, **feelflow-eight.vercel.app**
 (feelflow.vercel.app is someone else's app), mindbit-one.vercel.app. Secrets:
 `<APP>_SUPABASE_URL`, `<APP>_SUPABASE_SERVICE_ROLE_KEY` (legacy `eyJ…` key).
 
-## Consumer web apps on the shared template (Sanctum, Proactive)
+## Consumer web apps on the shared template (Sanctum, Proactive, Elevate)
 Sanctum and Proactive are built from the same template (own Supabase project,
 tiers on `users_profile.subscription_tier`, `onboarding_state`, a localStorage
 disclaimer flag, password login, AI chat via the Supabase function `chat`).
 `qa/lib/templateApp.ts` holds the shared helpers; `qa/lib/sanctum.ts` and
-`qa/lib/proactive.ts` configure it (env prefix, disclaimer key, tables that
+`qa/lib/proactive.ts` and `qa/lib/elevate.ts` configure it (env prefix, disclaimer key, tables that
 don't cascade). A future app on the same template is a new ~20-line file.
 
 ## Proactive (web app)
@@ -203,6 +203,18 @@ blocked, invalid test code, profile, admin refused. Proactive's own `e2e/`
 tests are ported. Manual: sign-up email, Stripe checkout, reminder email, a
 real Collaborator reply. Secrets: `PROACTIVE_SUPABASE_URL`,
 `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY`.
+
+## Elevate (web app)
+Tests in `qa/products/elevate/` run against https://elevate-pink-iota.vercel.app.
+Same fixture pattern (`elevateUser({ tier })`, `elevateLogin`, `mockClarity`).
+Plus unlocks Evolution's full history, export and unlimited experiments;
+Clarity (the AI) is Premium and always simulated. Coverage: public pages,
+signed-out redirects, login, disclaimer, onboarding, a full 6-step retro with
+an experiment, retro autosave, the free 3-experiment limit, Playbook,
+Clarity upsell and chat, export gate, payment self-upgrade blocked, invalid
+test code, profile, admin refused. Manual: sign-up email, Stripe checkout,
+follow-up reminder email, a real Clarity reply. Secrets: `ELEVATE_SUPABASE_URL`,
+`ELEVATE_SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Sanctum (web app)
 Tests in `qa/products/sanctum/` run against https://sanctum-web-xi.vercel.app
@@ -254,6 +266,7 @@ Without QA_REPORT_URL/QA_REPORT_SECRET the reporter does nothing.
 | GitHub secret | `MODULES_SUPABASE_URL`, `MODULES_SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY` | visionworkx-modules |
 | GitHub secret | `SANCTUM_SUPABASE_URL`, `SANCTUM_SUPABASE_SERVICE_ROLE_KEY` | Sanctum's Supabase project |
 | GitHub secret | `PROACTIVE_SUPABASE_URL`, `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY` | Proactive's Supabase project |
+| GitHub secret | `ELEVATE_SUPABASE_URL`, `ELEVATE_SUPABASE_SERVICE_ROLE_KEY` | Elevate's Supabase project |
 | GitHub secret (optional) | `VERCEL_AUTOMATION_BYPASS_SECRET` | for protected previews |
 | GitHub variable (optional) | `QA_REPORT_URL` | defaults to https://vision-workx.vercel.app |
 

@@ -1,6 +1,7 @@
 import { sweepStaleTestData } from "./lib/modules";
 import { sanctumConfigured, sweepStaleSanctumUsers } from "./lib/sanctum";
 import { proactiveConfigured, sweepStaleProactiveUsers } from "./lib/proactive";
+import { elevateConfigured, sweepStaleElevateUsers } from "./lib/elevate";
 import { kidsApp } from "./lib/kidsApp";
 import { cfhConfigured, sweepStaleCfhMembers } from "./lib/cfh";
 import { productsDbConfigured, sweepStaleQuizLeads } from "./lib/revalorProducts";
@@ -13,6 +14,7 @@ export default async function globalSetup() {
     ["visionworkx", !!(process.env.MODULES_SUPABASE_URL && process.env.MODULES_SUPABASE_SERVICE_ROLE_KEY), () => sweepStaleTestData()],
     ["sanctum", sanctumConfigured(), () => sweepStaleSanctumUsers()],
     ["proactive", proactiveConfigured(), () => sweepStaleProactiveUsers()],
+    ["elevate", elevateConfigured(), () => sweepStaleElevateUsers()],
     ["cfh", cfhConfigured(), () => sweepStaleCfhMembers()],
     ["revalor-products", productsDbConfigured(), () => sweepStaleQuizLeads()],
     ...(["chorebit", "feelflow", "mindbit"] as const).map((p): [string, boolean, () => Promise<void>] => [p, kidsApp(p).configured(), () => kidsApp(p).sweep()]),

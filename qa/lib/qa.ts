@@ -2,6 +2,7 @@ import { test as base, expect } from "@playwright/test";
 import { createQaUser, createTestWorkspace, type QaUser, type TestWorkspace, type WorkspaceOptions } from "./modules";
 import { createSanctumUser, deleteSanctumUser, type SanctumTier, type SanctumUser } from "./sanctum";
 import { createProactiveUser, deleteProactiveUser, type ProactiveTier, type ProactiveUser } from "./proactive";
+import { createElevateUser, deleteElevateUser, type ElevateTier, type ElevateUser } from "./elevate";
 import { kidsApp, kidsProductOf, type KidsApp, type KidsParent, type KidsPlan } from "./kidsApp";
 import { createCfhMember, deleteCfhMember, type CfhMember } from "./cfh";
 
@@ -37,6 +38,8 @@ interface Fixtures {
   sanctumUser: (opts?: { tier?: SanctumTier; onboarded?: boolean }) => Promise<SanctumUser>;
   /** Proactive: same as sanctumUser, in Proactive's database. */
   proactiveUser: (opts?: { tier?: ProactiveTier; onboarded?: boolean }) => Promise<ProactiveUser>;
+  /** Elevate: same as proactiveUser, in Elevate's database. */
+  elevateUser: (opts?: { tier?: ElevateTier; onboarded?: boolean }) => Promise<ElevateUser>;
   /** Kids apps (Chorebit/FeelFlow/MindBit, from the project): helpers + throwaway parents, all deleted after the test. */
   /** Christian Friends Hub: throwaway members (optionally blocked), deleted after the test with their login history. */
   cfhMember: (opts?: { blocked?: boolean }) => Promise<CfhMember>;
@@ -97,6 +100,18 @@ export const test = base.extend<Fixtures>({
       });
     } finally {
       for (const id of made) await deleteProactiveUser(id);
+    }
+  },
+  elevateUser: async ({}, provide) => {
+    const made: string[] = [];
+    try {
+      await provide(async (opts) => {
+        const u = await createElevateUser(opts);
+        made.push(u.id);
+        return u;
+      });
+    } finally {
+      for (const id of made) await deleteElevateUser(id);
     }
   },
   qaUser: async ({}, provide, testInfo) => {
