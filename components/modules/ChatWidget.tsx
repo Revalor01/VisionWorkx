@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Brand } from "@/lib/modules/config";
+
+// For the hydrated flag below: false while server-rendered/hydrating, true once live.
+const noopSubscribe = () => () => {};
 
 // The visitor-facing AI receptionist chat, rendered inside the embed iframe
 // (floating panel or inline). Talks to the parent page only through
@@ -77,6 +80,10 @@ export default function ChatWidget(props: {
   const [hp, setHp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The panel is server-rendered, so the message box shows before React is
+  // attached; text typed in that moment never reached `draft` and Send stayed
+  // disabled. Keep the box disabled until hydrated (a fraction of a second).
+  const ready = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const conv = useRef<{ conversationId: string; token: string } | null>(null);
 
   useEffect(() => {
@@ -183,10 +190,11 @@ export default function ChatWidget(props: {
             aria-label="Your message"
             placeholder="Type your message…"
             maxLength={1000}
+            disabled={!ready}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
           />
-          <button type="submit" disabled={busy || !draft.trim()}>
+          <button type="submit" disabled={!ready || busy || !draft.trim()}>
             Send
           </button>
         </form>
