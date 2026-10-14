@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase";
-import { publishFacebookPost, publishFacebookPhotoPost } from "@/lib/social/meta";
+import { publishFacebookPost, publishFacebookPhotoPost, publishFacebookVideoPost } from "@/lib/social/meta";
 import { publishInstagramPost, publishTikTokPost, publishYouTubePost, uploadMediaForTikTok } from "@/lib/social/socialApi";
 import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
 import { getOrCreateShortLink, withUtm } from "@/lib/social/shortLinks";
@@ -20,6 +20,14 @@ const SIGNED_URL_TTL_SECONDS = 3600; // long enough for Meta's servers to fetch 
 // autonomous generate cron, so app/api/cron/social-generate checks this
 // list before auto-scheduling a post, instead of letting it fail here.
 export const PLATFORMS_REQUIRING_MEDIA: SocialPlatform[] = ["instagram", "tiktok", "youtube"];
+
+// What a Facebook post goes out as: a video when one is linked (Revalor
+// Studios episodes, generated videos), else a photo, else text.
+export function facebookPostKind(post: Pick<SocialContent, "video_asset_id" | "image_path">): "video" | "photo" | "text" {
+  if (post.video_asset_id) return "video";
+  if (post.image_path) return "photo";
+  return "text";
+}
 
 export async function publishPost(
   service: ReturnType<typeof createServiceClient>,
@@ -147,10 +155,30 @@ export async function publishPost(
       if (!connection) throw new Error("Brand not connected to a Facebook Page");
       if (!brand.fb_page_id) throw new Error("Brand has no connected fb_page_id");
 
-      if (post.image_path) {
+      const kind = facebookPostKind(post);
+      if (kind === "video") {
+        const { data: asset } = await service
+          .from("social_video_assets")
+          .select("final_path")
+          .eq("id", post.video_asset_id!)
+          .maybeSingle();
+        if (!asset?.final_path) throw new Error("Linked video asset has no final_path");
+        const { data: signed, error: signError } = await service.storage
+          .from(VIDEO_BUCKET)
+          .createSignedUrl(asset.final_path, SIGNED_URL_TTL_SECONDS);
+        if (signError || !signed) throw new Error("Failed to sign video URL for Facebook publish");
+        const result = await publishFacebookVideoPost({
+          pageId: brand.fb_page_id,
+          pageAccessToken: connection.fb_page_access_token,
+          videoUrl: signed.signedUrl,
+          description: captionWithTags,
+          title: post.hook || undefined,
+        });
+        platformPostId = result.postId;
+      } else if (kind === "photo") {
         const { data: signed, error: signError } = await service.storage
           .from(IMAGE_BUCKET)
-          .createSignedUrl(post.image_path, SIGNED_URL_TTL_SECONDS);
+          .createSignedUrl(post.image_path!, SIGNED_URL_TTL_SECONDS);
         if (signError || !signed) throw new Error("Failed to sign image URL for Facebook publish");
         const result = await publishFacebookPhotoPost({
           pageId: brand.fb_page_id,

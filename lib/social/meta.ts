@@ -111,6 +111,42 @@ export async function publishFacebookPhotoPost(params: {
   return { postId: body.post_id ?? body.id };
 }
 
+// Posts a video to the Page (Graph `/{page}/videos`). `file_url` must be a
+// URL Meta's servers can fetch while they process the upload — pass a signed
+// URL with enough TTL. Returns the Page *post* id when Graph has it (what
+// getFacebookPostMetrics needs for /insights), else the video id. With
+// `published: false` the video is uploaded but not shown on the Page (used
+// for a live check without posting publicly).
+export async function publishFacebookVideoPost(params: {
+  pageId: string;
+  pageAccessToken: string;
+  videoUrl: string;
+  description: string;
+  title?: string;
+  published?: boolean;
+}): Promise<{ postId: string; videoId: string }> {
+  const body = await graphFetch(
+    `/${params.pageId}/videos`,
+    {
+      file_url: params.videoUrl,
+      description: params.description,
+      ...(params.title ? { title: params.title.slice(0, 255) } : {}),
+      ...(params.published === false ? { published: "false" } : {}),
+      access_token: params.pageAccessToken,
+    },
+    "POST"
+  );
+  const videoId = String(body.id);
+  let postId = videoId;
+  try {
+    const video = await graphFetch(`/${videoId}`, { fields: "post_id", access_token: params.pageAccessToken });
+    if (video.post_id) postId = String(video.post_id);
+  } catch {
+    // Still processing — keep the video id; metrics for this post just come back empty.
+  }
+  return { postId, videoId };
+}
+
 // Instagram requires a publicly fetchable media URL — pass a signed URL
 // with enough TTL for Meta's servers to fetch it during container creation.
 export async function publishInstagramPost(params: {
