@@ -7,6 +7,12 @@ import { expect, type Page } from "@playwright/test";
 // with optional 4-digit PINs, "kid mode" picked from /profiles, and each
 // app's own kid activity tables. Plain REST (no supabase-js).
 //
+// All three apps share one Supabase project ("Revalor Kids"): one auth.users,
+// a schema per app (chorebit/feelflow/mindbit), and a signup trigger that makes
+// the profile in the schema named by user_metadata.product. So every REST call
+// names the app's schema (Accept-Profile/Content-Profile), parents are created
+// with { product }, and the sweep only touches its own app's QA parents.
+//
 // Every parent is a throwaway qa+<tag>@example.com account, deleted after the
 // test with its kids and everything they did. Kid tables don't cascade from
 // the parent, so cleanup deletes them explicitly (children first).
@@ -60,9 +66,11 @@ export function kidsApp(product: KidsProduct) {
 
   const api = (path: string, init: RequestInit = {}) => {
     const key = env("SUPABASE_SERVICE_ROLE_KEY");
+    // Table calls go to this app's schema in the shared Revalor Kids project.
+    const schema: Record<string, string> = path.startsWith("/rest/v1/") ? { "Accept-Profile": product, "Content-Profile": product } : {};
     return fetch(`${env("SUPABASE_URL")}${path}`, {
       ...init,
-      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation", ...(init.headers ?? {}) },
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation", ...schema, ...((init.headers as Record<string, string> | undefined) ?? {}) },
     });
   };
   const ok = async (res: Response, what: string) => {
@@ -107,12 +115,12 @@ export function kidsApp(product: KidsProduct) {
     const email = `qa+${Date.now().toString(36)}${randomBytes(3).toString("hex")}@${QA_EMAIL_DOMAIN}`;
     const password = `Qa!${randomBytes(18).toString("base64url")}`;
     const res = await ok(
-      await api("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { qa: true } }) }),
+      await api("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { qa: true, product } }) }),
       "create parent",
     );
     const id = ((await res.json()) as { id: string }).id;
     try {
-      // profiles is created by a trigger on signup.
+      // The shared signup trigger creates <product>.profiles from user_metadata.product.
       await waitFor(async () => (await rows("profiles", `id=eq.${id}&select=id`)).length > 0, "the profile row");
       const plan = opts.plan ?? "family";
       await ok(
@@ -145,9 +153,10 @@ export function kidsApp(product: KidsProduct) {
     for (let page = 1; page <= 10; page++) {
       const res = await api(`/auth/v1/admin/users?page=${page}&per_page=200`);
       if (!res.ok) return;
-      const users = ((await res.json()) as { users: { id: string; email?: string; created_at: string }[] }).users;
+      const users = ((await res.json()) as { users: { id: string; email?: string; created_at: string; user_metadata?: { product?: string } }[] }).users;
       for (const u of users) {
-        if (u.email?.startsWith("qa+") && u.email.endsWith(`@${QA_EMAIL_DOMAIN}`) && u.created_at < cutoff) await deleteParent(u.id);
+        // One auth.users for all kids apps: only this app's QA parents.
+        if (u.email?.startsWith("qa+") && u.email.endsWith(`@${QA_EMAIL_DOMAIN}`) && u.user_metadata?.product === product && u.created_at < cutoff) await deleteParent(u.id);
       }
       if (users.length < 200) return;
     }
