@@ -46,7 +46,14 @@ export function flagCompetitorMention(copy: string, competitorNames: string[]): 
   for (const raw of competitorNames) {
     const name = raw.trim();
     if (!name) continue;
-    const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Require a boundary only where the name itself has a word char at that
+    // edge — otherwise \b never matches names like ".NET", "C++" or "Calm!",
+    // where the outer char is already non-word. (?<![\w]) / (?![\w]) stand in
+    // for a boundary at word-char edges and are satisfied by string ends.
+    const left = /^\w/.test(name) ? "(?<!\\w)" : "";
+    const right = /\w$/.test(name) ? "(?!\\w)" : "";
+    const re = new RegExp(`${left}${escaped}${right}`, "i");
     if (re.test(copy) && !seen.includes(name)) seen.push(name);
   }
   return seen.length > 0 ? seen.join(", ") : null;
@@ -172,7 +179,10 @@ export async function importCompetitorIdeas(service: Service): Promise<Competito
       .eq("id", ideaId);
     if (linkError) {
       // The draft exists and the unique index still guards re-import, so this is
-      // not fatal — record it so the operator can reconcile.
+      // not fatal: no duplicate draft is ever created. The idea keeps a null
+      // social_content_id, so a later run will retry the back-link (the insert
+      // is skipped by the unique index) until it succeeds — recorded here so the
+      // operator can see it, not a data-integrity problem.
       result.skipped.push({ ideaId, product, reason: `Draft created but back-link failed: ${linkError.message}` });
     }
 

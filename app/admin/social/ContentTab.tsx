@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { SocialBrand, SocialContent, SocialContentStatus, SocialPlatform, SocialVideoAsset } from "@/lib/database.types";
 import MediaSpendCard from "./MediaSpendCard";
 import ImportPostsModal from "./ImportPostsModal";
@@ -65,6 +66,7 @@ export default function ContentTab({
   const [competitorOnly, setCompetitorOnly] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importMsg, setImportMsg] = useState("");
+  const router = useRouter();
   const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, string>>({});
   const [view, setView] = useState<"list" | "calendar">("list");
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -235,7 +237,11 @@ export default function ContentTab({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       const skipped = body.skipped?.length ? `, ${body.skipped.length} skipped` : "";
-      setImportMsg(`Imported ${body.imported} draft(s), ${body.flagged} flagged${skipped}. Refresh to see them.`);
+      setImportMsg(`Imported ${body.imported} draft(s), ${body.flagged} flagged${skipped}.`);
+      if (body.imported > 0) {
+        setCompetitorOnly(true); // show what was just imported
+        router.refresh(); // re-run the server fetch so the new drafts appear
+      }
     } catch (err) {
       setImportMsg((err as Error).message);
     } finally {

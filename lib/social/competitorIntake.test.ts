@@ -6,6 +6,7 @@ import {
   COMPETITOR_FALLBACK_BRAND,
   type CompetitorPostIdea,
 } from "./competitorIntake";
+import { BRAND_PRODUCTS } from "./productKnowledge";
 
 describe("brandNameForProduct", () => {
   it("maps each product to its grouped brand", () => {
@@ -24,6 +25,19 @@ describe("brandNameForProduct", () => {
   it("falls back to the company brand for anything unknown", () => {
     expect(brandNameForProduct("revalor_consulting")).toBe(COMPETITOR_FALLBACK_BRAND);
     expect(brandNameForProduct("")).toBe(COMPETITOR_FALLBACK_BRAND);
+  });
+
+  // Drift guard: PRODUCT_TO_BRAND_NAME is maintained by hand next to
+  // productKnowledge.ts's BRAND_PRODUCTS. If a product is later added to a
+  // brand there (e.g. a new Kids app) but not mapped here, it would fall back
+  // to the company brand and land in the wrong brand — so assert every product
+  // BRAND_PRODUCTS carries resolves (directly or by fallback) to a brand that
+  // actually carries it.
+  it("maps every BRAND_PRODUCTS product to a brand that carries it", () => {
+    for (const product of Object.values(BRAND_PRODUCTS).flat()) {
+      const brand = brandNameForProduct(product);
+      expect(BRAND_PRODUCTS[brand] ?? [], `product "${product}" -> brand "${brand}"`).toContain(product);
+    }
   });
 });
 
@@ -49,6 +63,18 @@ describe("flagCompetitorMention", () => {
 
   it("ignores blank tracked names", () => {
     expect(flagCompetitorMention("anything", ["  ", ""])).toBeNull();
+  });
+
+  it("matches names edged by non-word characters", () => {
+    expect(flagCompetitorMention("built on .NET today", [".NET"])).toBe(".NET");
+    expect(flagCompetitorMention("we love C++ here", ["C++"])).toBe("C++");
+    expect(flagCompetitorMention("stay Calm! out there", ["Calm!"])).toBe("Calm!");
+  });
+
+  it("still requires a boundary on the word-char side", () => {
+    // ".NET" starts with a non-word char, so its left side has no boundary
+    // requirement, but the right side ('T') still must not run into a word char.
+    expect(flagCompetitorMention("dotNETcore", [".NET"])).toBeNull();
   });
 });
 

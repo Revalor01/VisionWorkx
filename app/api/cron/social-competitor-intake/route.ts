@@ -15,8 +15,10 @@ export const maxDuration = 60;
 // Both run the same idempotent importer.
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization") ?? "";
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // A missing CRON_SECRET must never let "Bearer undefined" through
+  // (same guard as the social-images cron).
+  const secret = process.env.CRON_SECRET;
+  if (!secret || (req.headers.get("authorization") ?? "") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return run();

@@ -119,7 +119,7 @@ export const PRODUCT_KNOWLEDGE: Record<SocialVideoProduct, ProductKnowledge | nu
 // there is no brand row by that name - the "Revalor LLC" brand carries the
 // Revalor Business products. Brands not listed get no product facts and rely
 // on their voice notes.
-const BRAND_PRODUCTS: Record<string, SocialVideoProduct[]> = {
+export const BRAND_PRODUCTS: Record<string, SocialVideoProduct[]> = {
   VisionWorkx: ["visionworkx"],
   "Revalor LLC": ["visionworkx", "proactive", "revalor_consulting"],
   "Revalor Kids": ["chorebit", "feelflow", "mindbit"],
