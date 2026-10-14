@@ -180,8 +180,15 @@ subscription row so the dashboard opens, optional `blocked`), kids with PINs,
 and deletes everything afterwards — kid tables don't cascade from the parent,
 so it deletes children first. The `kids` fixture picks the app from the
 Playwright project. URLs: chorebit.vercel.app, **feelflow-eight.vercel.app**
-(feelflow.vercel.app is someone else's app), mindbit-one.vercel.app. Secrets:
-`<APP>_SUPABASE_URL`, `<APP>_SUPABASE_SERVICE_ROLE_KEY` (legacy `eyJ…` key).
+(feelflow.vercel.app is someone else's app), mindbit-one.vercel.app.
+
+Since 2026-10-13 all three apps live in **one** Supabase project, Revalor Kids
+(`uzxspbwpgcmyemqpbgkf`): one `auth.users`, a schema per app, and a signup
+trigger that creates `<app>.profiles` from `user_metadata.product`. The helper
+sends `Accept-Profile`/`Content-Profile: <app>` on every table call, creates
+parents with `{ product }`, and only sweeps its own app's QA parents. Secrets:
+`<APP>_SUPABASE_URL`, `<APP>_SUPABASE_SERVICE_ROLE_KEY` (legacy `eyJ…` key) —
+all three pairs hold the Revalor Kids project's URL and service key.
 
 ## Consumer web apps on the shared template (Sanctum, Proactive, Elevate)
 Sanctum and Proactive are built from the same template (own Supabase project,
