@@ -193,11 +193,17 @@ export default function ContentTab({
   }
 
   async function updateStatus(id: string, status: SocialContentStatus, scheduledAt?: string) {
-    await fetch(`/api/social/content/${id}`, {
+    const res = await fetch(`/api/social/content/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, ...(scheduledAt ? { scheduledAt } : {}) }),
     });
+    // Only show the new status once the server has saved it — otherwise a
+    // failed Schedule looked done while the post stayed a draft.
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? `HTTP ${res.status}`);
+    }
     setContent((prev) =>
       prev.map((c) => (c.id === id ? { ...c, status, scheduled_at: scheduledAt ?? c.scheduled_at } : c))
     );
@@ -587,6 +593,16 @@ function ContentCard({
   const [videoPreviewLoading, setVideoPreviewLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
+  const [statusError, setStatusError] = useState("");
+
+  async function handleStatus(status: SocialContentStatus, scheduledAt?: string) {
+    setStatusError("");
+    try {
+      await updateStatus(c.id, status, scheduledAt);
+    } catch (err) {
+      setStatusError(`Couldn't ${status === "scheduled" ? "schedule" : "update"} this post: ${(err as Error).message}`);
+    }
+  }
 
   async function handlePublishNow() {
     setPosting(true);
@@ -778,7 +794,7 @@ function ContentCard({
 
       <div className="flex items-center gap-2 flex-wrap">
         {c.status === "draft" && (
-          <button onClick={() => updateStatus(c.id, "approved")} className="text-xs font-medium text-sky-700 hover:underline">
+          <button onClick={() => handleStatus("approved")} className="text-xs font-medium text-sky-700 hover:underline">
             Approve
           </button>
         )}
@@ -793,7 +809,7 @@ function ContentCard({
             <button
               onClick={() => {
                 const when = scheduleDrafts[c.id] ?? toLocalInput(c.scheduled_at);
-                if (when) updateStatus(c.id, "scheduled", new Date(when).toISOString());
+                if (when) handleStatus("scheduled", new Date(when).toISOString());
               }}
               disabled={!(scheduleDrafts[c.id] ?? toLocalInput(c.scheduled_at))}
               className="text-xs font-medium text-amber-600 hover:underline disabled:opacity-40"
@@ -802,6 +818,7 @@ function ContentCard({
             </button>
           </>
         )}
+        {statusError && <p className="w-full text-xs text-red-600">{statusError}</p>}
         {c.auto_image && !c.image_path && (
           <span
             className="text-xs rounded-full bg-violet-100 text-violet-700 px-2 py-0.5"
