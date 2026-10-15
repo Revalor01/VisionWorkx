@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { publishPost } from "@/lib/social/publishPost";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
+import { pickPublishable } from "@/lib/social/publishSpacing";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -20,9 +21,16 @@ export async function GET(req: NextRequest) {
     .eq("status", "scheduled")
     .lte("scheduled_at", new Date().toISOString());
 
+  // At most one Facebook post per Page per run (lib/social/publishSpacing.ts);
+  // the rest stay scheduled and go out on the next run, 10 minutes later.
+  const brandIds = [...new Set((due ?? []).map((p) => p.brand_id))];
+  const { data: brands } = brandIds.length ? await service.from("social_brands").select("id, fb_page_id").in("id", brandIds) : { data: [] };
+  const pageOf = new Map((brands ?? []).map((b) => [b.id, b.fb_page_id]));
+  const { now, deferred } = pickPublishable(due ?? [], (brandId) => pageOf.get(brandId));
+
   const results: { id: string; ok: boolean; error?: string }[] = [];
 
-  for (const post of due ?? []) {
+  for (const post of now) {
     const result = await publishPost(service, post);
     results.push({ id: post.id, ...result });
 
@@ -38,5 +46,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed: results.length, results });
+  return NextResponse.json({ processed: results.length, deferred: deferred.map((p) => p.id), results });
 }
