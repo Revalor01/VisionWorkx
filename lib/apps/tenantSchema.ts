@@ -59,6 +59,86 @@ END $$;
 `;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * Platform-owned `<schema>.is_app_admin()`: true only for the app's owner
+ * (`public.apps.user_id`). Matching on the owner's user id rather than an
+ * email list matters because auth.users is shared across every tenant app
+ * AND email confirmation is off (mailer_autoconfirm), so an email proves
+ * nothing. SECURITY DEFINER so it can read public.apps; it only ever
+ * returns a boolean. Always reflects the current owner (claims, transfers)
+ * with no redeploy. Run before the AI migration (its policies call it).
+ */
+export function tenantAdminFunctionSql(schema: string, appId: string): string {
+  if (!TENANT_SCHEMA_RE.test(schema) && !/^zz_dryrun_[0-9a-f]{12}$/.test(schema)) {
+    throw new Error(`refusing to create is_app_admin() in unexpected schema: ${schema}`);
+  }
+  if (!UUID_RE.test(appId)) throw new Error(`refusing is_app_admin() for non-uuid app id: ${appId}`);
+  return `
+CREATE OR REPLACE FUNCTION "${schema}".is_app_admin() RETURNS boolean
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT EXISTS (SELECT 1 FROM public.apps WHERE id = '${appId}'::uuid AND user_id = auth.uid());
+$$;
+REVOKE ALL ON FUNCTION "${schema}".is_app_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION "${schema}".is_app_admin() TO anon, authenticated, service_role;
+`;
+}
+
+// A policy expression that, as Postgres stores it, means nothing more than
+// "any signed-in user" — on a shared auth.users that's every VisionWorkx
+// user, not this business's admin. Whole-expression match only, so compound
+// conditions (`auth.uid() = owner_id`, `... AND status = 'x'`) are untouched.
+const ANY_SIGNED_IN_RE = String.raw`^\(*\s*(auth\.role\(\) = 'authenticated'::text|auth\.uid\(\) IS NOT NULL|\(auth\.jwt\(\) ->> 'role'::text\) = 'authenticated'::text)\s*\)*$`;
+
+/**
+ * Rewrites the tenant's policies that grant "any signed-in user" (or, for
+ * writes, anyone at all via `true`) to `is_app_admin()`. Platform-enforced
+ * after every migration, so a wrong AI policy can't ship and app edits are
+ * covered too. Deliberately leaves alone:
+ *  - INSERT `true` (public booking/checkout/contact forms),
+ *  - SELECT `true` (a public catalog — services, products — is legitimate),
+ *  - site_settings (platform-owned).
+ */
+export function tenantAdminPolicySql(schema: string): string {
+  if (!TENANT_SCHEMA_RE.test(schema)) {
+    throw new Error(`refusing to rewrite policies in unexpected schema: ${schema}`);
+  }
+  return `
+DO $$
+DECLARE
+  p record;
+  admin_expr text := format('%I.is_app_admin()', '${schema}');
+  any_user text := '${ANY_SIGNED_IN_RE.replace(/'/g, "''")}';
+  fix_using boolean;
+  fix_check boolean;
+BEGIN
+  FOR p IN SELECT tablename, policyname, cmd, qual, with_check, roles::text AS roles
+             FROM pg_policies WHERE schemaname = '${schema}' AND tablename <> 'site_settings' LOOP
+    fix_using := p.qual IS NOT NULL AND (
+      p.qual ~ any_user
+      OR (p.qual = 'true' AND (p.cmd IN ('UPDATE', 'DELETE') OR (p.cmd = 'ALL' AND p.roles = '{authenticated}')))
+    );
+    fix_check := p.with_check IS NOT NULL AND p.cmd <> 'INSERT' AND (
+      p.with_check ~ any_user
+      OR (p.with_check = 'true' AND (p.cmd = 'UPDATE' OR (p.cmd = 'ALL' AND p.roles = '{authenticated}')))
+    );
+    IF p.cmd = 'INSERT' AND p.with_check ~ any_user THEN
+      fix_check := true;
+    END IF;
+    IF fix_using AND fix_check THEN
+      EXECUTE format('ALTER POLICY %I ON %I.%I USING (%s) WITH CHECK (%s)', p.policyname, '${schema}', p.tablename, admin_expr, admin_expr);
+    ELSIF fix_using THEN
+      EXECUTE format('ALTER POLICY %I ON %I.%I USING (%s)', p.policyname, '${schema}', p.tablename, admin_expr);
+    ELSIF fix_check THEN
+      EXECUTE format('ALTER POLICY %I ON %I.%I WITH CHECK (%s)', p.policyname, '${schema}', p.tablename, admin_expr);
+    END IF;
+  END LOOP;
+END $$;
+`;
+}
+
 class MgmtError extends Error {}
 
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);

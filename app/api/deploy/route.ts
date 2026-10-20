@@ -14,7 +14,11 @@ import { applyBaseTemplate } from "@/lib/apps/baseTemplate";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
-import { tenantAccessHardeningSql } from "@/lib/apps/tenantSchema";
+import {
+  tenantAccessHardeningSql,
+  tenantAdminFunctionSql,
+  tenantAdminPolicySql,
+} from "@/lib/apps/tenantSchema";
 import { classifyBuildError, operatorAlertTitle, type BuildFailureReason } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
@@ -861,6 +865,10 @@ WHERE id = true;
     if (!msg.includes("already exists")) throw err;
   }
 
+  // 2a. Platform-owned admin check the AI's policies call. Fatal: without
+  // it, any migration referencing is_app_admin() fails.
+  await supabaseSQL(tenantAdminFunctionSql(SCHEMA, appId));
+
   // 2b. Expose schema in PostgREST before the AI migration runs, so the
   // schema is queryable as soon as possible.
   await exposeSchemaInPostgREST(SCHEMA);
@@ -891,7 +899,9 @@ WHERE id = true;
     const dryId = `zz_dryrun_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
     let dryErr: string | null = null;
     try {
-      await supabaseSQL(`CREATE SCHEMA "${dryId}"; SET search_path TO "${dryId}";\n${migrationSql}`);
+      await supabaseSQL(
+        `CREATE SCHEMA "${dryId}";\n${tenantAdminFunctionSql(dryId, appId)}\nSET search_path TO "${dryId}";\n${migrationSql}`,
+      );
     } catch (e) {
       dryErr = (e as Error).message;
     }
@@ -925,6 +935,9 @@ GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
     // Fatal on purpose — a view left as SECURITY DEFINER leaks customer
     // contact data to the anon key.
     await supabaseSQL(tenantAccessHardeningSql(SCHEMA));
+    // "Any signed-in user" is every VisionWorkx user (shared auth.users), so
+    // admin policies are rewritten to the owner-only is_app_admin().
+    await supabaseSQL(tenantAdminPolicySql(SCHEMA));
 
     // 3b. Attach automation-event triggers to every table in the tenant
     // schema, so Revalor Automations can observe row-level changes via

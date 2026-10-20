@@ -32,7 +32,7 @@ RULES
 2. A file may legitimately contain "]" in its path (Next.js dynamic routes like app/x/[id]/page.tsx) — keep those.
 3. Keep the existing stack and conventions. Use the primary / background Tailwind theme tokens, never a literal hex colour.
    In package.json, "next" and "eslint-config-next" must stay on the Next 14 line ("^14.2.0") and "react"/"react-dom" on "^18" — this stack's Supabase server client uses the synchronous cookies() API, which Next 15+ breaks. Never change "next" to 15/16/"latest".
-4. Migrations: never schema-qualify a CREATE/ALTER/DROP with public./auth./storage., never a trigger on auth.users. Keep the vw_metrics_daily and vw_automation_due views intact / add them if missing.
+4. Migrations: never schema-qualify a CREATE/ALTER/DROP with public./auth./storage., never a trigger on auth.users. Keep the vw_metrics_daily and vw_automation_due views intact / add them if missing. Admin/owner RLS policies use is_app_admin() (platform-provided, owner-only) — never auth.role() = 'authenticated' / auth.uid() IS NOT NULL; never a USING (true) SELECT on a table with customer emails/phones.
 5. If a file was reported truncated, re-emit that whole file, complete and syntactically valid.`;
 
 export interface RepairResult {
