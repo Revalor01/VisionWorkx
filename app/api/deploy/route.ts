@@ -14,6 +14,7 @@ import { applyBaseTemplate } from "@/lib/apps/baseTemplate";
 import { DEFAULT_BUILD_NOTICE } from "@/lib/apps/clientStatus";
 import type { FileMap } from "@/lib/apps/fileMap";
 import { notifyBuildFailure } from "@/lib/apps/operatorAlert";
+import { tenantAccessHardeningSql } from "@/lib/apps/tenantSchema";
 import { classifyBuildError, operatorAlertTitle, type BuildFailureReason } from "@/lib/apps/buildFailure";
 import type { AppCategory, IntakeData } from "@/lib/database.types";
 
@@ -918,6 +919,12 @@ GRANT INSERT ON ALL TABLES IN SCHEMA "${SCHEMA}" TO anon;
       const msg = (err as Error).message;
       if (!msg.includes("already exists")) throw err;
     }
+
+    // 3a'. Platform-enforced access rules, whatever the AI's SQL said:
+    // service-role read access for Insights, and RLS-respecting views.
+    // Fatal on purpose — a view left as SECURITY DEFINER leaks customer
+    // contact data to the anon key.
+    await supabaseSQL(tenantAccessHardeningSql(SCHEMA));
 
     // 3b. Attach automation-event triggers to every table in the tenant
     // schema, so Revalor Automations can observe row-level changes via

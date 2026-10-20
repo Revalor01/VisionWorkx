@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { tenantSchemaExists } from "./tenantSchema";
+import { tenantAccessHardeningSql, tenantSchemaExists } from "./tenantSchema";
 
 // Regression cases for the canary-teardown incident found on /admin
 // (2026-09-11): a single transient Management API blip (429/5xx/network)
@@ -66,5 +66,22 @@ describe("mgmtFetch retry (via tenantSchemaExists)", () => {
       tenantSchemaExists("deadbeef-0000-0000-0000-000000000000"),
     ).rejects.toThrow(/503/);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("tenantAccessHardeningSql", () => {
+  it("grants service_role read-only access and makes every view security_invoker", () => {
+    const sql = tenantAccessHardeningSql("app_deadbeef");
+    expect(sql).toContain('GRANT USAGE ON SCHEMA "app_deadbeef" TO service_role;');
+    expect(sql).toContain('GRANT SELECT ON ALL TABLES IN SCHEMA "app_deadbeef" TO service_role;');
+    expect(sql).toContain("SET (security_invoker = true)");
+    expect(sql).toContain("n.nspname = 'app_deadbeef' AND c.relkind = 'v'");
+    expect(sql).not.toMatch(/GRANT\s+(INSERT|UPDATE|DELETE|ALL)/i);
+  });
+
+  it("refuses anything that isn't a tenant schema name", () => {
+    for (const bad of ["public", "auth", "app_DEADBEEF", "app_deadbeef'; drop table x; --"]) {
+      expect(() => tenantAccessHardeningSql(bad)).toThrow(/refusing/);
+    }
   });
 });

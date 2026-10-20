@@ -25,6 +25,40 @@ export function tenantSchemaName(appId: string): string {
   return `app_${appId.slice(0, 8)}`;
 }
 
+/**
+ * SQL the deploy route runs after every tenant migration, independent of what
+ * the AI wrote:
+ *
+ *  - service_role gets SELECT (and nothing more) on the tenant's tables and
+ *    views. The deploy grants only cover anon/authenticated, so without this
+ *    `readTenantMetrics()` hit `permission denied` and Insights silently
+ *    showed "no data yet" for every app.
+ *  - every view becomes `security_invoker`. A plain `create view` runs with
+ *    its owner's rights and skips the underlying tables' RLS; combined with
+ *    the anon SELECT grant, `vw_automation_due` handed customers' emails and
+ *    phone numbers to anyone with the public anon key (Supabase advisor
+ *    `security_definer_view`, 2026-10-17).
+ *
+ * Idempotent, so it also covers views an app edit recreated.
+ */
+export function tenantAccessHardeningSql(schema: string): string {
+  if (!TENANT_SCHEMA_RE.test(schema)) {
+    throw new Error(`refusing to harden unexpected schema name: ${schema}`);
+  }
+  return `
+GRANT USAGE ON SCHEMA "${schema}" TO service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA "${schema}" TO service_role;
+DO $$
+DECLARE v text;
+BEGIN
+  FOR v IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = '${schema}' AND c.relkind = 'v' LOOP
+    EXECUTE format('ALTER VIEW %I.%I SET (security_invoker = true)', '${schema}', v);
+  END LOOP;
+END $$;
+`;
+}
+
 class MgmtError extends Error {}
 
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
