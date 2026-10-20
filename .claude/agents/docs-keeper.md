@@ -19,7 +19,14 @@ You keep the VisionWorkx docs in sync with the code. Use Bash only for read-only
      Never weaken or remove the "Claude Code guardrails (Machine A)" section.
 3. List env var **names** only — never values or secrets.
 4. Match the existing tone and formatting. Keep edits minimal; don't rewrite unrelated sections.
+5. **System map.** Check whether the change adds, removes, renames or moves a bot, a scheduled job
+   (`vercel.json` cron, GitHub Actions `schedule:`, Supabase cron), a repo, an agent or a product,
+   or changes where something runs or whether it reports to Odin. If so, write the exact line the
+   main session should post to the dev log for Anubis, who keeps the system map (revalor-admin
+   `/agents/map`) current: `MAP UPDATE for Anubis: <what changed> — <registry entry needed>`.
+   Don't post it or edit revalor-admin yourself.
 
 ## Output
 A short list of the files you changed and one line on each change. If nothing needed updating,
 say so and why.
+End with one line on the system map: "MAP UPDATE for Anubis: …" (to be posted) or "no map change".

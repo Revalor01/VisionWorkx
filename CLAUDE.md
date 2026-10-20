@@ -117,6 +117,9 @@ is an SSRF surface: it must keep refusing private/internal addresses for every h
   adds or edits files in `supabase/migrations`) **migration-reviewer**. Don't open the PR on a
   STOP; fix FIX items or explain why not.
 - At the end of every task: run **docs-keeper**.
+  If it reports a `MAP UPDATE for Anubis: …` line, post it with
+  `node ~/vision-workx/scripts/log-dev-activity.mjs "<that line>"` so the system map
+  (revalor-admin `/agents/map`) gets updated.
 
 ---
 
