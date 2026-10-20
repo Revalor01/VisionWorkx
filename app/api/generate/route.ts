@@ -228,7 +228,8 @@ Rules:
     - A Supabase \`.select()\` that embeds a related table (e.g. \`.select('id, title, clients(full_name)')\`) can come back typed as an ARRAY even when the relationship is logically one-to-one (a single \`client_id\` foreign key). Never assume it's a single object — either type the embedded field as an array and read \`row.clients[0]\`, or defensively normalize it: \`const client = Array.isArray(row.clients) ? row.clients[0] : row.clients\`. Do not write an interface like \`{ clients: { full_name: string } }\` and then assign an array-shaped query result to it.
     - Never render a value typed (or inferred) as \`unknown\` directly in JSX (e.g. from \`JSON.parse()\`, a \`catch\` block, or an untyped \`jsonb\` column). \`unknown\` is not assignable to \`ReactNode\` and fails the build. Cast or validate it to a concrete type first (\`String(value)\`, a type guard, or a proper interface for the parsed shape) before it ever appears inside \`{}\` in JSX.
     - CRITICAL — any component that calls \`useSearchParams()\` MUST be wrapped in \`<Suspense>\` (from \`react\`), or the production build fails outright with \`useSearchParams() should be wrapped in a suspense boundary\` during static generation. This hits confirmation/success/receipt-style pages constantly (e.g. \`/checkout/success?session_id=...\`, \`/book/confirmation?...\`) since they read an ID or status out of the URL after a redirect. Confirmed live 2026-09-17, twice, on exactly this pattern (a storefront checkout-success page, a booking confirmation page). Fix: pull the \`useSearchParams()\` call into its own small child Client Component, then wrap ONLY that child in \`<Suspense fallback={...}>\` from the parent — never call \`useSearchParams()\` directly in a page/layout body without that wrapper.
-17. CRITICAL — every \`CREATE POLICY\` in your migration must be preceded by a matching \`DROP POLICY IF EXISTS "<same name>" ON <same table>;\` on its own line immediately before it. Postgres has no \`CREATE POLICY IF NOT EXISTS\`, and a bare \`CREATE POLICY\` throws \`42710: policy "..." already exists\` — a real, repeated production failure (confirmed live 2026-09-13, twice, on \`storage.objects\` policies for a file-upload feature) — whenever a policy of that name is already present (a Supabase storage bucket you create can already carry default policies; a retried/repaired migration can also be re-running against a schema its own earlier attempt partially applied). This applies to every policy you write, not just \`storage.objects\`.`;
+17. CRITICAL — every \`CREATE POLICY\` in your migration must be preceded by a matching \`DROP POLICY IF EXISTS "<same name>" ON <same table>;\` on its own line immediately before it. Postgres has no \`CREATE POLICY IF NOT EXISTS\`, and a bare \`CREATE POLICY\` throws \`42710: policy "..." already exists\` — a real, repeated production failure (confirmed live 2026-09-13, twice, on \`storage.objects\` policies for a file-upload feature) — whenever a policy of that name is already present (a Supabase storage bucket you create can already carry default policies; a retried/repaired migration can also be re-running against a schema its own earlier attempt partially applied). This applies to every policy you write, not just \`storage.objects\`.
+18. CRITICAL — "signed in" is NOT "admin". \`auth.users\` is shared by every app on this platform, so \`auth.role() = 'authenticated'\`, \`auth.uid() IS NOT NULL\` or a \`TO authenticated USING (true)\` policy lets ANY user of ANY other app read and change this business's data straight through the API. Every admin/owner policy (reading bookings, contacts, invoices, orders; any update or delete) must use the platform's \`is_app_admin()\` function, which already exists in your schema and is true only for this business's owner, e.g. \`create policy "admin read" on appointments for select to authenticated using (is_app_admin());\`. Server-side admin page/route guards call it too: \`const { data: isAdmin } = await supabase.rpc('is_app_admin')\` → \`redirect('/login?denied=1')\` (or 403) when false. Never write a \`USING (true)\` SELECT policy on a table holding customers' names, emails or phone numbers (bookings, leads, contacts, orders, invoices) — anon \`USING (true)\` is only for genuinely public catalog tables (services, products, menu). The public can still INSERT (book, check out, submit a form).`;
 
 // ---------------------------------------------------------------
 // POST /api/generate
@@ -702,13 +703,10 @@ Share auth, layout, navigation, and the customer/contact records across all capa
   const teamSection = wantsTeam
     ? `
 
-## Staff logins & team invites (required — selected as a feature)
-The business owner needs to give staff their own logins to the admin area.
-- Migration: a \`team_members\` table — \`id uuid primary key default gen_random_uuid()\`, \`email text not null unique\`, \`role text not null default 'staff' check (role in ('owner','staff'))\`, \`invite_token text unique\`, \`invited_at timestamptz not null default now()\`, \`joined_at timestamptz\`, \`user_id uuid references auth.users(id)\`. RLS on; a team member may select the table, only \`role='owner'\` rows may insert/update/delete.
-- Signup: right after \`supabase.auth.signUp()\` succeeds, if \`team_members\` is empty, insert this user as \`role='owner'\` with \`joined_at = now()\` and their \`user_id\`. (Foreign keys to \`auth.users\` are fine; no trigger on \`auth.users\`.)
-- Admin **Team** page (\`app/team/page.tsx\`, owner-only): lists members with role + status (Invited / Active); an "Invite teammate" form that inserts a \`team_members\` row (\`role='staff'\`, a random \`invite_token\`) and shows a **copyable invite link** \`<app origin>/join?token=<invite_token>\` — do NOT send an email, the owner shares the link; a "Remove" button per member (owner-only, can't remove the last owner).
-- \`app/join/page.tsx\`: reads \`?token\`, looks up the un-joined \`team_members\` row, shows an email (read-only, from the row) + set-password form → \`supabase.auth.signUp()\` → on success set that row's \`user_id\` and \`joined_at = now()\`, clear \`invite_token\`, redirect to the admin area. Invalid/used token → a friendly "This invite link is no longer valid" message.
-- Access gating: EVERY admin page must, server-side, confirm the signed-in user's id is in \`team_members\` with \`joined_at is not null\` — otherwise \`redirect('/login')\`. Owner-only actions (this Team page, billing/plan changes, deleting records) additionally require \`role='owner'\`.
+## Staff logins (selected as a feature — owner-only for now)
+Separate staff logins aren't supported on this platform yet, so build the admin area for the business owner only:
+- Do NOT create a \`team_members\` table, invite links, a join page, or any "first signup becomes the owner" logic — on a shared \`auth.users\` that would let any user of another app claim this business.
+- Every admin page and admin API route is guarded by \`is_app_admin()\` (rule 18).
 - The customer-facing pages are unchanged — this is admin-side only.`
     : "";
 
@@ -738,8 +736,7 @@ create table store_settings (
   id boolean primary key default true check (id),
   shipping_flat_cents integer not null default 0,
   free_shipping_over_cents integer,            -- null = never free
-  currency text not null default 'usd',
-  admin_emails text[] not null default '{}'    -- who may open /admin (seeded by the platform post-deploy)
+  currency text not null default 'usd'
 );
 insert into store_settings (id) values (true) on conflict do nothing;
 create table orders (
@@ -757,11 +754,11 @@ create table orders (
 );
 \`\`\`
 RLS (this app has NO service-role key — every server route uses the anon key, so a shopper is the \`anon\` role even from a server action; get these exactly right or checkout breaks):
-- \`products\` / \`product_images\` / \`store_settings\` — \`select\` to \`anon, authenticated\`; \`insert/update/delete\` to \`authenticated\` only.
+- \`products\` / \`product_images\` / \`store_settings\` — \`select\` to \`anon, authenticated\`; \`insert/update/delete\` to \`authenticated\` with \`is_app_admin()\` (the store owner).
 - \`orders\` — a shopper (anon) must be able to place and then complete their own order, but never read other people's:
   - \`insert\` to \`anon, authenticated\` with \`with check (status = 'pending')\`
   - \`update\` to \`anon, authenticated\` with \`using (status = 'pending')\` (so the /store/success route can flip a pending order to paid, but nothing shipped can be touched)
-  - \`select\` and \`delete\` to \`authenticated\` only (the store owner's admin)
+  - \`select\` and \`delete\` to \`authenticated\` with \`using (is_app_admin())\` (the store owner's admin)
 Seed 6–8 realistic \`products\` with \`active = true\` and one \`product_images\` row each (use \`https://picsum.photos/seed/<slug>/600/600\` as placeholder URLs) so the store looks stocked on first run.
 
 ### Customer pages
@@ -815,13 +812,13 @@ export async function POST(req: Request) {
 \`\`\`
 Admin image pickers POST the file to \`/api/upload\` and store the returned \`url\` in \`product_images\`. If \`PRODUCT_IMAGE_UPLOAD_URL\` is missing, show a disabled "image upload isn't available" state.
 
-### Admin (allowlist-gated — auth.users is shared across every store)
-Being logged in is NOT enough. In \`app/admin/layout.tsx\` (server), after \`supabase.auth.getUser()\`: read \`store_settings.admin_emails\` and if the user's email is not in that array, \`redirect('/login?denied=1')\`. Do the same guard at the top of EVERY \`app/api/admin/*\` route and return \`403\` if it fails. \`/login\` shows "That account isn't an admin for this store." when \`?denied=1\`. (The platform seeds \`admin_emails\` with the owner's address after deploy; the Settings page may add/remove more.)
+### Admin (owner-only — auth.users is shared across every store)
+Being logged in is NOT enough. In \`app/admin/layout.tsx\` (server), after \`supabase.auth.getUser()\`: \`const { data: isAdmin } = await supabase.rpc('is_app_admin')\` and if it isn't \`true\`, \`redirect('/login?denied=1')\`. Do the same guard at the top of EVERY \`app/api/admin/*\` route and return \`403\` if it fails. \`/login\` shows "That account isn't an admin for this store." when \`?denied=1\`. (\`is_app_admin()\` is platform-owned and true only for the store's owner.)
 - Nav: **Products · Orders · Payments · Settings**
 - \`/admin/products\` — list (thumb, name, price, active toggle, delete). "Add product" → form: name, description, price (dollars input → store cents), active; a multi-image picker (upload → \`product_images\`, drag or ▲▼ to set \`position\`). Editing a product edits the same fields.
 - \`/admin/orders\` — list newest first (date, email, item count, total, status badge). Row → items table, ship-to block, and a status \`<select>\` \`new → packed → shipped\` (also \`cancelled\`). \`pending\` orders (payment never completed) show greyed with no actions.
 - \`/admin/payments\` — the live Stripe history from \`process.env.STRIPE_TRANSACTIONS_URL\` (see the "Payments history" block in the Payments section: date / customer / description / amount / status / receipt, "Load more").
-- \`/admin/settings\` (store) — edit \`store_settings\`: flat shipping (dollars), free-shipping threshold (dollars, blank = off), currency (read-only \`usd\` for now), and **Admin users** — the \`admin_emails\` list (add by email, remove; never let the list become empty).
+- \`/admin/settings\` (store) — edit \`store_settings\`: flat shipping (dollars), free-shipping threshold (dollars, blank = off), currency (read-only \`usd\` for now).
 
 ### Reporting
 In \`vw_metrics_daily\` emit \`orders_created\` (paid orders per day, by \`paid_at::date\`), \`units_sold\` (sum of item qty on paid orders), \`revenue_cents\` (sum of \`total_cents\` on paid orders). Do NOT emit metrics for \`pending\` orders.`

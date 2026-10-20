@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { serializeFileMap, type FileMap } from "./fileMap";
-import { validateGenerated, validateRawOutput } from "./validateGenerated";
+import { publicContactSelectTables, validateGenerated, validateRawOutput } from "./validateGenerated";
 import { TEAM_ACCESS_FEATURE } from "@/lib/features";
 
 // A minimally-complete generated app that should pass every check.
@@ -112,23 +112,47 @@ describe("validateGenerated", () => {
     expect(validateGenerated(raw, OK_MAP, "booking", [], [])).toEqual([]);
   });
 
-  it("reports a missing team_members table / join page when staff logins were requested", () => {
-    const out = validateGenerated(raw, OK_MAP, "booking", [], [TEAM_ACCESS_FEATURE]);
-    expect(out.some((p) => p.includes("team_members"))).toBe(true);
-    expect(out.some((p) => p.includes("app/join/page.tsx"))).toBe(true);
-    expect(out.some((p) => p.includes("app/team/page.tsx"))).toBe(true);
+  it("passes an owner-only admin when staff logins were requested", () => {
+    expect(validateGenerated(raw, OK_MAP, "booking", [], [TEAM_ACCESS_FEATURE])).toEqual([]);
   });
 
-  it("passes when the staff-login files and table are present", () => {
+  it("rejects a team_members table while staff logins are owner-only", () => {
     const m: FileMap = {
       ...OK_MAP,
-      "app/team/page.tsx": "export default function Team() { return null; }",
-      "app/join/page.tsx": "export default function Join() { return null; }",
       "supabase/migrations/001_init.sql":
         OK_MAP["supabase/migrations/001_init.sql"] +
         "\ncreate table team_members (id uuid primary key default gen_random_uuid(), email text not null unique, role text not null default 'staff', invite_token text unique, joined_at timestamptz, user_id uuid);",
     };
-    expect(validateGenerated(serializeFileMap(m), m, "booking", [], [TEAM_ACCESS_FEATURE])).toEqual([]);
+    const out = validateGenerated(serializeFileMap(m), m, "booking", [], [TEAM_ACCESS_FEATURE]);
+    expect(out.some((p) => p.includes("Staff logins aren't supported yet"))).toBe(true);
+  });
+
+  it("rejects policies that treat any signed-in user as admin", () => {
+    for (const cond of ["auth.role() = 'authenticated'", "auth.uid() is not null"]) {
+      const m: FileMap = {
+        ...OK_MAP,
+        "supabase/migrations/001_init.sql":
+          OK_MAP["supabase/migrations/001_init.sql"] +
+          `\ncreate policy "admin read" on bookings for select using (${cond});`,
+      };
+      const out = validateGenerated(serializeFileMap(m), m, "booking");
+      expect(out.some((p) => p.includes("any signed-in user"))).toBe(true);
+    }
+  });
+
+  it("flags a USING (true) select on a table with contact columns, not on a catalog", () => {
+    const sql = `create table appointments (
+  id uuid primary key,
+  client_email text,
+  client_phone text
+);
+create table services (
+  id uuid primary key,
+  name text
+);
+create policy "Public can read own appointment" on appointments for select using (true);
+create policy "Public services" on services for select to anon using (true);`;
+    expect(publicContactSelectTables(sql)).toEqual(["appointments"]);
   });
 
   it("reports literal hex colour classes", () => {

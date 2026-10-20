@@ -24,6 +24,23 @@ const REQUIRED_FILES = ["app/layout.tsx", "app/page.tsx"];
 
 const IMPORT_RE = /from\s+["']@\/([^"']+)["']/g;
 const HEX_CLASS_RE = /\b(?:bg|text|border|ring|from|via|to|fill|stroke)-\[#[0-9a-fA-F]{3,8}\]/;
+const ANY_SIGNED_IN_POLICY_RE =
+  /\bauth\.role\(\)\s*=\s*'authenticated'|\bauth\.uid\(\)\s+is\s+not\s+null/i;
+
+/** Tables that hold an email/phone column AND have a `USING (true)` SELECT policy. */
+export function publicContactSelectTables(sql: string): string[] {
+  const contactTables = new Set<string>();
+  for (const m of sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?"?(\w+)"?\s*\(([\s\S]*?)\n\s*\)\s*;/gi)) {
+    if (/\b\w*(email|phone)\w*\s+text\b/i.test(m[2])) contactTables.add(m[1].toLowerCase());
+  }
+  const exposed = new Set<string>();
+  for (const m of sql.matchAll(/create\s+policy\s+"[^"]*"\s+on\s+"?(\w+)"?\s+for\s+select\b[^;]*?using\s*\(\s*true\s*\)/gi)) {
+    const t = m[1].toLowerCase();
+    if (contactTables.has(t)) exposed.add(t);
+  }
+  return [...exposed];
+}
+
 const FORBIDDEN_MIGRATION =
   /\b(create|alter|drop)\s+(table|view|function|trigger|policy|type|index|schema)\s+(if\s+(not\s+)?exists\s+)?(public|auth|storage)\./i;
 
@@ -178,6 +195,20 @@ export function validateGenerated(
     problems.push("The migration defines a trigger on auth.users — forbidden. Insert the profile row from app code instead.");
   }
 
+  // Admin policies (rule 18): "signed in" is every user of every app on the
+  // shared auth.users, never this business's admin.
+  if (ANY_SIGNED_IN_POLICY_RE.test(sql)) {
+    problems.push(
+      "The migration grants access to any signed-in user (`auth.role() = 'authenticated'` / `auth.uid() IS NOT NULL`) — auth.users is shared by every app, so that's every user on the platform. Use `is_app_admin()` for admin/owner policies.",
+    );
+  }
+  const exposed = publicContactSelectTables(sql);
+  if (exposed.length > 0) {
+    problems.push(
+      `A \`USING (true)\` SELECT policy exposes customers' contact details on: ${exposed.join(", ")}. Make admin reads \`using (is_app_admin())\`; \`USING (true)\` is only for public catalog tables.`,
+    );
+  }
+
   // Reporting / automation contracts
   if (hasMigration && !/\bvw_metrics_daily\b/.test(sql)) {
     problems.push("The migration is missing the required `vw_metrics_daily` view (day/metric_key/value).");
@@ -224,30 +255,20 @@ export function validateGenerated(
     }
     // auth.users is shared across every store — a plain getUser() check lets
     // any VisionWorkx account into this admin. The layout must gate on the
-    // store_settings.admin_emails allowlist.
+    // platform's owner-only is_app_admin().
     const adminLayout = map["app/admin/layout.tsx"];
-    if (adminLayout && !/admin_emails/.test(adminLayout)) {
-      problems.push("Storefront: app/admin/layout.tsx doesn't check `store_settings.admin_emails` — being logged in isn't enough (auth.users is shared across every store). After getUser(), read admin_emails and redirect('/login?denied=1') if the user's email isn't in it.");
+    if (adminLayout && !/is_app_admin/.test(adminLayout)) {
+      problems.push("Storefront: app/admin/layout.tsx doesn't check `is_app_admin()` — being logged in isn't enough (auth.users is shared across every store). After getUser(), call supabase.rpc('is_app_admin') and redirect('/login?denied=1') if it isn't true.");
     }
   }
 
-  // Staff logins & team invites (Phase 6c) — only when the owner picked it
-  if (features.includes(TEAM_ACCESS_FEATURE)) {
-    if (hasMigration && !/\bteam_members\b/.test(sql)) {
-      problems.push(
-        "Staff logins were requested but the migration has no `team_members` table — add it (id, email, role owner/staff, invite_token, invited_at, joined_at, user_id).",
-      );
-    }
-    if (!has("app/join/page.tsx")) {
-      problems.push(
-        "Staff logins were requested but app/join/page.tsx (the invite-accept page reading ?token) was not generated — create it.",
-      );
-    }
-    if (!has("app/team/page.tsx")) {
-      problems.push(
-        "Staff logins were requested but app/team/page.tsx (the owner-only Team management page) was not generated — create it.",
-      );
-    }
+  // Staff logins are owner-only for now: a team_members table with a
+  // "first signup becomes owner" rule lets any user of another app on the
+  // shared auth.users claim the business.
+  if (features.includes(TEAM_ACCESS_FEATURE) && hasMigration && /\bteam_members\b/.test(sql)) {
+    problems.push(
+      "Staff logins aren't supported yet — remove the `team_members` table, invite/join pages and any first-signup-becomes-owner logic; guard the admin area with is_app_admin() only.",
+    );
   }
 
   // Literal hex colours (rule 13) — worst offenders only
