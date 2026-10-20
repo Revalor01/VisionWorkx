@@ -40,10 +40,17 @@ function SignupForm() {
     setError("");
 
     const supabase = createBrowserClient();
+    // Where the confirmation email's link lands: /auth/callback signs the user
+    // in, claims the preview (?claim=) and continues to ?next=.
+    const callback = new URL("/auth/callback", window.location.origin);
+    callback.searchParams.set("next", next);
+    const claimToken = searchParams.get("claim");
+    if (claimToken) callback.searchParams.set("claim", claimToken);
     const { data, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
+        emailRedirectTo: callback.toString(),
         data: {
           full_name: form.fullName,
           company_name: form.companyName,

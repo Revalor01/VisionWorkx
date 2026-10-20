@@ -23,7 +23,12 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    // /auth/callback sends an expired or already-used confirmation link here.
+    searchParams.get("confirm") === "failed"
+      ? "That confirmation link has expired or was already used. Log in, or sign up again to get a new link."
+      : "",
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
