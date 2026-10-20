@@ -26,3 +26,13 @@ qa({ id: "visionworkx/social/internal-image-requires-secret", area: "Social", ti
   const wrong = await request.post(`/api/internal/social-image/${id}`, { headers: { authorization: "Bearer not-the-secret" } });
   expect(wrong.status()).toBe(401);
 });
+
+qa({ id: "visionworkx/social/competitor-intake-cron-requires-secret", area: "Social", title: "Competitor Watch intake cron needs the cron secret" }, async ({ request }) => {
+  expect((await request.get("/api/cron/social-competitor-intake")).status()).toBe(401);
+  const wrong = await request.get("/api/cron/social-competitor-intake", { headers: { authorization: "Bearer not-the-secret" } });
+  expect(wrong.status()).toBe(401);
+});
+
+qa({ id: "visionworkx/social/competitor-intake-import-requires-admin", area: "Social", title: "On-demand Competitor Watch import needs the admin" }, async ({ request }) => {
+  expect((await request.post("/api/cron/social-competitor-intake")).status()).toBe(401);
+});
