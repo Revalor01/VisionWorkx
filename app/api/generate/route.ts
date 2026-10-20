@@ -908,7 +908,7 @@ Only emit \`metric_key\` values whose underlying table you actually created. Do 
 \`revenue_cents\` = SUM of amounts actually paid that day, in integer cents (from the payments flow if this app has one; otherwise omit the key entirely).
 The view MUST NOT reference any table you didn't create and MUST NOT error on an empty database. Example:
 \`\`\`sql
-create view vw_metrics_daily as
+create view vw_metrics_daily with (security_invoker = true) as
   select created_at::date as day, 'bookings_created'::text as metric_key, count(*)::numeric as value
     from bookings where created_at >= now() - interval '180 days' group by 1
   union all
@@ -925,7 +925,7 @@ Also create a VIEW named exactly \`vw_automation_due\` with columns \`trigger_ty
 - \`quote.stale_5d\` — a quote created 5–7 days ago still pending. context: \`{ amount_cents }\`.
 Pull \`recipient_email\` / \`recipient_phone\` from whatever contact columns your tables have (so store the customer's email, and phone where relevant, on bookings / leads / invoices / quotes). The view must be safe on an empty database and reference only tables you created. Example:
 \`\`\`sql
-create view vw_automation_due as
+create view vw_automation_due with (security_invoker = true) as
   select 'booking.reminder_24h'::text as trigger_type, b.id::text as ref_id,
          b.customer_email as recipient_email, b.customer_phone as recipient_phone,
          jsonb_build_object('starts_at', b.starts_at, 'service', b.service_name) as context
