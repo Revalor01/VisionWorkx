@@ -30,3 +30,12 @@ qa({ id: "visionworkx/public/embed-script", area: "Public site", title: "Embed s
   expect(res.headers()["content-type"] ?? "").toMatch(/javascript/);
   expect(await res.text()).toContain("VisionWorkx embed loader");
 });
+
+qa(
+  { id: "visionworkx/public/auth-callback-bad-code", area: "Public site", title: "A bad email-confirmation link lands on login with a message", smoke: true },
+  async ({ page }) => {
+    await page.goto("/auth/callback?code=not-a-real-code&next=/dashboard");
+    await expect(page).toHaveURL(/\/login\?confirm=failed/);
+    await expect(page.getByText(/confirmation link has expired or was already used/)).toBeVisible();
+  },
+);

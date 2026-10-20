@@ -35,7 +35,11 @@ function GuidedForm() {
     const { data, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { full_name: form.fullName, company_name: form.businessName } },
+      options: {
+        // The confirmation link signs them in and brings them back here.
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/guided")}`,
+        data: { full_name: form.fullName, company_name: form.businessName },
+      },
     });
     if (authError) {
       setError(authError.message);
