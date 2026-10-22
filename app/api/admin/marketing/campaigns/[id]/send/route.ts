@@ -62,7 +62,25 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       return NextResponse.json({ error: `Campaign already ${campaign.status}` }, { status: 409 });
     }
 
-    const recipients = await getSendableAudience(campaign.product);
+    // Claim it atomically (same statuses as before, minus sent/sending), so a
+    // double click, a second tab or an Approve at the same moment can't send it twice.
+    const { data: claimed, error: claimError } = await service
+      .from("marketing_campaigns")
+      .update({ status: "sending", updated_at: new Date().toISOString() })
+      .eq("id", campaign.id)
+      .not("status", "in", "(sent,sending)")
+      .select("id");
+    if (claimError) return NextResponse.json({ error: claimError.message }, { status: 500 });
+    if (!claimed?.length) return NextResponse.json({ error: "This campaign is already being sent." }, { status: 409 });
+
+    let recipients;
+    try {
+      recipients = await getSendableAudience(campaign.product);
+    } catch (err) {
+      // Nothing sent yet: put it back as it was.
+      await service.from("marketing_campaigns").update({ status: campaign.status, updated_at: new Date().toISOString() }).eq("id", campaign.id).eq("status", "sending");
+      throw err;
+    }
     const result = await sendCampaign(campaign.id, recipients.map((r) => r.email));
     return NextResponse.json({ ok: true, test: false, recipientCount: recipients.length, ...result });
   } catch (err) {
