@@ -92,6 +92,9 @@ export default function MarketingDashboard({
   const [smsMessage, setSmsMessage] = useState("");
 
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  // Pending-review cards: which one shows its body, and which is one click from sending.
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   useOnChange(product, () => setConfirmSend(false));
 
@@ -422,27 +425,68 @@ export default function MarketingDashboard({
             </div>
             <div className="divide-y divide-zinc-200">
               {pendingReview.map((c) => (
-                <div key={c.id} className="px-6 py-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-zinc-900">{c.subject || "(no subject)"}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5 capitalize">{c.product}</p>
+                <div key={c.id} className="px-6 py-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-zinc-900">{c.subject || "(no subject)"}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        <span className="capitalize">{c.product}</span>
+                        {c.target_emails?.length ? ` · ${c.target_emails.length} specific recipient${c.target_emails.length === 1 ? "" : "s"}` : " · all subscribers"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button onClick={() => setPreviewId(previewId === c.id ? null : c.id)} className="text-xs font-medium text-zinc-600 hover:underline">
+                        {previewId === c.id ? "Hide email" : "Preview email"}
+                      </button>
+                      {confirmId === c.id ? (
+                        <>
+                          <span className="text-xs text-zinc-700">
+                            Send to {c.target_emails?.length ? `${c.target_emails.length} recipient${c.target_emails.length === 1 ? "" : "s"}` : `every ${c.product} subscriber`} now?
+                          </span>
+                          <button
+                            onClick={withBusy(c.id, async () => {
+                              setConfirmId(null);
+                              await approveCampaign(c.id);
+                            })}
+                            disabled={busyIds.has(c.id)}
+                            className="text-xs font-semibold text-green-700 hover:underline disabled:opacity-50"
+                          >
+                            {busyIds.has(c.id) ? "Sending…" : "Yes, send"}
+                          </button>
+                          <button onClick={() => setConfirmId(null)} className="text-xs font-medium text-zinc-500 hover:underline">
+                            No
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setConfirmId(c.id);
+                            setPreviewId(c.id);
+                          }}
+                          disabled={busyIds.has(c.id)}
+                          className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50"
+                        >
+                          {busyIds.has(c.id) ? "Working…" : "Approve & send"}
+                        </button>
+                      )}
+                      <button
+                        onClick={withBusy(c.id, () => cancelCampaign(c.id))}
+                        disabled={busyIds.has(c.id)}
+                        className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={withBusy(c.id, () => approveCampaign(c.id))}
-                      disabled={busyIds.has(c.id)}
-                      className="text-xs font-medium text-green-700 hover:underline disabled:opacity-50"
-                    >
-                      {busyIds.has(c.id) ? "Working…" : "Approve & send"}
-                    </button>
-                    <button
-                      onClick={withBusy(c.id, () => cancelCampaign(c.id))}
-                      disabled={busyIds.has(c.id)}
-                      className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  {previewId === c.id && (
+                    // Sandboxed (no scripts, no same-origin) so generated HTML can't run anything here.
+                    <iframe
+                      title={`Preview: ${c.subject}`}
+                      sandbox=""
+                      srcDoc={`<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;font-size:14px;color:#18181b">${c.body_html ?? ""}</div>`}
+                      className="mt-3 h-80 w-full rounded-lg border border-zinc-200 bg-white"
+                    />
+                  )}
                 </div>
               ))}
             </div>

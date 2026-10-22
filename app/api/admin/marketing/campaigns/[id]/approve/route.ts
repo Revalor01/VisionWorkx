@@ -29,6 +29,20 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
     return NextResponse.json({ error: `Campaign is ${campaign.status}, not pending_review` }, { status: 409 });
   }
 
+  // Claim it atomically (pending_review → sending) before anything is sent,
+  // so a double click or a second tab can't send the same campaign twice.
+  const { data: claimed, error: claimError } = await service
+    .from("marketing_campaigns")
+    .update({ status: "sending", updated_at: new Date().toISOString() })
+    .eq("id", campaign.id)
+    .eq("status", "pending_review")
+    .select("id");
+  if (claimError) return NextResponse.json({ error: claimError.message }, { status: 500 });
+  if (!claimed?.length) return NextResponse.json({ error: "This campaign is already being sent." }, { status: 409 });
+
+  // Until the send itself starts, a failure (e.g. the audience lookup) puts
+  // the campaign back in review; after that, the send functions own the status.
+  let sending = false;
   try {
     if (campaign.channel === "email") {
       // A lifecycle firing (or any other targeted send) carries its own
@@ -38,6 +52,7 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
       const recipients = campaign.target_emails?.length
         ? await filterUnsubscribed(campaign.product, campaign.target_emails)
         : (await getSendableAudience(campaign.product)).map((r) => r.email);
+      sending = true;
       const result = await sendCampaign(campaign.id, recipients);
       return NextResponse.json({ ok: true, recipientCount: recipients.length, ...result });
     }
@@ -49,9 +64,13 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
       : campaign.channel === "push"
         ? (await getPushAudience(campaign.product)).map((r) => r.token)
         : await filterSmsOptOuts((await getSmsAudience(campaign.product)).map((r) => r.phone));
+    sending = true;
     const result = await sendMobileCampaign(campaign.id, recipients);
     return NextResponse.json({ ok: true, recipientCount: recipients.length, ...result });
   } catch (err) {
+    if (!sending) {
+      await service.from("marketing_campaigns").update({ status: "pending_review", updated_at: new Date().toISOString() }).eq("id", campaign.id).eq("status", "sending");
+    }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
