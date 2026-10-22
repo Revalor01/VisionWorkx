@@ -2,9 +2,13 @@ import Stripe from "stripe";
 import { modulesServiceClient } from "./supabase";
 import { PLANS, TRIAL_DAYS, type ModulePlan } from "./plans";
 
-// Stripe billing for module workspaces. Reuses VisionWorkx's existing live
-// prices (same $59/$129/$299, monthly + annual). Subscriptions are tagged
-// with metadata.vw_workspace_id so the shared webhook can route them here.
+// Stripe billing for module workspaces. Growth and Pro reuse VisionWorkx's
+// existing live prices ($129/$299, monthly + annual). Starter has its own
+// Modules prices since 2026-10-22 ($49/mo, $470/yr: STRIPE_MODULES_STARTER_*),
+// so the legacy app-builder's $59 Starter prices (STRIPE_STARTER_*) stay
+// untouched; both are still recognised as Starter, so nobody on the old price
+// loses their plan. Subscriptions are tagged with metadata.vw_workspace_id so
+// the shared webhook can route them here.
 
 export function stripe(): Stripe {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -14,10 +18,10 @@ export type Interval = "monthly" | "annual";
 
 export function priceIdFor(plan: ModulePlan, interval: Interval): string | undefined {
   const env: Record<string, string | undefined> = {
-    "starter:monthly": process.env.STRIPE_STARTER_PRICE_ID,
+    "starter:monthly": process.env.STRIPE_MODULES_STARTER_PRICE_ID || process.env.STRIPE_STARTER_PRICE_ID,
     "growth:monthly": process.env.STRIPE_GROWTH_PRICE_ID,
     "pro:monthly": process.env.STRIPE_PRO_PRICE_ID,
-    "starter:annual": process.env.STRIPE_STARTER_ANNUAL_PRICE_ID,
+    "starter:annual": process.env.STRIPE_MODULES_STARTER_ANNUAL_PRICE_ID || process.env.STRIPE_STARTER_ANNUAL_PRICE_ID,
     "growth:annual": process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID,
     "pro:annual": process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
   };
@@ -29,6 +33,8 @@ export function planFromPriceId(priceId: string | undefined): ModulePlan | null 
   for (const plan of PLANS) {
     if (priceId === priceIdFor(plan, "monthly") || priceId === priceIdFor(plan, "annual")) return plan;
   }
+  // Starter subscribers still on the original $59 prices.
+  if (priceId === process.env.STRIPE_STARTER_PRICE_ID || priceId === process.env.STRIPE_STARTER_ANNUAL_PRICE_ID) return "starter";
   return null;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("./supabase", () => ({ modulesServiceClient: vi.fn() }));
-import { billingAllowsService, gateSubmission, limitsFor, PLAN_LIMITS } from "./plans";
-import { billingStatusFrom, planFromPriceId, trialDaysForNewSubscription } from "./billing";
+import { billingAllowsService, gateSubmission, limitsFor, PLAN_LIMITS, PLAN_PRICE, PLANS } from "./plans";
+import { billingStatusFrom, planFromPriceId, priceIdFor, trialDaysForNewSubscription } from "./billing";
 
 describe("plan limits", () => {
   it("has no free tier and falls back to Starter", () => {
@@ -50,3 +50,36 @@ describe("billing", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("Modules Starter prices (2026-10-22)", () => {
+  it("checks out on the Modules $49 prices but still recognises the original $59 ones", () => {
+    vi.stubEnv("STRIPE_STARTER_PRICE_ID", "price_old_59");
+    vi.stubEnv("STRIPE_STARTER_ANNUAL_PRICE_ID", "price_old_566");
+    vi.stubEnv("STRIPE_MODULES_STARTER_PRICE_ID", "price_new_49");
+    vi.stubEnv("STRIPE_MODULES_STARTER_ANNUAL_PRICE_ID", "price_new_470");
+    expect(priceIdFor("starter", "monthly")).toBe("price_new_49");
+    expect(priceIdFor("starter", "annual")).toBe("price_new_470");
+    for (const id of ["price_new_49", "price_new_470", "price_old_59", "price_old_566"]) expect(planFromPriceId(id)).toBe("starter");
+    vi.unstubAllEnvs();
+  });
+  it("falls back to the original Starter prices until the Modules ones are set", () => {
+    vi.stubEnv("STRIPE_STARTER_PRICE_ID", "price_old_59");
+    vi.stubEnv("STRIPE_MODULES_STARTER_PRICE_ID", "");
+    expect(priceIdFor("starter", "monthly")).toBe("price_old_59");
+    vi.unstubAllEnvs();
+  });
+});
+
+describe("pricing (Release A, 2026-10-22)", () => {
+  it("prices Starter at $49 ($470 yearly, 20% off) and keeps Growth and Pro", () => {
+    expect(PLAN_PRICE.starter).toMatchObject({ monthly: 49, annual: 470 });
+    expect(PLAN_PRICE.growth).toMatchObject({ monthly: 129, annual: 1_238 });
+    expect(PLAN_PRICE.pro).toMatchObject({ monthly: 299, annual: 2_870 });
+    for (const p of PLANS) expect(PLAN_PRICE[p].annual).toBeLessThanOrEqual(Math.round(PLAN_PRICE[p].monthly * 12 * 0.8) + 1);
+  });
+  it("sets modules 3 / 8 / 20 and phone minutes 60 / 300 / 500", () => {
+    expect(PLANS.map((p) => PLAN_LIMITS[p].modules)).toEqual([3, 8, 20]);
+    expect(PLANS.map((p) => PLAN_LIMITS[p].voiceMinutesPerMonth)).toEqual([60, 300, 500]);
+  });
+});
+

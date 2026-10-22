@@ -27,7 +27,7 @@ export const PRODUCT_KNOWLEDGE: Record<SocialVideoProduct, ProductKnowledge | nu
       "One dashboard for every submission",
       "Installs on WordPress, Squarespace, Wix, Webflow, Framer & Shopify with one line of code — no rebuild",
       "VisionWorkx Automation included with every module: instant customer confirmation + owner alert",
-      "Plans: Starter $59/mo (1,000 emails/mo), Growth $129/mo (5,000), Pro $299/mo (20,000); every plan starts with a 14-day free trial; save 20% paying yearly",
+      "Plans: Starter $49/mo (3 modules, 1,000 emails/mo), Growth $129/mo (8 modules, 5,000), Pro $299/mo (20 modules, 20,000); every plan starts with a 14-day free trial; save 20% paying yearly",
     ],
     targetAudience:
       "Small business owners and service providers who already have a website and want it to capture leads and bookings — without rebuilding it or hiring a developer.",
