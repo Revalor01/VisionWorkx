@@ -35,7 +35,16 @@ const MAINTENANCE_BYPASS_PREFIXES = [
   "/b",
   "/embed.js",
   "/google76cb218efc22afc2.html",
+  // Tracked short links (/go/<code>) sit in published posts and sent emails
+  // that point at Revalor's own products — they must keep redirecting.
+  "/go",
 ];
+
+// go.revalorllc.com is the branded short-link domain: it serves /go/<code>
+// and nothing else, so it can't be used as a second door into the app,
+// admin or sign-in pages. Anything else on that host goes to revalorllc.com.
+const SHORT_LINK_HOST = "go.revalorllc.com";
+const SHORT_LINK_PATH = /^\/go\/[A-Za-z0-9]{1,32}\/?$/;
 
 async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | null> {
   const path = req.nextUrl.pathname;
@@ -68,6 +77,13 @@ async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | nu
 }
 
 export async function middleware(req: NextRequest) {
+  // Lowercased, port and any trailing dot (the fully-qualified form) removed.
+  const host = req.headers.get("host")?.toLowerCase().split(":")[0].replace(/\.$/, "");
+  if (host === SHORT_LINK_HOST && !SHORT_LINK_PATH.test(req.nextUrl.pathname)) {
+    // 302, not 308: a permanent redirect would be cached if this host ever serves more.
+    return NextResponse.redirect("https://revalorllc.com", 302);
+  }
+
   // Module iframes (/m/<publicId>): only the workspace's own domains may frame
   // them. Unknown module or lookup failure -> frame-ancestors 'none'.
   const modMatch = req.nextUrl.pathname.match(/^\/m\/(m_[0-9a-f]{18})\/?$/);

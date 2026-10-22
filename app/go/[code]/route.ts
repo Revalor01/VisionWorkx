@@ -62,5 +62,15 @@ export async function GET(
       (err) => console.error("[go] click log threw:", err)
     );
 
-  return NextResponse.redirect(link.destination_url, 302);
+  // Only ever follow a web link, whatever ends up stored.
+  let destination: URL | null = null;
+  try {
+    destination = new URL(link.destination_url);
+  } catch {
+    destination = null;
+  }
+  if (!destination || (destination.protocol !== "https:" && destination.protocol !== "http:")) {
+    return NextResponse.redirect(process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app", 302);
+  }
+  return NextResponse.redirect(destination.toString(), 302);
 }
