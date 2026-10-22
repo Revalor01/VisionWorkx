@@ -77,9 +77,11 @@ async function checkMaintenanceMode(req: NextRequest): Promise<NextResponse | nu
 }
 
 export async function middleware(req: NextRequest) {
-  const host = req.headers.get("host")?.toLowerCase().split(":")[0];
+  // Lowercased, port and any trailing dot (the fully-qualified form) removed.
+  const host = req.headers.get("host")?.toLowerCase().split(":")[0].replace(/\.$/, "");
   if (host === SHORT_LINK_HOST && !SHORT_LINK_PATH.test(req.nextUrl.pathname)) {
-    return NextResponse.redirect("https://revalorllc.com", 308);
+    // 302, not 308: a permanent redirect would be cached if this host ever serves more.
+    return NextResponse.redirect("https://revalorllc.com", 302);
   }
 
   // Module iframes (/m/<publicId>): only the workspace's own domains may frame

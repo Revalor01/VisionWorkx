@@ -14,8 +14,15 @@ describe("short-link host", () => {
 
   it.each(["/", "/admin", "/login", "/api/admin/marketing/campaigns", "/go", "/go/bad-code!"])("sends %s on the short host to revalorllc.com", async (path) => {
     const res = await middleware(req(`https://go.revalorllc.com${path}`));
-    expect(res.status).toBe(308);
+    expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("https://revalorllc.com/");
+  });
+
+  it("also locks the fully-qualified host (trailing dot) and any port", async () => {
+    for (const host of ["go.revalorllc.com.", "GO.revalorllc.com:443"]) {
+      const res = await middleware(new NextRequest("https://go.revalorllc.com/admin", { headers: { host } }));
+      expect(res.headers.get("location")).toBe("https://revalorllc.com/");
+    }
   });
 
   it("doesn't touch /go/ links on the app's own host", async () => {
