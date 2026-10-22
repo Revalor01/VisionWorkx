@@ -94,7 +94,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: "Starter is $59 a month, Growth $129 and Pro $299 — or save 20% paying yearly. Every plan starts with a 14-day free trial, and you can cancel any time before it ends.",
+    a: "Starter is $49 a month, Growth $129 and Pro $299 — or save 20% paying yearly. Every plan starts with a 14-day free trial, and you can cancel any time before it ends.",
   },
 ];
 
