@@ -481,8 +481,9 @@ export default function MarketingDashboard({
                   {previewId === c.id && (
                     // Sandboxed (no scripts, no same-origin) so generated HTML can't run anything here.
                     <iframe
-                      title={`Preview: ${c.subject}`}
+                      title={`Preview: ${c.subject || "(no subject)"}`}
                       sandbox=""
+                      referrerPolicy="no-referrer"
                       srcDoc={`<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;font-size:14px;color:#18181b">${c.body_html ?? ""}</div>`}
                       className="mt-3 h-80 w-full rounded-lg border border-zinc-200 bg-white"
                     />
