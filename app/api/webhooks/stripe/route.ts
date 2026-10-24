@@ -5,7 +5,7 @@ import { syncConnectAccount } from "@/lib/apps/payments";
 import { confirmGuidedSession } from "@/lib/apps/guidedSession";
 import { sendBillingEmail, lookupUserEmails } from "@/lib/billing/notify";
 import type { Plan, SubscriptionStatus } from "@/lib/database.types";
-import { syncWorkspaceSubscription } from "@/lib/modules/billing";
+import { legacyStarterPriceIds, syncWorkspaceSubscription } from "@/lib/modules/billing";
 import { markSubmissionPaid, syncConnectAccount as syncWorkspaceConnectAccount } from "@/lib/modules/connect";
 
 // Stripe uses "canceled"; our schema uses "cancelled"
@@ -29,6 +29,8 @@ function getPlanFromPriceId(priceId: string): Exclude<Plan, "free"> | null {
     [process.env.STRIPE_GROWTH_ANNUAL_PRICE_ID ?? ""]: "growth",
     [process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? ""]: "pro",
   };
+  if (!priceId) return null;
+  if (legacyStarterPriceIds().includes(priceId)) return map[priceId] ?? "starter";
   return map[priceId] ?? null;
 }
 
