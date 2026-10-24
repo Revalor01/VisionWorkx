@@ -150,5 +150,5 @@ tables can stay in place.
 ## Phone (voice)
 
 Arrives in a follow-up change. The tables, voice-minute plan limits
-(Starter 100 / Growth 300 / Pro 1,000 minutes) and `voice_*` alert kinds are already
+(Starter 60 / Growth 300 / Pro 500 minutes) and `voice_*` alert kinds are already
 in place. Nothing answers calls yet.

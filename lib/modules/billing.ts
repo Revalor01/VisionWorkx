@@ -3,7 +3,7 @@ import { modulesServiceClient } from "./supabase";
 import { PLANS, TRIAL_DAYS, type ModulePlan } from "./plans";
 
 // Stripe billing for module workspaces. Reuses VisionWorkx's existing live
-// prices (same $59/$129/$299, monthly + annual). Subscriptions are tagged
+// prices ($49/$129/$299, monthly + annual). Subscriptions are tagged
 // with metadata.vw_workspace_id so the shared webhook can route them here.
 
 export function stripe(): Stripe {
@@ -24,11 +24,22 @@ export function priceIdFor(plan: ModulePlan, interval: Interval): string | undef
   return env[`${plan}:${interval}`] || undefined;
 }
 
+// Retired Starter prices (the old $59/$566), comma-separated. Subscriptions
+// created before the move to $49 keep their old price, so they must still
+// map to Starter after STRIPE_STARTER_*_PRICE_ID point at the new ones.
+export function legacyStarterPriceIds(): string[] {
+  return (process.env.STRIPE_STARTER_LEGACY_PRICE_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
 export function planFromPriceId(priceId: string | undefined): ModulePlan | null {
   if (!priceId) return null;
   for (const plan of PLANS) {
     if (priceId === priceIdFor(plan, "monthly") || priceId === priceIdFor(plan, "annual")) return plan;
   }
+  if (legacyStarterPriceIds().includes(priceId)) return "starter";
   return null;
 }
 

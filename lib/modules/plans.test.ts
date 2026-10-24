@@ -49,4 +49,13 @@ describe("billing", () => {
     expect(planFromPriceId("price_unknown")).toBeNull();
     vi.unstubAllEnvs();
   });
+  it("still maps retired Starter prices to Starter", () => {
+    vi.stubEnv("STRIPE_STARTER_PRICE_ID", "price_starter_49");
+    vi.stubEnv("STRIPE_STARTER_LEGACY_PRICE_IDS", "price_starter_59, price_starter_566");
+    expect(planFromPriceId("price_starter_49")).toBe("starter");
+    expect(planFromPriceId("price_starter_59")).toBe("starter");
+    expect(planFromPriceId("price_starter_566")).toBe("starter");
+    expect(planFromPriceId("price_unknown")).toBeNull();
+    vi.unstubAllEnvs();
+  });
 });

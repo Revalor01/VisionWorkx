@@ -17,13 +17,13 @@ export interface PlanLimits {
 
 const GB = 1024 ** 3;
 export const PLAN_LIMITS: Record<ModulePlan, PlanLimits> = {
-  starter: { modules: 2, submissionsPerMonth: 500, emailsPerMonth: 1_000, storageBytes: 1 * GB, aiDraftsPerMonth: 50, chatsPerMonth: 300, voiceMinutesPerMonth: 100 },
-  growth: { modules: 6, submissionsPerMonth: 2_500, emailsPerMonth: 5_000, storageBytes: 2 * GB, aiDraftsPerMonth: 150, chatsPerMonth: 1_500, voiceMinutesPerMonth: 300 },
-  pro: { modules: 20, submissionsPerMonth: 10_000, emailsPerMonth: 20_000, storageBytes: 10 * GB, aiDraftsPerMonth: 500, chatsPerMonth: 5_000, voiceMinutesPerMonth: 1_000 },
+  starter: { modules: 3, submissionsPerMonth: 500, emailsPerMonth: 1_000, storageBytes: 1 * GB, aiDraftsPerMonth: 50, chatsPerMonth: 300, voiceMinutesPerMonth: 60 },
+  growth: { modules: 8, submissionsPerMonth: 2_500, emailsPerMonth: 5_000, storageBytes: 2 * GB, aiDraftsPerMonth: 150, chatsPerMonth: 1_500, voiceMinutesPerMonth: 300 },
+  pro: { modules: 20, submissionsPerMonth: 10_000, emailsPerMonth: 20_000, storageBytes: 10 * GB, aiDraftsPerMonth: 500, chatsPerMonth: 5_000, voiceMinutesPerMonth: 500 },
 };
 
 export const PLAN_PRICE: Record<ModulePlan, { monthly: number; annual: number; label: string }> = {
-  starter: { monthly: 59, annual: 566, label: "Starter" },
+  starter: { monthly: 49, annual: 470, label: "Starter" },
   growth: { monthly: 129, annual: 1_238, label: "Growth" },
   pro: { monthly: 299, annual: 2_870, label: "Pro" },
 };

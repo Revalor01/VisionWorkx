@@ -7,9 +7,9 @@ import { CHANGE_REQUEST_LIMITS } from "@/lib/apps/changeRequestLimits";
 const PLANS = [
   {
     name: "Starter",
-    monthly: 59,
-    annual: 47,
-    annualTotal: 566,
+    monthly: 49,
+    annual: 39,
+    annualTotal: 470,
     apps: "1 app included",
     description: "Perfect for getting your first business app live.",
     features: [

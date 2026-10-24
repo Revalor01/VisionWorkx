@@ -41,9 +41,9 @@ const PLANS: {
   {
     name: "starter",
     label: "Starter",
-    price: "$59",
-    annualPerMo: "$47",
-    annualTotal: "$566/yr",
+    price: "$49",
+    annualPerMo: "$39",
+    annualTotal: "$470/yr",
     apps: "1 app",
     appLimit: 1,
     features: [

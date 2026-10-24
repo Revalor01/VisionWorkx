@@ -58,9 +58,9 @@ describe("receptionist config", () => {
 
 describe("receptionist plan limits", () => {
   it("includes chats and voice minutes on every plan", () => {
-    expect(PLAN_LIMITS.starter).toMatchObject({ chatsPerMonth: 300, voiceMinutesPerMonth: 100 });
+    expect(PLAN_LIMITS.starter).toMatchObject({ chatsPerMonth: 300, voiceMinutesPerMonth: 60 });
     expect(PLAN_LIMITS.growth).toMatchObject({ chatsPerMonth: 1500, voiceMinutesPerMonth: 300 });
-    expect(PLAN_LIMITS.pro).toMatchObject({ chatsPerMonth: 5000, voiceMinutesPerMonth: 1000 });
+    expect(PLAN_LIMITS.pro).toMatchObject({ chatsPerMonth: 5000, voiceMinutesPerMonth: 500 });
   });
   it("chat is a soft limit: warns at 80/100%, pauses at 150%", () => {
     expect(gateChat(239, 300)).toEqual({ allow: true, alert: "chats_80" });
