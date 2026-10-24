@@ -18,14 +18,14 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     url: SITE_URL,
     siteName: "Vision Workx",
-    images: [{ url: "/VisionWorks.png", width: 1024, height: 1024 }],
+    images: [{ url: "/visionworkx-modules-og.png", width: 1024, height: 1024 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/VisionWorks.png"],
+    images: ["/visionworkx-modules-og.png"],
   },
 };
 

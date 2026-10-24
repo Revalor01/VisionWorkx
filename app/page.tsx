@@ -121,7 +121,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
           <div>
             <div className="mb-5 flex items-center gap-3">
-              <Image src="/VisionWorks.png" alt="VisionWorkx" width={56} height={56} className="rounded-xl bg-white p-1" priority />
+              <Image src="/visionworkx-modules-logo.png" alt="VisionWorkx Modules" width={56} height={56} className="rounded-xl bg-white p-1" priority />
               <span className="text-xs font-semibold uppercase tracking-widest text-blue-200">A Revalor Business product</span>
             </div>
             <h1 className="text-4xl font-bold leading-tight tracking-tight text-balance sm:text-5xl">

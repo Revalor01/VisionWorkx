@@ -4,6 +4,7 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Public site: the navbar (`components/nav/AppNavbar.tsx`) and homepage hero (`app/page.tsx`) now show the VisionWorkx Modules logo, and link previews (Open Graph / Twitter in `app/layout.tsx`) use the new `public/visionworkx-modules-og.png` (1024×1024, white background). `/VisionWorks.png` stays in `public/`. No migration, env var or API change.
 - Admin header (`app/admin/AdminNavHeader.tsx`) now shows the VisionWorkx Modules logo (`/visionworkx-modules-logo.png`) instead of `/VisionWorks.png` on every admin page. No migration, env var or API change.
 - Social: the VisionWorkx brand now uses the new **VisionWorkx Modules** logo (`public/visionworkx-modules-logo.png`, was `/VisionWorks.png`) on `/admin/social` (Brands tab logo and cover picker) and in the end-card of generated videos (`lib/social/videoOutro.ts`). No migration, env var or API change.
 
