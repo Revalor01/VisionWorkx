@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickPublishable } from "./publishSpacing";
+import { holdPaused, pickPublishable } from "./publishSpacing";
 
 const post = (id: string, platform: string, brand_id: string, scheduled_at: string) => ({ id, platform, brand_id, scheduled_at });
 const pages: Record<string, string> = { llc: "P1", kids: "P1", vw: "P2" };
@@ -20,5 +20,14 @@ describe("pickPublishable", () => {
     );
     expect(now).toHaveLength(4);
     expect(deferred).toHaveLength(0);
+  });
+});
+
+describe("holdPaused", () => {
+  const p = (id: string, brand_id: string, generated_by: string | null) => ({ id, brand_id, generated_by });
+  it("holds automatic posts of a paused brand and lets everything else go", () => {
+    const { go, held } = holdPaused([p("auto-paused", "a", "autonomous"), p("manual-paused", "a", "manual"), p("auto-live", "b", "autonomous"), p("engine-paused", "a", "content_engine")], (b) => b === "a");
+    expect(held.map((x) => x.id)).toEqual(["auto-paused"]);
+    expect(go.map((x) => x.id)).toEqual(["manual-paused", "auto-live", "engine-paused"]);
   });
 });

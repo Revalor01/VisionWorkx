@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { publishPost } from "@/lib/social/publishPost";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
-import { pickPublishable } from "@/lib/social/publishSpacing";
+import { holdPaused, pickPublishable } from "@/lib/social/publishSpacing";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -24,9 +24,13 @@ export async function GET(req: NextRequest) {
   // At most one Facebook post per Page per run (lib/social/publishSpacing.ts);
   // the rest stay scheduled and go out on the next run, 10 minutes later.
   const brandIds = [...new Set((due ?? []).map((p) => p.brand_id))];
-  const { data: brands } = brandIds.length ? await service.from("social_brands").select("id, fb_page_id").in("id", brandIds) : { data: [] };
+  const { data: brands, error: brandsErr } = brandIds.length ? await service.from("social_brands").select("id, fb_page_id, autonomy_paused_at").in("id", brandIds) : { data: [], error: null };
+  if (brandsErr) return NextResponse.json({ error: brandsErr.message }, { status: 500 });
   const pageOf = new Map((brands ?? []).map((b) => [b.id, b.fb_page_id]));
-  const { now, deferred } = pickPublishable(due ?? [], (brandId) => pageOf.get(brandId));
+  const paused = new Set((brands ?? []).filter((b) => b.autonomy_paused_at).map((b) => b.id));
+  // Automatic posts of a paused brand stay scheduled until it's resumed (lib/social/publishSpacing.ts).
+  const { go, held } = holdPaused(due ?? [], (brandId) => paused.has(brandId));
+  const { now, deferred } = pickPublishable(go, (brandId) => pageOf.get(brandId));
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
 
@@ -46,5 +50,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed: results.length, deferred: deferred.map((p) => p.id), results });
+  return NextResponse.json({ processed: results.length, deferred: deferred.map((p) => p.id), held: held.map((p) => p.id), results });
 }

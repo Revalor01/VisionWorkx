@@ -23,3 +23,14 @@ export function pickPublishable<T extends Due>(due: T[], fbPageOf: (brandId: str
   }
   return { now, deferred };
 }
+
+// A paused brand's autonomy (social_brands.autonomy_paused_at — set by a flag
+// or by hand on /admin/social) also stops its automatic posts that were
+// already scheduled: the autopilot's and Renaissance's (generated_by
+// "autonomous"). Posts a person scheduled by hand still go out.
+export function holdPaused<T extends { brand_id: string; generated_by: string | null }>(due: T[], isPaused: (brandId: string) => boolean): { go: T[]; held: T[] } {
+  const go: T[] = [];
+  const held: T[] = [];
+  for (const post of due) (post.generated_by === "autonomous" && isPaused(post.brand_id) ? held : go).push(post);
+  return { go, held };
+}
