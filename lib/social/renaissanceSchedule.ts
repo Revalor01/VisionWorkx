@@ -2,6 +2,7 @@ import type { createServiceClient } from "@/lib/supabase";
 import { evaluateApproval, type RiskLevel } from "@/lib/social/riskEvaluator";
 import { brandMediaPolicy } from "@/lib/social/brandMediaPolicy";
 import { connectedPlatforms } from "@/lib/social/connectedPlatforms";
+import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import type { SocialBrand } from "@/lib/database.types";
 
 // Renaissance (revalor-admin's marketing brain) schedules a post here, under a
@@ -9,11 +10,18 @@ import type { SocialBrand } from "@/lib/database.types";
 // Renaissance never re-implements Social's rules: a paused brand or an
 // unconnected platform blocks; evaluateApproval runs with the brand's banned
 // words and audience, always as semi-autonomous (only low risk goes out on its
-// own, kids brands keep their safety net); and the post must be at least
+// own, kids brands keep their safety net; a brand set to manual sends every
+// post to review); the link is checked too and must point at the brand's own
+// site or revalorllc.com, else review; and the post must be at least
 // MIN_LEAD_HOURS away so the owner can hold it. Facebook and Instagram only;
 // Instagram needs auto_image (the image cron makes the image, then schedules
 // it — without one it never publishes). Posts are saved generated_by
 // "autonomous", so pausing the brand also holds them (social-publish cron).
+// A rejection or a review raises an autonomy flag (alert, no brand pause), as
+// the autopilot does. The same post is only
+// saved once a day (same brand, platform and caption), so a retry can't double it. The brand's autopilot switch
+// (autonomy_enabled) isn't required: that's whether Social writes its own
+// posts; Renaissance posts under the owner's separate permission.
 
 type Service = ReturnType<typeof createServiceClient>;
 
@@ -64,18 +72,32 @@ export function parseScheduleRequest(b: unknown, now: Date): { ok: true; req: Sc
   return { ok: true, req: { brandId: o.brandId, platform, hook, caption, hashtags, linkUrl, scheduledAt: at.toISOString(), riskLevel, autoImage: o.autoImage === true } };
 }
 
+/** Whether a link may go out without review: the brand's own site's host, or revalorllc.com and its subdomains. Pure. */
+export function linkAllowed(linkUrl: string, brandWebsite: string | null): boolean {
+  try {
+    const host = new URL(linkUrl).hostname.toLowerCase();
+    if (host === "revalorllc.com" || host.endsWith(".revalorllc.com")) return true;
+    return !!brandWebsite && new URL(brandWebsite).hostname.toLowerCase() === host;
+  } catch {
+    return false;
+  }
+}
+
 /** What happens to the post, given the brand's state. Pure. */
 export function decideSchedule(
   req: ScheduleRequest,
-  brand: Pick<SocialBrand, "name" | "banned_words" | "autonomy_paused_at">,
+  brand: Pick<SocialBrand, "name" | "banned_words" | "autonomy_paused_at" | "autonomy_mode" | "website_url">,
   connected: string[],
 ): { kind: "blocked" | "rejected"; reason: string } | { kind: "review"; reason: string } | { kind: "scheduled"; status: "scheduled" | "approved" } {
   if (brand.autonomy_paused_at) return { kind: "blocked", reason: `${brand.name}'s automatic posting is paused in Social.` };
   if (!connected.includes(req.platform)) return { kind: "blocked", reason: `${brand.name} has no connected ${req.platform} account.` };
-  const copy = [req.hook, req.caption, req.hashtags.map((h) => `#${h}`).join(" ")].filter(Boolean).join("\n");
-  const verdict = evaluateApproval({ copy, riskLevel: req.riskLevel, bannedWords: brand.banned_words ?? [], autonomyMode: "semi_autonomous", audience: brandMediaPolicy(brand.name).audience });
+  const copy = [req.hook, req.caption, req.hashtags.map((h) => `#${h}`).join(" "), req.linkUrl].filter(Boolean).join("\n");
+  // The stricter of the brand's own mode and semi-autonomous.
+  const mode = brand.autonomy_mode === "manual" ? "manual" : "semi_autonomous";
+  const verdict = evaluateApproval({ copy, riskLevel: req.riskLevel, bannedWords: brand.banned_words ?? [], autonomyMode: mode, audience: brandMediaPolicy(brand.name).audience });
   if (verdict.status === "reject") return { kind: "rejected", reason: verdict.reason ?? "Rejected by Social's checks" };
   if (verdict.status === "review") return { kind: "review", reason: verdict.reason ?? "Held for review" };
+  if (req.linkUrl && !linkAllowed(req.linkUrl, brand.website_url)) return { kind: "review", reason: `The link (${new URL(req.linkUrl).hostname}) isn't ${brand.name}'s site or revalorllc.com.` };
   if (req.platform === "instagram") {
     if (!req.autoImage) return { kind: "review", reason: "Instagram needs an image; this permission doesn't allow automatic images." };
     // Waits as "approved" until the image cron has made its image, then becomes scheduled.
@@ -89,9 +111,14 @@ export async function scheduleForRenaissance(service: Service, req: ScheduleRequ
   if (error) throw new Error(error.message);
   if (!brand) return { status: "blocked", reason: "That Social brand doesn't exist." };
   const decision = decideSchedule(req, brand, await connectedPlatforms(service, brand));
+  if (decision.kind === "rejected") await raiseAutonomyFlag(service, { brandId: brand.id, brandName: brand.name, kind: "banned_word", detail: `Renaissance post rejected before scheduling — ${decision.reason}`, pauseBrand: false });
   if (decision.kind === "blocked" || decision.kind === "rejected") return { status: decision.kind, reason: decision.reason };
 
   const scheduled = decision.kind === "scheduled";
+  // A retry of the same post (e.g. after a timeout) returns the row already saved.
+  const { data: same } = await service.from("social_content").select("id, status").eq("brand_id", brand.id).eq("platform", req.platform).eq("caption", req.caption).eq("generated_by", "autonomous").gte("created_at", new Date(Date.now() - 24 * HOUR).toISOString()).limit(1).maybeSingle();
+  if (same) return same.status === "draft" ? { status: "review", id: same.id, reason: "Already saved for review." } : { status: "scheduled", id: same.id, scheduledAt: req.scheduledAt };
+
   const { data: row, error: insErr } = await service
     .from("social_content")
     .insert({
@@ -110,5 +137,6 @@ export async function scheduleForRenaissance(service: Service, req: ScheduleRequ
     .select("id")
     .single();
   if (insErr || !row) throw new Error(insErr?.message ?? "Couldn't save the post");
+  if (!scheduled) await raiseAutonomyFlag(service, { brandId: brand.id, brandName: brand.name, contentId: row.id, kind: "high_risk", detail: `Renaissance post held for review — ${decision.reason}`, pauseBrand: false });
   return scheduled ? { status: "scheduled", id: row.id, scheduledAt: req.scheduledAt } : { status: "review", id: row.id, reason: decision.reason };
 }

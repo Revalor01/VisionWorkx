@@ -8,8 +8,9 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization") ?? "";
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // A missing CRON_SECRET must never let "Bearer undefined" through.
+  const secret = process.env.CRON_SECRET;
+  if (!secret || (req.headers.get("authorization") ?? "") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,8 +29,16 @@ export async function GET(req: NextRequest) {
   if (brandsErr) return NextResponse.json({ error: brandsErr.message }, { status: 500 });
   const pageOf = new Map((brands ?? []).map((b) => [b.id, b.fb_page_id]));
   const paused = new Set((brands ?? []).filter((b) => b.autonomy_paused_at).map((b) => b.id));
-  // Automatic posts of a paused brand stay scheduled until it's resumed (lib/social/publishSpacing.ts).
-  const { go, held } = holdPaused(due ?? [], (brandId) => paused.has(brandId));
+  // Automatic posts of a paused brand stay scheduled until it's resumed; ones
+  // more than 6 hours late go back to drafts (lib/social/publishSpacing.ts).
+  const { go, held, stale } = holdPaused(due ?? [], (brandId) => paused.has(brandId));
+  if (stale.length) {
+    await service
+      .from("social_content")
+      .update({ status: "draft", scheduled_at: null, auto_image: false, failure_reason: "Too late to post (it was held or delayed); reschedule it if it's still right.", updated_at: new Date().toISOString() })
+      .in("id", stale.map((p) => p.id))
+      .eq("status", "scheduled");
+  }
   const { now, deferred } = pickPublishable(go, (brandId) => pageOf.get(brandId));
 
   const results: { id: string; ok: boolean; error?: string }[] = [];
@@ -50,5 +59,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed: results.length, deferred: deferred.map((p) => p.id), held: held.map((p) => p.id), results });
+  return NextResponse.json({ processed: results.length, deferred: deferred.map((p) => p.id), held: held.map((p) => p.id), stale: stale.map((p) => p.id), results });
 }
