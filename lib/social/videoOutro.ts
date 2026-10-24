@@ -10,7 +10,7 @@ import ffprobeStatic from "ffprobe-static";
 // that's a client component and this runs server-side only. Keep both in
 // sync if a brand's logo file ever changes.
 const BRAND_LOGOS: Record<string, string> = {
-  VisionWorkx: "/VisionWorks.png",
+  VisionWorkx: "/visionworkx-modules-logo.png",
   "Revalor Kids": "/revalor-kids-logo.png",
   "Revalor LLC": "/revalor-logo.png",
   "Revalor Wellness": "/revalor-wellness-logo.png",

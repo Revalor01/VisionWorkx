@@ -7,7 +7,7 @@ import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./Platform
 import HelpButton, { HelpStep, HelpNote } from "./HelpButton";
 
 const BRAND_LOGOS: Record<string, string> = {
-  VisionWorkx: "/VisionWorks.png",
+  VisionWorkx: "/visionworkx-modules-logo.png",
   "Revalor Kids": "/revalor-kids-logo.png",
   "Revalor LLC": "/revalor-logo.png",
   "Revalor Wellness": "/revalor-wellness-logo.png",
@@ -33,7 +33,7 @@ const COVERS_BY_BRAND: Record<string, { name: string; logo?: string }[]> = {
     { name: "MindBit", logo: "/mindbit-logo.png" },
   ],
   VisionWorkx: [
-    { name: "VisionWorkx", logo: "/VisionWorks.png" },
+    { name: "VisionWorkx", logo: "/visionworkx-modules-logo.png" },
     { name: "Revalor Kids", logo: "/revalor-kids-logo.png" },
     { name: "Revalor Wellness", logo: "/revalor-wellness-logo.png" },
   ],
