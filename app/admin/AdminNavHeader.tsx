@@ -16,7 +16,7 @@ export function AdminHeader({ badge = "Admin", title = "Vision Workx", extra }: 
   return (
     <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <Image src="/VisionWorks.png" alt="VisionWorkx" width={32} height={32} className="h-8 w-8 rounded bg-white/90 object-contain p-0.5" />
+        <Image src="/visionworkx-modules-logo.png" alt="VisionWorkx" width={32} height={32} className="h-8 w-8 rounded bg-white/90 object-contain p-0.5" />
         <Image
           src="/visionworkx-automation-logo.png"
           alt="VisionWorkx Automation"

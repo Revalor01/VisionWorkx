@@ -4,6 +4,7 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- Admin header (`app/admin/AdminNavHeader.tsx`) now shows the VisionWorkx Modules logo (`/visionworkx-modules-logo.png`) instead of `/VisionWorks.png` on every admin page. No migration, env var or API change.
 - Social: the VisionWorkx brand now uses the new **VisionWorkx Modules** logo (`public/visionworkx-modules-logo.png`, was `/VisionWorks.png`) on `/admin/social` (Brands tab logo and cover picker) and in the end-card of generated videos (`lib/social/videoOutro.ts`). No migration, env var or API change.
 
 - **Branded short links: `go.revalorllc.com`.** The domain is added to this project; on that host `middleware.ts` serves only `/go/<code>` and redirects everything else (app, admin, sign-in, API) to `https://revalorllc.com` (302), so it can't be a second door into the app; `/go/<code>` now only redirects to http(s) destinations (anything else goes to the app home). `/go` is added to the maintenance bypass, so tracked links in published posts and sent emails keep redirecting during a VisionWorkx maintenance window. Existing `vision-workx.vercel.app/go/…` links are unchanged. New links switch over when `SHORT_LINK_BASE=https://go.revalorllc.com` is set (after this merges). Tests: `middleware.test.ts`, QA `qa/products/visionworkx/short-links.qa.ts`. No migration.
