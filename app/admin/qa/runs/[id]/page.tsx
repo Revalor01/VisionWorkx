@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
 import { qaDb, type QaResult, type QaRun, type QaTest } from "@/lib/qa/db";
+import { repoFor } from "@/lib/qa/fixRepos";
 import { isStale } from "@/lib/qa/summary";
 import { duration, NotConfigured, QaShell, SECTION, StatusBadge, timeAgo } from "../../ui";
 import AutoRefresh from "./AutoRefresh";
+import FixButton from "./FixButton";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,7 @@ export default async function QaRunPage(props: { params: Promise<{ id: string }>
   const live = run.status === "queued" || run.status === "running";
   const stale = isStale(run);
   const artifact = (path: string) => `/api/admin/qa/artifact?path=${encodeURIComponent(path)}`;
+  const fixRepo = repoFor(run.product_slug);
 
   return (
     <QaShell>
@@ -130,6 +133,11 @@ export default async function QaRunPage(props: { params: Promise<{ id: string }>
                         to step through every action.
                       </span>
                     </p>
+                  )}
+                  {bad && fixRepo && (
+                    <div className="border-t border-zinc-100 pt-3">
+                      <FixButton runId={run.id} resultId={r.id} />
+                    </div>
                   )}
                 </div>
               </details>

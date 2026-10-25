@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
 import { qaDb, type QaProduct, type QaRun } from "@/lib/qa/db";
+import { loadSchedule } from "@/lib/qa/scheduleDb";
 import { isStale } from "@/lib/qa/summary";
+import SchedulePanel from "./SchedulePanel";
 import { NotConfigured, QaShell, SECTION, StatusBadge, TechLogos, timeAgo } from "./ui";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +14,11 @@ export const dynamic = "force-dynamic";
 export default async function QaProductsPage() {
   if (!(await isOperator())) redirect("/dashboard");
   const db = qaDb();
-  const [{ data: products, error }, { data: runs }, { data: tests }] = await Promise.all([
+  const [{ data: products, error }, { data: runs }, { data: tests }, schedule] = await Promise.all([
     db.from("vw_qa_products").select("slug, name, base_url, enabled").order("name"),
     db.from("vw_qa_runs").select("id, product_slug, status, passed, failed, created_at, finished_at").order("created_at", { ascending: false }).limit(300),
     db.from("vw_qa_tests").select("product_slug").eq("active", true),
+    loadSchedule(),
   ]);
 
   return (
@@ -53,6 +56,12 @@ export default async function QaProductsPage() {
       {error ? (
         <NotConfigured what="The QA tables aren't in the database yet" />
       ) : (
+        <>
+        <SchedulePanel
+          products={((products ?? []) as QaProduct[]).map((p) => ({ slug: p.slug, name: p.name }))}
+          initialGlobal={schedule.global}
+          initialOverrides={schedule.overrides}
+        />
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {((products ?? []) as QaProduct[]).map((p) => {
             const productRuns = ((runs ?? []) as Pick<QaRun, "id" | "product_slug" | "status" | "passed" | "failed" | "created_at" | "finished_at">[]).filter(
@@ -92,6 +101,7 @@ export default async function QaProductsPage() {
             );
           })}
         </div>
+        </>
       )}
       <p className="mt-8 text-xs text-zinc-400">
         Adding a product or test: see <code>docs/qa-suite.md</code>. New tests appear here after the next run.

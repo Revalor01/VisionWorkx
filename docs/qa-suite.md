@@ -20,15 +20,40 @@ Actions and reported to **/admin/qa**.
 - A run stuck in *queued* for 15 minutes shows "didn't start" — check the
   *QA Run* workflow in GitHub Actions.
 
-## Nightly run
-Every day at 11:00 UTC (7 am Eastern) GitHub Actions runs **every** test of
-**every** product in `qa/products.json` against production (one job per
-product; each suite takes a minute or two). Each product's run appears in
-/admin/qa as *nightly*. If it fails, the operator gets an email listing the
-failed tests with a link to the run; the first green night after a red one sends
-a "green again" email. Normal green nights send nothing (`lib/qa/notify.ts`).
-If a scheduled run dies before it can report, GitHub's own failed-workflow email
-covers it. Change the time in the `schedule:` cron in `qa-run.yml`.
+## Scheduled runs (and how often)
+A Vercel cron, `/api/cron/qa-schedule`, runs daily at 11:00 UTC (7 am Eastern)
+and dispatches each enabled product's full test suite against production **when
+its cadence says it's due** (one job per product; each suite takes a minute or
+two). The cadence is set in **/admin/qa** → the *Testing schedule* panel: a
+global default (every night / every 2–3 days / weekly / off) plus a per-product
+override. It lives in `vw_qa_schedule` (`lib/qa/schedule.ts` is the pure logic,
+`scheduleDb.ts` the load); the scheduler skips a product whose last scheduled
+run isn't old enough yet, or that already has a run in flight.
+
+Each scheduled run appears in /admin/qa as *nightly*. If it fails, the operator
+gets an email listing the failed tests with a link to the run; the first green
+run after a red one sends a "green again" email. Green runs otherwise send
+nothing (`lib/qa/notify.ts`). `qa-run.yml` no longer has its own `schedule:`
+trigger — if scheduled runs stop appearing, check the Vercel cron and
+`QA_GITHUB_TOKEN`.
+
+## Fix this (AI fix PRs)
+On a run page, each **failing** test has a **"Fix this with AI"** button. It
+hands the failure (test id, title, error, failed step, a link back to the run)
+to the `qa-fix` workflow in **revalor-agents**, which runs an AI coding agent
+(Claude Sonnet 5.5) against that product's own repo and opens a **draft PR** for
+review. It never merges, and it only touches the product repo (the agent also
+reads the test's source from this repo for context). The button appears only for
+products mapped in `lib/qa/fixRepos.ts`.
+
+Pieces here: `lib/qa/fixRepos.ts` (product → repo), `lib/qa/fixDispatch.ts`
+(dispatch), `app/api/admin/qa/fix/route.ts` (operator-only), and the
+`FixButton` on the run page. Secrets (Vercel): `QA_FIX_TOKEN` — a token with
+**Actions: write** on `revalor-agents` (optionally `QA_FIX_REPO` / `QA_FIX_REF`
+to point elsewhere). The agent's own Anthropic key and product-repo write token
+live in **revalor-agents**, not here — see that repo's `qa-fix.yml`. The agent's
+cost per click is bounded by the workflow's turn cap; the run is visible in
+revalor-agents' Actions log.
 
 ## Adding a test
 Create or edit `qa/products/<product>/<area>.qa.ts`:
