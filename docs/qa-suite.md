@@ -191,12 +191,20 @@ parents with `{ product }`, and only sweeps its own app's QA parents. Secrets:
 all three pairs hold the Revalor Kids project's URL and service key.
 
 ## Consumer web apps on the shared template (Sanctum, Proactive, Elevate)
-Sanctum and Proactive are built from the same template (own Supabase project,
-tiers on `users_profile.subscription_tier`, `onboarding_state`, a localStorage
+Sanctum, Proactive and Elevate are built from the same template (tiers on
+`users_profile.subscription_tier`, `onboarding_state`, a localStorage
 disclaimer flag, password login, AI chat via the Supabase function `chat`).
-`qa/lib/templateApp.ts` holds the shared helpers; `qa/lib/sanctum.ts` and
+`qa/lib/templateApp.ts` holds the shared helpers; `qa/lib/sanctum.ts`,
 `qa/lib/proactive.ts` and `qa/lib/elevate.ts` configure it (env prefix, disclaimer key, tables that
 don't cascade). A future app on the same template is a new ~20-line file.
+
+An app either has its **own** Supabase project on the public schema (Sanctum,
+Elevate), or shares a project with siblings under **one schema per app** — set
+`product` in its `templateApp({ … })` config for the latter. When `product` is
+set the helper names that schema (`Accept-Profile`/`Content-Profile`) on every
+table call, creates users tagged `{ product }` (so the shared signup trigger
+builds the profile in that schema), and only sweeps its own product's QA users
+— the same mechanism the kids apps use on the Revalor Kids project.
 
 ## Proactive (web app)
 Tests in `qa/products/proactive/` run against https://proactive-zeta-three.vercel.app.
@@ -208,8 +216,12 @@ Prioritization (read + Collaborator hand-off), decision tools open for Free,
 Entry gates, Insights cap, Collaborator upsell and chat, payment self-upgrade
 blocked, invalid test code, profile, admin refused. Proactive's own `e2e/`
 tests are ported. Manual: sign-up email, Stripe checkout, reminder email, a
-real Collaborator reply. Secrets: `PROACTIVE_SUPABASE_URL`,
-`PROACTIVE_SUPABASE_SERVICE_ROLE_KEY`.
+real Collaborator reply. Since the 2026-10-16 "wellness-switch", Proactive
+lives on the shared **Revalor Wellness** Supabase project under the `proactive`
+schema (its config sets `product: "proactive"`), so `PROACTIVE_SUPABASE_URL`
+and `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY` must hold that project's URL and
+service-role key — not the old standalone Proactive project. Secrets:
+`PROACTIVE_SUPABASE_URL`, `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Elevate (web app)
 Tests in `qa/products/elevate/` run against https://elevate-pink-iota.vercel.app.
@@ -272,7 +284,7 @@ Without QA_REPORT_URL/QA_REPORT_SECRET the reporter does nothing.
 | GitHub secret | `QA_REPORT_SECRET` | same as Vercel |
 | GitHub secret | `MODULES_SUPABASE_URL`, `MODULES_SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_MODULES_SUPABASE_ANON_KEY` | visionworkx-modules |
 | GitHub secret | `SANCTUM_SUPABASE_URL`, `SANCTUM_SUPABASE_SERVICE_ROLE_KEY` | Sanctum's Supabase project |
-| GitHub secret | `PROACTIVE_SUPABASE_URL`, `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY` | Proactive's Supabase project |
+| GitHub secret | `PROACTIVE_SUPABASE_URL`, `PROACTIVE_SUPABASE_SERVICE_ROLE_KEY` | Revalor Wellness project (Proactive's `proactive` schema) |
 | GitHub secret | `ELEVATE_SUPABASE_URL`, `ELEVATE_SUPABASE_SERVICE_ROLE_KEY` | Elevate's Supabase project |
 | GitHub secret (optional) | `VERCEL_AUTOMATION_BYPASS_SECRET` | for protected previews |
 | GitHub variable (optional) | `QA_REPORT_URL` | defaults to https://vision-workx.vercel.app |

@@ -9,6 +9,9 @@ const proactive = templateApp({
   envPrefix: "PROACTIVE",
   disclaimerKey: "proactive_disclaimer_accepted",
   nonCascading: ["daily_checkins", "emotional_journal", "redeem_code_attempts"],
+  // Proactive moved onto the shared Revalor Wellness project (one schema per
+  // app, with Sanctum and Elevate); its tables live in the "proactive" schema.
+  product: "proactive",
 });
 
 export type ProactiveTier = Tier;
