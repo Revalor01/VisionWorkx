@@ -108,18 +108,10 @@ export function templateApp(app: TemplateApp) {
         if (app.onboardingRowFromSignup) {
           await waitUntil(async () => (await rows("onboarding_state", `user_id=eq.${id}&select=user_id`)).length > 0, "the onboarding row");
           await ok(await api(`/rest/v1/onboarding_state?user_id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ completed: true }) }), "skip onboarding");
-        } else if (app.product) {
-          // On a shared project the signup trigger may or may not seed this row,
-          // so upsert on user_id rather than assume one way or the other.
-          await ok(
-            await api("/rest/v1/onboarding_state?on_conflict=user_id", {
-              method: "POST",
-              headers: { Prefer: "resolution=merge-duplicates" },
-              body: JSON.stringify({ user_id: id, completed: true }),
-            }),
-            "skip onboarding",
-          );
         } else {
+          // The signup trigger doesn't create this row (the user onboards in the
+          // app), so insert it. On a shared project this lands in the app's
+          // schema via the Accept-Profile header set in api().
           await ok(await api("/rest/v1/onboarding_state", { method: "POST", body: JSON.stringify({ user_id: id, completed: true }) }), "skip onboarding");
         }
       }
