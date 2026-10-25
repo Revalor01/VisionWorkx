@@ -2,10 +2,14 @@ import { randomBytes } from "crypto";
 import type { BrowserContext, Page } from "@playwright/test";
 
 // Helpers for Revalor's consumer web apps built from the shared template
-// (Sanctum, Proactive, …): each has its own Supabase project, tiers on
-// users_profile.subscription_tier, an onboarding_state row, a localStorage
-// disclaimer flag and a password login page. Plain REST calls (no
-// supabase-js) so they run on any Node version.
+// (Sanctum, Proactive, …): tiers on users_profile.subscription_tier, an
+// onboarding_state row, a localStorage disclaimer flag and a password login
+// page. Plain REST calls (no supabase-js) so they run on any Node version.
+//
+// An app either has its own Supabase project on the public schema (Sanctum),
+// or shares a project with its siblings under one Postgres schema per app
+// (Proactive, on the Revalor Wellness project with Sanctum and Elevate) — set
+// `product` for the latter; see TemplateApp.product.
 //
 // Every user is a throwaway qa+<tag>@example.com account, deleted after the
 // test with everything it wrote. The global setup sweeps leftovers.
@@ -29,22 +33,38 @@ export interface TemplateApp {
   nonCascading: string[];
   /** The signup trigger already creates the onboarding_state row (Elevate), so mark it complete instead of inserting one. */
   onboardingRowFromSignup?: boolean;
+  /**
+   * Set when the app lives on a shared Supabase project under its own Postgres
+   * schema (named after the product), with a signup trigger that builds the
+   * profile in the schema named by user_metadata.product — e.g. Proactive on
+   * the Revalor Wellness project. When set: every /rest/v1 call names this
+   * schema (Accept-Profile/Content-Profile), users are created tagged
+   * { product }, and the stale-data sweep only touches this product's QA users
+   * (the shared auth.users is common to all apps on the project). Leave unset
+   * for an app with its own project on the public schema (Sanctum).
+   */
+  product?: string;
 }
 
 export function templateApp(app: TemplateApp) {
   const env = (name: string): string => {
     const v = process.env[`${app.envPrefix}_${name}`];
     if (!v) throw new Error(`${app.envPrefix}_${name} is not set (see docs/qa-suite.md)`);
-    return v;
+    // Secrets occasionally arrive with a BOM or stray whitespace; strip it.
+    return v.replace(/[﻿\s]/g, "");
   };
 
   const configured = () => !!(process.env[`${app.envPrefix}_SUPABASE_URL`] && process.env[`${app.envPrefix}_SUPABASE_SERVICE_ROLE_KEY`]);
 
   const api = (path: string, init: RequestInit = {}) => {
     const key = env("SUPABASE_SERVICE_ROLE_KEY");
+    // On a shared project, table calls go to this app's schema; auth calls are
+    // global and ignore the profile headers.
+    const schema: Record<string, string> =
+      app.product && path.startsWith("/rest/v1/") ? { "Accept-Profile": app.product, "Content-Profile": app.product } : {};
     return fetch(`${env("SUPABASE_URL")}${path}`, {
       ...init,
-      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...schema, ...(init.headers ?? {}) },
     });
   };
 
@@ -72,7 +92,11 @@ export function templateApp(app: TemplateApp) {
     const email = `qa+${Date.now().toString(36)}${randomBytes(3).toString("hex")}@${QA_EMAIL_DOMAIN}`;
     const password = `Qa!${randomBytes(18).toString("base64url")}`;
     const res = await ok(
-      await api("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { qa: true } }) }),
+      await api("/auth/v1/admin/users", {
+        method: "POST",
+        // product (shared project): the signup trigger builds the profile in this app's schema.
+        body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { qa: true, ...(app.product ? { product: app.product } : {}) } }),
+      }),
       "create user",
     );
     const id = ((await res.json()) as { id: string }).id;
@@ -84,6 +108,17 @@ export function templateApp(app: TemplateApp) {
         if (app.onboardingRowFromSignup) {
           await waitUntil(async () => (await rows("onboarding_state", `user_id=eq.${id}&select=user_id`)).length > 0, "the onboarding row");
           await ok(await api(`/rest/v1/onboarding_state?user_id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ completed: true }) }), "skip onboarding");
+        } else if (app.product) {
+          // On a shared project the signup trigger may or may not seed this row,
+          // so upsert on user_id rather than assume one way or the other.
+          await ok(
+            await api("/rest/v1/onboarding_state?on_conflict=user_id", {
+              method: "POST",
+              headers: { Prefer: "resolution=merge-duplicates" },
+              body: JSON.stringify({ user_id: id, completed: true }),
+            }),
+            "skip onboarding",
+          );
         } else {
           await ok(await api("/rest/v1/onboarding_state", { method: "POST", body: JSON.stringify({ user_id: id, completed: true }) }), "skip onboarding");
         }
@@ -101,9 +136,16 @@ export function templateApp(app: TemplateApp) {
     for (let page = 1; page <= 10; page++) {
       const res = await api(`/auth/v1/admin/users?page=${page}&per_page=200`);
       if (!res.ok) return;
-      const users = ((await res.json()) as { users: { id: string; email?: string; created_at: string }[] }).users;
+      const users = ((await res.json()) as { users: { id: string; email?: string; created_at: string; user_metadata?: { product?: string } }[] }).users;
       for (const u of users) {
-        if (u.email?.startsWith("qa+") && u.email.endsWith(`@${QA_EMAIL_DOMAIN}`) && u.created_at < cutoff) await deleteUser(u.id);
+        // On a shared project, auth.users is common to every app — only sweep this product's QA users.
+        if (
+          u.email?.startsWith("qa+") &&
+          u.email.endsWith(`@${QA_EMAIL_DOMAIN}`) &&
+          (!app.product || u.user_metadata?.product === app.product) &&
+          u.created_at < cutoff
+        )
+          await deleteUser(u.id);
       }
       if (users.length < 200) return;
     }
