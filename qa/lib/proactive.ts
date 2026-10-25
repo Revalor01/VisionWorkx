@@ -26,4 +26,5 @@ export const proactiveLogin = proactive.login;
 export { waitUntil };
 
 /** Answers Collaborator's chat endpoint with a fixed reply, so no real AI call is made. */
-export const mockCollaborator = (page: Page, reply: string) => mockChat(page, { reply });
+// Proactive's chat function is namespaced "proactive-chat" on the shared Wellness project.
+export const mockCollaborator = (page: Page, reply: string) => mockChat(page, { reply }, "proactive-chat");

@@ -161,9 +161,13 @@ export function templateApp(app: TemplateApp) {
   return { configured, rows, createUser, deleteUser, sweep, acceptDisclaimer, login, disclaimerKey: app.disclaimerKey };
 }
 
-/** Answers the app's AI chat endpoint (Supabase function "chat") with a fixed reply, so no real AI call is made. */
-export async function mockChat(page: Page, reply: { reply: string; crisis?: boolean }): Promise<void> {
-  await page.route("**/functions/v1/chat", (route) =>
+/**
+ * Answers the app's AI chat Supabase function with a fixed reply, so no real AI
+ * call is made. `fn` is the function name (default "chat"); apps on the shared
+ * Wellness project namespace it, e.g. Proactive's is "proactive-chat".
+ */
+export async function mockChat(page: Page, reply: { reply: string; crisis?: boolean }, fn = "chat"): Promise<void> {
+  await page.route(`**/functions/v1/${fn}`, (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ crisis: false, ...reply }) }),
   );
 }
