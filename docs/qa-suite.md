@@ -37,6 +37,24 @@ nothing (`lib/qa/notify.ts`). `qa-run.yml` no longer has its own `schedule:`
 trigger — if scheduled runs stop appearing, check the Vercel cron and
 `QA_GITHUB_TOKEN`.
 
+## Fix this (AI fix PRs)
+On a run page, each **failing** test has a **"Fix this with AI"** button. It
+hands the failure (test id, title, error, failed step, a link back to the run)
+to the `qa-fix` workflow in **revalor-agents**, which runs an AI coding agent
+(Claude Sonnet 5.5) against that product's own repo and opens a **draft PR** for
+review. It never merges, and it only touches the product repo (the agent also
+reads the test's source from this repo for context). The button appears only for
+products mapped in `lib/qa/fixRepos.ts`.
+
+Pieces here: `lib/qa/fixRepos.ts` (product → repo), `lib/qa/fixDispatch.ts`
+(dispatch), `app/api/admin/qa/fix/route.ts` (operator-only), and the
+`FixButton` on the run page. Secrets (Vercel): `QA_FIX_TOKEN` — a token with
+**Actions: write** on `revalor-agents` (optionally `QA_FIX_REPO` / `QA_FIX_REF`
+to point elsewhere). The agent's own Anthropic key and product-repo write token
+live in **revalor-agents**, not here — see that repo's `qa-fix.yml`. The agent's
+cost per click is bounded by the workflow's turn cap; the run is visible in
+revalor-agents' Actions log.
+
 ## Adding a test
 Create or edit `qa/products/<product>/<area>.qa.ts`:
 
