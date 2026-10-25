@@ -4,6 +4,8 @@ Notable changes to VisionWorkx, newest first.
 
 ## Unreleased
 
+- **QA: Sanctum and Elevate follow their move to the shared Revalor Wellness project.** Both apps migrated to the Wellness Supabase project (their own `sanctum` / `elevate` schemas) and renamed their chat functions, but their QA configs and secrets still pointed at the old standalone projects — so every logged-in test failed with "Invalid login credentials". Set `product: "sanctum"` / `product: "elevate"` (schema-aware fixtures via the `product` support added in #194), pointed `mockTessa` at `sanctum-chat` and `mockClarity` at `elevate-chat`, and added the `elevate` schema headers to `seedExperiments`. **Operational:** the `SANCTUM_SUPABASE_*` and `ELEVATE_SUPABASE_*` GitHub secrets must point at the Wellness project. No migration.
+
 - **QA: Proactive Collaborator chat mock targets the renamed function.** The wellness migration renamed Proactive's chat edge function `chat` → `proactive-chat`, so the test mock (which routed `**/functions/v1/chat`) missed and the "Premium can chat with Collaborator" test timed out. `mockChat` now takes an optional function name (default `chat`); `mockCollaborator` passes `proactive-chat`. Sanctum/Elevate unchanged.
 
 - **QA: fix Proactive fixture onboarding seed.** The `product` onboarding path in `qa/lib/templateApp.ts` tried to upsert `onboarding_state` with `ON CONFLICT (user_id)`, but that table has no unique constraint on `user_id` (PostgREST 42P10), so every onboarded Proactive fixture failed to create. The signup trigger doesn't pre-create that row, so it now plain-inserts it (into the app's schema via the `Accept-Profile` header). Login/onboarding Proactive tests go green.

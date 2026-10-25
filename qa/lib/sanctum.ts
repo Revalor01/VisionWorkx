@@ -9,6 +9,8 @@ const sanctum = templateApp({
   disclaimerKey: "sanctum_disclaimer_accepted",
   // redeem_code_attempts rows are made by the invalid-code test.
   nonCascading: ["daily_checkins", "emotional_journal", "redeem_code_attempts"],
+  // Sanctum moved onto the shared Revalor Wellness project; its tables live in the "sanctum" schema.
+  product: "sanctum",
 });
 
 export type SanctumTier = Tier;
@@ -23,4 +25,5 @@ export const sanctumLogin = sanctum.login;
 export { waitUntil };
 
 /** Answers Tessa's chat endpoint with a fixed reply, so no real AI call is made. */
-export const mockTessa = (page: Page, reply: { reply: string; crisis?: boolean }) => mockChat(page, reply);
+// Sanctum's chat function is namespaced "sanctum-chat" on the shared Wellness project.
+export const mockTessa = (page: Page, reply: { reply: string; crisis?: boolean }) => mockChat(page, reply, "sanctum-chat");

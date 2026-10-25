@@ -11,6 +11,8 @@ const elevate = templateApp({
   disclaimerKey: "elevate_disclaimer_accepted",
   nonCascading: [],
   onboardingRowFromSignup: true,
+  // Elevate moved onto the shared Revalor Wellness project; its tables live in the "elevate" schema.
+  product: "elevate",
 });
 
 export type ElevateTier = Tier;
@@ -32,6 +34,9 @@ export async function seedExperiments(userId: string, count: number): Promise<vo
       apikey: process.env.ELEVATE_SUPABASE_SERVICE_ROLE_KEY!,
       Authorization: `Bearer ${process.env.ELEVATE_SUPABASE_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
+      // experiments lives in the "elevate" schema on the shared Wellness project.
+      "Accept-Profile": "elevate",
+      "Content-Profile": "elevate",
     },
     body: JSON.stringify(Array.from({ length: count }, (_, i) => ({ user_id: userId, description: `QA seeded experiment ${i + 1}` }))),
   });
@@ -39,4 +44,5 @@ export async function seedExperiments(userId: string, count: number): Promise<vo
 }
 
 /** Answers Clarity's chat endpoint with a fixed reply, so no real AI call is made. */
-export const mockClarity = (page: Page, reply: string) => mockChat(page, { reply });
+// Elevate's chat function is namespaced "elevate-chat" on the shared Wellness project.
+export const mockClarity = (page: Page, reply: string) => mockChat(page, { reply }, "elevate-chat");
