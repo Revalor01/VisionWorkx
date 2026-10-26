@@ -27,7 +27,7 @@ export const CADENCE_LABEL: Record<Cadence, string> = {
   nightly: "Every night",
   every_2_days: "Every 2 days",
   every_3_days: "Every 3 days",
-  weekly: "Weekly",
+  weekly: "Weekly (Sundays)",
   off: "Off",
 };
 
@@ -45,6 +45,19 @@ export function effectiveCadence(override: ProductCadence | undefined, globalDef
   return override;
 }
 
+// Weekly runs are pinned to one day so every product tests together: Sunday,
+// in Eastern time (the cron's 11:00 UTC check is Sunday morning ET).
+export const WEEKLY_DAY = 0; // Sunday
+const WEEKLY_TZ = "America/New_York";
+// Already ran within this many days → don't run again (stops a second run the
+// same Sunday, while a run last Sunday is comfortably outside it).
+const WEEKLY_MIN_GAP_DAYS = 5;
+
+function weekdayIn(tz: string, at: number): number {
+  const name = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(at);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+}
+
 /**
  * Is a product due for a scheduled run? `lastRunAt` is the created_at of its
  * most recent scheduled run (null = never run on a schedule). The daily cron
@@ -53,6 +66,12 @@ export function effectiveCadence(override: ProductCadence | undefined, globalDef
  */
 export function isDue(cadence: Cadence, lastRunAt: string | null, now = Date.now()): boolean {
   if (cadence === "off") return false;
+  // Weekly: only on Sunday (ET) — including products never run yet — and not
+  // if one already ran in the last few days.
+  if (cadence === "weekly") {
+    if (weekdayIn(WEEKLY_TZ, now) !== WEEKLY_DAY) return false;
+    return !lastRunAt || now - new Date(lastRunAt).getTime() >= WEEKLY_MIN_GAP_DAYS * 24 * 3600e3;
+  }
   if (!lastRunAt) return true;
   const thresholdMs = CADENCE_DAYS[cadence] * 24 * 3600e3 - 2 * 3600e3;
   return now - new Date(lastRunAt).getTime() >= thresholdMs;

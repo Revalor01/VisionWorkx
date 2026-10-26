@@ -22,7 +22,6 @@ describe("isDue", () => {
   });
   it("is due when never run on a schedule", () => {
     expect(isDue("nightly", null, now)).toBe(true);
-    expect(isDue("weekly", null, now)).toBe(true);
   });
   it("nightly: due ~a day later, not a few hours later", () => {
     expect(isDue("nightly", new Date(now - DAY).toISOString(), now)).toBe(true);
@@ -35,8 +34,6 @@ describe("isDue", () => {
   it("every_3_days and weekly honour their intervals", () => {
     expect(isDue("every_3_days", new Date(now - 2 * DAY).toISOString(), now)).toBe(false);
     expect(isDue("every_3_days", new Date(now - 3 * DAY).toISOString(), now)).toBe(true);
-    expect(isDue("weekly", new Date(now - 6 * DAY).toISOString(), now)).toBe(false);
-    expect(isDue("weekly", new Date(now - 7 * DAY).toISOString(), now)).toBe(true);
   });
 });
 
@@ -52,5 +49,38 @@ describe("validators", () => {
     expect(isProductCadence("default")).toBe(true);
     expect(isProductCadence("weekly")).toBe(true);
     expect(isProductCadence("nope")).toBe(false);
+  });
+});
+
+describe("isDue weekly (Sundays, Eastern time)", () => {
+  // The daily cron fires at 11:00 UTC.
+  const sun = Date.parse("2026-11-01T11:00:00Z"); // Sunday 6am EST
+  const sunEdt = Date.parse("2026-10-25T11:00:00Z"); // Sunday 7am EDT
+  const mon = Date.parse("2026-10-26T11:00:00Z");
+  it("runs on Sunday a week after the last run", () => {
+    expect(isDue("weekly", new Date(sun - 7 * DAY).toISOString(), sun)).toBe(true);
+    expect(isDue("weekly", new Date(sunEdt - 7 * DAY).toISOString(), sunEdt)).toBe(true);
+  });
+  it("never runs Monday to Saturday, even when overdue or never run", () => {
+    for (let d = 1; d <= 6; d++) {
+      const at = sun - d * DAY;
+      expect(isDue("weekly", null, at)).toBe(false);
+      expect(isDue("weekly", new Date(at - 30 * DAY).toISOString(), at)).toBe(false);
+    }
+    expect(isDue("weekly", new Date(mon - 8 * DAY).toISOString(), mon)).toBe(false);
+  });
+  it("a product never run waits for Sunday, then runs", () => {
+    expect(isDue("weekly", null, mon)).toBe(false);
+    expect(isDue("weekly", null, sun)).toBe(true);
+  });
+  it("doesn't run twice on the same Sunday", () => {
+    expect(isDue("weekly", new Date(sun - 3600e3).toISOString(), sun)).toBe(false);
+    expect(isDue("weekly", new Date(sun - 4 * DAY).toISOString(), sun)).toBe(false);
+  });
+  it("uses Eastern time, not UTC, around midnight", () => {
+    // Sunday 01:00 UTC is still Saturday evening in New York.
+    expect(isDue("weekly", null, Date.parse("2026-11-01T01:00:00Z"))).toBe(false);
+    // Monday 02:00 UTC is still Sunday evening in New York.
+    expect(isDue("weekly", null, Date.parse("2026-11-02T02:00:00Z"))).toBe(true);
   });
 });

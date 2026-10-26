@@ -30,6 +30,12 @@ override. It lives in `vw_qa_schedule` (`lib/qa/schedule.ts` is the pure logic,
 `scheduleDb.ts` the load); the scheduler skips a product whose last scheduled
 run isn't old enough yet, or that already has a run in flight.
 
+**Weekly runs on Sundays.** A product on *Weekly (Sundays)* is due only at the
+Sunday morning check (Eastern time: 7 am EDT / 6 am EST) and only if it hasn't
+had a scheduled run in the last 5 days — so every weekly product tests together,
+a product never run waits for the next Sunday, and nothing runs twice the same
+Sunday. The other cadences count days since the product's last scheduled run.
+
 Each scheduled run appears in /admin/qa as *nightly*. If it fails, the operator
 gets an email listing the failed tests with a link to the run; the first green
 run after a red one sends a "green again" email. Green runs otherwise send
