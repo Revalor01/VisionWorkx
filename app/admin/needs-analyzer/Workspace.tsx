@@ -32,8 +32,8 @@ import {
   type NavItem,
 } from "./ui";
 
-type Tab = "q" | "plan" | "proposal" | "builder" | "internal";
-const TABS: Tab[] = ["q", "plan", "proposal", "builder", "internal"];
+type Tab = "q" | "plan" | "proposal" | "economics" | "builder" | "internal";
+const TABS: Tab[] = ["q", "plan", "proposal", "economics", "builder", "internal"];
 
 interface Props {
   initial: Assessment;
@@ -64,6 +64,7 @@ export default function Workspace(props: Props) {
     { key: "q", label: "Questionnaire", onClick: () => go("q") },
     { key: "plan", label: "Build plan", onClick: () => go("plan") },
     { key: "proposal", label: "Proposal", onClick: () => go("proposal") },
+    { key: "economics", label: "Economics", onClick: () => go("economics"), internal: true },
     { key: "builder", label: "Website builder", onClick: () => go("builder"), internal: true },
     { key: "internal", label: "Internal notes", onClick: () => go("internal"), internal: true },
   ];
@@ -135,7 +136,7 @@ function Body({
   useEffect(() => flush(), [tab, flush]);
 
   // Internal notes and the website builder aren't reachable in client mode.
-  const view = clientMode && (tab === "internal" || tab === "builder") ? "plan" : tab;
+  const view = clientMode && (tab === "internal" || tab === "builder" || tab === "economics") ? "plan" : tab;
   const plan = useMemo(() => computePlan(a, catalog, ecosystem), [a, catalog, ecosystem]);
   const title = String(a.answers.bizName || "") || "New assessment";
 
@@ -146,8 +147,22 @@ function Body({
       )}
       {view === "plan" && <PlanView a={a} plan={plan} catalog={catalog} update={update} go={go} saveState={saveState} />}
       {view === "proposal" && <ProposalTab a={a} patchLocal={patchLocal} plan={plan} catalog={catalog} go={go} proposalCheck={proposalCheck} />}
+      {view === "economics" && (
+        <>
+          <h1 className="text-2xl font-bold text-zinc-900">Economics — {title}</h1>
+          <p className="mb-2 text-sm text-zinc-500">Private to you. Margin, minimum price and how far you can discount. Turn on Client mode before turning the screen around.</p>
+          <EconomicsPanel
+            plan={plan}
+            catalog={catalog}
+            onApply={(d) => {
+              update((p) => ({ ...p, overrides: { ...(p.overrides || {}), discountPct: d, monthlyDiscountPct: d } }));
+              toast(`Applied ${d}% founding-client discount to the proposal`);
+            }}
+          />
+        </>
+      )}
       {view === "builder" && <WebsiteBuilder wb={a.overrides?.websiteBuild || {}} setWb={setWb} catalog={catalog} go={go} saveState={saveState} />}
-      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} update={update} />}
+      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} />}
     </>
   );
 }
@@ -718,17 +733,14 @@ function InternalView({
   catalog,
   go,
   latestCheck,
-  update,
 }: {
   a: Assessment;
   plan: Plan;
   catalog: Catalog;
   go: (t: Tab, s?: string) => void;
   latestCheck: SiteCheck | null;
-  update: (fn: (prev: Assessment) => Assessment) => void;
 }) {
   const m = moneyFmt(catalog);
-  const toast = useToast();
   const A = a.answers;
   const flags = P.items.flatMap((i) => (i.flags || []).map((f) => ({ name: i.name, f })));
   const fit = (ok: boolean | null) => (ok === null ? <Badge>unknown</Badge> : ok ? <Badge tone="ok">fits</Badge> : <Badge tone="bad">over</Badge>);
@@ -747,14 +759,6 @@ function InternalView({
         <Stat label="Setup margin" value={m(P.margin)} valueClass={P.margin >= 0 ? "!text-emerald-700" : "!text-red-700"} />
         <Stat label="Recurring" value={`${m(P.monthly)}/mo`} sub={`${m(P.monthly * 12)}/yr`} />
       </div>
-      <EconomicsPanel
-        plan={P}
-        catalog={catalog}
-        onApply={(d) => {
-          update((p) => ({ ...p, overrides: { ...(p.overrides || {}), discountPct: d, monthlyDiscountPct: d } }));
-          toast(`Applied ${d}% founding-client discount to the proposal`);
-        }}
-      />
       <div className="grid gap-6 md:grid-cols-2">
         <div className={CARD}>
           <h3 className="mb-2 font-semibold text-zinc-900">Budget fit</h3>
