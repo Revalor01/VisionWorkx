@@ -124,9 +124,22 @@ export function computeEconomics(
   const hostingSubtotal = platformShare + ai + stripeList;
   const allInCost = hostingSubtotal + labor;
 
-  const combinedSafeDiscountPct = Math.min(setup.safeDiscountPct, monthlySide.safeDiscountPct);
-  const combinedBreakEvenDiscountPct = Math.min(setup.breakEvenDiscountPct, monthlySide.breakEvenDiscountPct);
-  const bindingSide: "setup" | "monthly" = setup.safeDiscountPct <= monthlySide.safeDiscountPct ? "setup" : "monthly";
+  // Only a side that actually carries revenue constrains the discount. A zero-revenue
+  // side (setup-only deal, monthly-only deal, or an empty assessment) would otherwise
+  // force its floors to 0 and flag every discount as a "loss".
+  const sides: { name: "setup" | "monthly"; side: EconSide }[] = [];
+  if (setupList > 0) sides.push({ name: "setup", side: setup });
+  if (monthlyList > 0) sides.push({ name: "monthly", side: monthlySide });
+
+  let combinedSafeDiscountPct = 100;
+  let combinedBreakEvenDiscountPct = 100;
+  let bindingSide: "setup" | "monthly" = "setup";
+  if (sides.length) {
+    const binding = sides.reduce((a, b) => (b.side.safeDiscountPct < a.side.safeDiscountPct ? b : a));
+    combinedSafeDiscountPct = binding.side.safeDiscountPct;
+    combinedBreakEvenDiscountPct = Math.min(...sides.map((s) => s.side.breakEvenDiscountPct));
+    bindingSide = binding.name;
+  }
   const status: Economics["status"] = d > combinedBreakEvenDiscountPct ? "loss" : d > combinedSafeDiscountPct ? "thin" : "target";
 
   return {

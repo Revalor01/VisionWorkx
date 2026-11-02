@@ -63,4 +63,16 @@ describe("computeEconomics", () => {
     expect(loss.status).toBe("loss");
     expect(loss.setup.margin).toBeLessThan(0);
   });
+
+  it("ignores a zero-revenue side in the discount guard (setup-only deal)", () => {
+    const setupOnly = computeEconomics({ ...plan, monthly: 0 } as unknown as Plan, settings, { discountPct: 10 });
+    expect(setupOnly.status).not.toBe("loss");
+    expect(setupOnly.bindingSide).toBe("setup");
+    expect(setupOnly.combinedBreakEvenDiscountPct).toBe(setupOnly.setup.breakEvenDiscountPct);
+  });
+
+  it("is neutral when both sides are zero (empty assessment)", () => {
+    const empty = computeEconomics({ ...plan, setupGross: 0, monthly: 0 } as unknown as Plan, settings, { discountPct: 10 });
+    expect(empty.status).toBe("target");
+  });
 });
