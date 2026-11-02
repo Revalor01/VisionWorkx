@@ -10,6 +10,7 @@ import { STATUSES, type Assessment, type Catalog, type Ecosystem, type Overrides
 import { fmtDate } from "@/lib/needsAnalyzer/format";
 import { proposalFindings, type SiteCheck } from "@/lib/needsAnalyzer/siteChecks";
 import { Proposal } from "./Proposal";
+import EconomicsPanel from "./EconomicsPanel";
 import WebsiteBuilder from "./WebsiteBuilder";
 import {
   api,
@@ -146,7 +147,7 @@ function Body({
       {view === "plan" && <PlanView a={a} plan={plan} catalog={catalog} update={update} go={go} saveState={saveState} />}
       {view === "proposal" && <ProposalTab a={a} patchLocal={patchLocal} plan={plan} catalog={catalog} go={go} proposalCheck={proposalCheck} />}
       {view === "builder" && <WebsiteBuilder wb={a.overrides?.websiteBuild || {}} setWb={setWb} catalog={catalog} go={go} saveState={saveState} />}
-      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} />}
+      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} update={update} />}
     </>
   );
 }
@@ -704,7 +705,7 @@ function ProposalTab({
           )}
         </div>
       )}
-      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} />
+      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} monthlyDiscountPct={a.overrides?.monthlyDiscountPct} />
     </>
   );
 }
@@ -717,14 +718,17 @@ function InternalView({
   catalog,
   go,
   latestCheck,
+  update,
 }: {
   a: Assessment;
   plan: Plan;
   catalog: Catalog;
   go: (t: Tab, s?: string) => void;
   latestCheck: SiteCheck | null;
+  update: (fn: (prev: Assessment) => Assessment) => void;
 }) {
   const m = moneyFmt(catalog);
+  const toast = useToast();
   const A = a.answers;
   const flags = P.items.flatMap((i) => (i.flags || []).map((f) => ({ name: i.name, f })));
   const fit = (ok: boolean | null) => (ok === null ? <Badge>unknown</Badge> : ok ? <Badge tone="ok">fits</Badge> : <Badge tone="bad">over</Badge>);
@@ -743,6 +747,14 @@ function InternalView({
         <Stat label="Setup margin" value={m(P.margin)} valueClass={P.margin >= 0 ? "!text-emerald-700" : "!text-red-700"} />
         <Stat label="Recurring" value={`${m(P.monthly)}/mo`} sub={`${m(P.monthly * 12)}/yr`} />
       </div>
+      <EconomicsPanel
+        plan={P}
+        catalog={catalog}
+        onApply={(d) => {
+          update((p) => ({ ...p, overrides: { ...(p.overrides || {}), discountPct: d, monthlyDiscountPct: d } }));
+          toast(`Applied ${d}% founding-client discount to the proposal`);
+        }}
+      />
       <div className="grid gap-6 md:grid-cols-2">
         <div className={CARD}>
           <h3 className="mb-2 font-semibold text-zinc-900">Budget fit</h3>

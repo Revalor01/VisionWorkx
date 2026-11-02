@@ -23,6 +23,7 @@ export function Proposal({
   prepared,
   siteFindings,
   websiteBuild,
+  monthlyDiscountPct,
 }: {
   answers: Answers;
   plan: Plan;
@@ -32,6 +33,8 @@ export function Proposal({
   siteFindings?: SiteFindings | null;
   /** The build runbook from the Website builder tab; a client-safe summary shows when the operator opted in. */
   websiteBuild?: WebsiteBuild | null;
+  /** Founding-client discount applied to the recurring monthly (presentation only). */
+  monthlyDiscountPct?: number;
 }) {
   const co = catalog.company;
   const st = catalog.settings;
@@ -43,6 +46,10 @@ export function Proposal({
   const badgeLogo = logoUrl(catalog, "badge");
   const goals = (A.goals as string[] | undefined) || [];
   const phase1 = P.phases.find((p) => p.key === "1");
+  const monthlyDiscount = Math.round((P.monthly * (monthlyDiscountPct || 0)) / 100);
+  const monthlyNet = P.monthly - monthlyDiscount;
+  const showDiscountRow = P.discount > 0 || monthlyDiscount > 0;
+  const discLabelPct = P.discount > 0 ? P.discountPct : monthlyDiscountPct || 0;
   const bizName = String(A.bizName || "");
   const web = websiteBuildSummary(websiteBuild ?? undefined, catalog);
   const webCustom = (websiteBuild?.clientSummary || "").trim();
@@ -162,17 +169,17 @@ export function Proposal({
               <td className="py-2 text-right">{m(ph.monthly)}</td>
             </tr>
           ))}
-          {P.discount > 0 && (
+          {showDiscountRow && (
             <tr className="border-b border-zinc-100">
-              <td className="py-2">Founding-client discount ({P.discountPct}%)</td>
-              <td className="py-2 text-right">−{m(P.discount)}</td>
-              <td />
+              <td className="py-2">Founding-client discount ({discLabelPct}%)</td>
+              <td className="py-2 text-right">{P.discount > 0 ? `−${m(P.discount)}` : ""}</td>
+              <td className="py-2 text-right">{monthlyDiscount > 0 ? `−${m(monthlyDiscount)}/mo` : ""}</td>
             </tr>
           )}
           <tr className="font-bold text-zinc-900">
             <td className="py-2">Total</td>
             <td className="py-2 text-right">{m(P.setupNet)}</td>
-            <td className="py-2 text-right">{m(P.monthly)}/mo</td>
+            <td className="py-2 text-right">{m(monthlyNet)}/mo</td>
           </tr>
         </tbody>
       </table>

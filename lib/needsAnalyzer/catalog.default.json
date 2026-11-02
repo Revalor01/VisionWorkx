@@ -14,7 +14,14 @@
     "closeRate": 25,
     "includeThreshold": 45,
     "proposalValidDays": 30,
-    "discountPct": 0
+    "discountPct": 0,
+    "targetMarginPct": 50,
+    "platformCostMonthly": 45,
+    "activeClientApps": 1,
+    "aiCostMonthly": 8,
+    "supportHoursMonthly": 1,
+    "stripePct": 2.9,
+    "stripeFixed": 0.3
   },
   "phases": {
     "1": {

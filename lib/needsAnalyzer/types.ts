@@ -78,6 +78,9 @@ export interface Overrides {
   prices?: Record<string, PriceOverride>;
   custom?: CustomItem[];
   discountPct?: number;
+  /** Combined founding-client discount applied to the recurring monthly on the proposal.
+   * Presentation-layer only (read by the online proposal view), never by computePlan. */
+  monthlyDiscountPct?: number;
   websiteBuild?: WebsiteBuild;
 }
 
@@ -136,6 +139,15 @@ export interface Catalog {
     proposalValidDays: number;
     discountPct: number;
     proposalDarkHeader?: boolean;
+    /** Economics panel (operator-only): cost model behind margin / minimum price /
+     * discount-guard. All optional; `computeEconomics` falls back to ECON_DEFAULTS. */
+    targetMarginPct?: number;
+    platformCostMonthly?: number;
+    activeClientApps?: number;
+    aiCostMonthly?: number;
+    supportHoursMonthly?: number;
+    stripePct?: number;
+    stripeFixed?: number;
     /** Online only: image address per logo slot. Empty string hides that logo. */
     logos?: Partial<Record<LogoSlot, string>>;
   };
