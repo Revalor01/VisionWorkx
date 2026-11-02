@@ -705,7 +705,7 @@ function ProposalTab({
           )}
         </div>
       )}
-      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} />
+      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} monthlyDiscountPct={a.overrides?.monthlyDiscountPct} />
     </>
   );
 }
