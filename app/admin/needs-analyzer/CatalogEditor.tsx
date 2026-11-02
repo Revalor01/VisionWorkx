@@ -23,6 +23,13 @@ const SETTINGS: [keyof Catalog["settings"], string, "text" | "number"][] = [
   ["includeThreshold", "Auto-recommend at fit score ≥", "number"],
   ["proposalValidDays", "Proposal valid (days)", "number"],
   ["discountPct", "Default setup discount (%)", "number"],
+  ["targetMarginPct", "Target margin (%)", "number"],
+  ["platformCostMonthly", "Shared platform cost ($/mo)", "number"],
+  ["activeClientApps", "Active client apps (share across)", "number"],
+  ["aiCostMonthly", "AI cost per app ($/mo)", "number"],
+  ["supportHoursMonthly", "Support hours per app (/mo)", "number"],
+  ["stripePct", "Stripe fee (%)", "number"],
+  ["stripeFixed", "Stripe fixed fee ($)", "number"],
 ];
 const COMPANY: [keyof Catalog["company"], string][] = [
   ["name", "Company name"],

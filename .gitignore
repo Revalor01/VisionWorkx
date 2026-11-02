@@ -44,3 +44,4 @@ scripts/pilot-crm-module-history.jsonl
 /test-results/
 /playwright-report/
 /qa/test-results/
+.superpowers/
