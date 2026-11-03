@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { runManagementQuery } from "@/lib/social/weeklyStats";
-import { getMarketingProduct, PRODUCT_LABEL } from "@/lib/marketing/products";
+import { audienceProfileTable, getMarketingProduct, PRODUCT_LABEL } from "@/lib/marketing/products";
 import type { MarketingProduct } from "@/lib/database.types";
 
 export { PRODUCT_LABEL };
@@ -52,8 +52,9 @@ export async function fetchProductUsersWithActivity(product: MarketingProduct): 
 
   // Shared project (schema set): only this product's members, not every login.
   // The schema is a code constant from lib/marketing/products.ts, never user input.
-  const sql = audienceSource.schema
-    ? `SELECT u.id, u.email, u.created_at, u.last_sign_in_at FROM auth.users u JOIN ${audienceSource.schema}.profiles p ON p.id = u.id`
+  const profileTable = audienceProfileTable(audienceSource);
+  const sql = profileTable
+    ? `SELECT u.id, u.email, u.created_at, u.last_sign_in_at FROM auth.users u JOIN ${profileTable} p ON p.id = u.id`
     : "SELECT id, email, created_at, last_sign_in_at FROM auth.users";
   const rows = await runManagementQuery(audienceSource.projectRef, sql);
   return rows
