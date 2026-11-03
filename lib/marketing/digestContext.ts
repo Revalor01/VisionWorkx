@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase";
 import { runManagementQuery } from "@/lib/social/weeklyStats";
-import { getMarketingProduct } from "@/lib/marketing/products";
+import { audienceProfileTable, getMarketingProduct } from "@/lib/marketing/products";
 import type { MarketingProduct } from "@/lib/database.types";
 
 // Cheap, real recent-activity signal for a recurring digest's prompt —
@@ -47,7 +47,7 @@ async function countNewUsers(
 
   const rows = await runManagementQuery(
     audienceSource.projectRef,
-    `select count(*) as count from ${audienceSource.schema ? `${audienceSource.schema}.profiles` : "auth.users"} where created_at >= '${since}'`
+    `select count(*) as count from ${audienceProfileTable(audienceSource) ?? "auth.users"} where created_at >= '${since}'`
   );
   return Number(rows[0]?.count ?? 0);
 }
