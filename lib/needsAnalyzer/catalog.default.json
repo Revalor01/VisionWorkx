@@ -441,6 +441,162 @@
         "monitoring",
         "backups"
       ]
+    },
+    {
+      "id": "ap-platform",
+      "name": "Decoration platform setup",
+      "category": "Apparel",
+      "phase": 1,
+      "setup": 1500,
+      "monthly": 0,
+      "effortHours": 16,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Set up an off-the-shelf decoration platform (DecoNetwork, InkSoft, or Shopify with a designer app) in the client's own account, configured for their products and branding.",
+      "requires": [
+        "store-platform"
+      ]
+    },
+    {
+      "id": "ap-platform-launch",
+      "name": "Platform training & launch",
+      "category": "Apparel",
+      "phase": 1,
+      "setup": 500,
+      "monthly": 0,
+      "effortHours": 6,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Load initial products, walk the team through day-to-day use, and launch the store.",
+      "requires": []
+    },
+    {
+      "id": "ap-store",
+      "name": "Standard store setup",
+      "category": "Apparel",
+      "phase": 2,
+      "setup": 1200,
+      "monthly": 0,
+      "effortHours": 14,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "A standard online store (Shopify or similar) for the client's apparel, ready for the VisionWorkx modules to plug into.",
+      "requires": [
+        "store-platform"
+      ]
+    },
+    {
+      "id": "ap-quote",
+      "name": "Decoration Quote Calculator",
+      "category": "Apparel",
+      "phase": 2,
+      "setup": 750,
+      "monthly": 29,
+      "effortHours": 12,
+      "hoursSavedPerWeek": 2,
+      "active": true,
+      "description": "A VisionWorkx widget that prices decoration instantly from quantity, print locations and colors, so bulk enquiries come in pre-quoted.",
+      "requires": [
+        "decoration-pricing",
+        "form-intake"
+      ]
+    },
+    {
+      "id": "ap-intake",
+      "name": "Bulk Order Intake + Logo Upload",
+      "category": "Apparel",
+      "phase": 2,
+      "setup": 500,
+      "monthly": 19,
+      "effortHours": 8,
+      "hoursSavedPerWeek": 1,
+      "active": true,
+      "description": "A VisionWorkx intake form for bulk and team orders: sizes, quantities and logo/artwork upload, collected in one place.",
+      "requires": [
+        "form-intake",
+        "file-storage",
+        "art-proof"
+      ]
+    },
+    {
+      "id": "ap-dashboard",
+      "name": "Lead & Booking Dashboard",
+      "category": "Apparel",
+      "phase": 2,
+      "setup": 500,
+      "monthly": 29,
+      "effortHours": 8,
+      "hoursSavedPerWeek": 1.5,
+      "active": true,
+      "description": "One dashboard for every quote and bulk-order enquiry, its status and what needs follow-up.",
+      "requires": [
+        "data-store",
+        "reporting"
+      ]
+    },
+    {
+      "id": "ap-designer",
+      "name": "Product Designer Canvas",
+      "category": "Apparel",
+      "phase": 3,
+      "setup": 4500,
+      "monthly": 79,
+      "effortHours": 60,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "A custom in-browser product designer (Fabric.js) where customers place text and artwork on products, with live previews and print-ready output.",
+      "requires": [
+        "apparel-designer",
+        "file-storage"
+      ]
+    },
+    {
+      "id": "ap-pricing",
+      "name": "Decoration Pricing Engine",
+      "category": "Apparel",
+      "phase": 3,
+      "setup": 3000,
+      "monthly": 49,
+      "effortHours": 40,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "The client's real decoration pricing — quantity breaks, per-location and per-color charges — turned into a pricing engine behind the store and quotes.",
+      "requires": [
+        "decoration-pricing"
+      ]
+    },
+    {
+      "id": "ap-supplier",
+      "name": "Supplier Catalog Feeds",
+      "category": "Apparel",
+      "phase": 3,
+      "setup": 2500,
+      "monthly": 49,
+      "effortHours": 35,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "Live blank-goods catalogs and stock from distributors (SanMar, S&S Activewear, alphabroder) feeding the store and quotes.",
+      "requires": [
+        "supplier-feeds",
+        "integrations"
+      ]
+    },
+    {
+      "id": "ap-admin",
+      "name": "Store Admin & Order Management",
+      "category": "Apparel",
+      "phase": 3,
+      "setup": 3500,
+      "monthly": 79,
+      "effortHours": 50,
+      "hoursSavedPerWeek": 0,
+      "active": true,
+      "description": "An admin for orders, proofs and production status, with customer logins and reorder history for repeat B2B accounts.",
+      "requires": [
+        "data-store",
+        "auth-client",
+        "store-platform"
+      ]
     }
   ]
 }

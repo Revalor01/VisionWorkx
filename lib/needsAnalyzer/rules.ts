@@ -272,7 +272,9 @@ export function computePlan(assessment: Pick<Assessment, "answers" | "overrides"
   const h = helpers(A);
 
   const all: ScoredModule[] = catalog.modules
-    .filter((m) => m.active !== false)
+    // "Apparel" modules belong to the custom-apparel path (computeApparelPlan), not the
+    // standard module scoring. Excluded here so the standard plan is unchanged.
+    .filter((m) => m.active !== false && m.category !== "Apparel")
     .map((m) => {
       const sc = scoreModule(m, A);
       return { ...m, ...sc, recommended: sc.score >= threshold };
