@@ -2,6 +2,8 @@
 // (revalor-needs-analyzer/public/questions.js). Field ids are used by rules.ts and
 // stored in assessments, so keep them identical in both apps.
 
+import type { Answers, AssessmentPath } from "./types";
+
 export type FieldType = "text" | "textarea" | "number" | "select" | "multi" | "yesno" | "scale";
 
 export interface Field {
@@ -128,3 +130,58 @@ export const SECTIONS: Section[] = [
     ],
   },
 ];
+
+// ── Custom apparel / merch path ──────────────────────────────────────────────
+// A second questionnaire for apparel / merch-decoration businesses. It reuses the
+// shared Business section and Consultant notes; the apparel-specific sections in
+// between feed computeApparelPlan (not the standard RULES engine). Field ids are
+// stored in answers and must stay identical in the offline app.
+const businessSection = SECTIONS.find((sec) => sec.id === 'business')!;
+const notesSection = SECTIONS.find((sec) => sec.id === 'notes')!;
+
+export const APPAREL_SECTIONS: Section[] = [
+  businessSection,
+  {
+    id: 'apparel-decoration', title: 'Decoration & production', intro: 'How the merch actually gets made.',
+    fields: [
+      { id: 'apDecoration', label: 'Who does the decorating?', type: 'select', options: ['In-house', 'Outsourced', 'Both', 'None yet'] },
+      { id: 'apMethods', label: 'Decoration methods', type: 'multi', options: ['Screen print', 'Embroidery', 'DTF', 'DTG'] },
+      { id: 'apSuppliers', label: 'Blank-goods supplier accounts', type: 'multi', options: ['SanMar', 'S&S Activewear', 'alphabroder', 'None'] },
+    ],
+  },
+  {
+    id: 'apparel-sales', title: 'Sales & storefront', intro: 'How they sell and what buyers need online.',
+    fields: [
+      { id: 'apSalesModel', label: 'How do they sell?', type: 'multi', options: ['Public storefront', 'Team / corporate stores', 'Repeat B2B'] },
+      { id: 'apDesignerNeed', label: 'Online designer need', type: 'select', options: ['Full designer', 'Logo upload only', 'None'] },
+      { id: 'apOrderVolume', label: 'Orders per month (roughly)', type: 'number' },
+    ],
+  },
+  {
+    id: 'apparel-pricing', title: 'Pricing & artwork',
+    fields: [
+      { id: 'apPricingComplexity', label: 'What drives their pricing?', type: 'multi', options: ['Quantity tiers', 'Print locations', 'Color counts'] },
+      { id: 'apArtCleanup', label: 'Artwork cleanup', type: 'select', options: ['Customers send print-ready art', 'We clean up / recreate art', 'Outsourced to a service', 'Not sure'] },
+      { id: 'apProofOwner', label: 'Who owns proofs & approvals?', type: 'select', options: ['We create & send proofs', 'Customer self-serves proofs', 'No formal proofing yet'] },
+      { id: 'apCurrentTools', label: 'Current tools (store, design, pricing)', type: 'textarea' },
+    ],
+  },
+  {
+    id: 'apparel-project', title: 'Budget & timeline',
+    fields: [
+      { id: 'apBudget', label: 'One-time budget', type: 'select', options: ['Under $1k', '$1k–$3k', '$3k–$10k', '$10k+', 'Not sure'] },
+      { id: 'apTimeline', label: 'Timeline', type: 'select', options: ['ASAP', '1–3 months', '3–6 months', 'Just exploring'] },
+    ],
+  },
+  notesSection,
+];
+
+/** The path an assessment is on; a missing `answers.path` means the standard path. */
+export function assessmentPath(answers: Answers): AssessmentPath {
+  return answers.path === 'apparel' ? 'apparel' : 'standard';
+}
+
+/** The questionnaire sections for a path. */
+export function sectionsForPath(path: AssessmentPath): Section[] {
+  return path === 'apparel' ? APPAREL_SECTIONS : SECTIONS;
+}
