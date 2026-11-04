@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ApparelProposal } from "@/app/admin/needs-analyzer/ApparelProposal";
 import { Proposal } from "@/app/admin/needs-analyzer/Proposal";
 import { loadSettings, naDb, SHARE_TOKEN_RE } from "@/lib/needsAnalyzer/db";
-import { computePlan } from "@/lib/needsAnalyzer/rules";
+import { assessmentPath } from "@/lib/needsAnalyzer/questions";
+import { computeApparelPlan, computePlan } from "@/lib/needsAnalyzer/rules";
 import { pickProposalCheck, proposalFindings, SITE_CHECK_COLUMNS, type SiteCheckRow, toSiteCheck } from "@/lib/needsAnalyzer/siteChecks";
 import type { Answers, Overrides } from "@/lib/needsAnalyzer/types";
 import PrintButton from "./PrintButton";
@@ -38,6 +40,7 @@ export default async function SharedProposalPage({ params }: { params: Promise<{
   ]);
   const siteFindings = proposalFindings(pickProposalCheck(((checkRows ?? []) as SiteCheckRow[]).map(toSiteCheck)));
   const assessment = { answers: (data.answers ?? {}) as Answers, overrides: (data.overrides ?? {}) as Overrides };
+  const path = assessmentPath(assessment.answers);
   const plan = computePlan(assessment, catalog, ecosystem);
 
   return (
@@ -45,7 +48,11 @@ export default async function SharedProposalPage({ params }: { params: Promise<{
       <div className="mx-auto mb-4 flex max-w-[850px] justify-end print:hidden">
         <PrintButton />
       </div>
-      <Proposal answers={assessment.answers} plan={plan} catalog={catalog} prepared={data.updated_at} siteFindings={siteFindings} websiteBuild={assessment.overrides.websiteBuild} monthlyDiscountPct={assessment.overrides.monthlyDiscountPct} />
+      {path === "apparel" ? (
+        <ApparelProposal answers={assessment.answers} plan={computeApparelPlan(assessment.answers, catalog)} catalog={catalog} prepared={data.updated_at} />
+      ) : (
+        <Proposal answers={assessment.answers} plan={plan} catalog={catalog} prepared={data.updated_at} siteFindings={siteFindings} websiteBuild={assessment.overrides.websiteBuild} monthlyDiscountPct={assessment.overrides.monthlyDiscountPct} />
+      )}
     </main>
   );
 }
