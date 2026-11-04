@@ -35,6 +35,8 @@ describe("parseFeed", () => {
     ["missing tier", { product: { tiers: FEED.product.tiers.slice(0, 2) } }],
     ["zero price", { product: { tiers: FEED.product.tiers.map((t) => ({ ...t, monthly: 0 })) } }],
     ["string price", { product: { tiers: FEED.product.tiers.map((t) => ({ ...t, annual: "470" })) } }],
+    ["fractional price", { product: { tiers: FEED.product.tiers.map((t) => ({ ...t, monthly: 49.99 })) } }],
+    ["absurd price", { product: { tiers: FEED.product.tiers.map((t) => ({ ...t, annual: 1e12 })) } }],
   ])("rejects %s", (_label, body) => {
     expect(parseFeed(body)).toBeNull();
   });

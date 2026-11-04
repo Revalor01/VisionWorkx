@@ -32,7 +32,8 @@ export interface ParsedFeed {
   notes: Partial<Record<ModulePlan, string>>;
 }
 
-const validAmount = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
+/** Whole dollars, 1–100,000: anything else in the feed is treated as broken. */
+const validAmount = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n > 0 && n <= 100_000;
 
 /** Parse the feed's JSON body. Returns null unless all three tiers have valid prices. */
 export function parseFeed(body: unknown): ParsedFeed | null {
@@ -101,12 +102,14 @@ async function fetchFeed(): Promise<ParsedFeed | null> {
   }
 }
 
-let stripeCache: { at: number; amounts: StripeAmounts } | null = null;
+let stripeCache: { at: number; ttl: number; amounts: StripeAmounts } | null = null;
+const STRIPE_RETRY_MS = 5 * 60 * 1000; // after a failed lookup, try again sooner
 
 async function fetchStripeAmounts(): Promise<StripeAmounts> {
-  if (stripeCache && Date.now() - stripeCache.at < STRIPE_TTL_MS) return stripeCache.amounts;
+  if (stripeCache && Date.now() - stripeCache.at < stripeCache.ttl) return stripeCache.amounts;
   if (!process.env.STRIPE_SECRET_KEY) return {};
   const amounts: StripeAmounts = {};
+  let failed = false;
   const client = stripe();
   await Promise.all(
     PLANS.flatMap((plan) =>
@@ -116,13 +119,15 @@ async function fetchStripeAmounts(): Promise<StripeAmounts> {
         try {
           const price = await client.prices.retrieve(id);
           if (price.currency === "usd" && typeof price.unit_amount === "number") amounts[`${plan}:${interval}`] = price.unit_amount / 100;
+          else console.warn(`[pricing] guard skipped for ${plan} ${interval}: Stripe price is not a fixed USD amount`);
         } catch {
-          // Unknown to Stripe right now: skip the guard for this one.
+          failed = true;
+          console.warn(`[pricing] guard skipped for ${plan} ${interval}: Stripe price lookup failed`);
         }
       }),
     ),
   );
-  stripeCache = { at: Date.now(), amounts };
+  stripeCache = { at: Date.now(), ttl: failed ? STRIPE_RETRY_MS : STRIPE_TTL_MS, amounts };
   return amounts;
 }
 
