@@ -30,3 +30,20 @@ test.describe(() => {
     expect(res.status(), await res.text()).toBe(200);
   });
 });
+
+// Pricing feed (phase 2): the homepage plan cards show revalor-admin /pricing's prices.
+// If Stripe charges something else, the page shows Stripe's amount and this fails — fix /pricing or the Stripe price.
+qa(
+  { id: "visionworkx/plans/homepage-prices-match-feed", area: "Plans & billing", title: "Homepage plan prices match the /pricing feed", smoke: true },
+  async ({ page }) => {
+    const feedUrl = process.env.PRICING_FEED_URL || "https://revalor-admin.vercel.app/api/public/pricing/visionworkx";
+    const feed = (await (await page.request.get(feedUrl)).json()) as { product: { tiers: { name: string; monthly: number; annual: number }[] } };
+    await page.goto(`${target()}/#pricing`);
+    const section = page.locator("#pricing");
+    for (const tier of feed.product.tiers) {
+      const card = section.locator("article", { has: page.getByRole("heading", { name: tier.name, exact: true }) });
+      await expect(card).toContainText(`$${tier.monthly}/month`);
+      await expect(card).toContainText(`$${tier.annual.toLocaleString("en-US")}/year`);
+    }
+  },
+);

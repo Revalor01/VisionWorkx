@@ -2,8 +2,20 @@
 
 import { useState } from "react";
 import { PLAN_LIMITS, PLAN_PRICE, PLANS, type ModulePlan } from "@/lib/modules/plans";
+import type { PlanPrices } from "@/lib/modules/pricingFeed";
 
-export default function BillingActions({ slug, status, currentPlan }: { slug: string; status: string; currentPlan: ModulePlan }) {
+export default function BillingActions({
+  slug,
+  status,
+  currentPlan,
+  prices = PLAN_PRICE,
+}: {
+  slug: string;
+  status: string;
+  currentPlan: ModulePlan;
+  /** Display prices from loadDisplayPrices() (server); defaults to the built-in ones. */
+  prices?: PlanPrices;
+}) {
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -57,7 +69,7 @@ export default function BillingActions({ slug, status, currentPlan }: { slug: st
       <div className="grid gap-4 md:grid-cols-3">
         {PLANS.map((p) => {
           const l = PLAN_LIMITS[p];
-          const price = PLAN_PRICE[p];
+          const price = prices[p];
           return (
             <div key={p} className={`rounded-2xl border p-5 ${p === currentPlan ? "border-navy" : "border-gray-200"}`}>
               <h3 className="font-bold text-navy-dark">{price.label}</h3>

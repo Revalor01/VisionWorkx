@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import StartForm from "./StartForm";
 import { selfServeEnabled, SITE_BUILDERS } from "@/lib/modules/selfServe";
-import { PLAN_LIMITS, PLAN_PRICE, TRIAL_DAYS } from "@/lib/modules/plans";
+import { PLAN_LIMITS, TRIAL_DAYS } from "@/lib/modules/plans";
+import { loadDisplayPrices } from "@/lib/modules/pricingFeed";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -12,9 +13,9 @@ export const metadata: Metadata = {
 
 const WAITLIST = "https://products.revalorllc.com/visionworkx/waitlist";
 
-export default function StartPage() {
+export default async function StartPage() {
   const open = selfServeEnabled();
-  const starter = PLAN_PRICE.starter;
+  const starter = (await loadDisplayPrices()).prices.starter;
   const limits = PLAN_LIMITS.starter;
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-12 md:py-16">

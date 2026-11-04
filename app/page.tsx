@@ -5,6 +5,7 @@ import Footer from "@/components/nav/Footer";
 import ModuleForm from "@/components/modules/ModuleForm";
 import { parseFormConfig } from "@/lib/modules/config";
 import { PLAN_LIMITS, PLAN_PRICE, PLANS, TRIAL_DAYS, type ModulePlan } from "@/lib/modules/plans";
+import { loadDisplayPrices } from "@/lib/modules/pricingFeed";
 
 // VisionWorkx marketing page — embeddable modules for the website a business
 // already has. (The old full-app builder is frozen; see docs/full-app-generation-freeze.md.)
@@ -111,7 +112,8 @@ const DEMO_FORM = parseFormConfig({
   ],
 });
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { prices } = await loadDisplayPrices();
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -283,7 +285,7 @@ export default function HomePage() {
           </p>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {PLANS.map((p) => {
-              const price = PLAN_PRICE[p];
+              const price = prices[p];
               const featured = p === "growth";
               return (
                 <article key={p} className={`relative rounded-2xl bg-white p-7 ${featured ? "ring-2 ring-navy shadow-lg" : "ring-1 ring-gray-200"}`}>
