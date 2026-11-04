@@ -29,6 +29,36 @@ Assessments sync unchanged, so field ids in `questions.ts` and the scoring in
 assessment's plan to what the offline `rules.js` produces; if you change the
 rules in one app, change them in the other and regenerate the expected values.
 
+## Custom apparel / merch path
+
+A second assessment path for apparel-decoration / merch businesses, chosen with the
+**Standard | Custom apparel** selector on "+ New assessment". The path is stored in
+`answers.path` (`"apparel"`; a missing value means the standard path), so there is **no
+schema change** and assessments still sync to/from the laptop unchanged.
+
+- **Questionnaire:** `APPAREL_SECTIONS` in `questions.ts` — the shared Business section,
+  then Decoration & production, Sales & storefront, Pricing & artwork and Budget &
+  timeline, then Consultant notes. `sectionsForPath(path)` / `assessmentPath(answers)`
+  pick the set.
+- **Recommendation:** `computeApparelPlan(answers, catalog)` in `rules.ts` scores the
+  answers into Tier 1 (Platform setup) / 2 (Hybrid) / 3 (Full custom), with client-safe
+  reasons and a "what the client must provide" list. It never runs the standard RULES.
+- **Pricing:** the three tiers are priced from the **Apparel** catalog modules (category
+  `"Apparel"`, `phase` = tier), editable in Catalog & pricing like any module.
+  `computePlan` excludes the Apparel category, so the standard plan is unchanged.
+- **Ecosystem:** five apparel capabilities (product designer canvas, supplier feeds,
+  decoration pricing engine, art proof workflow, store platform connection) ship in
+  `ecosystem.default.json`; with no tool providing them they show as gaps.
+- **Screens:** the Build plan and Proposal tabs render the tiers (`ApparelProposal.tsx`,
+  shared with the public `/proposal/<token>` link); the Economics and Website-builder
+  tabs are hidden on this path. Client mode works as on the standard path.
+
+**Laptop parity.** The apparel field ids, the `computeApparelPlan` scoring and the
+Apparel catalog/ecosystem items must be mirrored in the offline app
+(`revalor-needs-analyzer`, Machine B) so assessments sync identically — especially before
+running `--settings` from the laptop, which replaces the online catalog/ecosystem with
+the laptop's.
+
 ## Client link
 
 Proposal tab → **Client link**: *Turn on link*, *Copy link*, *New link* (the old
