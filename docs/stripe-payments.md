@@ -141,6 +141,7 @@ must be on the `@accounts` destination or `payments_status` never flips to
 | `STRIPE_TEST_WEBHOOK_SECRET` | Signing secret of the **sandbox** `visionworkx-connect` webhook. |
 | `PLATFORM_FEE_PERCENT` | Platform's cut of each direct charge, as a percent. `1` = 1%. Unset / 0 = no fee. |
 | `STRIPE_STARTER_PRICE_ID` / `_GROWTH_` / `_PRO_` (+ `_ANNUAL_`) | VisionWorkx's own subscription prices. **Still point at the old account** — recreate on the new one when subscription billing ships (PR #24). |
+| `PRICING_FEED_URL` | Optional override of the revalor-admin pricing feed (default `https://revalor-admin.vercel.app/api/public/pricing/visionworkx`). Displayed plan prices come from the feed (`lib/modules/pricingFeed.ts`, fallback `PLAN_PRICE`), but the live Stripe amount of each `STRIPE_*_PRICE_ID` wins on a mismatch (warning logged). Checkout always charges the Stripe price. |
 | `STRIPE_GUIDED_SESSION_PRICE_ID` | Optional $10 Guided Build Session price. Unset → `/api/guided` uses an inline $10 price (fine). |
 
 The webhook handler (`app/api/webhooks/stripe/route.ts`) verifies each event

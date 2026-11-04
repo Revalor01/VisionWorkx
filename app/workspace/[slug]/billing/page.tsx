@@ -4,6 +4,7 @@ import { currentPeriod, limitsFor, PLAN_PRICE, SUBMISSION_HARD_FACTOR, type Modu
 import { storageBytes, submissionsThisMonth } from "@/lib/modules/usage";
 import { platformFeePercent } from "@/lib/modules/connect";
 import BillingActions from "@/components/modules/BillingActions";
+import { loadDisplayPrices } from "@/lib/modules/pricingFeed";
 import ConnectPaymentsCard from "@/components/modules/ConnectPaymentsCard";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -92,7 +93,7 @@ export default async function WorkspaceBillingPage(props: { params: Promise<{ sl
           </div>
           <span className={`rounded-full px-3 py-1 text-sm font-semibold ${STATUS[status]?.cls ?? ""}`}>{STATUS[status]?.label ?? status}</span>
         </div>
-        {role === "owner" && <BillingActions slug={workspace.slug} status={status} currentPlan={plan} />}
+        {role === "owner" && <BillingActions slug={workspace.slug} status={status} currentPlan={plan} prices={(await loadDisplayPrices()).prices} />}
         {role !== "owner" && status !== "comped" && <p className="mt-4 text-sm text-gray-500">Only workspace owners can change billing.</p>}
       </section>
 
