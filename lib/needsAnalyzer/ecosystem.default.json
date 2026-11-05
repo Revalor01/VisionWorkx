@@ -21,7 +21,12 @@
     { "id": "monitoring", "name": "Uptime & error monitoring", "description": "Know when a client build breaks before they do." },
     { "id": "backups", "name": "Backups", "description": "Automatic, tested backups of client data." },
     { "id": "social", "name": "Social media publishing", "description": "Post and schedule to Facebook, Instagram, TikTok, YouTube." },
-    { "id": "code-hosting", "name": "Source control", "description": "Code repositories and deployment pipeline." }
+    { "id": "code-hosting", "name": "Source control", "description": "Code repositories and deployment pipeline." },
+    { "id": "apparel-designer", "name": "Product designer canvas", "description": "In-browser design tool (text + artwork on products) with live preview and print-ready output. Needed for the custom apparel path." },
+    { "id": "supplier-feeds", "name": "Supplier catalog feeds", "description": "Live blank-goods catalogs, pricing and stock from distributors (SanMar, S&S Activewear, alphabroder)." },
+    { "id": "decoration-pricing", "name": "Decoration pricing engine", "description": "Quantity breaks, per-print-location and per-color decoration pricing behind quotes and the store." },
+    { "id": "art-proof", "name": "Art proof workflow", "description": "Collect artwork, clean it up, send proofs and capture customer approval before production." },
+    { "id": "store-platform", "name": "Store platform connection", "description": "A storefront/decoration platform (Shopify, DecoNetwork, InkSoft) the apparel path configures or connects to." }
   ],
   "tools": [
     { "id": "vercel", "name": "Vercel", "type": "Hosting", "status": "In use", "usedBy": ["Revalor Admin", "VisionWorkx"], "provides": ["hosting"], "notes": "Admin runs at vision-workx.vercel.app/admin." },

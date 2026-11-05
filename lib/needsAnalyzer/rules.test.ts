@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CATALOG, DEFAULT_ECOSYSTEM } from "./defaults";
 import demo from "./demo-plumbing.json";
-import { computePlan, situation } from "./rules";
+import { assessmentPath, sectionsForPath } from "./questions";
+import { computeApparelPlan, computePlan, situation } from "./rules";
 import type { Answers } from "./types";
 
 // Expected values were produced by the offline app's own public/rules.js on the same
@@ -293,5 +294,73 @@ describe("needs analyzer rules (parity with the offline app)", () => {
     expect(p.items.find((i) => i.id === "custom-x")?.phase).toBe(2);
     expect(p.setupGross).toBe(EXPECTED.summary.setupGross - 5000 - 150 + 1000);
     expect(p.discount).toBe(Math.round(p.setupGross * 0.1));
+  });
+
+  it("leaves apparel modules out of the standard plan entirely", () => {
+    expect(plan.all.some((m) => m.category === "Apparel")).toBe(false);
+    expect(plan.items.some((i) => i.id.startsWith("ap-"))).toBe(false);
+  });
+});
+
+describe("custom apparel path", () => {
+  it("reads the path from answers and picks the right sections", () => {
+    expect(assessmentPath({})).toBe("standard");
+    expect(assessmentPath({ path: "apparel" })).toBe("apparel");
+    expect(sectionsForPath("standard")).toBe(sectionsForPath("standard"));
+    const ap = sectionsForPath("apparel").map((s) => s.id);
+    expect(ap).toContain("business");
+    expect(ap).toContain("apparel-decoration");
+    expect(ap).toContain("notes");
+    expect(sectionsForPath("apparel").some((s) => s.id === "scheduling")).toBe(false);
+  });
+
+  it("always returns three tiers, each priced from the Apparel catalog by phase", () => {
+    const plan = computeApparelPlan({}, DEFAULT_CATALOG);
+    expect(plan.tiers.map((t) => t.tier)).toEqual([1, 2, 3]);
+    expect(plan.tiers.every((t) => t.items.length >= 1)).toBe(true);
+    const t1 = plan.tiers[0];
+    expect(t1.setup).toBe(t1.items.reduce((s, i) => s + i.setup, 0));
+    // Phase-1 apparel items in the default catalog: ap-platform + ap-platform-launch.
+    expect(t1.setup).toBe(2000);
+    expect(plan.tiers[1].monthly).toBe(77);
+    expect(plan.tiers[2].setup).toBe(13500);
+  });
+
+  it("recommends Tier 1 for a simple, low-volume shop", () => {
+    const plan = computeApparelPlan(
+      { apDesignerNeed: "None", apPricingComplexity: [], apSuppliers: ["None"], apOrderVolume: 5, apSalesModel: ["Public storefront"], apDecoration: "Outsourced" },
+      DEFAULT_CATALOG,
+    );
+    expect(plan.recommendedTier).toBe(1);
+    expect(plan.tiers.find((t) => t.tier === 1)?.recommended).toBe(true);
+    expect(plan.tiers.filter((t) => t.recommended)).toHaveLength(1);
+    expect(plan.reasons.length).toBeGreaterThan(0);
+    expect(plan.clientMustProvide.some((x) => /decorator|print partner/i.test(x))).toBe(true);
+    expect(plan.clientMustProvide.some((x) => /artwork/i.test(x))).toBe(true);
+  });
+
+  it("recommends Tier 2 for a mid-complexity hybrid", () => {
+    const plan = computeApparelPlan(
+      { apDesignerNeed: "Logo upload only", apPricingComplexity: ["Quantity tiers", "Print locations"], apSuppliers: ["None"], apOrderVolume: 30, apSalesModel: ["Public storefront"], apDecoration: "Outsourced" },
+      DEFAULT_CATALOG,
+    );
+    expect(plan.recommendedTier).toBe(2);
+  });
+
+  it("recommends Tier 3 for a complex, high-volume B2B decorator", () => {
+    const plan = computeApparelPlan(
+      {
+        apDesignerNeed: "Full designer",
+        apPricingComplexity: ["Quantity tiers", "Print locations", "Color counts"],
+        apSuppliers: ["SanMar", "S&S Activewear"],
+        apOrderVolume: 150,
+        apSalesModel: ["Repeat B2B", "Team / corporate stores"],
+        apDecoration: "In-house",
+      },
+      DEFAULT_CATALOG,
+    );
+    expect(plan.recommendedTier).toBe(3);
+    expect(plan.clientMustProvide.some((x) => /SanMar/i.test(x))).toBe(true);
+    expect(plan.clientMustProvide.some((x) => /pricing rules/i.test(x))).toBe(true);
   });
 });

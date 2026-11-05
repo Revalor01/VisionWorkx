@@ -3,7 +3,7 @@
 // Ported from the offline Needs Analyzer (revalor-needs-analyzer/public/rules.js);
 // the scoring must stay identical so an assessment gives the same plan in both apps
 // (rules.test.ts pins the sample assessment's plan).
-import type { Answers, Assessment, Catalog, CatalogModule, CustomItem, EcoTool, Ecosystem } from "./types";
+import type { Answers, ApparelPlan, ApparelTier, ApparelTierItem, Assessment, Catalog, CatalogModule, CustomItem, EcoTool, Ecosystem } from "./types";
 
 export const WIDGETS = ["vw-lead", "vw-booking", "vw-quote", "vw-intake"];
 
@@ -272,7 +272,9 @@ export function computePlan(assessment: Pick<Assessment, "answers" | "overrides"
   const h = helpers(A);
 
   const all: ScoredModule[] = catalog.modules
-    .filter((m) => m.active !== false)
+    // "Apparel" modules belong to the custom-apparel path (computeApparelPlan), not the
+    // standard module scoring. Excluded here so the standard plan is unchanged.
+    .filter((m) => m.active !== false && m.category !== "Apparel")
     .map((m) => {
       const sc = scoreModule(m, A);
       return { ...m, ...sc, recommended: sc.score >= threshold };
@@ -472,4 +474,117 @@ export function ecoCoverage(catalog: Catalog, eco: Ecosystem) {
       return { ...c, ...st, modules };
     })
     .filter((c) => c.modules.length || c.tools.length);
+}
+
+// ── Custom apparel / merch path ─────────────────────────────────────────────
+// The apparel path scores the apparel answers into one of three delivery tiers
+// and prices each tier from the "Apparel" catalog modules (grouped by phase = tier).
+// It never runs the RULES engine above, so the standard plan is unaffected. Keep
+// this scoring in step with the offline app.
+
+const APPAREL_TIERS: { tier: 1 | 2 | 3; name: string; blurb: string }[] = [
+  { tier: 1, name: "Platform setup", blurb: "An off-the-shelf decoration platform (DecoNetwork, InkSoft, or Shopify with a designer app), set up in the client's own account." },
+  { tier: 2, name: "Hybrid", blurb: "A standard store plus VisionWorkx modules — a decoration quote calculator, bulk-order intake with logo upload, and a lead & booking dashboard." },
+  { tier: 3, name: "Full custom", blurb: "A custom storefront: an in-browser product designer, a decoration pricing engine, supplier catalog feeds and an order admin." },
+];
+
+const APPAREL_DISTRIBUTORS = ["SanMar", "S&S Activewear", "alphabroder"];
+
+const apInList = (A: Answers, k: string, v: string) => ((A[k] as string[] | undefined) || []).includes(v);
+
+/** Scores the apparel questionnaire into a delivery tier (1–3) with client-safe reasons. */
+function scoreApparel(A: Answers): { tier: 1 | 2 | 3; reasons: string[] } {
+  const reasons: string[] = [];
+  let score = 0;
+
+  if (A.apDesignerNeed === "Full designer") {
+    score += 3;
+    reasons.push("They need a full online product designer, which only a custom build provides.");
+  } else if (A.apDesignerNeed === "Logo upload only") {
+    score += 1;
+    reasons.push("Customers upload a logo rather than design freely — a platform's designer app covers this.");
+  }
+
+  const dims = ["Quantity tiers", "Print locations", "Color counts"].filter((d) => apInList(A, "apPricingComplexity", d));
+  if (dims.length >= 3) {
+    score += 3;
+    reasons.push("Pricing varies by quantity, print location and color count — that needs a real pricing engine.");
+  } else if (dims.length === 2) {
+    score += 2;
+    reasons.push(`Pricing depends on ${dims.map((d) => d.toLowerCase()).join(" and ")}.`);
+  } else if (dims.length === 1) {
+    score += 1;
+    reasons.push(`Pricing depends on ${dims[0].toLowerCase()}.`);
+  }
+
+  const distributors = APPAREL_DISTRIBUTORS.filter((d) => apInList(A, "apSuppliers", d));
+  if (distributors.length) {
+    score += 2;
+    reasons.push(`They order blanks from distributor catalogs (${distributors.join(", ")}), which suits live supplier feeds.`);
+  }
+
+  const vol = Number(A.apOrderVolume) || 0;
+  if (vol >= 100) {
+    score += 3;
+    reasons.push(`About ${vol} orders a month is high enough to justify custom tooling.`);
+  } else if (vol >= 25) {
+    score += 2;
+    reasons.push(`About ${vol} orders a month is more than a basic storefront handles comfortably.`);
+  }
+
+  if (apInList(A, "apSalesModel", "Team / corporate stores")) {
+    score += 2;
+    reasons.push("They run team or corporate stores, which need their own per-group storefronts.");
+  }
+  if (apInList(A, "apSalesModel", "Repeat B2B")) {
+    score += 2;
+    reasons.push("Repeat B2B ordering benefits from saved accounts and quick reorders.");
+  }
+
+  if (A.apDecoration === "In-house" || A.apDecoration === "Both") {
+    score += 1;
+    reasons.push("Decorating in-house adds production steps worth tracking in the system.");
+  }
+
+  const tier: 1 | 2 | 3 = score >= 7 ? 3 : score >= 3 ? 2 : 1;
+  if (!reasons.length) reasons.push("No complex pricing, suppliers or designer needs — an off-the-shelf platform is the fastest, cheapest path.");
+  return { tier, reasons };
+}
+
+/** "What the client must provide" for an apparel build (client-safe). */
+function apparelMustProvide(A: Answers): string[] {
+  const must: string[] = [];
+  const distributors = APPAREL_DISTRIBUTORS.filter((d) => apInList(A, "apSuppliers", d));
+  if (distributors.length) must.push(`Supplier/distributor account logins (${distributors.join(", ")}).`);
+  if (A.apDecoration === "Outsourced" || A.apDecoration === "None yet") must.push("A decorator or print partner to produce the orders.");
+  if (["Quantity tiers", "Print locations", "Color counts"].some((d) => apInList(A, "apPricingComplexity", d)))
+    must.push("Their decoration pricing rules (quantity breaks, per-location and per-color charges).");
+  must.push("Artwork and logo files, and who signs off on proofs.");
+  return must;
+}
+
+/** Builds the three-tier apparel plan: each tier priced from the "Apparel" catalog
+ * modules (grouped by phase = tier), the recommended tier flagged, and the reasons
+ * for it. Separate from computePlan — the apparel path never runs the RULES engine. */
+export function computeApparelPlan(answers: Answers, catalog: Catalog): ApparelPlan {
+  const A = answers || {};
+  const modules = (catalog.modules || []).filter((m) => m.active !== false && m.category === "Apparel");
+  const { tier: recommendedTier, reasons } = scoreApparel(A);
+
+  const tiers: ApparelTier[] = APPAREL_TIERS.map(({ tier, name, blurb }) => {
+    const items: ApparelTierItem[] = modules
+      .filter((m) => m.phase === tier)
+      .map((m) => ({ id: m.id, name: m.name, description: m.description, setup: Number(m.setup) || 0, monthly: Number(m.monthly) || 0 }));
+    return {
+      tier,
+      name,
+      blurb,
+      items,
+      setup: items.reduce((sum, i) => sum + i.setup, 0),
+      monthly: items.reduce((sum, i) => sum + i.monthly, 0),
+      recommended: tier === recommendedTier,
+    };
+  });
+
+  return { tiers, recommendedTier, reasons, clientMustProvide: apparelMustProvide(A) };
 }

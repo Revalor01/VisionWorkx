@@ -4,12 +4,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { logoUrl, moduleLogoSlot } from "@/lib/needsAnalyzer/brand";
-import { SECTIONS, type Field } from "@/lib/needsAnalyzer/questions";
-import { computePlan, situation, type Plan, type PlanItem, type ScoredModule } from "@/lib/needsAnalyzer/rules";
-import { STATUSES, type Assessment, type Catalog, type Ecosystem, type Overrides, type WebsiteBuild } from "@/lib/needsAnalyzer/types";
+import { assessmentPath, sectionsForPath, type Field } from "@/lib/needsAnalyzer/questions";
+import { computeApparelPlan, computePlan, ecoCoverage, situation, type Plan, type PlanItem, type ScoredModule } from "@/lib/needsAnalyzer/rules";
+import { STATUSES, type ApparelPlan, type AssessmentPath, type Assessment, type Catalog, type Ecosystem, type Overrides, type WebsiteBuild } from "@/lib/needsAnalyzer/types";
 import { fmtDate } from "@/lib/needsAnalyzer/format";
 import { proposalFindings, type SiteCheck } from "@/lib/needsAnalyzer/siteChecks";
 import { Proposal } from "./Proposal";
+import { ApparelProposal } from "./ApparelProposal";
 import EconomicsPanel from "./EconomicsPanel";
 import WebsiteBuilder from "./WebsiteBuilder";
 import {
@@ -46,8 +47,9 @@ interface Props {
 }
 
 export default function Workspace(props: Props) {
+  const path = assessmentPath(props.initial.answers);
   const [tab, setTab] = useState<Tab>(TABS.includes(props.initialTab as Tab) ? (props.initialTab as Tab) : "q");
-  const [section, setSection] = useState(props.initialSection ?? SECTIONS[0].id);
+  const [section, setSection] = useState(props.initialSection ?? "business");
 
   const go = useCallback((t: Tab, s?: string) => {
     setTab(t);
@@ -60,7 +62,9 @@ export default function Workspace(props: Props) {
     window.scrollTo(0, 0);
   }, []);
 
-  const items: NavItem[] = [
+  // Economics and the Website builder are standard-path tools; the apparel path has
+  // its own tier pricing and no website runbook, so they're left out of its nav.
+  const allItems: NavItem[] = [
     { key: "q", label: "Questionnaire", onClick: () => go("q") },
     { key: "plan", label: "Build plan", onClick: () => go("plan") },
     { key: "proposal", label: "Proposal", onClick: () => go("proposal") },
@@ -68,6 +72,8 @@ export default function Workspace(props: Props) {
     { key: "builder", label: "Website builder", onClick: () => go("builder"), internal: true },
     { key: "internal", label: "Internal notes", onClick: () => go("internal"), internal: true },
   ];
+  const hideForApparel = new Set(["economics", "builder"]);
+  const items = path === "apparel" ? allItems.filter((it) => !hideForApparel.has(it.key)) : allItems;
 
   return (
     <NaShell active={tab} items={items}>
@@ -135,18 +141,31 @@ function Body({
   // Save straight away when switching tabs, like the offline app does on navigation.
   useEffect(() => flush(), [tab, flush]);
 
-  // Internal notes and the website builder aren't reachable in client mode.
-  const view = clientMode && (tab === "internal" || tab === "builder" || tab === "economics") ? "plan" : tab;
+  const path = assessmentPath(a.answers);
+  // Internal notes, Economics and the Website builder aren't reachable in client mode;
+  // the apparel path has no Economics or Website-builder tab at all.
+  const view =
+    (clientMode && (tab === "internal" || tab === "builder" || tab === "economics")) || (path === "apparel" && (tab === "builder" || tab === "economics"))
+      ? "plan"
+      : tab;
   const plan = useMemo(() => computePlan(a, catalog, ecosystem), [a, catalog, ecosystem]);
+  const apparelPlan = useMemo(() => computeApparelPlan(a.answers, catalog), [a.answers, catalog]);
   const title = String(a.answers.bizName || "") || "New assessment";
 
   return (
     <>
       {view === "q" && (
-        <Questionnaire a={a} update={update} section={section} go={go} title={title} saveState={saveState} latestCheck={latestCheck} flush={flush} />
+        <Questionnaire a={a} path={path} update={update} section={section} go={go} title={title} saveState={saveState} latestCheck={latestCheck} flush={flush} />
       )}
-      {view === "plan" && <PlanView a={a} plan={plan} catalog={catalog} update={update} go={go} saveState={saveState} />}
-      {view === "proposal" && <ProposalTab a={a} patchLocal={patchLocal} plan={plan} catalog={catalog} go={go} proposalCheck={proposalCheck} />}
+      {view === "plan" &&
+        (path === "apparel" ? (
+          <ApparelPlanView a={a} apparelPlan={apparelPlan} catalog={catalog} go={go} />
+        ) : (
+          <PlanView a={a} plan={plan} catalog={catalog} update={update} go={go} saveState={saveState} />
+        ))}
+      {view === "proposal" && (
+        <ProposalTab a={a} patchLocal={patchLocal} plan={plan} apparelPlan={apparelPlan} path={path} catalog={catalog} go={go} proposalCheck={proposalCheck} />
+      )}
       {view === "economics" && (
         <>
           <h1 className="text-2xl font-bold text-zinc-900">Economics — {title}</h1>
@@ -162,7 +181,12 @@ function Body({
         </>
       )}
       {view === "builder" && <WebsiteBuilder wb={a.overrides?.websiteBuild || {}} setWb={setWb} catalog={catalog} go={go} saveState={saveState} />}
-      {view === "internal" && <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} />}
+      {view === "internal" &&
+        (path === "apparel" ? (
+          <ApparelInternalView a={a} apparelPlan={apparelPlan} ecosystem={ecosystem} catalog={catalog} />
+        ) : (
+          <InternalView a={a} plan={plan} catalog={catalog} go={go} latestCheck={latestCheck} />
+        ))}
     </>
   );
 }
@@ -173,6 +197,7 @@ const answered = (v: unknown) => v !== undefined && v !== "" && !(Array.isArray(
 
 function Questionnaire({
   a,
+  path,
   update,
   section,
   go,
@@ -182,6 +207,7 @@ function Questionnaire({
   flush,
 }: {
   a: Assessment;
+  path: AssessmentPath;
   update: (fn: (p: Assessment) => Assessment) => void;
   section: string;
   go: (t: Tab, s?: string) => void;
@@ -191,7 +217,7 @@ function Questionnaire({
   flush: () => void;
 }) {
   const { on: clientMode } = useClientMode();
-  const secs = SECTIONS.filter((s) => !(s.internal && clientMode));
+  const secs = sectionsForPath(path).filter((s) => !(s.internal && clientMode));
   const sec = secs.find((s) => s.id === section) || secs[0];
   const idx = secs.indexOf(sec);
   const A = a.answers;
@@ -634,6 +660,8 @@ function ProposalTab({
   a,
   patchLocal,
   plan,
+  apparelPlan,
+  path,
   catalog,
   go,
   proposalCheck,
@@ -641,6 +669,8 @@ function ProposalTab({
   a: Assessment;
   patchLocal: (patch: Partial<Assessment>) => void;
   plan: Plan;
+  apparelPlan: ApparelPlan;
+  path: AssessmentPath;
   catalog: Catalog;
   go: (t: Tab) => void;
   proposalCheck: SiteCheck | null;
@@ -720,7 +750,167 @@ function ProposalTab({
           )}
         </div>
       )}
-      <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} monthlyDiscountPct={a.overrides?.monthlyDiscountPct} />
+      {path === "apparel" ? (
+        <ApparelProposal answers={a.answers} plan={apparelPlan} catalog={catalog} prepared={a.updatedAt} />
+      ) : (
+        <Proposal answers={a.answers} plan={plan} catalog={catalog} prepared={a.updatedAt} siteFindings={proposalFindings(proposalCheck)} websiteBuild={a.overrides?.websiteBuild} monthlyDiscountPct={a.overrides?.monthlyDiscountPct} />
+      )}
+    </>
+  );
+}
+
+// ---------- apparel build plan & internal (operator views) ----------
+
+function ApparelPlanView({
+  a,
+  apparelPlan: P,
+  catalog,
+  go,
+}: {
+  a: Assessment;
+  apparelPlan: ApparelPlan;
+  catalog: Catalog;
+  go: (t: Tab) => void;
+}) {
+  const m = moneyFmt(catalog);
+  const title = String(a.answers.bizName || "") || "New assessment";
+  const recommended = P.tiers.find((t) => t.recommended);
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Build plan — {title}</h1>
+          <p className="text-sm text-zinc-500">Custom apparel / merch. Tier prices come from the Apparel items in Catalog &amp; pricing.</p>
+        </div>
+        <button type="button" className={BTN_PRIMARY} onClick={() => go("proposal")}>
+          See proposal →
+        </button>
+      </div>
+
+      {recommended && (
+        <div className={`${CARD} border-l-4 border-[#b7862b]`}>
+          <h3 className="font-semibold text-zinc-900">
+            Recommended: Tier {recommended.tier} — {recommended.name}
+          </h3>
+          <p className="mt-1 text-sm text-zinc-600">{recommended.blurb}</p>
+          {P.reasons.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+              {P.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {P.tiers.map((t) => (
+          <div key={t.tier} className={`${CARD} ${t.recommended ? "ring-2 ring-[#b7862b]" : ""}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-zinc-900">Tier {t.tier}</h3>
+              {t.recommended && <Badge tone="accent">Recommended</Badge>}
+            </div>
+            <div className="text-sm font-medium text-zinc-700">{t.name}</div>
+            <p className="mt-1 text-xs text-zinc-500">{t.blurb}</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              {t.items.map((i) => (
+                <li key={i.id} className="flex justify-between gap-2">
+                  <span className="text-zinc-700">{i.name}</span>
+                  <span className="whitespace-nowrap text-zinc-500">
+                    {i.setup ? m(i.setup) : "—"}
+                    {i.monthly ? ` · ${m(i.monthly)}/mo` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 border-t border-zinc-200 pt-2 text-sm font-semibold text-zinc-900">
+              {m(t.setup)} setup{t.monthly ? ` · ${m(t.monthly)}/mo` : ""}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {P.clientMustProvide.length > 0 && (
+        <div className={CARD}>
+          <h3 className="font-semibold text-zinc-900">What the client must provide</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+            {P.clientMustProvide.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
+
+const APPAREL_NOTE_LABELS: Record<string, string> = {
+  siteObservations: "Website observations",
+  redFlags: "Red flags / risks",
+  consultantNotes: "Other notes",
+};
+
+function ApparelInternalView({
+  a,
+  apparelPlan: P,
+  ecosystem,
+  catalog,
+}: {
+  a: Assessment;
+  apparelPlan: ApparelPlan;
+  ecosystem: Ecosystem;
+  catalog: Catalog;
+}) {
+  const gaps = ecoCoverage(catalog, ecosystem).filter((c) => c.status !== "ready");
+  const notes = (["siteObservations", "redFlags", "consultantNotes"] as const)
+    .map((k) => [k, String(a.answers[k] || "")] as const)
+    .filter(([, v]) => v);
+  const recommended = P.tiers.find((t) => t.recommended);
+  return (
+    <>
+      <h1 className="text-2xl font-bold text-zinc-900">Internal notes</h1>
+      <p className="mb-2 text-sm text-zinc-500">Private to you. Hidden in Client mode and never on the proposal.</p>
+
+      {recommended && (
+        <div className={CARD}>
+          <h3 className="font-semibold text-zinc-900">Why Tier {recommended.tier} — {recommended.name}</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700">
+            {P.reasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {gaps.length > 0 && (
+        <div className={CARD}>
+          <h3 className="font-semibold text-zinc-900">Ecosystem gaps</h3>
+          <p className="mt-1 text-sm text-zinc-500">Capabilities the apparel modules depend on that aren&apos;t confirmed in the stack yet.</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {gaps.map((g) => (
+              <Badge key={g.id} tone={g.status === "gap" ? "bad" : "warn"}>
+                {g.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className={CARD}>
+        <h3 className="font-semibold text-zinc-900">Consultant notes</h3>
+        {notes.length ? (
+          <dl className="mt-2 space-y-2 text-sm">
+            {notes.map(([k, v]) => (
+              <div key={k}>
+                <dt className="font-medium text-zinc-700">{APPAREL_NOTE_LABELS[k] || k}</dt>
+                <dd className="whitespace-pre-wrap text-zinc-600">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mt-1 text-sm text-zinc-500">No notes yet — add them in the Consultant notes section of the questionnaire.</p>
+        )}
+      </div>
     </>
   );
 }

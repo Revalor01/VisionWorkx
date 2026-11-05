@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { fmtDate } from "@/lib/needsAnalyzer/format";
 import { ecoCoverage } from "@/lib/needsAnalyzer/rules";
-import type { AssessmentSummary, Catalog, Ecosystem } from "@/lib/needsAnalyzer/types";
-import { api, Badge, BTN, BTN_DANGER, BTN_PRIMARY, CARD, NaShell, statusTone, useClientMode, useToast } from "./ui";
+import type { AssessmentPath, AssessmentSummary, Catalog, Ecosystem } from "@/lib/needsAnalyzer/types";
+import { api, Badge, BTN, BTN_DANGER, BTN_PRIMARY, CARD, INPUT, NaShell, statusTone, useClientMode, useToast } from "./ui";
 
 export default function Home(props: { initial: AssessmentSummary[]; catalog: Catalog; ecosystem: Ecosystem }) {
   return (
@@ -22,12 +22,16 @@ function HomeBody({ initial, catalog, ecosystem }: { initial: AssessmentSummary[
   const { on: clientMode } = useClientMode();
   const [list, setList] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [path, setPath] = useState<AssessmentPath>("standard");
   const gaps = ecoCoverage(catalog, ecosystem).filter((c) => c.status !== "ready");
 
   async function create() {
     setBusy(true);
     try {
-      const { id } = await api<{ id: string }>("POST", "/api/admin/needs-analyzer/assessments");
+      // The standard path starts blank; the apparel path records its path up front so
+      // the apparel questionnaire and recommendation show from the first screen.
+      const body = path === "apparel" ? { answers: { path } } : undefined;
+      const { id } = await api<{ id: string }>("POST", "/api/admin/needs-analyzer/assessments", body);
       router.push(`/admin/needs-analyzer/${id}`);
     } catch (e) {
       toast((e as Error).message);
@@ -55,9 +59,24 @@ function HomeBody({ initial, catalog, ecosystem }: { initial: AssessmentSummary[
           <h1 className="text-2xl font-bold text-zinc-900">Assessments</h1>
           <p className="text-sm text-zinc-500">Each business you meet gets a questionnaire, a build plan and a proposal.</p>
         </div>
-        <button type="button" className={BTN_PRIMARY} onClick={create} disabled={busy}>
-          {busy ? "Creating…" : "+ New assessment"}
-        </button>
+        <div className="flex items-end gap-2">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs uppercase tracking-wide text-zinc-500">Path</span>
+            <select
+              className={`${INPUT} w-auto`}
+              value={path}
+              aria-label="Assessment path"
+              disabled={busy}
+              onChange={(e) => setPath(e.target.value as AssessmentPath)}
+            >
+              <option value="standard">Standard</option>
+              <option value="apparel">Custom apparel / merch</option>
+            </select>
+          </label>
+          <button type="button" className={BTN_PRIMARY} onClick={create} disabled={busy}>
+            {busy ? "Creating…" : "+ New assessment"}
+          </button>
+        </div>
       </div>
 
       <div className={CARD}>

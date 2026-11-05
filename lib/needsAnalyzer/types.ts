@@ -86,6 +86,11 @@ export interface Overrides {
 
 export const STATUSES = ["Draft", "Proposal sent", "Won", "Lost"] as const;
 
+/** Which questionnaire + recommendation an assessment uses. Stored in `answers.path`
+ * (free-form JSON, so no migration and it syncs to the laptop unchanged); a missing
+ * value means the original "standard" path. */
+export type AssessmentPath = "standard" | "apparel";
+
 export interface Assessment {
   id: string;
   status: string;
@@ -109,7 +114,7 @@ export interface AssessmentSummary {
   fromOffline: boolean;
 }
 
-export const CATEGORIES = ["VisionWorkx", "Automation", "Revalor Product", "Custom Build", "Service"] as const;
+export const CATEGORIES = ["VisionWorkx", "Automation", "Revalor Product", "Custom Build", "Service", "Apparel"] as const;
 
 export interface CatalogModule {
   id: string;
@@ -177,4 +182,38 @@ export interface Ecosystem {
   _readme?: string;
   capabilities: Capability[];
   tools: EcoTool[];
+}
+
+// ── Custom apparel / merch path ─────────────────────────────────────────────
+// A second assessment path for decoration/merch businesses. It scores the apparel
+// answers into one of three delivery tiers and prices each from the "Apparel"
+// catalog modules (grouped by `phase` = tier). Kept separate from the standard
+// module-scoring engine (computePlan); the apparel plan never runs the RULES.
+
+export interface ApparelTierItem {
+  id: string;
+  name: string;
+  description: string;
+  setup: number;
+  monthly: number;
+}
+
+export interface ApparelTier {
+  /** 1 = Platform setup, 2 = Hybrid, 3 = Full custom. */
+  tier: 1 | 2 | 3;
+  name: string;
+  blurb: string;
+  items: ApparelTierItem[];
+  setup: number;
+  monthly: number;
+  recommended: boolean;
+}
+
+export interface ApparelPlan {
+  tiers: ApparelTier[];
+  recommendedTier: 1 | 2 | 3;
+  /** Plain-English reasons the recommended tier was chosen (client-safe). */
+  reasons: string[];
+  /** "What the client must provide" for the build to proceed (client-safe). */
+  clientMustProvide: string[];
 }
