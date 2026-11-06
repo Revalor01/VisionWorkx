@@ -149,7 +149,8 @@ export async function scheduleForRenaissance(service: Service, req: ScheduleRequ
       generated_by: "autonomous",
       status: scheduled ? (videoAssetId ? "approved" : decision.status) : "draft",
       scheduled_at: scheduled ? req.scheduledAt : null,
-      auto_image: scheduled && req.platform === "instagram",
+      // Instagram always needs an image; a Facebook post gets one when Renaissance asked (the image cron adds it before the slot, else it posts as text).
+      auto_image: scheduled && !videoAssetId && (req.platform === "instagram" || (req.platform === "facebook" && req.autoImage)),
       video_asset_id: videoAssetId,
     })
     .select("id")

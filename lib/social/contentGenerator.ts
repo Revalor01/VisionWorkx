@@ -39,8 +39,12 @@ export async function generateContentCalendar(params: {
   // e.g. TikTok posts need to be voiced as a different brand than the one
   // that owns the rest of this batch. See connectedPlatforms.tiktokContentOverride.
   platformOverrides?: Partial<Record<SocialPlatform, { brandName: string; voiceNotes: string | null }>>;
+  // Products a live Renaissance campaign covers: their display names (told to the model to avoid)…
+  avoidProducts?: string[];
+  // …and the brand's covered product keys (dropped from the product facts).
+  excludeProducts?: string[];
 }): Promise<GeneratedPost[]> {
-  const { brandName, voiceNotes, platforms, postCount, topics, platformOverrides } = params;
+  const { brandName, voiceNotes, platforms, postCount, topics, platformOverrides, avoidProducts, excludeProducts } = params;
   const count = Math.min(postCount, MAX_POSTS_PER_CALL);
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -54,13 +58,15 @@ export async function generateContentCalendar(params: {
         .join("\n")
     : "";
 
-  const productFacts = productFactsForBrand(brandName);
+  const productFacts = productFactsForBrand(brandName, excludeProducts ?? []);
+  // Products a Renaissance campaign is promoting right now — that campaign posts about them, so these posts don't.
+  const avoidNote = avoidProducts?.length ? `Do NOT write about ${avoidProducts.join(", ")} — a separate campaign is covering ${avoidProducts.length === 1 ? "it" : "them"} right now. Write about the brand's other products or general topics instead.` : "";
   const quizCta = aiQuizCtaInstruction(brandName);
 
   const userPrompt = `Brand: ${brandName}
 Voice notes: ${voiceNotes || "(none provided — use a confident, clear, founder-built tone)"}
 ${productFacts ? `Current product facts for ${brandName} (source of truth — from products.revalorllc.com):\n${productFacts}\n` : ""}Platforms to generate for: ${platforms.join(", ")}
-${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}${quizCta ? `${quizCta}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
+${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}${quizCta ? `${quizCta}\n` : ""}${avoidNote ? `${avoidNote}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
