@@ -76,7 +76,7 @@ describe("buildContentVideoPrompt", () => {
 describe("weeklyPlatforms", () => {
   const kids = brandMediaPolicy("Revalor Kids");
   it("Revalor Kids: 1 image post per platform per week, Facebook + Instagram only", () => {
-    expect(kids.weeklyAutopilot).toEqual({ postsPerWeek: 1, media: "image", platforms: ["facebook", "instagram"] });
+    expect(kids.weeklyAutopilot).toEqual({ postsPerWeek: 1, media: "image", platforms: ["facebook", "instagram"], perProduct: true });
     expect(weeklyPlatforms(kids, ["facebook", "instagram", "tiktok"], {})).toEqual(["facebook", "instagram"]);
     expect(weeklyPlatforms(kids, ["facebook", "instagram"], { facebook: 1 })).toEqual(["instagram"]);
     expect(weeklyPlatforms(kids, ["facebook", "instagram"], { facebook: 1, instagram: 1 })).toEqual([]);

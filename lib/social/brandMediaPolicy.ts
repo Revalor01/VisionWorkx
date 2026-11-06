@@ -23,15 +23,16 @@ export interface BrandMediaPolicy {
   maxVideosPerWeek: number;
   /**
    * Optional weekly cadence for Social's own daily autopilot (cron social-generate):
-   * at most `postsPerWeek` posts per platform in any 7 days, only on `platforms`,
+   * at most `postsPerWeek` posts per platform in any 7 days (per app when
+   * `perProduct` — see lib/social/weeklyAutopilot), only on `platforms`,
    * each carrying an automatic image (never video) — the post waits as "approved"
    * until its image exists, then becomes scheduled.
    */
-  weeklyAutopilot?: { postsPerWeek: number; media: "image"; platforms: ("facebook" | "instagram")[] };
+  weeklyAutopilot?: { postsPerWeek: number; media: "image"; platforms: ("facebook" | "instagram")[]; perProduct?: boolean };
 }
 
 const POLICIES: Record<string, BrandMediaPolicy> = {
-  "Revalor Kids": { audience: "kids", videoStyle: "kids", imageFirst: true, maxVideosPerWeek: 1, weeklyAutopilot: { postsPerWeek: 1, media: "image", platforms: ["facebook", "instagram"] } },
+  "Revalor Kids": { audience: "kids", videoStyle: "kids", imageFirst: true, maxVideosPerWeek: 1, weeklyAutopilot: { postsPerWeek: 1, media: "image", platforms: ["facebook", "instagram"], perProduct: true } },
   "Revalor Wellness": { audience: "business", videoStyle: "wellness", imageFirst: false, maxVideosPerWeek: Number.POSITIVE_INFINITY },
 };
 
