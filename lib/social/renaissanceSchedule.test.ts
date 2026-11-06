@@ -4,7 +4,7 @@ import { decideSchedule, linkAllowed, parseScheduleRequest, type ScheduleRequest
 const now = new Date("2026-10-24T12:00:00Z");
 const BRAND = "11111111-1111-4111-8111-111111111111";
 const body = (o: Record<string, unknown> = {}) => ({ brandId: BRAND, platform: "facebook", caption: "Hello there", hashtags: ["ai", "bad tag"], scheduledAt: "2026-10-25T14:00:00Z", riskLevel: "low", ...o });
-const req = (o: Partial<ScheduleRequest> = {}): ScheduleRequest => ({ brandId: BRAND, platform: "facebook", hook: null, caption: "Hello there", hashtags: [], linkUrl: null, scheduledAt: "2026-10-25T14:00:00Z", riskLevel: "low", autoImage: false, ...o });
+const req = (o: Partial<ScheduleRequest> = {}): ScheduleRequest => ({ brandId: BRAND, platform: "facebook", hook: null, caption: "Hello there", hashtags: [], linkUrl: null, scheduledAt: "2026-10-25T14:00:00Z", riskLevel: "low", autoImage: false, heroVideo: false, ...o });
 const brand = (o: Record<string, unknown> = {}) => ({ name: "Revalor LLC", banned_words: ["guarantee"], autonomy_paused_at: null, autonomy_mode: "semi_autonomous" as const, website_url: "https://proactive.revalorllc.com", ...o });
 
 describe("parseScheduleRequest", () => {
@@ -21,6 +21,12 @@ describe("parseScheduleRequest", () => {
     expect(parseScheduleRequest(body({ platform: "tiktok" }), now).ok).toBe(false);
     const r = parseScheduleRequest(body({ linkUrl: "http://x.com" }), now);
     expect(r.ok && r.req.linkUrl).toBeNull();
+  });
+  it("reads the hero-video request (off unless exactly true)", () => {
+    const on = parseScheduleRequest(body({ heroVideo: true }), now);
+    const off = parseScheduleRequest(body({ heroVideo: "yes" }), now);
+    expect(on.ok && on.req.heroVideo).toBe(true);
+    expect(off.ok && off.req.heroVideo).toBe(false);
   });
   it("treats an unrated post as medium risk", () => {
     const r = parseScheduleRequest(body({ riskLevel: undefined }), now);

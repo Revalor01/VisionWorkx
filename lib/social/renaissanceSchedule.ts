@@ -4,6 +4,7 @@ import { brandMediaPolicy } from "@/lib/social/brandMediaPolicy";
 import { connectedPlatforms } from "@/lib/social/connectedPlatforms";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import type { SocialBrand } from "@/lib/database.types";
+import { BATCH_HERO_NOTE, renaissanceWantsVideo } from "@/lib/social/heroVideo";
 
 // Renaissance (revalor-admin's marketing brain) schedules a post here, under a
 // time-limited permission the owner approved there. This is the one gate, so
@@ -15,7 +16,9 @@ import type { SocialBrand } from "@/lib/database.types";
 // site or revalorllc.com, else review; and the post must be at least
 // MIN_LEAD_HOURS away so the owner can hold it. Facebook and Instagram only;
 // Instagram needs auto_image (the image cron makes the image, then schedules
-// it — without one it never publishes). Posts are saved generated_by
+// it — without one it never publishes). A hero video (heroVideo, Facebook, non-
+// kids) is queued for the video worker; the post waits as "approved" until it's
+// rendered (or goes out without it if rendering fails). Posts are saved generated_by
 // "autonomous", so pausing the brand also holds them (social-publish cron).
 // A rejection or a review raises an autonomy flag (alert, no brand pause), as
 // the autopilot does. The same post is only
@@ -41,10 +44,12 @@ export type ScheduleRequest = {
   scheduledAt: string;
   riskLevel: RiskLevel;
   autoImage: boolean;
+  /** Ask for a hero video (Facebook, non-kids). The post waits as "approved" until it's rendered. */
+  heroVideo: boolean;
 };
 
 export type ScheduleOutcome =
-  | { status: "scheduled"; id: string; scheduledAt: string }
+  | { status: "scheduled"; id: string; scheduledAt: string; videoQueued?: boolean }
   | { status: "review"; id: string; reason: string }
   | { status: "rejected"; reason: string }
   | { status: "blocked"; reason: string };
@@ -69,7 +74,7 @@ export function parseScheduleRequest(b: unknown, now: Date): { ok: true; req: Sc
   if (at.getTime() > now.getTime() + MAX_AHEAD_DAYS * 24 * HOUR) return { ok: false, error: `scheduledAt must be within ${MAX_AHEAD_DAYS} days` };
   // Anything unrated counts as medium, which goes to review.
   const riskLevel: RiskLevel = o.riskLevel === "low" || o.riskLevel === "high" ? o.riskLevel : "medium";
-  return { ok: true, req: { brandId: o.brandId, platform, hook, caption, hashtags, linkUrl, scheduledAt: at.toISOString(), riskLevel, autoImage: o.autoImage === true } };
+  return { ok: true, req: { brandId: o.brandId, platform, hook, caption, hashtags, linkUrl, scheduledAt: at.toISOString(), riskLevel, autoImage: o.autoImage === true, heroVideo: o.heroVideo === true } };
 }
 
 /** Whether a link may go out without review: the brand's own site's host, or revalorllc.com and its subdomains. Pure. */
@@ -123,6 +128,14 @@ export async function scheduleForRenaissance(service: Service, req: ScheduleRequ
   const { data: same } = await service.from("social_content").select("id, status").eq("brand_id", brand.id).eq("platform", req.platform).eq("caption", req.caption).eq("generated_by", "autonomous").gte("created_at", new Date(Date.now() - 24 * HOUR).toISOString()).limit(1).maybeSingle();
   if (same) return same.status === "draft" ? { status: "review", id: same.id, reason: "Already saved for review." } : { status: "scheduled", id: same.id, scheduledAt: req.scheduledAt };
 
+  // A hero video: queue it for the video worker; the post waits as "approved" until it's rendered.
+  let videoAssetId: string | null = null;
+  if (renaissanceWantsVideo(req, brandMediaPolicy(brand.name).audience, scheduled)) {
+    const assetId = crypto.randomUUID();
+    const { error: vErr } = await service.from("social_video_assets").insert({ id: assetId, brand_id: brand.id, raw_path: `${brand.id}/generated/${assetId}.mp4`, status: "generating", notes: BATCH_HERO_NOTE });
+    if (!vErr) videoAssetId = assetId; // no video queued → the post simply goes out without one
+  }
+
   const { data: row, error: insErr } = await service
     .from("social_content")
     .insert({
@@ -134,13 +147,14 @@ export async function scheduleForRenaissance(service: Service, req: ScheduleRequ
       link_url: req.linkUrl,
       risk_level: req.riskLevel,
       generated_by: "autonomous",
-      status: scheduled ? decision.status : "draft",
+      status: scheduled ? (videoAssetId ? "approved" : decision.status) : "draft",
       scheduled_at: scheduled ? req.scheduledAt : null,
       auto_image: scheduled && req.platform === "instagram",
+      video_asset_id: videoAssetId,
     })
     .select("id")
     .single();
   if (insErr || !row) throw new Error(insErr?.message ?? "Couldn't save the post");
   if (!scheduled) await raiseAutonomyFlag(service, { brandId: brand.id, brandName: brand.name, contentId: row.id, kind: "high_risk", detail: `Renaissance post held for review — ${decision.reason}`, pauseBrand: false });
-  return scheduled ? { status: "scheduled", id: row.id, scheduledAt: req.scheduledAt } : { status: "review", id: row.id, reason: decision.reason };
+  return scheduled ? { status: "scheduled", id: row.id, scheduledAt: req.scheduledAt, ...(videoAssetId ? { videoQueued: true } : {}) } : { status: "review", id: row.id, reason: decision.reason };
 }
