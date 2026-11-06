@@ -100,14 +100,16 @@ export const PRODUCT_KNOWLEDGE: Record<SocialVideoProduct, ProductKnowledge | nu
     name: "Sanctum",
     tagline: "Peace opens the door to strength.",
     whatItDoes:
-      "Provides guided practices for focus and calm, alongside daily check-ins designed for simplicity rather than gamification. Tessa, an AI companion, talks through what's on your mind, with voice guidance that reads her replies and narrates the app aloud.",
+      "A few minutes a day to check in, decompress and reset — built with military service members and veterans in mind, and open to anyone who needs it. Guided practices for focus and calm, daily check-ins designed for simplicity rather than gamification, and Tessa, an AI companion who talks through what's on your mind, with voice guidance that reads her replies and narrates the app aloud.",
     features: [
+      "Built with military and veteran wellness in mind — open to anyone",
       "Guided practices for focus and calm",
       "Daily check-ins that actually fit your life",
       "Tessa, an AI companion — talk through what's on your mind",
       "Voice guidance reads Tessa's replies and narrates the app aloud",
     ],
-    targetAudience: "Individuals seeking to reduce stress, reset, and maintain mindfulness in a fast-paced environment.",
+    targetAudience:
+      "Military service members, veterans and their families first — and anyone looking to reduce stress, decompress and stay grounded. Lead with military and veteran wellness (service, transition to civilian life, carrying stress home, family), while making clear anyone is welcome. Respectful and plain-spoken: no combat imagery, no clichés about broken veterans, and never claim Sanctum treats PTSD or replaces professional care.",
   },
   // No single product — company-wide angle, so no product-specific knowledge to draw from.
   revalor: null,
