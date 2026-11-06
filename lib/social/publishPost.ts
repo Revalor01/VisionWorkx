@@ -4,6 +4,9 @@ import { publishInstagramPost, publishTikTokPost, publishYouTubePost, uploadMedi
 import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
 import { getOrCreateShortLink, withUtm } from "@/lib/social/shortLinks";
 import type { SocialContent, SocialPlatform } from "@/lib/database.types";
+import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
+import { isKidsBrand } from "@/lib/social/brandMediaPolicy";
+import { checkChildSafety } from "@/lib/social/childSafety";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
 // "Post now" button (app/api/social/content/[id]/publish-now) — one place
@@ -29,6 +32,25 @@ export function facebookPostKind(post: Pick<SocialContent, "video_asset_id" | "i
   return "text";
 }
 
+/** Throws (so the post is marked failed and never published) unless it passes the child-safety check. */
+async function enforceChildSafety(service: ReturnType<typeof createServiceClient>, post: SocialContent, brandId: string, brandName: string): Promise<void> {
+  const block = async (reason: string): Promise<never> => {
+    await raiseAutonomyFlag(service, { brandId, brandName, contentId: post.id, kind: "high_risk", detail: `Blocked by the Revalor Kids child-safety check (ages 12 and under) — not published: ${reason}`, pauseBrand: false });
+    throw new Error(`Child-safety check: ${reason}`);
+  };
+  // Video can't be reviewed frame by frame, so kids posts never carry one.
+  if (post.video_asset_id) return block("kids posts can't carry video.");
+  let image: { base64: string; mediaType: string } | null = null;
+  if (post.image_path) {
+    const { data: file, error } = await service.storage.from(IMAGE_BUCKET).download(post.image_path);
+    if (error || !file) return block("its image couldn't be loaded for review.");
+    image = { base64: Buffer.from(await file.arrayBuffer()).toString("base64"), mediaType: file.type || "image/png" };
+  }
+  const text = [post.hook, post.caption, post.hashtags.map((h) => `#${h}`).join(" ")].filter(Boolean).join("\n");
+  const verdict = await checkChildSafety({ text, image });
+  if (!verdict.safe) return block(verdict.reason);
+}
+
 export async function publishPost(
   service: ReturnType<typeof createServiceClient>,
   post: SocialContent
@@ -36,6 +58,10 @@ export async function publishPost(
   try {
     const { data: brand } = await service.from("social_brands").select("*").eq("id", post.brand_id).maybeSingle();
     if (!brand) throw new Error("Brand not found");
+
+    // Revalor Kids child-safety gate — runs on EVERY kids post (autopilot, Renaissance, batch or
+    // manual) right before it goes out, and cannot be switched off. Fails closed.
+    if (isKidsBrand(brand.name)) await enforceChildSafety(service, post, brand.id, brand.name);
 
     let captionWithTags = post.hashtags.length > 0
       ? `${post.caption}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`

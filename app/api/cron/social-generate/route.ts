@@ -7,7 +7,8 @@ import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { PLATFORMS_REQUIRING_MEDIA } from "@/lib/social/publishPost";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
-import { brandMediaPolicy, weeklyPlatforms } from "@/lib/social/brandMediaPolicy";
+import { brandMediaPolicy, isKidsBrand, weeklyPlatforms } from "@/lib/social/brandMediaPolicy";
+import { checkChildSafety } from "@/lib/social/childSafety";
 import { productPageUrl, productSlot, weeklyProductPlan } from "@/lib/social/weeklyAutopilot";
 import { BRAND_PRODUCTS, PRODUCT_KNOWLEDGE } from "@/lib/social/productKnowledge";
 import type { SocialBrand, SocialPlatform, SocialVideoProduct } from "@/lib/database.types";
@@ -119,13 +120,28 @@ export async function GET(req: NextRequest) {
     let rejectCount = 0;
 
     for (const { post, slot, linkUrl } of planned) {
-      const { status, reason } = evaluateApproval({
+      const verdict = evaluateApproval({
         copy: post.caption,
         riskLevel: post.riskLevel,
         bannedWords: brand.banned_words,
         autonomyMode: brand.autonomy_mode as "manual" | "semi_autonomous" | "fully_autonomous",
         audience: brandMediaPolicy(brand.name).audience,
       });
+      let { status } = verdict;
+      const { reason } = verdict;
+
+      // Revalor Kids: the child-safety check (ages 12 and under) decides. A draft that passes is
+      // approved on its own; one that fails is discarded — never saved, never posted. Not configurable.
+      // (Banned words still reject first; publishPost re-checks text + image before anything goes out.)
+      if (status !== "reject" && isKidsBrand(brand.name)) {
+        const safety = await checkChildSafety({ text: [post.hook, post.caption, post.hashtags.map((h) => `#${h}`).join(" ")].filter(Boolean).join("\n") });
+        if (!safety.safe) {
+          rejectCount++;
+          await raiseAutonomyFlag(service, { brandId: brand.id, brandName: brand.name, kind: "high_risk", detail: `A generated ${post.platform} post was discarded by the Revalor Kids child-safety check (ages 12 and under): ${safety.reason}`, pauseBrand: false });
+          continue;
+        }
+        status = "auto";
+      }
 
       if (status === "reject") {
         rejectCount++;
