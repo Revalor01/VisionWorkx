@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { brandMediaPolicy, isKidsBrand, maxVideosForHorizon } from "./brandMediaPolicy";
+import { brandMediaPolicy, isKidsBrand, maxVideosForHorizon, weeklyPlatforms } from "./brandMediaPolicy";
 import { buildContentVideoPrompt } from "./videoGenerator";
 
 describe("brandMediaPolicy", () => {
   it("makes Revalor Kids image-first, kids-styled, ~1 video/week", () => {
-    expect(brandMediaPolicy("Revalor Kids")).toEqual({ audience: "kids", videoStyle: "kids", imageFirst: true, maxVideosPerWeek: 1 });
+    expect(brandMediaPolicy("Revalor Kids")).toMatchObject({ audience: "kids", videoStyle: "kids", imageFirst: true, maxVideosPerWeek: 1 });
     expect(isKidsBrand("Revalor Kids")).toBe(true);
   });
 
@@ -70,5 +70,18 @@ describe("buildContentVideoPrompt", () => {
     expect(kids).toMatch(/Chorebit|FeelFlow|MindBit/);
     expect(buildContentVideoPrompt({ ...base, brandName: "Revalor Wellness" })).toMatch(/Sanctum/);
     expect(buildContentVideoPrompt({ ...base, brandName: "VisionWorkx" })).toMatch(/VisionWorkx/);
+  });
+});
+
+describe("weeklyPlatforms", () => {
+  const kids = brandMediaPolicy("Revalor Kids");
+  it("Revalor Kids: 1 image post per platform per week, Facebook + Instagram only", () => {
+    expect(kids.weeklyAutopilot).toEqual({ postsPerWeek: 1, media: "image", platforms: ["facebook", "instagram"] });
+    expect(weeklyPlatforms(kids, ["facebook", "instagram", "tiktok"], {})).toEqual(["facebook", "instagram"]);
+    expect(weeklyPlatforms(kids, ["facebook", "instagram"], { facebook: 1 })).toEqual(["instagram"]);
+    expect(weeklyPlatforms(kids, ["facebook", "instagram"], { facebook: 1, instagram: 1 })).toEqual([]);
+  });
+  it("brands without a weekly cadence are unchanged", () => {
+    expect(weeklyPlatforms(brandMediaPolicy("Revalor Wellness"), ["facebook", "tiktok"], { facebook: 9 })).toEqual(["facebook", "tiktok"]);
   });
 });
