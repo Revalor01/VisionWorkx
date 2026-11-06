@@ -157,7 +157,7 @@ export default function VideoTab({
 
   return (
     <div>
-      <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
+      <div className="bg-white border-2 border-[#B8860B] rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-lg font-semibold text-[#1A3A5C]">Upload raw footage</h2>
           <HelpButton title="How to use Video">
@@ -209,7 +209,7 @@ export default function VideoTab({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {videoAssets.map((asset) => (
-          <div key={asset.id} className="bg-white border border-green-600 rounded-xl p-4">
+          <div key={asset.id} className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
             <div className="flex justify-between items-start mb-2">
               <span className="text-xs font-medium text-slate-500">{brandName(asset.brand_id)}</span>
               <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[asset.status]}`}>

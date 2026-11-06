@@ -93,7 +93,7 @@ export default function LinkedInTab({
 
   return (
     <div>
-      <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
+      <div className="bg-white border-2 border-[#B8860B] rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h2 className="text-lg font-semibold text-[#1A3A5C]">LinkedIn — Revalor LLC</h2>
           <HelpButton title="How to use LinkedIn">
@@ -160,7 +160,7 @@ export default function LinkedInTab({
       </div>
 
       {posts.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
+        <div className="bg-white border border-dashed border-[#B8860B] rounded-xl p-10 text-center text-slate-400 text-sm">
           No LinkedIn posts yet.
         </div>
       ) : (
@@ -276,7 +276,7 @@ function PostCard({
   }
 
   return (
-    <div className="bg-white border border-green-600 rounded-xl p-4">
+    <div className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">

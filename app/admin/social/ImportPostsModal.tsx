@@ -69,7 +69,7 @@ export default function ImportPostsModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-green-600 rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border-2 border-[#B8860B] rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-bold text-[#1A3A5C] mb-1">Import posts</h3>
         <p className="text-xs text-slate-500 mb-3">
           Paste a campaign file. Facebook posts are scheduled straight away. Instagram posts arrive as drafts on their
@@ -111,7 +111,7 @@ export default function ImportPostsModal({
               <span className="font-semibold">{preview.brand}</span>: {fbCount} Facebook (scheduled) · {igCount} Instagram
               (drafts)
             </p>
-            <div className="border border-slate-200 rounded-lg divide-y divide-slate-200">
+            <div className="border border-[#B8860B] rounded-lg divide-y divide-slate-200">
               {preview.posts.map((p, i) => (
                 <div key={i} className="p-3 text-sm">
                   <div className="flex gap-2 text-xs text-slate-500 mb-1">

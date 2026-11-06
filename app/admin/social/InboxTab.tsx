@@ -37,7 +37,7 @@ export default function InboxTab({
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-                filter === f ? "bg-[#1A3A5C] text-white" : "bg-white border border-green-600 text-slate-600"
+                filter === f ? "bg-[#1A3A5C] text-white" : "bg-white border border-[#B8860B] text-slate-600"
               }`}
             >
               {f}
@@ -47,13 +47,13 @@ export default function InboxTab({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
+        <div className="bg-white border border-dashed border-[#B8860B] rounded-xl p-10 text-center text-slate-400 text-sm">
           Nothing here.
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((item) => (
-            <div key={item.id} className="bg-white border border-green-600 rounded-xl p-4">
+            <div key={item.id} className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-medium text-slate-500">{brandName(item.brand_id)}</span>

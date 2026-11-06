@@ -373,7 +373,7 @@ function BrandsTabInner({
       </div>
 
       {showAddForm && (
-        <div className="mb-4 p-4 bg-white border border-green-600 rounded-xl flex gap-3">
+        <div className="mb-4 p-4 bg-white border-2 border-[#B8860B] rounded-xl flex gap-3">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -403,7 +403,7 @@ function BrandsTabInner({
                 )}
                 <h3 className="font-semibold text-[#1A3A5C]">{brand.name}</h3>
               </div>
-              <div className="bg-white border border-green-600 rounded-xl p-5">
+              <div className="bg-white border-2 border-[#B8860B] rounded-xl p-5">
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <PlatformRow
                   icon={<FacebookIcon active={!!brand.fb_page_id} />}
@@ -488,7 +488,7 @@ function BrandsTabInner({
               {isSettingsExpanded(brand) && (
                 <>
               {covers && (
-                <div className="flex items-center gap-3 flex-wrap mb-4 mt-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex items-center gap-3 flex-wrap mb-4 mt-2 p-2 bg-slate-50 border border-[#B8860B] rounded-lg">
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Covers</span>
                   {covers.map((p) => (
                     <div key={p.name} className="flex items-center gap-1.5" title={p.name}>
@@ -644,7 +644,7 @@ function PlatformRow({
   extra?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1 py-2 px-2 bg-slate-50 border border-slate-100 rounded-lg">
+    <div className="flex flex-col gap-1 py-2 px-2 bg-slate-50 border border-[#B8860B] rounded-lg">
       <div className="flex items-center gap-1.5">
         {icon}
         <span className="text-xs font-medium text-slate-600">{label}</span>
@@ -726,7 +726,7 @@ function ConnectPicker({
   }
 
   return (
-    <div className="mb-4 p-4 bg-white border border-green-600 rounded-xl">
+    <div className="mb-4 p-4 bg-white border-2 border-[#B8860B] rounded-xl">
       <p className="text-sm font-medium text-[#1A3A5C] mb-3">Multiple Facebook Pages found — pick the one for this brand:</p>
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {pages === null && !error && <p className="text-sm text-slate-500">Loading…</p>}

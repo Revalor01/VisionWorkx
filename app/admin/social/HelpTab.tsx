@@ -1,6 +1,6 @@
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-green-600 rounded-xl p-5">
+    <div className="bg-white border-2 border-[#B8860B] rounded-xl p-5">
       <h2 className="text-base font-semibold text-[#1A3A5C] mb-3">{title}</h2>
       <div className="space-y-2 text-sm text-slate-700">{children}</div>
     </div>
