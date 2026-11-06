@@ -14,6 +14,8 @@ const RATES: Record<string, { input: number; output: number }> = {
   // to cut cost, so an accurate rate here is what proves that out.
   "claude-haiku-4-5-20251001": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
   "claude-haiku-4-5": { input: 1 / 1_000_000, output: 5 / 1_000_000 },
+  // Anthropic list price (2026-11): $4 / $20 per MTok. Used by the Revalor Kids child-safety gate.
+  "claude-opus-5-5": { input: 4 / 1_000_000, output: 20 / 1_000_000 },
 };
 
 /** Cost of one call at the rates above; null for a model not in the table. */
@@ -31,6 +33,7 @@ export type AiUsageSource =
   | "app_deploy_repair"
   | "blog_content"
   | "social_classify_inbound"
+  | "social_child_safety"
   | "social_content_generate"
   | "social_recap_script"
   | "social_studio_subject"
