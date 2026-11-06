@@ -245,7 +245,7 @@ export default function CalendarTab({
   }, [filteredEvents, calendarMonth]);
 
   return (
-    <div>
+    <section className="rounded-xl border-2 border-[#B8860B] bg-white p-4">
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <h2 className="text-lg font-semibold text-[#1A3A5C]">Activity Calendar</h2>
         <div className="flex flex-wrap gap-2">
@@ -282,7 +282,7 @@ export default function CalendarTab({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-4">
+      <div className="grid grid-cols-7 gap-1 mb-4 rounded-lg border border-[#B8860B] p-2">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
           <div key={d} className="text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400 py-1">
             {d}
@@ -302,8 +302,8 @@ export default function CalendarTab({
                 isSelected
                   ? "border-purple-500 bg-purple-50"
                   : isToday
-                    ? "border-sky-500 bg-sky-50"
-                    : "border-slate-200 bg-white hover:border-slate-400"
+                    ? "border-2 border-[#B8860B] bg-sky-50"
+                    : "border-[#B8860B]/50 bg-white hover:border-[#B8860B]"
               }`}
             >
               <span className={`text-xs ${isToday ? "text-sky-600 font-semibold" : "text-slate-500"}`}>
@@ -324,14 +324,14 @@ export default function CalendarTab({
       </div>
 
       {selectedDay && (
-        <div>
+        <div className="rounded-lg border border-[#B8860B] p-3">
           <p className="text-sm font-semibold text-[#1A3A5C] mb-3">
             {parseDayKey(selectedDay).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             {selectedDayEvents.length === 0 && <span className="text-slate-400 font-normal"> — nothing that day</span>}
           </p>
           <div className="space-y-2">
             {selectedDayEvents.map((e) => (
-              <div key={e.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3">
+              <div key={e.id} className="bg-white border border-[#B8860B] rounded-lg p-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${KIND_BADGE[e.kind]}`}>
@@ -363,6 +363,6 @@ export default function CalendarTab({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
