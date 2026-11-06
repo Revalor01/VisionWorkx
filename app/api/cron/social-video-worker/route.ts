@@ -4,7 +4,7 @@ import { generateContentVideo } from "@/lib/social/videoGenerator";
 import { appendBrandOutro } from "@/lib/social/videoOutro";
 import { getMediaGenerationSpend } from "@/lib/social/gatewaySpend";
 import { VIDEO_USD, MONTHLY_BUDGET_USD, withinBudget } from "@/lib/social/mediaCost";
-import { BATCH_HERO_NOTE } from "@/lib/social/batchGenerate";
+import { BATCH_HERO_NOTE, heroVideoRelease } from "@/lib/social/heroVideo";
 
 export const runtime = "nodejs";
 export const maxDuration = 300; // one Kling render (~2-4 min) + outro per run
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
   const { data: post } = await service
     .from("social_content")
-    .select("id, hook, caption, status")
+    .select("id, hook, caption, status, scheduled_at")
     .eq("video_asset_id", asset.id)
     .limit(1)
     .maybeSingle();
@@ -74,16 +74,22 @@ export async function GET(req: NextRequest) {
       .update({ status: "ready", final_path: asset.raw_path, notes: "Batch hero video", updated_at: new Date().toISOString() })
       .eq("id", asset.id);
 
-    // Flip the linked post to scheduled now that its video exists.
-    if (post && post.status === "draft") {
-      await service.from("social_content").update({ status: "scheduled", updated_at: new Date().toISOString() }).eq("id", post.id).eq("status", "draft");
+    // Release the linked post now that its video exists (a batch draft, or a Renaissance post waiting as "approved").
+    const release = heroVideoRelease(post, "ready");
+    if (post && release) {
+      await service.from("social_content").update({ status: release.status, updated_at: new Date().toISOString() }).eq("id", post.id).eq("status", release.from);
     }
-    return NextResponse.json({ ok: true, assetId: asset.id, postScheduled: post?.status === "draft" });
+    return NextResponse.json({ ok: true, assetId: asset.id, postScheduled: !!release });
   } catch (err) {
     await service
       .from("social_video_assets")
       .update({ status: "failed", notes: `Generation failed: ${(err as Error).message}`, updated_at: new Date().toISOString() })
       .eq("id", asset.id);
+    // A Renaissance post waiting on this video still goes out — without the video. (Batch drafts stay for the operator.)
+    const release = heroVideoRelease(post, "failed");
+    if (post && release) {
+      await service.from("social_content").update({ status: release.status, ...(release.dropVideo ? { video_asset_id: null } : {}), updated_at: new Date().toISOString() }).eq("id", post.id).eq("status", release.from);
+    }
     return NextResponse.json({ error: (err as Error).message, assetId: asset.id }, { status: 200 });
   }
 }

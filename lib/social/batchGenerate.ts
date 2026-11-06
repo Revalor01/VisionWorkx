@@ -5,6 +5,7 @@ import { connectedPlatforms } from "@/lib/social/connectedPlatforms";
 import { evaluateApproval } from "@/lib/social/riskEvaluator";
 import { brandMediaPolicy, maxVideosForHorizon } from "@/lib/social/brandMediaPolicy";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
+import { BATCH_HERO_NOTE } from "@/lib/social/heroVideo";
 
 // Generate a 7-15 day content queue for a brand in one pass. Only captions are
 // produced here (cheap, batched); media is rendered later by existing async
@@ -16,7 +17,7 @@ import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
 
 const MAX_PER_CALL = 14; // contentGenerator's own cap
 export const MAX_BATCH_POSTS = 45; // 15 days x 3/day hard ceiling
-export const BATCH_HERO_NOTE = "Batch hero video (queued)";
+export { BATCH_HERO_NOTE };
 const VIDEO_PLATFORMS = new Set<SocialPlatform>(["instagram", "tiktok", "youtube"]);
 
 type Service = ReturnType<typeof createServiceClient>;
