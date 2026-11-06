@@ -5,6 +5,7 @@ import { ADMIN_EMAIL, isAdminOrEditor } from "@/lib/social/authGuard";
 import { ADMIN_SSO_COOKIE, verifySessionCookie } from "@/lib/adminSso";
 import SocialDashboard from "./SocialDashboard";
 import type { VideoJobCalendarRow } from "./CalendarTab";
+import { loadCampaignCoverage } from "@/lib/social/campaignCoverage";
 
 export default async function AdminSocialPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
@@ -51,6 +52,9 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
     service.from("linkedin_posts").select("*").order("created_at", { ascending: false }),
   ]);
 
+  // Products a live Renaissance campaign is promoting — Social's own autopilot stands down for them.
+  const renaissanceCovered = await loadCampaignCoverage(service).then((c) => c.names).catch(() => [] as string[]);
+
   return (
     <SocialDashboard
       isAdmin={isAdmin}
@@ -63,6 +67,7 @@ export default async function AdminSocialPage({ searchParams }: { searchParams: 
       initialVideoJobs={videoJobs ?? []}
       initialLinkedInPosts={linkedInPosts ?? []}
       initialTab={tab}
+      renaissanceCovered={renaissanceCovered}
     />
   );
 }

@@ -9,6 +9,7 @@ import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
 import { brandMediaPolicy } from "@/lib/social/brandMediaPolicy";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
+import { brandCoverage, loadCampaignCoverage } from "@/lib/social/campaignCoverage";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -27,11 +28,27 @@ export async function GET(req: NextRequest) {
     .eq("autonomy_enabled", true)
     .is("autonomy_paused_at", null);
 
-  const results: { brandId: string; brandName: string; generated: number; auto: number; review: number; rejected: number }[] = [];
+  const results: { brandId: string; brandName: string; generated: number; auto: number; review: number; rejected: number; skipped?: string }[] = [];
+
+  // Renaissance campaigns live right now: Social stands down for their products.
+  let coverage: Awaited<ReturnType<typeof loadCampaignCoverage>>;
+  try {
+    coverage = await loadCampaignCoverage(service);
+  } catch (err) {
+    // Without knowing what Renaissance covers, posting could double up on a campaign's product — skip this run.
+    console.error("[cron/social-generate] campaign coverage lookup failed:", err);
+    return NextResponse.json({ skipped: "couldn't read Renaissance campaigns", error: (err as Error).message });
+  }
 
   for (const brand of brands ?? []) {
     const platforms = await connectedPlatforms(service, brand);
     if (platforms.length === 0) continue;
+
+    const cover = brandCoverage(brand.name, coverage.covered);
+    if (cover.skip) {
+      results.push({ brandId: brand.id, brandName: brand.name, generated: 0, auto: 0, review: 0, rejected: 0, skipped: `A Renaissance campaign is covering all of ${brand.name}'s products.` });
+      continue;
+    }
 
     let posts;
     try {
@@ -44,6 +61,8 @@ export async function GET(req: NextRequest) {
         postCount: brand.posting_frequency_per_day,
         topics,
         platformOverrides,
+        avoidProducts: coverage.names,
+        excludeProducts: cover.exclude,
       });
     } catch (err) {
       console.error(`[cron/social-generate] generation failed for ${brand.name}:`, err);

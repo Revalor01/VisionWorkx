@@ -31,6 +31,7 @@ export default function SocialDashboard({
   initialVideoJobs,
   initialLinkedInPosts,
   initialTab,
+  renaissanceCovered = [],
 }: {
   isAdmin: boolean;
   initialBrands: SocialBrand[];
@@ -43,6 +44,8 @@ export default function SocialDashboard({
   initialLinkedInPosts: LinkedInPost[];
   // Optional starting tab from ?tab= (e.g. a deep link to the LinkedIn tab).
   initialTab?: string;
+  // Products a live Renaissance (revalor-admin Autopilot) campaign is promoting right now.
+  renaissanceCovered?: string[];
 }) {
   const [tab, setTab] = useState<Tab>(() => {
     const allowed = isAdmin ? ADMIN_TABS : PUBLIC_TABS;
@@ -92,6 +95,13 @@ export default function SocialDashboard({
           </div>
           <p className="text-slate-500 text-sm mt-1">Internal Revalor use only</p>
         </div>
+
+        {renaissanceCovered.length > 0 && (
+          <div className="mb-6 rounded-xl border-2 border-[#B8860B] bg-white px-4 py-3 text-sm text-slate-700">
+            <span className="font-semibold text-[#1A3A5C]">Renaissance campaign running:</span> {renaissanceCovered.join(", ")}. Social&apos;s own daily autopilot skips {renaissanceCovered.length === 1 ? "this product" : "these products"} while {renaissanceCovered.length === 1 ? "it runs" : "they run"} — the campaign&apos;s posts still appear here and on the Calendar.{" "}
+            <a href="https://revalor-admin.vercel.app/renaissance/campaigns" className="text-[#1A3A5C] underline">Open campaigns</a>
+          </div>
+        )}
 
         <div className="flex gap-1 mb-6 bg-white border border-green-600 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {TABS.map((t) => (

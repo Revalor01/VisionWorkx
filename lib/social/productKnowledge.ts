@@ -139,8 +139,8 @@ Target audience: ${k.targetAudience}`;
 // Current product facts for a brand, for grounding generated posts so stale
 // voice notes can't pull them back toward retired positioning. null when the
 // brand has no product mapping.
-export function productFactsForBrand(brandName: string): string | null {
-  const facts = (BRAND_PRODUCTS[brandName] ?? []).map(formatProductKnowledge).filter((f): f is string => f !== null);
+export function productFactsForBrand(brandName: string, exclude: string[] = []): string | null {
+  const facts = (BRAND_PRODUCTS[brandName] ?? []).filter((p) => !exclude.includes(p)).map(formatProductKnowledge).filter((f): f is string => f !== null);
   return facts.length > 0 ? facts.join("\n\n") : null;
 }
 
