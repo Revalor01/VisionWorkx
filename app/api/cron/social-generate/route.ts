@@ -7,7 +7,7 @@ import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { PLATFORMS_REQUIRING_MEDIA } from "@/lib/social/publishPost";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
-import { brandMediaPolicy } from "@/lib/social/brandMediaPolicy";
+import { brandMediaPolicy, weeklyPlatforms } from "@/lib/social/brandMediaPolicy";
 import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
 import { brandCoverage, loadCampaignCoverage } from "@/lib/social/campaignCoverage";
 
@@ -50,20 +50,40 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
+    // A brand on a weekly cadence (e.g. Revalor Kids: 1 image post per platform per week) only
+    // posts on the platforms that still have room in the last 7 days, one post each, image only.
+    const policy = brandMediaPolicy(brand.name);
+    const weekly = policy.weeklyAutopilot;
+    let genPlatforms = platforms;
+    if (weekly) {
+      const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const { data: recent } = await service.from("social_content").select("platform").eq("brand_id", brand.id).eq("generated_by", "autonomous").gte("created_at", since);
+      const counts: Record<string, number> = {};
+      for (const r of recent ?? []) counts[r.platform as string] = (counts[r.platform as string] ?? 0) + 1;
+      genPlatforms = weeklyPlatforms(policy, platforms, counts);
+      if (!genPlatforms.length) {
+        results.push({ brandId: brand.id, brandName: brand.name, generated: 0, auto: 0, review: 0, rejected: 0, skipped: `${brand.name} already posted this week (${weekly.postsPerWeek}/platform/week).` });
+        continue;
+      }
+    }
+
     let posts;
     try {
       const topics = await getTodaysTopics(service, brand);
-      const platformOverrides = await tiktokContentOverride(service, brand, platforms);
-      posts = await generateContentCalendar({
+      const platformOverrides = await tiktokContentOverride(service, brand, genPlatforms);
+      const generate = (forPlatforms: typeof platforms, postCount: number) => generateContentCalendar({
         brandName: brand.name,
         voiceNotes: brand.voice_notes,
-        platforms,
-        postCount: brand.posting_frequency_per_day,
+        platforms: forPlatforms,
+        postCount,
         topics,
         platformOverrides,
         avoidProducts: coverage.names,
         excludeProducts: cover.exclude,
       });
+      posts = weekly
+        ? (await Promise.all(genPlatforms.map((p) => generate([p], 1)))).flat().filter((post) => genPlatforms.includes(post.platform))
+        : await generate(platforms, brand.posting_frequency_per_day);
     } catch (err) {
       console.error(`[cron/social-generate] generation failed for ${brand.name}:`, err);
       continue;
@@ -104,8 +124,11 @@ export async function GET(req: NextRequest) {
       // posts. Route to draft instead: no pause, no break — the rest of
       // this brand's batch (e.g. a Facebook post, which doesn't need
       // media) still gets evaluated normally.
-      const needsMedia = status === "auto" && PLATFORMS_REQUIRING_MEDIA.includes(post.platform);
-      const finalStatus = needsMedia ? "draft" : status === "auto" ? "scheduled" : "draft";
+      // Weekly image brands: an auto-approved post waits as "approved" with an automatic image
+      // (the image cron makes it, then schedules the post) — it never goes out without its image.
+      const weeklyImage = !!weekly && status === "auto";
+      const needsMedia = !weeklyImage && status === "auto" && PLATFORMS_REQUIRING_MEDIA.includes(post.platform);
+      const finalStatus = weeklyImage ? "approved" : needsMedia ? "draft" : status === "auto" ? "scheduled" : "draft";
 
       const { data: inserted } = await service
         .from("social_content")
@@ -118,12 +141,13 @@ export async function GET(req: NextRequest) {
           risk_level: post.riskLevel,
           generated_by: "autonomous",
           status: finalStatus,
-          scheduled_at: finalStatus === "scheduled" ? slots[i] : null,
+          scheduled_at: finalStatus === "scheduled" || weeklyImage ? slots[i] : null,
+          auto_image: weeklyImage,
         })
         .select("id")
         .maybeSingle();
 
-      if (finalStatus === "scheduled") {
+      if (finalStatus === "scheduled" || weeklyImage) {
         autoCount++;
       } else if (needsMedia) {
         reviewCount++;

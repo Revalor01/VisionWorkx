@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { SocialBrand, SocialContent, SocialPlatform } from "@/lib/database.types";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
+import { calendarStatus } from "@/lib/social/calendarStatus";
 
 // video_jobs belongs to the separate revalor-video repo and isn't in this
 // repo's generated Database types (see page.tsx) - defined by hand here to
@@ -152,7 +153,7 @@ export default function CalendarTab({
         date: new Date(dateStr),
         title: truncate(c.hook || c.caption, 60),
         subtitle: brands.find((b) => b.id === c.brand_id)?.name ?? "—",
-        status: c.status,
+        status: calendarStatus(c),
         href: null,
         platform: c.platform,
       });

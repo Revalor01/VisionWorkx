@@ -21,10 +21,17 @@ export interface BrandMediaPolicy {
   imageFirst: boolean;
   /** Ceiling on auto-generated videos per 7-day window. */
   maxVideosPerWeek: number;
+  /**
+   * Optional weekly cadence for Social's own daily autopilot (cron social-generate):
+   * at most `postsPerWeek` posts per platform in any 7 days, only on `platforms`,
+   * each carrying an automatic image (never video) — the post waits as "approved"
+   * until its image exists, then becomes scheduled.
+   */
+  weeklyAutopilot?: { postsPerWeek: number; media: "image"; platforms: ("facebook" | "instagram")[] };
 }
 
 const POLICIES: Record<string, BrandMediaPolicy> = {
-  "Revalor Kids": { audience: "kids", videoStyle: "kids", imageFirst: true, maxVideosPerWeek: 1 },
+  "Revalor Kids": { audience: "kids", videoStyle: "kids", imageFirst: true, maxVideosPerWeek: 1, weeklyAutopilot: { postsPerWeek: 1, media: "image", platforms: ["facebook", "instagram"] } },
   "Revalor Wellness": { audience: "business", videoStyle: "wellness", imageFirst: false, maxVideosPerWeek: Number.POSITIVE_INFINITY },
 };
 
@@ -37,6 +44,17 @@ const DEFAULT_POLICY: BrandMediaPolicy = {
 
 export function brandMediaPolicy(brandName: string): BrandMediaPolicy {
   return POLICIES[brandName] ?? DEFAULT_POLICY;
+}
+
+/**
+ * For a brand on a weekly cadence: which connected platforms still have room this
+ * week, given how many autonomous posts each got in the last 7 days. Brands without
+ * a weekly cadence get every connected platform back unchanged. Pure.
+ */
+export function weeklyPlatforms<P extends string>(policy: BrandMediaPolicy, connected: P[], postsLast7Days: Partial<Record<string, number>>): P[] {
+  const w = policy.weeklyAutopilot;
+  if (!w) return connected;
+  return connected.filter((p) => (w.platforms as string[]).includes(p) && (postsLast7Days[p] ?? 0) < w.postsPerWeek);
 }
 
 export function isKidsBrand(brandName: string): boolean {
