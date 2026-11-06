@@ -65,5 +65,5 @@ export function HelpStep({ n, children }: { n: number; children: React.ReactNode
 }
 
 export function HelpNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5">{children}</p>;
+  return <p className="text-xs text-slate-500 bg-slate-50 border border-[#B8860B] rounded-lg p-2.5">{children}</p>;
 }

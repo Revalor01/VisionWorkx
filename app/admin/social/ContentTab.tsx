@@ -289,7 +289,7 @@ export default function ContentTab({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-[#1A3A5C]">Content Calendar</h2>
         <div className="flex items-center gap-3">
-          <div className="flex bg-white border border-green-600 rounded-lg p-0.5">
+          <div className="flex bg-white border border-[#B8860B] rounded-lg p-0.5">
             <button
               onClick={() => setView("list")}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
@@ -326,7 +326,7 @@ export default function ContentTab({
 
       <MediaSpendCard focus="image" />
 
-      <div className="bg-white border border-green-600 rounded-xl p-4 mb-6">
+      <div className="bg-white border-2 border-[#B8860B] rounded-xl p-4 mb-6">
         <h3 className="text-sm font-semibold text-[#1A3A5C] mb-2">Generate next N days (batch)</h3>
         <p className="text-xs text-slate-500 mb-3">
           Queues a future-dated content calendar for the selected brand. Captions generate now; images and hero videos
@@ -378,7 +378,7 @@ export default function ContentTab({
                 key={s}
                 onClick={() => setStatusFilter(s)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${
-                  statusFilter === s ? "bg-[#1A3A5C] text-white" : "bg-white border border-green-600 text-slate-600"
+                  statusFilter === s ? "bg-[#1A3A5C] text-white" : "bg-white border border-[#B8860B] text-slate-600"
                 }`}
               >
                 {s}
@@ -404,7 +404,7 @@ export default function ContentTab({
           {importMsg && <p className="mb-4 text-xs text-slate-700">{importMsg}</p>}
 
           {filtered.length === 0 ? (
-            <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
+            <div className="bg-white border border-dashed border-[#B8860B] rounded-xl p-10 text-center text-slate-400 text-sm">
               No content{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""} yet.
             </div>
           ) : (
@@ -431,7 +431,7 @@ export default function ContentTab({
       ) : (
         <div>
           {unscheduled.length > 0 && (
-            <div className="mb-4 p-3 bg-white border border-dashed border-slate-300 rounded-xl">
+            <div className="mb-4 p-3 bg-white border border-dashed border-[#B8860B] rounded-xl">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                 Unscheduled ({unscheduled.length})
               </p>
@@ -550,7 +550,7 @@ export default function ContentTab({
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-green-600 rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white border-2 border-[#B8860B] rounded-2xl p-6 w-full max-w-md">
             <h3 className="text-lg font-bold text-[#1A3A5C] mb-4">Generate content</h3>
             {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
 
@@ -730,7 +730,7 @@ function ContentCard({
   }
 
   return (
-    <div className="bg-white border border-green-600 rounded-xl p-4">
+    <div className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-slate-500">{brandName(c.brand_id)}</span>

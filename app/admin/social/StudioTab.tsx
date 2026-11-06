@@ -263,7 +263,7 @@ export default function StudioTab({
 
   return (
     <div>
-      <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
+      <div className="bg-white border-2 border-[#B8860B] rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h2 className="text-lg font-semibold text-[#1A3A5C]">Media Studio</h2>
           <HelpButton title="How to use Media Studio">
@@ -408,7 +408,7 @@ export default function StudioTab({
         </button>
       </div>
 
-      <div className="bg-white border border-green-600 rounded-xl p-5 mb-6">
+      <div className="bg-white border-2 border-[#B8860B] rounded-xl p-5 mb-6">
         <h2 className="text-lg font-semibold text-[#1A3A5C] mb-1">Import video</h2>
         <p className="text-sm text-slate-500 mb-4">
           Already have a high-quality video from another platform? Upload it here — pick the product it&apos;s about and
@@ -484,7 +484,7 @@ export default function StudioTab({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {studioVideos.map((asset) => (
-          <div key={asset.id} className="bg-white border border-green-600 rounded-xl p-4">
+          <div key={asset.id} className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
             <div className="flex justify-between items-start mb-1">
               <span className="text-sm font-semibold text-[#1A3A5C]">
                 {asset.studio_product ? PRODUCT_LABEL[asset.studio_product] : "—"}

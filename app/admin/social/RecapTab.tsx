@@ -172,7 +172,7 @@ export default function RecapTab() {
       {loading ? (
         <p className="text-sm text-slate-400">Loading…</p>
       ) : recaps.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-400 text-sm">
+        <div className="bg-white border border-dashed border-[#B8860B] rounded-xl p-10 text-center text-slate-400 text-sm">
           No recaps yet — click &ldquo;Generate this week&apos;s script&rdquo; to pull real stats and draft one.
         </div>
       ) : (
@@ -181,7 +181,7 @@ export default function RecapTab() {
             const fields = fieldsFor(recap);
             const stats = recap.stats as Record<string, Record<string, number>>;
             return (
-              <div key={recap.id} className="bg-white border border-green-600 rounded-xl p-4">
+              <div key={recap.id} className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-sm font-semibold text-[#1A3A5C]">Week of {recap.week_start}</span>
                   <span
@@ -195,7 +195,7 @@ export default function RecapTab() {
 
                 <div className="grid sm:grid-cols-4 gap-2 mb-3 text-xs text-slate-500">
                   {Object.entries(stats ?? {}).map(([product, values]) => (
-                    <div key={product} className="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                    <div key={product} className="bg-slate-50 border border-[#B8860B] rounded-lg p-2">
                       <p className="font-semibold text-slate-600 capitalize mb-1">{product}</p>
                       {Object.entries(values).map(([k, v]) => (
                         <p key={k}>

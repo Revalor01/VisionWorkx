@@ -125,7 +125,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
             </option>
           ))}
         </select>
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-lg p-1">
+        <div className="flex gap-1 bg-white border border-[#B8860B] rounded-lg p-1">
           {[7, 30, 90].map((d) => (
             <button
               key={d}
@@ -167,7 +167,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
             ].map((c) => (
               <div
                 key={c.label}
-                className="bg-white border border-slate-200 rounded-xl px-4 py-3"
+                className="bg-white border border-[#B8860B] rounded-xl px-4 py-3"
               >
                 <div className="text-xs text-slate-400 font-medium">{c.label}</div>
                 <div className="text-xl font-bold text-[#1A3A5C] mt-0.5">{c.value}</div>
@@ -185,7 +185,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
 
           {/* what's feeding the content engine */}
           {data.topHooks.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
               <h3 className="text-sm font-semibold text-[#1A3A5C] mb-2">
                 What&apos;s feeding the content engine
               </h3>
@@ -206,7 +206,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
 
           <div className="grid lg:grid-cols-2 gap-4">
             {/* by platform */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
               <h3 className="text-sm font-semibold text-[#1A3A5C] mb-3">By platform</h3>
               <table className="w-full text-sm">
                 <thead>
@@ -245,7 +245,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
             </div>
 
             {/* best posting hours */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
               <h3 className="text-sm font-semibold text-[#1A3A5C] mb-1">
                 Engagement by hour posted
               </h3>
@@ -283,7 +283,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
           </div>
 
           {/* ranked posts */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-x-auto">
+          <div className="bg-white border border-[#B8860B] rounded-xl p-4 overflow-x-auto">
             <h3 className="text-sm font-semibold text-[#1A3A5C] mb-3">
               Top posts {brandId ? "" : "(all brands)"}
             </h3>

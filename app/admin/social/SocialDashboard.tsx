@@ -103,7 +103,7 @@ export default function SocialDashboard({
           </div>
         )}
 
-        <div className="flex gap-1 mb-6 bg-white border border-green-600 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-white border-2 border-[#B8860B] rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t}

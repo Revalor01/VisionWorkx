@@ -40,7 +40,7 @@ export default function MediaSpendCard({ focus }: { focus: "video" | "image" }) 
   const secondaryCost = spend ? (focus === "video" ? spend.imageCost : spend.videoCost) : 0;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+    <div className="bg-white border border-[#B8860B] rounded-xl p-4 mb-4">
       <div className="flex justify-between items-start">
         <div>
           <p className="text-xs font-medium text-slate-500">
