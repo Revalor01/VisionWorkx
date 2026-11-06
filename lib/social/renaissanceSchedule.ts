@@ -10,8 +10,8 @@ import type { SocialBrand } from "@/lib/database.types";
 // Renaissance never re-implements Social's rules: a paused brand or an
 // unconnected platform blocks; evaluateApproval runs with the brand's banned
 // words and audience, always as semi-autonomous (only low risk goes out on its
-// own, kids brands keep their safety net; a brand set to manual sends every
-// post to review); the link is checked too and must point at the brand's own
+// own, kids brands keep their safety net; Manual mode holds only kids-brand
+// posts — the owner's Autopilot approval stands in for it otherwise); the link is checked too and must point at the brand's own
 // site or revalorllc.com, else review; and the post must be at least
 // MIN_LEAD_HOURS away so the owner can hold it. Facebook and Instagram only;
 // Instagram needs auto_image (the image cron makes the image, then schedules
@@ -92,9 +92,13 @@ export function decideSchedule(
   if (brand.autonomy_paused_at) return { kind: "blocked", reason: `${brand.name}'s automatic posting is paused in Social.` };
   if (!connected.includes(req.platform)) return { kind: "blocked", reason: `${brand.name} has no connected ${req.platform} account.` };
   const copy = [req.hook, req.caption, req.hashtags.map((h) => `#${h}`).join(" "), req.linkUrl].filter(Boolean).join("\n");
-  // The stricter of the brand's own mode and semi-autonomous.
-  const mode = brand.autonomy_mode === "manual" ? "manual" : "semi_autonomous";
-  const verdict = evaluateApproval({ copy, riskLevel: req.riskLevel, bannedWords: brand.banned_words ?? [], autonomyMode: mode, audience: brandMediaPolicy(brand.name).audience });
+  // Always semi-autonomous (only low risk goes out on its own). The owner already
+  // approved this post's permission in Renaissance Autopilot, so a brand's Manual
+  // mode — which governs Social's own autopilot — doesn't hold it again. Kids
+  // brands are the exception: Manual still sends every post to review.
+  const audience = brandMediaPolicy(brand.name).audience;
+  const mode = brand.autonomy_mode === "manual" && audience === "kids" ? "manual" : "semi_autonomous";
+  const verdict = evaluateApproval({ copy, riskLevel: req.riskLevel, bannedWords: brand.banned_words ?? [], autonomyMode: mode, audience });
   if (verdict.status === "reject") return { kind: "rejected", reason: verdict.reason ?? "Rejected by Social's checks" };
   if (verdict.status === "review") return { kind: "review", reason: verdict.reason ?? "Held for review" };
   if (req.linkUrl && !linkAllowed(req.linkUrl, brand.website_url)) return { kind: "review", reason: `The link (${new URL(req.linkUrl).hostname}) isn't ${brand.name}'s site or revalorllc.com.` };

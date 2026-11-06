@@ -50,8 +50,12 @@ describe("decideSchedule", () => {
 });
 
 describe("brand mode and links", () => {
-  it("a brand set to manual sends every post to review", () => {
-    expect(decideSchedule(req(), brand({ autonomy_mode: "manual" }), ["facebook"]).kind).toBe("review");
+  it("a non-kids brand set to manual still schedules — the owner's Autopilot approval covers it", () => {
+    expect(decideSchedule(req(), brand({ autonomy_mode: "manual" }), ["facebook"]).kind).toBe("scheduled");
+    expect(decideSchedule(req({ riskLevel: "medium" }), brand({ autonomy_mode: "manual" }), ["facebook"]).kind).toBe("review");
+  });
+  it("a kids brand set to manual sends every post to review", () => {
+    expect(decideSchedule(req(), brand({ name: "Revalor Kids", autonomy_mode: "manual" }), ["facebook"]).kind).toBe("review");
   });
   it("checks the link for banned words and only lets the brand's site or revalorllc.com through", () => {
     expect(decideSchedule(req({ linkUrl: "https://guarantee.example.com" }), brand(), ["facebook"]).kind).toBe("rejected");
