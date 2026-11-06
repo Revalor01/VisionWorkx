@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { generateContentCalendar } from "@/lib/social/contentGenerator";
+import { generateContentCalendar, type GeneratedPost } from "@/lib/social/contentGenerator";
 import { getTodaysTopics } from "@/lib/social/topicSeeds";
 import { evaluateApproval } from "@/lib/social/riskEvaluator";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
@@ -8,7 +8,9 @@ import { PLATFORMS_REQUIRING_MEDIA } from "@/lib/social/publishPost";
 import { pickPostingSlots } from "@/lib/social/postingSlots";
 import { connectedPlatforms, tiktokContentOverride } from "@/lib/social/connectedPlatforms";
 import { brandMediaPolicy, weeklyPlatforms } from "@/lib/social/brandMediaPolicy";
-import type { SocialBrand, SocialPlatform } from "@/lib/database.types";
+import { productPageUrl, productSlot, weeklyProductPlan } from "@/lib/social/weeklyAutopilot";
+import { BRAND_PRODUCTS, PRODUCT_KNOWLEDGE } from "@/lib/social/productKnowledge";
+import type { SocialBrand, SocialPlatform, SocialVideoProduct } from "@/lib/database.types";
 import { brandCoverage, loadCampaignCoverage } from "@/lib/social/campaignCoverage";
 
 export const runtime = "nodejs";
@@ -50,52 +52,73 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    // A brand on a weekly cadence (e.g. Revalor Kids: 1 image post per platform per week) only
-    // posts on the platforms that still have room in the last 7 days, one post each, image only.
+    // A brand on a weekly cadence (e.g. Revalor Kids: 1 image post per app per platform per week)
+    // only posts where there's room in the last 7 days, image only. Per-app brands tag each post
+    // with the app's own page link (…/kids#chorebit), which is how the week's posts are counted.
     const policy = brandMediaPolicy(brand.name);
     const weekly = policy.weeklyAutopilot;
-    let genPlatforms = platforms;
-    if (weekly) {
-      const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-      const { data: recent } = await service.from("social_content").select("platform").eq("brand_id", brand.id).eq("generated_by", "autonomous").gte("created_at", since);
-      const counts: Record<string, number> = {};
-      for (const r of recent ?? []) counts[r.platform as string] = (counts[r.platform as string] ?? 0) + 1;
-      genPlatforms = weeklyPlatforms(policy, platforms, counts);
-      if (!genPlatforms.length) {
-        results.push({ brandId: brand.id, brandName: brand.name, generated: 0, auto: 0, review: 0, rejected: 0, skipped: `${brand.name} already posted this week (${weekly.postsPerWeek}/platform/week).` });
-        continue;
-      }
-    }
-
-    let posts;
+    const now = new Date();
+    type Planned = { post: GeneratedPost; slot: string; linkUrl: string | null };
+    let planned: Planned[];
     try {
       const topics = await getTodaysTopics(service, brand);
-      const platformOverrides = await tiktokContentOverride(service, brand, genPlatforms);
-      const generate = (forPlatforms: typeof platforms, postCount: number) => generateContentCalendar({
-        brandName: brand.name,
-        voiceNotes: brand.voice_notes,
-        platforms: forPlatforms,
-        postCount,
-        topics,
-        platformOverrides,
-        avoidProducts: coverage.names,
-        excludeProducts: cover.exclude,
-      });
-      posts = weekly
-        ? (await Promise.all(genPlatforms.map((p) => generate([p], 1)))).flat().filter((post) => genPlatforms.includes(post.platform))
-        : await generate(platforms, brand.posting_frequency_per_day);
+      const generate = async (forPlatforms: typeof platforms, postCount: number, extra: { focusProduct?: string; excludeProducts?: string[] } = {}) =>
+        generateContentCalendar({
+          brandName: brand.name,
+          voiceNotes: brand.voice_notes,
+          platforms: forPlatforms,
+          postCount,
+          topics,
+          platformOverrides: await tiktokContentOverride(service, brand, forPlatforms),
+          avoidProducts: coverage.names,
+          excludeProducts: extra.excludeProducts ?? cover.exclude,
+          focusProduct: extra.focusProduct,
+        });
+      /** At most one post per requested platform, in the requested order. */
+      const onePerPlatform = (posts: GeneratedPost[], wanted: string[]) => wanted.map((pl) => posts.find((x) => x.platform === pl)).filter((x): x is GeneratedPost => !!x);
+
+      if (weekly) {
+        const since = new Date(now.getTime() - 7 * 86_400_000).toISOString();
+        const { data: recent } = await service.from("social_content").select("platform, link_url").eq("brand_id", brand.id).eq("generated_by", "autonomous").gte("created_at", since);
+        if (weekly.perProduct) {
+          const apps = (BRAND_PRODUCTS[brand.name] ?? []).filter((p) => !cover.exclude.includes(p));
+          const plan = weeklyProductPlan(policy, apps, platforms, (recent ?? []) as { platform: string; link_url: string | null }[]);
+          planned = [];
+          for (const item of plan) {
+            const idx = apps.indexOf(item.product as SocialVideoProduct);
+            const posts = await generate(item.platforms as typeof platforms, item.platforms.length, {
+              focusProduct: PRODUCT_KNOWLEDGE[item.product as SocialVideoProduct]?.name ?? item.product,
+              excludeProducts: [...cover.exclude, ...apps.filter((p) => p !== item.product)],
+            });
+            for (const post of onePerPlatform(posts, item.platforms)) planned.push({ post, slot: productSlot(idx, post.platform, now), linkUrl: productPageUrl(brand.website_url, item.product) });
+          }
+        } else {
+          const counts: Record<string, number> = {};
+          for (const r of recent ?? []) counts[r.platform as string] = (counts[r.platform as string] ?? 0) + 1;
+          const room = weeklyPlatforms(policy, platforms, counts);
+          const posts = onePerPlatform((await Promise.all(room.map((p) => generate([p], 1)))).flat(), room);
+          const slots = pickPostingSlots(posts.length);
+          planned = posts.map((post, i) => ({ post, slot: slots[i], linkUrl: null }));
+        }
+        if (!planned.length) {
+          results.push({ brandId: brand.id, brandName: brand.name, generated: 0, auto: 0, review: 0, rejected: 0, skipped: `${brand.name} already posted this week (${weekly.postsPerWeek}/${weekly.perProduct ? "app/" : ""}platform/week).` });
+          continue;
+        }
+      } else {
+        const posts = await generate(platforms, brand.posting_frequency_per_day);
+        const slots = pickPostingSlots(posts.length);
+        planned = posts.map((post, i) => ({ post, slot: slots[i], linkUrl: null }));
+      }
     } catch (err) {
       console.error(`[cron/social-generate] generation failed for ${brand.name}:`, err);
       continue;
     }
 
-    const slots = pickPostingSlots(posts.length);
     let autoCount = 0;
     let reviewCount = 0;
     let rejectCount = 0;
 
-    for (let i = 0; i < posts.length; i++) {
-      const post = posts[i];
+    for (const { post, slot, linkUrl } of planned) {
       const { status, reason } = evaluateApproval({
         copy: post.caption,
         riskLevel: post.riskLevel,
@@ -141,7 +164,8 @@ export async function GET(req: NextRequest) {
           risk_level: post.riskLevel,
           generated_by: "autonomous",
           status: finalStatus,
-          scheduled_at: finalStatus === "scheduled" || weeklyImage ? slots[i] : null,
+          scheduled_at: finalStatus === "scheduled" || weeklyImage ? slot : null,
+          link_url: linkUrl,
           auto_image: weeklyImage,
         })
         .select("id")
@@ -174,7 +198,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    results.push({ brandId: brand.id, brandName: brand.name, generated: posts.length, auto: autoCount, review: reviewCount, rejected: rejectCount });
+    results.push({ brandId: brand.id, brandName: brand.name, generated: planned.length, auto: autoCount, review: reviewCount, rejected: rejectCount });
   }
 
   return NextResponse.json({ processedBrands: results.length, results });
