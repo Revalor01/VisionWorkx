@@ -7,6 +7,7 @@ import type { SocialContent, SocialPlatform } from "@/lib/database.types";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { isKidsBrand } from "@/lib/social/brandMediaPolicy";
 import { checkChildSafety } from "@/lib/social/childSafety";
+import { captionLinkLine } from "@/lib/social/freeOffers";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
 // "Post now" button (app/api/social/content/[id]/publish-now) — one place
@@ -66,6 +67,13 @@ export async function publishPost(
     let captionWithTags = post.hashtags.length > 0
       ? `${post.caption}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`
       : post.caption;
+
+    // Every post links back to Revalor. Captions that can't hold a clickable link (Instagram,
+    // TikTok) get the product page as plain text; Facebook/YouTube get the tracked link below.
+    if (post.platform === "instagram" || post.platform === "tiktok") {
+      const line = captionLinkLine(post.link_url || brand.website_url, captionWithTags);
+      if (line && captionWithTags.length + line.length + 2 <= 2200) captionWithTags = `${captionWithTags}\n\n${line}`;
+    }
 
     // Clickable-link platforms get a tracked /go/<code> short link
     // instead of the raw URL, so clicks are counted per post and per

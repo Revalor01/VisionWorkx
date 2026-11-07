@@ -12,7 +12,8 @@ import { checkChildSafety } from "@/lib/social/childSafety";
 import { productPageUrl, productSlot, weeklyProductPlan } from "@/lib/social/weeklyAutopilot";
 import { BRAND_PRODUCTS, PRODUCT_KNOWLEDGE } from "@/lib/social/productKnowledge";
 import type { SocialBrand, SocialPlatform, SocialVideoProduct } from "@/lib/database.types";
-import { brandCoverage, loadCampaignCoverage } from "@/lib/social/campaignCoverage";
+import { brandCoverage, loadCampaignCoverage, renaissanceSlug } from "@/lib/social/campaignCoverage";
+import { loadFreeOffers } from "@/lib/social/freeOffers";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -43,6 +44,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ skipped: "couldn't read Renaissance campaigns", error: (err as Error).message });
   }
 
+  // Each product's free plan / free trial (from revalor-admin's pricing feed) — promoted in every post.
+  const freeOffers = await loadFreeOffers();
+  /** The offers for the products a post may cover (Social's product keys). */
+  const offersFor = (products: string[]) => products.map((p) => freeOffers[renaissanceSlug(p)]).filter((o): o is { name: string; offer: string } => !!o);
+
   for (const brand of brands ?? []) {
     const platforms = await connectedPlatforms(service, brand);
     if (platforms.length === 0) continue;
@@ -63,7 +69,7 @@ export async function GET(req: NextRequest) {
     let planned: Planned[];
     try {
       const topics = await getTodaysTopics(service, brand);
-      const generate = async (forPlatforms: typeof platforms, postCount: number, extra: { focusProduct?: string; excludeProducts?: string[] } = {}) =>
+      const generate = async (forPlatforms: typeof platforms, postCount: number, extra: { focusProduct?: string; excludeProducts?: string[]; offerProducts?: string[] } = {}) =>
         generateContentCalendar({
           brandName: brand.name,
           voiceNotes: brand.voice_notes,
@@ -74,6 +80,7 @@ export async function GET(req: NextRequest) {
           avoidProducts: coverage.names,
           excludeProducts: extra.excludeProducts ?? cover.exclude,
           focusProduct: extra.focusProduct,
+          freeOffers: offersFor(extra.offerProducts ?? (BRAND_PRODUCTS[brand.name] ?? []).filter((p) => !(extra.excludeProducts ?? cover.exclude).includes(p))),
         });
       /** At most one post per requested platform, in the requested order. */
       const onePerPlatform = (posts: GeneratedPost[], wanted: string[]) => wanted.map((pl) => posts.find((x) => x.platform === pl)).filter((x): x is GeneratedPost => !!x);
@@ -90,6 +97,7 @@ export async function GET(req: NextRequest) {
             const posts = await generate(item.platforms as typeof platforms, item.platforms.length, {
               focusProduct: PRODUCT_KNOWLEDGE[item.product as SocialVideoProduct]?.name ?? item.product,
               excludeProducts: [...cover.exclude, ...apps.filter((p) => p !== item.product)],
+              offerProducts: [item.product],
             });
             for (const post of onePerPlatform(posts, item.platforms)) planned.push({ post, slot: productSlot(idx, post.platform, now), linkUrl: productPageUrl(brand.website_url, item.product) });
           }
