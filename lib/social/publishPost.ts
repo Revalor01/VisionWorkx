@@ -8,6 +8,7 @@ import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
 import { isKidsBrand } from "@/lib/social/brandMediaPolicy";
 import { checkChildSafety } from "@/lib/social/childSafety";
 import { captionLinkLine } from "@/lib/social/freeOffers";
+import { applyProductRule } from "@/lib/social/productRule";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
 // "Post now" button (app/api/social/content/[id]/publish-now) — one place
@@ -64,14 +65,25 @@ export async function publishPost(
     // manual) right before it goes out, and cannot be switched off. Fails closed.
     if (isKidsBrand(brand.name)) await enforceChildSafety(service, post, brand.id, brand.name);
 
+    // HARD RULE: every post names its product up front and links to that product's page
+    // (never just the brand). Can't be switched off; a post with no product is blocked.
+    const rule = applyProductRule({ link_url: post.link_url, hook: post.hook, caption: post.caption, video: !!post.video_asset_id }, brand.name);
+    if (!rule.ok) {
+      await raiseAutonomyFlag(service, { brandId: brand.id, brandName: brand.name, contentId: post.id, kind: "high_risk", detail: `Blocked by the product rule — not published: ${rule.reason}`, pauseBrand: false });
+      throw new Error(`Product rule: ${rule.reason}`);
+    }
+    if (rule.link !== post.link_url || rule.caption !== post.caption || rule.hook !== post.hook) {
+      await service.from("social_content").update({ link_url: rule.link, caption: rule.caption, hook: rule.hook }).eq("id", post.id);
+    }
+
     let captionWithTags = post.hashtags.length > 0
-      ? `${post.caption}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`
-      : post.caption;
+      ? `${rule.caption}\n\n${post.hashtags.map((h) => `#${h}`).join(" ")}`
+      : rule.caption;
 
     // Every post links back to Revalor. Captions that can't hold a clickable link (Instagram,
     // TikTok) get the product page as plain text; Facebook/YouTube get the tracked link below.
     if (post.platform === "instagram" || post.platform === "tiktok") {
-      const line = captionLinkLine(post.link_url || brand.website_url, captionWithTags);
+      const line = captionLinkLine(rule.link, captionWithTags);
       if (line && captionWithTags.length + line.length + 2 <= 2200) captionWithTags = `${captionWithTags}\n\n${line}`;
     }
 
@@ -82,7 +94,7 @@ export async function publishPost(
     // Instagram/TikTok captions aren't clickable — no link there.
     // A campaign post's own link_url (e.g. the AI quiz with ?src=) wins over
     // the brand website.
-    const linkTarget = post.link_url || brand.website_url;
+    const linkTarget = rule.link;
     if (linkTarget && (post.platform === "facebook" || post.platform === "youtube")) {
       const destination = withUtm(linkTarget, {
         source: post.platform,
@@ -104,7 +116,13 @@ export async function publishPost(
         // UTM-tagged raw URL (e.g. if the migration hasn't run yet).
         console.error(`[publishPost] short link failed for ${post.id}, using raw URL:`, (err as Error).message);
       }
-      captionWithTags = `${captionWithTags}\n\n${link}`;
+      // A video goes out as a Reel, where only the first lines show — put the link there.
+      if (post.video_asset_id) {
+        const [first, ...rest] = captionWithTags.split("\n\n");
+        captionWithTags = [first, `Try ${rule.name} free: ${link}`, ...rest].join("\n\n");
+      } else {
+        captionWithTags = `${captionWithTags}\n\n${link}`;
+      }
     }
 
     let platformPostId: string;
@@ -168,7 +186,7 @@ export async function publishPost(
       const result = await publishYouTubePost({
         accountId: brand.socialapi_youtube_account_id,
         mediaUrl: signed.signedUrl,
-        title: post.hook || post.caption.slice(0, 100),
+        title: rule.hook || rule.caption.slice(0, 100),
         description: captionWithTags,
       });
       platformPostId = result.postId;
@@ -206,7 +224,7 @@ export async function publishPost(
           pageAccessToken: connection.fb_page_access_token,
           videoUrl: signed.signedUrl,
           description: captionWithTags,
-          title: post.hook || undefined,
+          title: rule.hook || undefined,
         });
         platformPostId = result.postId;
       } else if (kind === "photo") {
