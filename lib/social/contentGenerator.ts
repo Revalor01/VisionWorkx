@@ -4,6 +4,7 @@ import { extractJson } from "@/lib/social/extractJson";
 import { productFactsForBrand } from "@/lib/social/productKnowledge";
 import { aiQuizCtaInstruction } from "@/lib/social/aiQuizCta";
 import type { SocialPlatform } from "@/lib/database.types";
+import { freeOfferInstruction } from "@/lib/social/freeOffers";
 
 export interface GeneratedPost {
   platform: SocialPlatform;
@@ -45,8 +46,10 @@ export async function generateContentCalendar(params: {
   excludeProducts?: string[];
   // Write every post about this one product only (e.g. a weekly per-app post).
   focusProduct?: string;
+  // Free offers (free plan / free trial) for the products these posts may cover — promoted in every post.
+  freeOffers?: { name: string; offer: string }[];
 }): Promise<GeneratedPost[]> {
-  const { brandName, voiceNotes, platforms, postCount, topics, platformOverrides, avoidProducts, excludeProducts, focusProduct } = params;
+  const { brandName, voiceNotes, platforms, postCount, topics, platformOverrides, avoidProducts, excludeProducts, focusProduct, freeOffers } = params;
   const count = Math.min(postCount, MAX_POSTS_PER_CALL);
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -68,7 +71,7 @@ export async function generateContentCalendar(params: {
   const userPrompt = `Brand: ${brandName}
 Voice notes: ${voiceNotes || "(none provided — use a confident, clear, founder-built tone)"}
 ${productFacts ? `Current product facts for ${brandName} (source of truth — from products.revalorllc.com):\n${productFacts}\n` : ""}Platforms to generate for: ${platforms.join(", ")}
-${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}${quizCta ? `${quizCta}\n` : ""}${avoidNote ? `${avoidNote}\n` : ""}${focusProduct ? `Write every post about ${focusProduct} only — not the brand's other products.\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
+${overrideNotes ? `${overrideNotes}\n` : ""}${topics && topics.length > 0 ? `Topics to cover (distribute posts across these): ${topics.join("; ")}\n` : ""}${quizCta ? `${quizCta}\n` : ""}${avoidNote ? `${avoidNote}\n` : ""}${focusProduct ? `Write every post about ${focusProduct} only — not the brand's other products.\n` : ""}${freeOffers?.length ? `${freeOfferInstruction(freeOffers)}\n` : ""}Generate exactly ${count} posts total, distributed across the requested platforms, as a JSON array.`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
