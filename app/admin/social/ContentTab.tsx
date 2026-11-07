@@ -730,7 +730,8 @@ function ContentCard({
   }
 
   return (
-    <div className="bg-white border-2 border-[#B8860B] rounded-xl p-4">
+    // id: the home page's "Needs your attention" links straight to a post (#post-<id>); the ring marks it.
+    <div id={`post-${c.id}`} className="bg-white border-2 border-[#B8860B] rounded-xl p-4 scroll-mt-24 target:ring-4 target:ring-[#B8860B]/40">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-slate-500">{brandName(c.brand_id)}</span>
