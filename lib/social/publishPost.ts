@@ -5,7 +5,7 @@ import { resolveTikTokAccountId } from "@/lib/social/connectedPlatforms";
 import { getOrCreateShortLink, withUtm } from "@/lib/social/shortLinks";
 import type { SocialContent, SocialPlatform } from "@/lib/database.types";
 import { raiseAutonomyFlag } from "@/lib/social/autonomyFlags";
-import { isKidsBrand } from "@/lib/social/brandMediaPolicy";
+import { isKidsBrand, kidsMediaProblem } from "@/lib/social/brandMediaPolicy";
 import { checkChildSafety } from "@/lib/social/childSafety";
 import { captionLinkLine } from "@/lib/social/freeOffers";
 import { applyProductRule } from "@/lib/social/productRule";
@@ -40,6 +40,9 @@ async function enforceChildSafety(service: ReturnType<typeof createServiceClient
     await raiseAutonomyFlag(service, { brandId, brandName, contentId: post.id, kind: "high_risk", detail: `Blocked by the Revalor Kids child-safety check (ages 12 and under) — not published: ${reason}`, pauseBrand: false });
     throw new Error(`Child-safety check: ${reason}`);
   };
+  // Hard rule: no picture, no post.
+  const noMedia = kidsMediaProblem(post);
+  if (noMedia) return block(noMedia);
   // Video can't be reviewed frame by frame, so kids posts never carry one.
   if (post.video_asset_id) return block("kids posts can't carry video.");
   let image: { base64: string; mediaType: string } | null = null;

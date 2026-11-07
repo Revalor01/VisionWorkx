@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brandMediaPolicy, isKidsBrand, maxVideosForHorizon, weeklyPlatforms } from "./brandMediaPolicy";
+import { brandMediaPolicy, isKidsBrand, kidsMediaProblem, maxVideosForHorizon, weeklyPlatforms } from "./brandMediaPolicy";
 import { buildContentVideoPrompt } from "./videoGenerator";
 
 describe("brandMediaPolicy", () => {
@@ -83,5 +83,13 @@ describe("weeklyPlatforms", () => {
   });
   it("brands without a weekly cadence are unchanged", () => {
     expect(weeklyPlatforms(brandMediaPolicy("Revalor Wellness"), ["facebook", "tiktok"], { facebook: 9 })).toEqual(["facebook", "tiktok"]);
+  });
+});
+
+describe("kidsMediaProblem", () => {
+  it("blocks a kids post with no image or video, allows one with media", () => {
+    expect(kidsMediaProblem({ image_path: null, video_asset_id: null })).toMatch(/must have an image/);
+    expect(kidsMediaProblem({ image_path: "b/p.jpg", video_asset_id: null })).toBeNull();
+    expect(kidsMediaProblem({ image_path: null, video_asset_id: "v1" })).toBeNull();
   });
 });
