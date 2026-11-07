@@ -20,6 +20,7 @@ const SYSTEM_PROMPT = `You write social media content for Revalor LLC's own prod
 
 Rules:
 - Each post needs a distinct angle — don't just reword the same idea across posts
+- HARD RULE: every post promotes one specific product by name — never just the brand. Name the product in the hook and in the first sentence of the caption (Facebook/Instagram hide everything after ~125 characters; videos show only the hook as the title)
 - hook: a short, scroll-stopping first line (<=80 chars)
 - caption: the full post body, platform-appropriate length (Instagram can run longer/more personal; Facebook can be a bit more direct/informational; TikTok should be short and punchy — a sentence or two, trend-aware tone, not a paragraph; YouTube's caption becomes the video description — write it like a real description with context, not a punchy hook, since the hook already covers that role as the video title)
 - hashtags: 3-8 relevant tags, no "#" prefix in the output, lowercase
