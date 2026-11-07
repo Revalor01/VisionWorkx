@@ -1449,6 +1449,7 @@ export type Database = {
           source: SocialContentSource;
           source_idea_id: string | null;
           competitor_flag: string | null;
+          echo_of: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1471,6 +1472,7 @@ export type Database = {
           source?: SocialContentSource;
           source_idea_id?: string | null;
           competitor_flag?: string | null;
+          echo_of?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1493,6 +1495,7 @@ export type Database = {
           source?: SocialContentSource;
           source_idea_id?: string | null;
           competitor_flag?: string | null;
+          echo_of?: string | null;
           updated_at?: string;
         };
         Relationships: [];
