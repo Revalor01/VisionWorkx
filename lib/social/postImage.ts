@@ -61,11 +61,14 @@ export function afterFailedAutoImage(attempts: number): { auto_image_attempts: n
 }
 
 // The production address the cron calls back into (see /api/internal/social-image).
-// Vercel's production domain skips deployment protection; falls back to the app URL.
+// Always the app's own vercel.app production address (it skips deployment protection).
+// NOT Vercel's "production URL": that's whichever custom domain Vercel picks, and when it
+// became go.revalorllc.com (the short-link host, which redirects every non-/go path to
+// revalorllc.com) every image call silently landed on the WordPress home page (2026-11-07).
+// INTERNAL_BASE_URL overrides it if the app ever moves.
+export const APP_BASE_URL = "https://vision-workx.vercel.app";
 export function internalBaseUrl(env: Record<string, string | undefined> = process.env): string {
-  const prod = env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (prod) return `https://${prod.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
-  return (env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app").replace(/\/$/, "");
+  return (env.INTERNAL_BASE_URL || APP_BASE_URL).replace(/\/$/, "");
 }
 
 // Trims an error for social_content.failure_reason so the card can show why

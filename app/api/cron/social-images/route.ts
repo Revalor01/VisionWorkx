@@ -48,8 +48,16 @@ export async function GET(req: NextRequest) {
           method: "POST",
           headers: { authorization: `Bearer ${secret}` },
           cache: "no-store",
+          // A redirect means we hit the wrong host (it would turn the POST into a page visit).
+          redirect: "manual",
         });
-        return { id, status: res.status, body: (await res.json().catch(() => null)) as unknown };
+        const body = (await res.json().catch(() => null)) as unknown;
+        // Never "succeed" silently: anything but a JSON reply from the image route is a fault.
+        if (!res.ok || body === null) {
+          console.error(`[social-images] ${id}: image route didn't answer (HTTP ${res.status}${res.headers.get("location") ? ` → ${res.headers.get("location")}` : ""}) from ${base}`);
+          return { id, status: res.status, body: { error: "image route didn't answer" } as unknown };
+        }
+        return { id, status: res.status, body };
       } catch (err) {
         // The call itself failed (network); the post is untouched and retried next run.
         console.error(`[social-images] ${id}: internal call failed:`, (err as Error).message);
