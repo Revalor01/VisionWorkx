@@ -22,16 +22,14 @@ describe("afterFailedAutoImage", () => {
 });
 
 describe("internalBaseUrl", () => {
-  it("prefers Vercel's production domain", () => {
-    expect(internalBaseUrl({ VERCEL_PROJECT_PRODUCTION_URL: "vision-workx.vercel.app" })).toBe("https://vision-workx.vercel.app");
-    expect(internalBaseUrl({ VERCEL_PROJECT_PRODUCTION_URL: "https://example.com/" })).toBe("https://example.com");
-  });
-  it("falls back to the app URL, then the default", () => {
-    expect(internalBaseUrl({ NEXT_PUBLIC_APP_URL: "https://app.example.com/" })).toBe("https://app.example.com");
+  it("calls the app's own address, never Vercel's chosen custom domain (go.revalorllc.com redirects)", () => {
+    expect(internalBaseUrl({ VERCEL_PROJECT_PRODUCTION_URL: "go.revalorllc.com" })).toBe("https://vision-workx.vercel.app");
     expect(internalBaseUrl({})).toBe("https://vision-workx.vercel.app");
   });
+  it("can be overridden with INTERNAL_BASE_URL", () => {
+    expect(internalBaseUrl({ INTERNAL_BASE_URL: "https://app.example.com/" })).toBe("https://app.example.com");
+  });
 });
-
 describe("imageFailureReason", () => {
   it("labels and trims the error", () => {
     expect(imageFailureReason("boom")).toBe("Automatic image failed: boom");
