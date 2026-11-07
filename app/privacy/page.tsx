@@ -136,6 +136,9 @@ export default function PrivacyPage() {
               <strong>Resend</strong>: email delivery (sign-in links, notifications, and automatic emails to visitors);
             </li>
             <li>
+              <strong>Cloudflare</strong>: cookie-free visitor counts on our public pages;
+            </li>
+            <li>
               <strong>Anthropic</strong>: AI model used to generate apps and draft forms from <strong>customer</strong> prompts and business
               details (never visitor submissions).
             </li>
