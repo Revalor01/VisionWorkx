@@ -9,6 +9,7 @@ import { isKidsBrand, kidsMediaProblem } from "@/lib/social/brandMediaPolicy";
 import { checkChildSafety } from "@/lib/social/childSafety";
 import { captionLinkLine } from "@/lib/social/freeOffers";
 import { applyProductRule } from "@/lib/social/productRule";
+import { scheduleRevalorEcho } from "@/lib/social/revalorEcho";
 
 // Shared by the /10min cron (app/api/cron/social-publish) and the manual
 // "Post now" button (app/api/social/content/[id]/publish-now) — one place
@@ -292,6 +293,9 @@ export async function publishPost(
       .from("social_content")
       .update({ status: "posted", posted_at: new Date().toISOString(), platform_post_id: platformPostId })
       .eq("id", post.id);
+
+    // A product brand's Facebook post (not Kids) gets a next-day copy on the Revalor Page.
+    await scheduleRevalorEcho(service, post, brand.name, { caption: rule.caption, hook: rule.hook, link: rule.link });
 
     return { ok: true };
   } catch (err) {
