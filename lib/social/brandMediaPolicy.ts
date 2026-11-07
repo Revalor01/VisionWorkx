@@ -63,6 +63,16 @@ export function isKidsBrand(brandName: string): boolean {
 }
 
 /**
+ * HARD RULE (owner, 2026-11-07): a Revalor Kids post never goes out without its
+ * picture — an image (or a video) must be attached before it's posted. Text-only
+ * kids posts are blocked. (Video is then refused by the child-safety gate, so in
+ * practice that means an image.) Returns why it can't post, or null. Pure.
+ */
+export function kidsMediaProblem(post: { image_path: string | null; video_asset_id: string | null }): string | null {
+  return post.image_path || post.video_asset_id ? null : "Revalor Kids posts must have an image before they're posted.";
+}
+
+/**
  * How many hero videos a batch over `days` may auto-generate for this brand:
  * unlimited for business brands, ~maxVideosPerWeek per 7 days for capped ones.
  */

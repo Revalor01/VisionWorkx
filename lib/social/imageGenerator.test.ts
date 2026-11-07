@@ -4,11 +4,12 @@ import { buildContentImagePrompt } from "./imageGenerator";
 const base = { brandVoiceNotes: null, hook: "A hook", caption: "A caption", platform: "instagram" as const };
 
 describe("buildContentImagePrompt", () => {
-  it("kids: wholesome, on-brand, product-grounded, no text", () => {
+  it("kids: a wholesome real-life scene with no screens, logos or text (garbled text fails the child-safety check)", () => {
     const p = buildContentImagePrompt({ ...base, brandName: "Revalor Kids" });
-    expect(p).toMatch(/kids and families|wholesome/i);
-    expect(p).toMatch(/Chorebit|FeelFlow|MindBit/);
-    expect(p).toMatch(/products\.revalorllc\.com/i);
+    expect(p).toMatch(/wholesome/i);
+    expect(p).toMatch(/12 and under/);
+    expect(p).toMatch(/NO phones, tablets, screens/);
+    expect(p).not.toMatch(/mobile app/i);
     expect(p).toMatch(/do not render any text/i);
   });
 

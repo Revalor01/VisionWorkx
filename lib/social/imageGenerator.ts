@@ -58,7 +58,10 @@ export function buildContentImagePrompt(params: {
 
   let body: string;
   if (videoStyle === "kids") {
-    body = `A clean, bright, wholesome ${shape} social graphic for "${brand}", a mobile app for kids and families. Friendly, colorful, age-appropriate illustration or photo of children and families in positive everyday moments (chores, feelings, focused play) — visual theme: ${subject}. ${tone}Only about ${brand}: no corporate offices, business dashboards, laptops, or any other company, brand, or product. Nothing scary, clinical, or adult.`;
+    // A real-life scene only. Phones, app screens, logos and signs come out as garbled
+    // text, which the Revalor Kids child-safety check (rightly) refuses to publish.
+    body = `A bright, warm, wholesome ${shape} photo of children and their family in a positive everyday moment at home (chores, feelings, focused play) — visual theme: ${subject}. ${tone}Natural, friendly and age-appropriate for children 12 and under. Show NO phones, tablets, screens, devices, app interfaces, logos, signs, posters, labels or packaging. No corporate offices or business settings. Nothing scary, clinical, or adult.`;
+    return `${body} ${noText}`;
   } else if (videoStyle === "wellness") {
     body = `A calm, serene ${shape} social graphic for "${brand}", a mental-health and mindfulness mobile app. Soft, peaceful imagery — a calm person, gentle nature, a quiet moment of breathing or reflection — visual theme: ${subject}. ${tone}A digital app for wellbeing: do NOT show pills, capsules, supplements, bottles, medication, clinics, or any pharmaceutical, medical, or physical product.`;
   } else {
