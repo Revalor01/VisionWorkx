@@ -309,7 +309,7 @@ function BrandsTabInner({
           {socialapiErrorPlatform} connection failed ({socialapiError}). Try again from the brand card below.
         </div>
       )}
-      {connectSession && <ConnectPicker sessionId={connectSession} setBrands={setBrands} />}
+      {connectSession && <ConnectPicker sessionId={connectSession} brands={brands} setBrands={setBrands} />}
 
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
@@ -684,15 +684,20 @@ function PlatformRow({
 
 function ConnectPicker({
   sessionId,
+  brands,
   setBrands,
 }: {
   sessionId: string;
+  brands: SocialBrand[];
   setBrands: React.Dispatch<React.SetStateAction<SocialBrand[]>>;
 }) {
   const [pages, setPages] = useState<{ pageId: string; pageName: string }[] | null>(null);
   const [brandId, setBrandId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  // Say which brand this connection is for — the picker used to say only "this brand",
+  // which made a VisionWorkx connect look like it was for another brand.
+  const brandName = brands.find((b) => b.id === brandId)?.name ?? "this brand";
 
   useEffect(() => {
     fetch(`/api/social/connect/facebook/session/${sessionId}`)
@@ -714,7 +719,7 @@ function ConnectPicker({
     });
     const body = await res.json();
     if (res.ok) {
-      setDone(true);
+      setDone(pages?.find((p) => p.pageId === pageId)?.pageName ?? "the Page");
       setBrands((prev) => prev.map((b) => (b.id === brandId ? { ...b, fb_page_id: pageId } : b)));
     } else {
       setError(body.error ?? "Failed to connect");
@@ -722,12 +727,12 @@ function ConnectPicker({
   }
 
   if (done) {
-    return <div className="mb-4 p-3 rounded-xl bg-green-100 border border-green-300 text-green-700 text-sm">Connected — refresh to see the update.</div>;
+    return <div className="mb-4 p-3 rounded-xl bg-green-100 border border-green-300 text-green-700 text-sm"><strong>{brandName}</strong> is now connected to the Facebook Page <strong>{done}</strong> — refresh to see the update.</div>;
   }
 
   return (
     <div className="mb-4 p-4 bg-white border-2 border-[#B8860B] rounded-xl">
-      <p className="text-sm font-medium text-[#1A3A5C] mb-3">Multiple Facebook Pages found — pick the one for this brand:</p>
+      <p className="text-sm font-medium text-[#1A3A5C] mb-3">Connecting <strong>{brandName}</strong> to Facebook — pick its Page:</p>
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {pages === null && !error && <p className="text-sm text-slate-500">Loading…</p>}
       <div className="flex flex-wrap gap-2">
@@ -738,6 +743,8 @@ function ConnectPicker({
             className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-[#1A3A5C] hover:border-[#1A3A5C] transition-colors"
           >
             {p.pageName}
+            {/* Page IDs tell look-alike Pages apart (e.g. "Revalor Wellness" vs "Revalor-Wellness"). */}
+            <span className="ml-1.5 text-xs text-slate-400">{p.pageId}</span>
           </button>
         ))}
       </div>
