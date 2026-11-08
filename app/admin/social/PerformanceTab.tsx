@@ -36,7 +36,12 @@ interface PerfData {
     totalTrackedClicks: number;
     totalNativeLinkClicks: number;
     avgEngagementRate: number | null;
+    nativeMetricsAvailable: boolean;
   };
+  byBrand: { brandId: string; name: string; postCount: number; totalTrackedClicks: number }[];
+  byProduct: { product: string; postCount: number; totalTrackedClicks: number; clicksPerPost: number }[];
+  followers: { brandId: string; brand: string; pageName: string | null; followers: number; change: number | null; history: { date: string; followers: number }[] }[];
+  followerThreshold: number;
   byPlatform: {
     platform: string;
     postCount: number;
@@ -147,24 +152,26 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
         </div>
       )}
 
-      {data && (
+      {data && (() => { const native = data.summary.nativeMetricsAvailable; return (
         <>
           {/* summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              { label: "Posts", value: String(data.summary.postCount) },
-              {
-                label: "With metrics",
-                value: `${data.summary.postsWithMetrics}/${data.summary.postCount}`,
-              },
-              { label: "Total reach", value: fmt(data.summary.totalReach) },
-              { label: "Engagements", value: fmt(data.summary.totalEngagements) },
-              { label: "Avg eng. rate", value: pct(data.summary.avgEngagementRate) },
-              {
-                label: "Link clicks (tracked)",
-                value: fmt(data.summary.totalTrackedClicks),
-              },
-            ].map((c) => (
+          <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 ${native ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
+            {(native
+              ? [
+                  { label: "Posts", value: String(data.summary.postCount) },
+                  { label: "With platform stats", value: `${data.summary.postsWithMetrics}/${data.summary.postCount}` },
+                  { label: "Total reach", value: fmt(data.summary.totalReach) },
+                  { label: "Engagements", value: fmt(data.summary.totalEngagements) },
+                  { label: "Avg eng. rate", value: pct(data.summary.avgEngagementRate) },
+                  { label: "Link clicks (tracked)", value: fmt(data.summary.totalTrackedClicks) },
+                ]
+              : [
+                  { label: "Posts", value: String(data.summary.postCount) },
+                  { label: "Link clicks (tracked)", value: fmt(data.summary.totalTrackedClicks) },
+                  { label: "Clicks per post", value: data.summary.postCount ? (data.summary.totalTrackedClicks / data.summary.postCount).toFixed(1) : "—" },
+                  { label: "Facebook followers", value: fmt(data.followers.reduce((a, f) => a + f.followers, 0)) },
+                ]
+            ).map((c) => (
               <div
                 key={c.label}
                 className="bg-white border border-[#B8860B] rounded-xl px-4 py-3"
@@ -175,13 +182,96 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
             ))}
           </div>
 
-          {data.summary.postsWithMetrics === 0 && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
-              No measured posts yet in this window. Metrics start populating on the
-              next <code>/api/cron/social-metrics</code> run (every 6h) and after
-              new posts go out with tracked links.
+          {!native && (
+            <div className="bg-sky-50 border border-sky-200 text-sky-900 text-sm rounded-lg px-4 py-3">
+              <strong>Reach and engagement aren&apos;t available yet.</strong> Facebook shares post stats only once a Page
+              has about {data.followerThreshold} followers; every Revalor Page is below that, so these come back empty
+              (not zero). Until then, tracked link clicks and follower growth below are the real signals.
             </div>
           )}
+
+          {/* followers + clicks by product / brand */}
+          <div className="grid lg:grid-cols-3 gap-4">
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-[#1A3A5C] mb-1">Facebook followers</h3>
+              <p className="text-xs text-slate-400 mb-3">Full stats switch on at ~{data.followerThreshold} · change over this window</p>
+              <ul className="space-y-2.5">
+                {data.followers.map((f) => (
+                  <li key={f.brandId}>
+                    <div className="flex items-baseline justify-between text-sm">
+                      <span className="text-slate-700 truncate" title={f.pageName ?? undefined}>{f.brand}</span>
+                      <span className="tabular-nums font-semibold text-[#1A3A5C]">
+                        {f.followers}
+                        {f.change != null && f.change !== 0 && (
+                          <span className={`ml-1.5 text-xs ${f.change > 0 ? "text-green-700" : "text-red-600"}`}>{f.change > 0 ? `+${f.change}` : f.change}</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 bg-slate-100 rounded overflow-hidden" title={`${f.followers} of ~${data.followerThreshold}`}>
+                      <div className="h-full bg-[#B8860B]" style={{ width: `${Math.min(100, (f.followers / data.followerThreshold) * 100)}%` }} />
+                    </div>
+                  </li>
+                ))}
+                {data.followers.length === 0 && <li className="text-sm text-slate-400">No connected Facebook Pages.</li>}
+              </ul>
+              {data.followers.every((f) => f.history.length < 2) && data.followers.length > 0 && (
+                <p className="text-xs text-slate-400 mt-3">Growth shows once a few daily snapshots are saved (every 6h).</p>
+              )}
+            </div>
+
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-[#1A3A5C] mb-3">Clicks by product</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-400 text-left">
+                    <th className="font-medium pb-1">Product</th>
+                    <th className="font-medium pb-1 text-right">Posts</th>
+                    <th className="font-medium pb-1 text-right">Clicks</th>
+                    <th className="font-medium pb-1 text-right">Per post</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byProduct.map((p) => (
+                    <tr key={p.product} className="border-t border-slate-100">
+                      <td className="py-1.5 text-slate-700">{p.product}</td>
+                      <td className="py-1.5 text-right tabular-nums">{p.postCount}</td>
+                      <td className="py-1.5 text-right tabular-nums font-semibold">{fmt(p.totalTrackedClicks)}</td>
+                      <td className="py-1.5 text-right tabular-nums text-slate-500">{p.clicksPerPost.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                  {data.byProduct.length === 0 && (
+                    <tr><td colSpan={4} className="py-3 text-center text-slate-400">No posts.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-[#1A3A5C] mb-3">Clicks by brand</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-400 text-left">
+                    <th className="font-medium pb-1">Brand</th>
+                    <th className="font-medium pb-1 text-right">Posts</th>
+                    <th className="font-medium pb-1 text-right">Clicks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byBrand.map((b) => (
+                    <tr key={b.brandId} className="border-t border-slate-100">
+                      <td className="py-1.5 text-slate-700">{b.name}</td>
+                      <td className="py-1.5 text-right tabular-nums">{b.postCount}</td>
+                      <td className="py-1.5 text-right tabular-nums font-semibold">{fmt(b.totalTrackedClicks)}</td>
+                    </tr>
+                  ))}
+                  {data.byBrand.length === 0 && (
+                    <tr><td colSpan={3} className="py-3 text-center text-slate-400">No posts.</td></tr>
+                  )}
+                </tbody>
+              </table>
+              <p className="text-xs text-slate-400 mt-2">Tracked <code>/go</code> link clicks; known robots (e.g. link previews) excluded.</p>
+            </div>
+          </div>
 
           {/* what's feeding the content engine */}
           {data.topHooks.length > 0 && (
@@ -213,9 +303,9 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                   <tr className="text-xs text-slate-400 text-left">
                     <th className="font-medium pb-1">Platform</th>
                     <th className="font-medium pb-1 text-right">Posts</th>
-                    <th className="font-medium pb-1 text-right">Reach</th>
-                    <th className="font-medium pb-1 text-right">Eng.</th>
-                    <th className="font-medium pb-1 text-right">Rate</th>
+                    {native && <th className="font-medium pb-1 text-right">Reach</th>}
+                    {native && <th className="font-medium pb-1 text-right">Eng.</th>}
+                    {native && <th className="font-medium pb-1 text-right">Rate</th>}
                     <th className="font-medium pb-1 text-right">Clicks</th>
                   </tr>
                 </thead>
@@ -227,9 +317,9 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                         {p.platform}
                       </td>
                       <td className="py-1.5 text-right">{p.postCount}</td>
-                      <td className="py-1.5 text-right">{fmt(p.totalReach)}</td>
-                      <td className="py-1.5 text-right">{fmt(p.totalEngagements)}</td>
-                      <td className="py-1.5 text-right">{pct(p.avgEngagementRate)}</td>
+                      {native && <td className="py-1.5 text-right">{fmt(p.totalReach)}</td>}
+                      {native && <td className="py-1.5 text-right">{fmt(p.totalEngagements)}</td>}
+                      {native && <td className="py-1.5 text-right">{pct(p.avgEngagementRate)}</td>}
                       <td className="py-1.5 text-right">{fmt(p.totalTrackedClicks)}</td>
                     </tr>
                   ))}
@@ -244,8 +334,8 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
               </table>
             </div>
 
-            {/* best posting hours */}
-            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
+            {/* best posting hours — needs engagement rates, so only once Facebook shares stats */}
+            {native && <div className="bg-white border border-[#B8860B] rounded-xl p-4">
               <h3 className="text-sm font-semibold text-[#1A3A5C] mb-1">
                 Engagement by hour posted
               </h3>
@@ -279,7 +369,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                   <p className="text-slate-400 text-sm py-2">No posted content yet.</p>
                 )}
               </div>
-            </div>
+            </div>}
           </div>
 
           {/* ranked posts */}
@@ -295,9 +385,9 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                   <th className="font-medium pb-2">Platform</th>
                   <th className="font-medium pb-2">Posted</th>
                   <th className="font-medium pb-2">Hook / caption</th>
-                  <th className="font-medium pb-2 text-right">Reach</th>
-                  <th className="font-medium pb-2 text-right">Eng.</th>
-                  <th className="font-medium pb-2 text-right">Rate</th>
+                  {native && <th className="font-medium pb-2 text-right">Reach</th>}
+                  {native && <th className="font-medium pb-2 text-right">Eng.</th>}
+                  {native && <th className="font-medium pb-2 text-right">Rate</th>}
                   <th className="font-medium pb-2 text-right">Clicks</th>
                 </tr>
               </thead>
@@ -331,9 +421,9 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                         {p.hook?.trim() || p.caption.slice(0, 140)}
                       </span>
                     </td>
-                    <td className="py-2 text-right tabular-nums">{fmt(p.reach)}</td>
-                    <td className="py-2 text-right tabular-nums">{fmt(engOf(p))}</td>
-                    <td className="py-2 text-right tabular-nums">{pct(p.engagementRate)}</td>
+                    {native && <td className="py-2 text-right tabular-nums">{fmt(p.reach)}</td>}
+                    {native && <td className="py-2 text-right tabular-nums">{fmt(engOf(p))}</td>}
+                    {native && <td className="py-2 text-right tabular-nums">{pct(p.engagementRate)}</td>}
                     <td className="py-2 text-right tabular-nums">
                       {fmt(p.trackedClicks)}
                       {p.linkClicks != null && (
@@ -390,7 +480,7 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
             )}
           </div>
         </>
-      )}
+      ); })()}
     </div>
   );
 }

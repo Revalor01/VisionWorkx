@@ -8,6 +8,7 @@ export interface PostPerformance {
   postedAt: string | null;
   hook: string | null;
   caption: string;
+  linkUrl: string | null;
   reach: number | null;
   impressions: number | null;
   likes: number | null;
@@ -43,7 +44,7 @@ export async function getBrandPostPerformance(
 
   const { data: posts } = await service
     .from("social_content")
-    .select("id, platform, posted_at, hook, caption")
+    .select("id, platform, posted_at, hook, caption, link_url")
     .eq("brand_id", brandId)
     .eq("status", "posted")
     .gte("posted_at", since);
@@ -74,6 +75,7 @@ export async function getBrandPostPerformance(
       postedAt: p.posted_at,
       hook: p.hook,
       caption: p.caption,
+      linkUrl: p.link_url,
       reach: m?.reach ?? null,
       impressions: m?.impressions ?? null,
       likes: m?.likes ?? null,
