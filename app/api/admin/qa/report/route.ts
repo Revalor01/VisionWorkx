@@ -74,7 +74,13 @@ export async function POST(req: NextRequest) {
     const githubRunUrl = str(body.githubRunUrl, 300);
     const runId = str(body.runId, 36);
     if (runId && UUID_RE.test(runId)) {
-      await db.from("vw_qa_runs").update({ status: "running", started_at: now, github_run_url: githubRunUrl }).eq("id", runId).in("status", ["queued", "running"]);
+      // No status filter: a GitHub "Re-run" of a finished run sends begin again with
+      // the same runId, and must reopen the row so its end can set the new outcome
+      // (otherwise a rerun that passes still shows the old "error").
+      await db
+        .from("vw_qa_runs")
+        .update({ status: "running", started_at: now, github_run_url: githubRunUrl, error: null, finished_at: null })
+        .eq("id", runId);
       return NextResponse.json({ runId });
     }
     // Scheduled (nightly) run: there's no row yet.
