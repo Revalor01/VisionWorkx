@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getFacebookPostMetrics, getInstagramMediaMetrics, type PostMetrics } from "@/lib/social/meta";
+import { snapshotPageFollowers } from "@/lib/social/pageFollowers";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,7 +32,9 @@ export async function GET(req: NextRequest) {
     .order("posted_at", { ascending: false })
     .limit(MAX_POSTS_PER_RUN);
 
-  if (!posts?.length) return NextResponse.json({ processed: 0 });
+  // Daily follower count per brand Page (Performance tab growth card). Never throws.
+  const followerPages = await snapshotPageFollowers(service);
+  if (!posts?.length) return NextResponse.json({ processed: 0, followerPages });
 
   // brand_id -> fb page token + ig business id (fetched once per brand)
   const brandCache = new Map<string, { token: string | null; igBusinessId: string | null }>();
@@ -120,5 +123,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed: posts.length, updated, withNative });
+  return NextResponse.json({ processed: posts.length, updated, withNative, followerPages });
 }
