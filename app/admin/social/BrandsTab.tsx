@@ -136,6 +136,18 @@ function BrandsTabInner({
       .catch(() => {});
   }, []);
 
+  // The real Facebook Page each brand posts to (name, picture, ID), and whether its
+  // stored access belongs to a different Page.
+  const [fbPages, setFbPages] = useState<Record<string, { pageId: string; name: string | null; pictureUrl: string | null; mismatch: boolean }>>({});
+  // Refetch only when a brand's Page changes (not on every settings keystroke).
+  const fbKey = brands.map((b) => `${b.id}:${b.fb_page_id ?? ""}`).join(",");
+  useEffect(() => {
+    fetch("/api/admin/social/facebook/pages")
+      .then((r) => r.json())
+      .then((body) => body.pages && setFbPages(body.pages))
+      .catch(() => {});
+  }, [fbKey]);
+
   async function addBrand() {
     if (!newName.trim()) return;
     const res = await fetch("/api/social/brands", {
@@ -409,6 +421,12 @@ function BrandsTabInner({
                   icon={<FacebookIcon active={!!brand.fb_page_id} />}
                   label="Facebook"
                   connected={!!brand.fb_page_id}
+                  account={brand.fb_page_id ? {
+                    username: null,
+                    profilePictureUrl: fbPages[brand.id]?.pictureUrl ?? null,
+                    label: `${fbPages[brand.id]?.name ?? "Page"} · ${brand.fb_page_id}`,
+                    warning: fbPages[brand.id]?.mismatch ? "Access is for a different Page — reconnect" : undefined,
+                  } : undefined}
                   connectHref={`/api/social/connect/facebook/connect?brandId=${brand.id}`}
                   connectColor="#1877F2"
                   onDisconnect={() => disconnectPlatform(brand, "facebook", "Facebook")}
@@ -637,7 +655,7 @@ function PlatformRow({
   icon: React.ReactNode;
   label: string;
   connected: boolean;
-  account?: { username: string | null; profilePictureUrl: string | null };
+  account?: { username: string | null; profilePictureUrl: string | null; label?: string; warning?: string };
   connectHref: string;
   connectColor: string;
   onDisconnect?: () => void;
@@ -661,7 +679,8 @@ function PlatformRow({
                   className="w-4 h-4 rounded-full object-cover border border-slate-200"
                 />
               )}
-              <span className="text-[11px] text-slate-500">{account.username ? `@${account.username}` : "Connected"}</span>
+              <span className="text-[11px] text-slate-500">{account.label ?? (account.username ? `@${account.username}` : "Connected")}</span>
+              {account.warning && <span className="text-[10px] font-semibold text-red-600">{account.warning}</span>}
             </span>
           ) : (
             <span className="text-[11px] font-medium text-green-700">Connected</span>
