@@ -109,7 +109,11 @@ jobs:
           # 22+: supabase-js (used by the test helpers) needs Node's native WebSocket.
           node-version: 22
           cache: npm
-      - run: npm ci
+      # ffmpeg-static downloads its binary from GitHub during install; a slow
+      # download (30s timeout) once failed a whole run before any test ran.
+      # Retry once instead of failing.
+      - name: Install dependencies
+        run: npm ci || (echo "npm ci failed, retrying once" && sleep 15 && npm ci)
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       # Billing tests (VisionWorkx, preview only): forward the Stripe SANDBOX's
