@@ -10,7 +10,7 @@ const MEMBER_PAGES = [
   { path: "/events", heading: "Events" },
   { path: "/directory", heading: "Find a Business" },
   { path: "/prayer-requests", heading: "Prayer Requests" },
-  { path: "/volunteer", heading: "Request Help / Offer Help" },
+  { path: "/business-needs", heading: "I Have a Business Need" },
   { path: "/guidelines", heading: "Community Guidelines" },
   { path: "/contact", heading: "Contact" },
   { path: "/digital-services", heading: "Digital Services" },

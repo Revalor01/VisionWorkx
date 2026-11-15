@@ -9,7 +9,7 @@
     "id": "cfh/manual/volunteer-request-notifies",
     "area": "Volunteering",
     "title": "A volunteer request reaches the coordinators",
-    "instructions": "Not automated because it emails the real coordinators/deacons. Tell them first, then submit a clearly marked test request on /volunteer and confirm the coordinator email arrives. Remove the request afterwards."
+    "instructions": "Only while Admin → Deacon & help features is ON (off by default; /volunteer shows \"This feature isn't available\" when off). Not automated because it emails the real coordinators/deacons. Tell them first, then submit a clearly marked test request on /volunteer and confirm the coordinator email arrives. Remove the request afterwards."
   },
   {
     "id": "cfh/manual/post-prayer-request",
