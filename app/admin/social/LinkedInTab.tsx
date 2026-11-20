@@ -7,6 +7,7 @@ import HelpButton, { HelpStep } from "./HelpButton";
 import LinkedInAutomationPanel from "./LinkedInAutomationPanel";
 import { AUTOMATION_DEFAULTS, automationActive, nextSlots, type LinkedInAutomation } from "@/lib/social/linkedinAutomation";
 import { FEED_WINDOW_MS } from "@/lib/social/linkedinFeed";
+import { LINKEDIN_POST_TYPES, POST_TYPE_LABEL, rotationType, rotationWeek, type LinkedInPostType } from "@/lib/social/linkedinRotation";
 
 const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
@@ -15,10 +16,10 @@ const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
 };
 
 const PRODUCT_LABEL: Record<LinkedInProduct, string> = {
-  visionworkx: "VisionWorkx",
+  visionworkx: "VisionWorkx Modules",
   proactive: "Proactive",
   revalor_consulting: "Revalor Consulting",
-  revalor: "Revalor (company-wide)",
+  revalor: "Revalor Company Wide",
 };
 
 // Covers Media Studio's full product matrix (wider than LinkedInProduct
@@ -85,6 +86,7 @@ export default function LinkedInTab({
 }) {
   const [topic, setTopic] = useState("");
   const [product, setProduct] = useState<LinkedInProduct>("visionworkx");
+  const [postType, setPostType] = useState<LinkedInPostType | "auto">("auto");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [automation, setAutomation] = useState<{ settings: LinkedInAutomation; active: boolean }>({
@@ -113,6 +115,10 @@ export default function LinkedInTab({
   const [mountedAt] = useState(() => Date.now());
   const nextSlot = nextSlots(automation.settings.cadence, new Date(mountedAt), 1, takenTimes)[0];
   const defaultSlot = nextSlot ? toLocalInput(nextSlot) : nextTuesdayNine();
+  // "Auto" writes whatever the rotation calls for in the week of the next free slot.
+  const slotDate = nextSlot ?? new Date(defaultSlot);
+  const slotType = rotationType(slotDate);
+  const slotWeek = rotationWeek(slotDate);
 
   // Any Media Studio video (generated or imported) is fair game here,
   // regardless of which brand identity it was filed under - Studio's
@@ -129,7 +135,7 @@ export default function LinkedInTab({
       const res = await fetch("/api/social/linkedin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim() || undefined, product }),
+        body: JSON.stringify({ topic: topic.trim() || undefined, product, postType: postType === "auto" ? slotType : postType }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -149,10 +155,11 @@ export default function LinkedInTab({
           <h2 className="text-lg font-semibold text-[#1A3A5C]">LinkedIn — Revalor LLC</h2>
           <HelpButton title="How to use LinkedIn">
             <HelpStep n={1}>
-              Pick a <strong className="text-[#1A3A5C]">Product</strong> (VisionWorkx / Proactive / Revalor
-              Consulting / Revalor company-wide), optionally type a topic, and click{" "}
-              <strong className="text-[#1A3A5C]">Generate Post</strong> — Claude writes a draft hook, caption, and
-              hashtags.
+              Pick a <strong className="text-[#1A3A5C]">Product</strong> (VisionWorkx Modules / Proactive / Revalor
+              Consulting / Revalor Company Wide) and a <strong className="text-[#1A3A5C]">Post type</strong>, optionally
+              type a topic, and click <strong className="text-[#1A3A5C]">Generate Post</strong>. Claude writes a draft in
+              your founder voice. <strong className="text-[#1A3A5C]">Auto</strong> follows the 4-week rotation: week 1
+              and 3 are pure-value business tips (no pitch), week 2 is a product story, week 4 is one promotion.
             </HelpStep>
             <HelpStep n={2}>
               Edit the Hook/Caption/Hashtags directly in the card, then click{" "}
@@ -199,10 +206,23 @@ export default function LinkedInTab({
             onChange={(e) => setProduct(e.target.value as LinkedInProduct)}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
           >
-            <option value="visionworkx">VisionWorkx</option>
+            <option value="visionworkx">VisionWorkx Modules</option>
             <option value="proactive">Proactive</option>
             <option value="revalor_consulting">Revalor Consulting</option>
-            <option value="revalor">Revalor (company-wide)</option>
+            <option value="revalor">Revalor Company Wide</option>
+          </select>
+          <select
+            value={postType}
+            onChange={(e) => setPostType(e.target.value as LinkedInPostType | "auto")}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+            title="Revalor's 4-week rotation: insight, product story, insight, promotion"
+          >
+            <option value="auto">Auto: {POST_TYPE_LABEL[slotType].split(" (")[0]} (week {slotWeek} of 4)</option>
+            {LINKEDIN_POST_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {POST_TYPE_LABEL[t]}
+              </option>
+            ))}
           </select>
           <input
             value={topic}

@@ -79,7 +79,7 @@ const KIND_BADGE: Record<ActivityKind, string> = {
 };
 
 const LINKEDIN_PRODUCT_LABEL: Record<string, string> = {
-  visionworkx: "VisionWorkx",
+  visionworkx: "VisionWorkx Modules",
   proactive: "Proactive",
   revalor_consulting: "Revalor Consulting",
   revalor: "Revalor LLC",
