@@ -14,15 +14,28 @@ social crons (`social-generate`, `social-publish`) never touch `linkedin_posts`.
 3. Click **Unschedule** at any time before it goes out. Moving a post back to draft also clears
    its schedule.
 
-Zapier posts the hook, caption and `#hashtags`, whatever the post's product. **Videos aren't
-sent**, so post anything that needs its video by hand (Copy caption + hashtags → Mark as posted).
+Zapier posts the hook, caption and `#hashtags`, whatever the post's product, plus the post's
+image if it has one. **Videos aren't sent**, so post anything that needs its video by hand (Copy
+caption + hashtags → Mark as posted).
+
+### Image (optional)
+
+Each post can have one JPG or PNG image, up to 5 MB. On the post card use **Upload image**, then
+**Replace image** or **Remove image**; the card shows a preview. Replaced or removed images stay in
+the bucket (there's no cleanup).
 
 ## How it works
 
 - Column `linkedin_posts.scheduled_at` (nullable timestamptz, migration
   `20240101000109_vw_linkedin_scheduled_at.sql`).
+- Column `linkedin_posts.image_path` (nullable text, migration
+  `20240101000110_vw_linkedin_image.sql`; additive and idempotent). Images live in the existing
+  private `social-content-images` bucket at `linkedin/<post id>/<uuid>.<ext>`.
 - `PATCH /api/social/linkedin/[id]` accepts `scheduledAt` (ISO string or `null`), only on
-  approved posts.
+  approved posts, and `imagePath` (or `null` to remove). The path must be in that post's folder,
+  and the server checks the stored file is JPG/PNG and at most 5 MB (storage info) before saving.
+- Admin-only image routes: `POST /api/social/linkedin/[id]/image-upload-url` (signed upload link)
+  and `GET /api/social/linkedin/[id]/image-url` (5-minute preview link).
 - `GET /api/social/linkedin/feed?token=<LINKEDIN_FEED_TOKEN>` returns RSS 2.0 of approved posts
   whose `scheduled_at` is in the last 48 hours and not in the future. A wrong or missing token, or
   an unset `LINKEDIN_FEED_TOKEN`, gets a 404.
@@ -30,11 +43,14 @@ sent**, so post anything that needs its video by hand (Copy caption + hashtags �
     starts with it).
   - `<guid>`: `linkedin-<id>-<scheduled ms>`. A rescheduled post becomes a new item, and the same
     schedule never repeats.
+  - `<enclosure>`: for posts with an image, a 1-hour signed link with `type` `image/jpeg` or
+    `image/png`. If the link can't be made, that post goes out text-only.
 - Zapier can't report back, so each time the feed is read, any post that has been due for
   30+ minutes is marked `posted` (`posted_at = scheduled_at`). This only happens if the post is
   still approved and its `scheduled_at` hasn't changed.
-- Code: `lib/social/linkedinFeed.ts` (+ `.test.ts`), `app/api/social/linkedin/feed/route.ts`,
-  `app/admin/social/LinkedInTab.tsx`.
+- Code: `lib/social/linkedinFeed.ts` (+ `.test.ts`), `lib/social/linkedinImage.ts` (+ `.test.ts`),
+  `app/api/social/linkedin/feed/route.ts`, `app/api/social/linkedin/[id]/image-upload-url/`,
+  `app/api/social/linkedin/[id]/image-url/`, `app/admin/social/LinkedInTab.tsx`.
 
 ## Zapier setup (free plan)
 
@@ -43,7 +59,8 @@ sent**, so post anything that needs its video by hand (Copy caption + hashtags �
    - **Trigger:** RSS by Zapier → **New Item in Feed**, Feed URL
      `https://<app host>/api/social/linkedin/feed?token=<LINKEDIN_FEED_TOKEN>`.
    - **Action:** LinkedIn → **Create Company Update**, company **Revalor LLC**,
-     Update Content = the item's **Description**.
+     Update Content = the item's **Description**, Image = the item's **Enclosure URL**, Image
+     Type = **post_media**.
 3. **Turn the Zap on before you schedule the first post.** Zapier skips items that are already in
    the feed when the Zap is turned on.
 
@@ -60,4 +77,5 @@ scheduled time.
 
 ## QA
 
-`visionworkx/social/linkedin-feed-requires-token`, `visionworkx/social/linkedin-schedule-requires-admin`.
+`visionworkx/social/linkedin-feed-requires-token`, `visionworkx/social/linkedin-schedule-requires-admin`,
+`visionworkx/social/linkedin-image-requires-admin`.

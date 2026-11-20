@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset, SocialVideoProduct } from "@/lib/database.types";
 import HelpButton, { HelpStep } from "./HelpButton";
 
@@ -139,8 +140,8 @@ export default function LinkedInTab({
             <HelpStep n={5}>
               To post it automatically, pick a date and time and click{" "}
               <strong className="text-[#1A3A5C]">Schedule</strong>. When that time arrives, Zapier picks it up
-              (within about 15 minutes) and posts the hook, caption and hashtags to the Revalor LLC page, whatever the
-              product. The video isn&apos;t sent, so leave videos for manual posts. It&apos;s marked posted on its
+              (within about 15 minutes) and posts the hook, caption, hashtags and image (if you uploaded one) to the
+              Revalor LLC page, whatever the product. Videos aren&apos;t sent, so post those yourself. It&apos;s marked posted on its
               own about 30 minutes later. Click <strong className="text-[#1A3A5C]">Unschedule</strong> any time
               before then to stop it.
             </HelpStep>
@@ -225,13 +226,77 @@ function PostCard({
   const [videoPreviewLoading, setVideoPreviewLoading] = useState(false);
   const [scheduleAt, setScheduleAt] = useState(() => (post.scheduled_at ? toLocalInput(new Date(post.scheduled_at)) : nextTuesdayNine()));
   const [scheduleError, setScheduleError] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Load a short-lived preview link whenever the post's image changes.
+  useEffect(() => {
+    if (!post.image_path) return;
+    let cancelled = false;
+    fetch(`/api/social/linkedin/${post.id}/image-url`)
+      .then((res) => res.json().then((body) => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (cancelled) return;
+        if (ok) setImageUrl(body.url);
+        else setImageError(body.error ?? "Couldn't load the image");
+      })
+      .catch((err) => !cancelled && setImageError((err as Error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [post.id, post.image_path]);
+
+  async function uploadImage(file: File) {
+    setImageError("");
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      setImageError("Use a JPG or PNG image");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Image must be 5 MB or smaller");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const res = await fetch(`/api/social/linkedin/${post.id}/image-upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: file.type, size: file.size }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      const { error: uploadError } = await createBrowserClient()
+        .storage.from("social-content-images")
+        .uploadToSignedUrl(body.path, body.uploadToken, file, { contentType: file.type });
+      if (uploadError) throw new Error(uploadError.message);
+      setImageUrl(null);
+      await save({ imagePath: body.path });
+    } catch (err) {
+      setImageError((err as Error).message);
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }
+
+  async function removeImage() {
+    setImageError("");
+    try {
+      await save({ imagePath: null });
+      setImageUrl(null);
+    } catch (err) {
+      setImageError((err as Error).message);
+    }
+  }
   // Captured once per mount (render must stay pure); good enough for a badge.
   const [renderedAt] = useState(() => Date.now());
   const scheduledDue = post.status === "approved" && !!post.scheduled_at && new Date(post.scheduled_at).getTime() <= renderedAt;
 
   const dirty = hook !== (post.hook ?? "") || caption !== post.caption || hashtags !== post.hashtags.join(", ");
 
-  async function save(patch: Partial<{ hook: string; caption: string; hashtags: string[]; status: LinkedInPostStatus; videoAssetId: string | null; scheduledAt: string | null }>) {
+  async function save(patch: Partial<{ hook: string; caption: string; hashtags: string[]; status: LinkedInPostStatus; videoAssetId: string | null; scheduledAt: string | null; imagePath: string | null }>) {
     setSaving(true);
     setScheduleError("");
     try {
@@ -377,7 +442,42 @@ function PostCard({
       )}
 
       <div className="mb-3">
-        <label className="text-xs text-slate-500 mr-2">Video (optional):</label>
+        <label className="text-xs text-slate-500 mr-2">Image (optional, posted with scheduled posts):</label>
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void uploadImage(f);
+          }}
+        />
+        <button
+          onClick={() => imageInputRef.current?.click()}
+          disabled={uploadingImage || saving}
+          className="text-xs font-medium text-sky-600 hover:underline disabled:opacity-50"
+        >
+          {uploadingImage ? "Uploading…" : post.image_path ? "Replace image" : "Upload image"}
+        </button>
+        {post.image_path && (
+          <button
+            onClick={removeImage}
+            disabled={uploadingImage || saving}
+            className="ml-2 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+          >
+            Remove image
+          </button>
+        )}
+        {imageError && <p className="text-xs text-red-600 mt-1">{imageError}</p>}
+        {post.image_path && imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- short-lived signed storage URL
+          <img src={imageUrl} alt="LinkedIn post image" className="mt-2 w-full max-w-sm rounded-lg border border-slate-200" />
+        )}
+      </div>
+
+      <div className="mb-3">
+        <label className="text-xs text-slate-500 mr-2">Video (optional, post videos yourself):</label>
         <select
           value={post.video_asset_id ?? ""}
           onChange={(e) => {

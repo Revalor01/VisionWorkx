@@ -17,7 +17,15 @@ export const FEED_WINDOW_MS = 48 * 60 * 60 * 1000;
 /** A due post is treated as picked up by Zapier after this long. */
 export const MARK_POSTED_AFTER_MS = 30 * 60 * 1000;
 
-type FeedPost = Pick<LinkedInPost, "id" | "hook" | "caption" | "hashtags" | "product" | "scheduled_at">;
+type FeedPost = Pick<LinkedInPost, "id" | "hook" | "caption" | "hashtags" | "product" | "scheduled_at"> &
+  Partial<Pick<LinkedInPost, "image_path">>;
+
+/** How long the feed's signed image links stay valid (Zapier fetches right after polling). */
+export const FEED_IMAGE_URL_TTL_SECONDS = 60 * 60;
+
+function imageMime(path: string): string {
+  return path.endsWith(".png") ? "image/png" : "image/jpeg";
+}
 
 /** Constant-time check of the ?token= against LINKEDIN_FEED_TOKEN. Unset secret = always false. */
 export function feedTokenValid(provided: string | null | undefined, secret: string | undefined): boolean {
@@ -69,8 +77,10 @@ function xml(s: string): string {
  * RSS 2.0 feed of due posts. <guid> is post id + scheduled time, so a
  * rescheduled post is a new item but the same schedule is never repeated.
  * <description> is the plain post text (Zapier maps it to "Update Content").
+ * A post with an image gets an <enclosure> (imageUrls: post id -> signed URL),
+ * which Zapier maps to the LinkedIn step's "Image" (type post_media).
  */
-export function buildFeedXml(posts: FeedPost[], siteUrl: string, now: number): string {
+export function buildFeedXml(posts: FeedPost[], siteUrl: string, now: number, imageUrls: Record<string, string> = {}): string {
   const items = duePosts(posts, now)
     .map((p) => {
       const text = postText(p);
@@ -82,6 +92,9 @@ export function buildFeedXml(posts: FeedPost[], siteUrl: string, now: number): s
         `      <guid isPermaLink="false">linkedin-${xml(p.id)}-${new Date(p.scheduled_at!).getTime()}</guid>`,
         `      <pubDate>${new Date(p.scheduled_at!).toUTCString()}</pubDate>`,
         `      <category>${xml(p.product)}</category>`,
+        ...(imageUrls[p.id] && p.image_path
+          ? [`      <enclosure url="${xml(imageUrls[p.id])}" length="0" type="${imageMime(p.image_path)}" />`]
+          : []),
         "    </item>",
       ].join("\n");
     })

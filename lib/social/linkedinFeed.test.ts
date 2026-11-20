@@ -76,6 +76,16 @@ describe("buildFeedXml", () => {
     expect(xml).toContain(`<guid isPermaLink="false">linkedin-p1-${NOW - 5 * min}</guid>`);
     expect(xml).not.toContain("later");
   });
+  it("adds an enclosure only for posts with an image and a signed link", () => {
+    const xml = buildFeedXml(
+      [post("img", -2 * min, { image_path: "linkedin/img/a.png" }), post("noimg", -3 * min)],
+      "https://x.test",
+      NOW,
+      { img: "https://storage.test/sign?token=a&b=1" },
+    );
+    expect(xml).toContain('<enclosure url="https://storage.test/sign?token=a&amp;b=1" length="0" type="image/png" />');
+    expect(xml.match(/<enclosure/g)).toHaveLength(1);
+  });
   it("strips control characters XML can't carry", () => {
     const xml = buildFeedXml([post("p2", -1 * min, { caption: "Bad\u0007char\u0000s" })], "https://x.test", NOW);
     expect(xml).toContain("Badchars");

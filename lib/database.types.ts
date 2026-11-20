@@ -1504,6 +1504,7 @@ export type Database = {
         Row: {
           id: string;
           video_asset_id: string | null;
+          image_path: string | null;
           product: LinkedInProduct;
           hook: string | null;
           caption: string;
@@ -1517,6 +1518,7 @@ export type Database = {
         Insert: {
           id?: string;
           video_asset_id?: string | null;
+          image_path?: string | null;
           product?: LinkedInProduct;
           hook?: string | null;
           caption: string;
@@ -1528,6 +1530,7 @@ export type Database = {
         };
         Update: {
           video_asset_id?: string | null;
+          image_path?: string | null;
           product?: LinkedInProduct;
           hook?: string | null;
           caption?: string;

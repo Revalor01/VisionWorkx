@@ -47,3 +47,9 @@ qa({ id: "visionworkx/social/linkedin-schedule-requires-admin", area: "Social", 
   const res = await request.patch(`/api/social/linkedin/${id}`, { data: { scheduledAt: new Date(Date.now() + 864e5).toISOString() } });
   expect(res.status()).toBe(401);
 });
+
+qa({ id: "visionworkx/social/linkedin-image-requires-admin", area: "Social", title: "LinkedIn post images need the admin" }, async ({ request }) => {
+  const id = "00000000-0000-4000-8000-000000000000";
+  expect((await request.post(`/api/social/linkedin/${id}/image-upload-url`, { data: { contentType: "image/png", size: 1000 } })).status()).toBe(401);
+  expect((await request.get(`/api/social/linkedin/${id}/image-url`)).status()).toBe(401);
+});

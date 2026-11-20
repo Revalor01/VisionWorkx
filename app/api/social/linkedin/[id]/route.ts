@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 import type { Database, LinkedInPostStatus } from "@/lib/database.types";
+import { LINKEDIN_IMAGE_BUCKET, LINKEDIN_IMAGE_MAX_BYTES, LINKEDIN_IMAGE_TYPES, isLinkedinImagePath } from "@/lib/social/linkedinImage";
 
 type LinkedInPostUpdate = Database["public"]["Tables"]["linkedin_posts"]["Update"];
 
@@ -23,6 +24,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     videoAssetId?: string | null;
     // ISO timestamp to schedule (approved posts only), or null to unschedule.
     scheduledAt?: string | null;
+    // Path returned by image-upload-url (must be in this post's folder), or null to remove.
+    imagePath?: string | null;
   };
   try {
     body = await req.json();
@@ -35,6 +38,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (body.caption !== undefined) update.caption = body.caption;
   if (body.hashtags !== undefined) update.hashtags = body.hashtags;
   if (body.videoAssetId !== undefined) update.video_asset_id = body.videoAssetId;
+  if (body.imagePath !== undefined) {
+    if (body.imagePath !== null && (typeof body.imagePath !== "string" || !isLinkedinImagePath(params.id, body.imagePath))) {
+      return NextResponse.json({ error: "Invalid image" }, { status: 400 });
+    }
+    update.image_path = body.imagePath;
+  }
   if (body.status !== undefined) {
     if (!VALID_STATUSES.includes(body.status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     update.status = body.status;
@@ -44,6 +53,19 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   }
 
   const service = createServiceClient();
+
+  // The signed upload link doesn't pin size or type, so check the stored file
+  // itself: it must exist, be 5 MB or less, and be a JPG/PNG matching its name.
+  if (typeof update.image_path === "string") {
+    const { data: info, error: infoError } = await service.storage.from(LINKEDIN_IMAGE_BUCKET).info(update.image_path);
+    if (infoError || !info) return NextResponse.json({ error: "The image upload didn't finish. Try again." }, { status: 400 });
+    const ext = update.image_path.split(".").pop();
+    const typeOk = !!info.contentType && LINKEDIN_IMAGE_TYPES[info.contentType] === ext;
+    const sizeOk = typeof info.size !== "number" || info.size <= LINKEDIN_IMAGE_MAX_BYTES;
+    if (!typeOk || !sizeOk) {
+      return NextResponse.json({ error: "Use a JPG or PNG image of 5 MB or less" }, { status: 400 });
+    }
+  }
 
   if (body.scheduledAt !== undefined) {
     if (body.scheduledAt === null) {

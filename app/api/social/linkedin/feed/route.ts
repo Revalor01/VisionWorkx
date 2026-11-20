@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { FEED_WINDOW_MS, buildFeedXml, feedTokenValid, postsToMarkPosted } from "@/lib/social/linkedinFeed";
+import { FEED_IMAGE_URL_TTL_SECONDS, FEED_WINDOW_MS, buildFeedXml, duePosts, feedTokenValid, postsToMarkPosted } from "@/lib/social/linkedinFeed";
+import { LINKEDIN_IMAGE_BUCKET } from "@/lib/social/linkedinImage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
   const service = createServiceClient();
   const { data, error } = await service
     .from("linkedin_posts")
-    .select("id, hook, caption, hashtags, product, scheduled_at")
+    .select("id, hook, caption, hashtags, product, scheduled_at, image_path")
     .eq("status", "approved")
     .not("scheduled_at", "is", null)
     .gte("scheduled_at", new Date(now - FEED_WINDOW_MS).toISOString())
@@ -32,7 +33,19 @@ export async function GET(req: NextRequest) {
   }
   const posts = data ?? [];
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app";
-  const body = buildFeedXml(posts, siteUrl, now);
+
+  // Short-lived signed links for due posts' images. A failed link just means
+  // that post goes out text-only rather than breaking the whole feed.
+  const imageUrls: Record<string, string> = {};
+  for (const p of duePosts(posts, now)) {
+    if (!p.image_path) continue;
+    const { data: signed, error: signError } = await service.storage
+      .from(LINKEDIN_IMAGE_BUCKET)
+      .createSignedUrl(p.image_path, FEED_IMAGE_URL_TTL_SECONDS);
+    if (signed?.signedUrl) imageUrls[p.id] = signed.signedUrl;
+    else console.error("[social/linkedin/feed] image link failed:", p.id, signError?.message);
+  }
+  const body = buildFeedXml(posts, siteUrl, now, imageUrls);
 
   // Zapier can't confirm a post, so anything due for 30+ minutes has had at
   // least one poll and is marked posted (posted_at = its scheduled time). The
