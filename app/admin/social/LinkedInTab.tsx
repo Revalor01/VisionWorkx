@@ -140,8 +140,9 @@ export default function LinkedInTab({
             <HelpStep n={5}>
               To post it automatically, pick a date and time and click{" "}
               <strong className="text-[#1A3A5C]">Schedule</strong>. When that time arrives, Zapier picks it up
-              (within about 15 minutes) and posts the hook, caption, hashtags and image (if you uploaded one) to the
-              Revalor LLC page, whatever the product. Videos aren&apos;t sent, so post those yourself. It&apos;s marked posted on its
+              (within about 15 minutes) and posts the hook, caption, a link to the product&apos;s page, the hashtags and the
+              image (if you uploaded one) to both the Revalor LLC page and your personal profile, whatever the product.
+              Clicks on that link show up on the Performance tab. Videos aren&apos;t sent, so post those yourself. It&apos;s marked posted on its
               own about 30 minutes later. Click <strong className="text-[#1A3A5C]">Unschedule</strong> any time
               before then to stop it.
             </HelpStep>
@@ -153,7 +154,7 @@ export default function LinkedInTab({
         </div>
         <p className="text-sm text-slate-500 mb-4">
           Nothing goes out until you approve a post. Then either schedule it (Zapier posts it to the Revalor LLC page
-          at that time) or copy it and post it on LinkedIn yourself.
+          and your personal profile at that time) or copy it and post it on LinkedIn yourself.
         </p>
         {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
         <div className="flex gap-3 items-center">

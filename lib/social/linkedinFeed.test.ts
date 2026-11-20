@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFeedXml, duePosts, feedTokenValid, postText, postsToMarkPosted } from "./linkedinFeed";
+import { buildFeedXml, duePosts, feedTokenValid, feedVisible, linkedinProductPage, parseAccount, postText, postsToMarkPosted } from "./linkedinFeed";
 
 const NOW = Date.parse("2026-11-24T14:30:00Z");
 const min = 60_000;
@@ -38,6 +38,16 @@ describe("postText", () => {
   it("doesn't repeat a hook the caption already starts with", () => {
     expect(postText({ hook: "Hook.", caption: "Hook. Rest.", hashtags: [] })).toBe("Hook. Rest.");
   });
+  it("adds the product link before the hashtags", () => {
+    expect(postText({ hook: null, caption: "Body.", hashtags: ["a"] }, "https://x.test/go/abc")).toBe(
+      "Body.\n\nLearn more: https://x.test/go/abc\n\n#a",
+    );
+  });
+  it("doesn't add a link when the caption already links to the products site", () => {
+    expect(postText({ hook: null, caption: "See https://products.revalorllc.com/business", hashtags: [] }, "https://x.test/go/abc")).toBe(
+      "See https://products.revalorllc.com/business",
+    );
+  });
   it("works without a hook or hashtags", () => {
     expect(postText({ hook: null, caption: "Just this.", hashtags: [] })).toBe("Just this.");
   });
@@ -60,6 +70,34 @@ describe("postsToMarkPosted", () => {
   it("only marks posts due for at least 30 minutes", () => {
     const posts = [post("fresh", -10 * min), post("ready", -31 * min), post("future", 10 * min)];
     expect(postsToMarkPosted(posts, NOW).map((p) => p.id)).toEqual(["ready"]);
+  });
+  it("skips posts already marked posted", () => {
+    expect(postsToMarkPosted([post("done", -40 * min, { status: "posted", posted_at: iso(-40 * min) })], NOW)).toEqual([]);
+  });
+});
+
+describe("feedVisible", () => {
+  it("keeps approved posts and posts the feed marked posted, drops hand-posted ones", () => {
+    const posts = [
+      post("approved", -5 * min, { status: "approved", posted_at: null }),
+      post("feedPosted", -40 * min, { status: "posted", posted_at: iso(-40 * min) }),
+      post("handPosted", -40 * min, { status: "posted", posted_at: iso(-10 * min) }),
+      post("draft", -5 * min, { status: "draft", posted_at: null }),
+    ];
+    expect(feedVisible(posts).map((p) => p.id)).toEqual(["approved", "feedPosted"]);
+  });
+});
+
+describe("accounts and product pages", () => {
+  it("defaults to the company page", () => {
+    expect(parseAccount(null)).toBe("page");
+    expect(parseAccount("nope")).toBe("page");
+    expect(parseAccount("profile")).toBe("profile");
+  });
+  it("maps LinkedIn products to their products-site page", () => {
+    expect(linkedinProductPage("revalor_consulting")).toBe("https://products.revalorllc.com/business#consulting");
+    expect(linkedinProductPage("visionworkx")).toBe("https://products.revalorllc.com/business#visionworkx");
+    expect(linkedinProductPage("revalor")).toBe("https://products.revalorllc.com");
   });
 });
 
@@ -85,6 +123,16 @@ describe("buildFeedXml", () => {
     );
     expect(xml).toContain('<enclosure url="https://storage.test/sign?token=a&amp;b=1" length="0" type="image/png" />');
     expect(xml.match(/<enclosure/g)).toHaveLength(1);
+  });
+  it("puts the account's link in the text and <link>, and names the account", () => {
+    const xml = buildFeedXml([post("p3", -1 * min)], "https://x.test", NOW, {}, { p3: "https://x.test/go/abc" }, "profile");
+    expect(xml).toContain("<link>https://x.test/go/abc</link>");
+    expect(xml).toContain("Learn more: https://x.test/go/abc");
+    expect(xml).toContain("(personal profile)");
+  });
+  it("still lists a post the other account's feed read already marked posted", () => {
+    const xml = buildFeedXml([post("p4", -40 * min, { status: "posted", posted_at: iso(-40 * min) })], "https://x.test", NOW);
+    expect(xml.match(/<item>/g)).toHaveLength(1);
   });
   it("strips control characters XML can't carry", () => {
     const xml = buildFeedXml([post("p2", -1 * min, { caption: "Bad\u0007char\u0000s" })], "https://x.test", NOW);

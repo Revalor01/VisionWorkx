@@ -1,7 +1,8 @@
 # LinkedIn scheduling (Zapier)
 
 Approved LinkedIn posts in **/admin/social → LinkedIn** can be scheduled. A free Zapier Zap reads a
-token-protected RSS feed and posts them to the **Revalor LLC** company page.
+token-protected RSS feed and posts them to **two LinkedIn accounts**: the **Revalor LLC** company
+page and the owner's **personal profile** (one Zap per account, each with its own feed URL).
 
 Nothing is posted unless a person **approved** the post **and** scheduled it. The autonomous
 social crons (`social-generate`, `social-publish`) never touch `linkedin_posts`.
@@ -14,8 +15,9 @@ social crons (`social-generate`, `social-publish`) never touch `linkedin_posts`.
 3. Click **Unschedule** at any time before it goes out. Moving a post back to draft also clears
    its schedule.
 
-Zapier posts the hook, caption and `#hashtags`, whatever the post's product, plus the post's
-image if it has one. **Videos aren't sent**, so post anything that needs its video by hand (Copy
+Zapier posts the hook, caption, a tracked link to the product's page (`Learn more: …/go/<code>`,
+skipped if the caption already links to products.revalorllc.com) and `#hashtags`, whatever the
+post's product, plus the post's image if it has one. **Videos aren't sent**, so post anything that needs its video by hand (Copy
 caption + hashtags → Mark as posted).
 
 ### Image (optional)
@@ -45,6 +47,14 @@ the bucket (there's no cleanup).
     schedule never repeats.
   - `<enclosure>`: for posts with an image, a 1-hour signed link with `type` `image/jpeg` or
     `image/png`. If the link can't be made, that post goes out text-only.
+- `&account=page` (default, so a feed URL without it is the company page) or `&account=profile`.
+  Each account gets its own tracked link per post: a `short_links` row with
+  `platform = linkedin_page | linkedin_profile` and `campaign = linkedin:<post id>`, pointing at
+  the product page with `utm_source=linkedin&utm_content=<account>`. It's added to the text and is
+  the item's `<link>`. Clicks are counted on **Performance** (LinkedIn card + two "By platform" rows).
+- The feed lists approved posts **and** posts the feed itself marked posted
+  (`posted_at = scheduled_at`), so the second Zap still sees a post after the first account's read
+  marked it. A post marked posted by hand (different `posted_at`) is never sent.
 - Zapier can't report back, so each time the feed is read, any post that has been due for
   30+ minutes is marked `posted` (`posted_at = scheduled_at`). This only happens if the post is
   still approved and its `scheduled_at` hasn't changed.
@@ -55,14 +65,24 @@ the bucket (there's no cleanup).
 ## Zapier setup (free plan)
 
 1. Set `LINKEDIN_FEED_TOKEN` in Vercel to a long random string.
-2. Create a Zap:
+2. **Zap 1: company page.**
    - **Trigger:** RSS by Zapier → **New Item in Feed**, Feed URL
-     `https://<app host>/api/social/linkedin/feed?token=<LINKEDIN_FEED_TOKEN>`.
+     `https://<app host>/api/social/linkedin/feed?token=<LINKEDIN_FEED_TOKEN>&account=page`
+     (the older URL without `&account=` still means the page).
    - **Action:** LinkedIn → **Create Company Update**, company **Revalor LLC**,
      Update Content = the item's **Description**, Image = the item's **Enclosure URL**, Image
      Type = **post_media**.
-3. **Turn the Zap on before you schedule the first post.** Zapier skips items that are already in
+3. **Zap 2: personal profile.** A separate Zap, so this works even on plans limited to two-step Zaps.
+   - **Trigger:** RSS by Zapier → **New Item in Feed**, Feed URL
+     `https://<app host>/api/social/linkedin/feed?token=<LINKEDIN_FEED_TOKEN>&account=profile`.
+   - **Action:** LinkedIn → **Create Share Update**, Comment = the item's **Description**,
+     Visible To = **Anyone**. Optional link card: Content - URL = the item's **Link**,
+     Content - Image URL = the item's **Enclosure URL**. LinkedIn's personal-profile action can't
+     attach an image as post media, only as a link-card thumbnail.
+4. **Turn both Zaps on before you schedule the first post.** Zapier skips items that are already in
    the feed when the Zap is turned on.
+
+Each post uses one Zapier task per account (two per post), out of the free plan's monthly tasks.
 
 The free plan polls about every 15 minutes, so a post goes out up to about 15 minutes after its
 scheduled time.
