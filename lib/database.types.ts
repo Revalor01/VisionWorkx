@@ -1500,6 +1500,29 @@ export type Database = {
         };
         Relationships: [];
       };
+      linkedin_automation: {
+        Row: {
+          id: number;
+          enabled: boolean;
+          cadence: string;
+          ends_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          enabled?: boolean;
+          cadence?: string;
+          ends_at?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          enabled?: boolean;
+          cadence?: string;
+          ends_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       linkedin_posts: {
         Row: {
           id: string;

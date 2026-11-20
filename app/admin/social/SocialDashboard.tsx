@@ -159,6 +159,7 @@ export default function SocialDashboard({
             blogPosts={initialBlogPosts}
             campaigns={initialCampaigns}
             videoJobs={initialVideoJobs}
+            linkedinPosts={linkedInPosts}
           />
         )}
         {tab === "performance" && <PerformanceTab brands={brands} />}

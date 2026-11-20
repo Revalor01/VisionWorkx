@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset, SocialVideoProduct } from "@/lib/database.types";
 import HelpButton, { HelpStep } from "./HelpButton";
+import LinkedInAutomationPanel from "./LinkedInAutomationPanel";
+import { AUTOMATION_DEFAULTS, automationActive, nextSlots, type LinkedInAutomation } from "@/lib/social/linkedinAutomation";
+import { FEED_WINDOW_MS } from "@/lib/social/linkedinFeed";
 
 const STATUS_STYLE: Record<LinkedInPostStatus, string> = {
   draft: "bg-slate-100 text-slate-600",
@@ -84,6 +87,32 @@ export default function LinkedInTab({
   const [product, setProduct] = useState<LinkedInProduct>("visionworkx");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
+  const [automation, setAutomation] = useState<{ settings: LinkedInAutomation; active: boolean }>({
+    settings: AUTOMATION_DEFAULTS,
+    active: automationActive(AUTOMATION_DEFAULTS, 0),
+  });
+  const [automationError, setAutomationError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/social/linkedin/automation")
+      .then((res) => res.json().then((body) => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (cancelled) return;
+        if (ok) setAutomation({ settings: body.settings, active: body.active });
+        else setAutomationError(body.error ?? "Couldn't load the automation settings");
+      })
+      .catch((e) => !cancelled && setAutomationError((e as Error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Default for each card's Schedule picker: the next free slot for the cadence.
+  const takenTimes = posts.filter((p) => p.status !== "draft").map((p) => p.scheduled_at ?? p.posted_at);
+  const [mountedAt] = useState(() => Date.now());
+  const nextSlot = nextSlots(automation.settings.cadence, new Date(mountedAt), 1, takenTimes)[0];
+  const defaultSlot = nextSlot ? toLocalInput(nextSlot) : nextTuesdayNine();
 
   // Any Media Studio video (generated or imported) is fair game here,
   // regardless of which brand identity it was filed under - Studio's
@@ -147,6 +176,13 @@ export default function LinkedInTab({
               before then to stop it.
             </HelpStep>
             <HelpStep n={6}>
+              <strong className="text-[#1A3A5C]">Automation</strong> (box above the posts): the On / Paused button stops or
+              starts sending to both accounts. <strong className="text-[#1A3A5C]">How often</strong> sets the slots
+              (weekly, twice a week, every other week), <strong className="text-[#1A3A5C]">Run for</strong> sets an end date
+              after which it stops on its own, and <strong className="text-[#1A3A5C]">Fill open slots</strong> schedules your
+              approved posts into the next free slots. Scheduled posts also show on the Calendar tab.
+            </HelpStep>
+            <HelpStep n={7}>
               Or post it yourself: click <strong className="text-[#1A3A5C]">Copy caption + hashtags</strong>, paste it
               into LinkedIn, then come back and click <strong className="text-[#1A3A5C]">Mark as posted</strong>.
             </HelpStep>
@@ -184,6 +220,15 @@ export default function LinkedInTab({
         </div>
       </div>
 
+      <LinkedInAutomationPanel
+        settings={automation.settings}
+        active={automation.active}
+        loadError={automationError}
+        onSaved={(settings, active) => setAutomation({ settings, active })}
+        posts={posts}
+        setPosts={setPosts}
+      />
+
       {posts.length === 0 ? (
         <div className="bg-white border border-dashed border-[#B8860B] rounded-xl p-10 text-center text-slate-400 text-sm">
           No LinkedIn posts yet.
@@ -197,6 +242,8 @@ export default function LinkedInTab({
               setPosts={setPosts}
               readyVideos={readyVideos}
               setVideoAssets={setVideoAssets}
+              defaultSlot={defaultSlot}
+              automationOn={automation.active}
             />
           ))}
         </div>
@@ -210,7 +257,11 @@ function PostCard({
   setPosts,
   readyVideos,
   setVideoAssets,
+  defaultSlot,
+  automationOn,
 }: {
+  defaultSlot: string;
+  automationOn: boolean;
   post: LinkedInPost;
   setPosts: React.Dispatch<React.SetStateAction<LinkedInPost[]>>;
   readyVideos: SocialVideoAsset[];
@@ -225,7 +276,7 @@ function PostCard({
   const [copied, setCopied] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoPreviewLoading, setVideoPreviewLoading] = useState(false);
-  const [scheduleAt, setScheduleAt] = useState(() => (post.scheduled_at ? toLocalInput(new Date(post.scheduled_at)) : nextTuesdayNine()));
+  const [scheduleAt, setScheduleAt] = useState(() => (post.scheduled_at ? toLocalInput(new Date(post.scheduled_at)) : defaultSlot));
   const [scheduleError, setScheduleError] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -294,6 +345,8 @@ function PostCard({
   // Captured once per mount (render must stay pure); good enough for a badge.
   const [renderedAt] = useState(() => Date.now());
   const scheduledDue = post.status === "approved" && !!post.scheduled_at && new Date(post.scheduled_at).getTime() <= renderedAt;
+  // Due more than the feed's 48h window ago and never sent (e.g. paused meanwhile).
+  const missed = scheduledDue && new Date(post.scheduled_at!).getTime() < renderedAt - FEED_WINDOW_MS;
 
   const dirty = hook !== (post.hook ?? "") || caption !== post.caption || hashtags !== post.hashtags.join(", ");
 
@@ -398,7 +451,13 @@ function PostCard({
           </span>
           {post.status === "approved" && post.scheduled_at && (
             <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-              {scheduledDue ? "Sending via Zapier" : `Scheduled · ${formatWhen(post.scheduled_at)}`}
+              {missed
+                ? "Missed: reschedule"
+                : !automationOn
+                  ? `Paused · ${formatWhen(post.scheduled_at)}`
+                  : scheduledDue
+                    ? "Sending via Zapier"
+                    : `Scheduled · ${formatWhen(post.scheduled_at)}`}
             </span>
           )}
         </div>
@@ -519,9 +578,13 @@ function PostCard({
           {post.scheduled_at ? (
             <>
               <span className="text-xs text-slate-600">
-                {scheduledDue
-                  ? `Due ${formatWhen(post.scheduled_at)}. Zapier posts it within about 15 minutes.`
-                  : `Goes out ${formatWhen(post.scheduled_at)} via Zapier.`}
+                {missed
+                  ? `Was due ${formatWhen(post.scheduled_at)} but never went out. Unschedule, then pick a new time.`
+                  : !automationOn
+                    ? `Automation is paused. This goes out once you turn it back on (if it's not more than 48 hours late).`
+                    : scheduledDue
+                      ? `Due ${formatWhen(post.scheduled_at)}. Zapier posts it to both accounts within about 15 minutes.`
+                      : `Goes out ${formatWhen(post.scheduled_at)} to both accounts via Zapier.`}
               </span>
               <button
                 onClick={() => save({ scheduledAt: null })}

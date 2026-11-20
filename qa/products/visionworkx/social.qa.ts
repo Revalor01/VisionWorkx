@@ -53,3 +53,8 @@ qa({ id: "visionworkx/social/linkedin-image-requires-admin", area: "Social", tit
   expect((await request.post(`/api/social/linkedin/${id}/image-upload-url`, { data: { contentType: "image/png", size: 1000 } })).status()).toBe(401);
   expect((await request.get(`/api/social/linkedin/${id}/image-url`)).status()).toBe(401);
 });
+
+qa({ id: "visionworkx/social/linkedin-automation-requires-admin", area: "Social", title: "LinkedIn automation controls need the admin" }, async ({ request }) => {
+  expect((await request.get("/api/social/linkedin/automation")).status()).toBe(401);
+  expect((await request.put("/api/social/linkedin/automation", { data: { enabled: false } })).status()).toBe(401);
+});

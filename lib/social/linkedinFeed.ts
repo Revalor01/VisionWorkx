@@ -77,15 +77,20 @@ export function feedTokenValid(provided: string | null | undefined, secret: stri
 
 /**
  * The full post text as it should appear on LinkedIn: hook, caption, the
- * product link (hard rule: every post links to its product page; skipped if
- * the caption already has a products-site link), hashtags.
+ * product link (hard rule: every post links to its product page; a
+ * products-site link already in the caption is replaced by it), hashtags.
  */
 export function postText(p: Pick<FeedPost, "hook" | "caption" | "hashtags">, link?: string | null): string {
   const hook = (p.hook ?? "").trim();
   const caption = p.caption.trim();
   // Some captions already open with the hook; don't print it twice.
   let body = hook && !caption.startsWith(hook) ? `${hook}\n\n${caption}` : caption;
-  if (link && !caption.includes("revalorllc.com")) body = `${body}\n\nLearn more: ${link}`;
+  if (link) {
+    // A products-site link already in the caption is swapped for the tracked
+    // one (so its clicks count); otherwise the tracked link is added.
+    const siteLink = /(?:https?:\/\/)?products\.revalorllc\.com[^\s)]*/;
+    body = siteLink.test(body) ? body.replace(siteLink, link) : `${body}\n\nLearn more: ${link}`;
+  }
   const tags = p.hashtags
     .map((h) => h.trim().replace(/^#+/, ""))
     .filter(Boolean)
