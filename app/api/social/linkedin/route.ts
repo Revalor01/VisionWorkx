@@ -3,6 +3,7 @@ import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { isAdmin } from "@/lib/social/authGuard";
 import { generateLinkedInPost } from "@/lib/social/linkedinGenerator";
 import type { LinkedInProduct } from "@/lib/database.types";
+import { isPostType, rotationType, type LinkedInPostType } from "@/lib/social/linkedinRotation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!isAdmin(user)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { topic?: string; product?: LinkedInProduct };
+  // postType: insight | story | promo; omitted = whatever this week's rotation slot calls for.
+  let body: { topic?: string; product?: LinkedInProduct; postType?: LinkedInPostType };
   try {
     body = await req.json();
   } catch {
@@ -27,10 +29,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid product" }, { status: 400 });
   }
   const product = body.product ?? "visionworkx";
+  if (body.postType !== undefined && !isPostType(body.postType)) {
+    return NextResponse.json({ error: "Invalid post type" }, { status: 400 });
+  }
+  const postType = body.postType ?? rotationType(new Date());
 
   const service = createServiceClient();
   try {
-    const post = await generateLinkedInPost({ topic: body.topic, product });
+    const post = await generateLinkedInPost({ topic: body.topic, product, postType });
     const { data: inserted, error } = await service
       .from("linkedin_posts")
       .insert({ hook: post.hook, caption: post.caption, hashtags: post.hashtags, product })
