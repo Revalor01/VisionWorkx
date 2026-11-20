@@ -9,7 +9,8 @@ import {
   rawEngagements,
   type PostPerformance,
 } from "@/lib/social/performance";
-import { POST_PRODUCTS, resolvePostProduct } from "@/lib/social/productRule";
+import { POST_PRODUCTS, productOfUrl, resolvePostProduct } from "@/lib/social/productRule";
+import { LINKEDIN_ACCOUNTS, accountPlatform, linkedinProductPage, postCampaign } from "@/lib/social/linkedinFeed";
 import { FB_STATS_FOLLOWER_THRESHOLD, fetchPageFollowers, followerChange, loadFollowerHistory } from "@/lib/social/pageFollowers";
 
 export const runtime = "nodejs";
@@ -128,6 +129,87 @@ export async function GET(req: NextRequest) {
     };
   }).filter((x) => x.postCount > 0);
 
+  // LinkedIn (not in social_content: linkedin_posts, posted by Zapier to the
+  // Revalor LLC page and the owner's profile). LinkedIn shares no stats with
+  // the free Zapier plan, so this is posts + our tracked /go clicks per
+  // account. Only shown when no brand is picked or the brand is Revalor LLC.
+  const showLinkedIn = !brandId || nameOf.get(brandId) === "Revalor LLC";
+  let linkedin: {
+    postCount: number;
+    accounts: { account: string; label: string; clicks: number }[];
+    byProduct: { product: string; postCount: number; clicks: number }[];
+  } | null = null;
+  if (showLinkedIn) {
+    const since = new Date(Date.now() - days * 864e5).toISOString();
+    const { data: liPosts } = await service
+      .from("linkedin_posts")
+      .select("id, product")
+      .eq("status", "posted")
+      .gte("posted_at", since);
+    const liList = liPosts ?? [];
+    const productOf = new Map(liList.map((p) => [p.id, p.product]));
+    const clicksBy = new Map<string, number>(); // `${account}|${postId}` -> clicks
+    if (liList.length) {
+      const { data: links } = await service
+        .from("short_links")
+        .select("id, campaign, platform")
+        .in("campaign", liList.map((p) => postCampaign(p.id)))
+        .in("platform", LINKEDIN_ACCOUNTS.map(accountPlatform));
+      const linkInfo = new Map((links ?? []).map((l) => [l.id, l]));
+      if (linkInfo.size) {
+        const { data: clicks } = await service
+          .from("link_clicks")
+          .select("short_link_id")
+          .in("short_link_id", [...linkInfo.keys()])
+          .eq("is_bot", false)
+          .limit(50_000);
+        for (const c of clicks ?? []) {
+          const l = linkInfo.get(c.short_link_id)!;
+          const key = `${l.platform}|${(l.campaign ?? "").replace(/^linkedin:/, "")}`;
+          clicksBy.set(key, (clicksBy.get(key) ?? 0) + 1);
+        }
+      }
+    }
+    const sumWhere = (f: (platform: string, postId: string) => boolean) =>
+      [...clicksBy.entries()].reduce((a, [k, n]) => {
+        const [platform, postId] = k.split("|");
+        return f(platform, postId) ? a + n : a;
+      }, 0);
+    const accounts = LINKEDIN_ACCOUNTS.map((a) => ({
+      account: a,
+      label: a === "page" ? "Revalor LLC page" : "Personal profile",
+      clicks: sumWhere((platform) => platform === accountPlatform(a)),
+    }));
+    const products = [...new Set(liList.map((p) => p.product))];
+    const productName = (prod: (typeof liList)[number]["product"]) => {
+      const slug = productOfUrl(linkedinProductPage(prod));
+      return slug ? (POST_PRODUCTS[slug]?.name ?? slug) : "Revalor LLC (company)";
+    };
+    linkedin = {
+      postCount: liList.length,
+      accounts,
+      byProduct: products
+        .map((prod) => ({
+          product: productName(prod),
+          postCount: liList.filter((p) => p.product === prod).length,
+          clicks: sumWhere((_, postId) => productOf.get(postId) === prod),
+        }))
+        .sort((a, b) => b.clicks - a.clicks || b.postCount - a.postCount),
+    };
+    // Each post goes to both accounts, so each account row counts every post.
+    for (const a of accounts) {
+      if (!liList.length) continue;
+      byPlatform.push({
+        platform: `LinkedIn · ${a.label}`,
+        postCount: liList.length,
+        totalReach: 0,
+        totalEngagements: 0,
+        totalTrackedClicks: a.clicks,
+        avgEngagementRate: null,
+      });
+    }
+  }
+
   const ranked = [...posts].sort((a, b) => performanceScore(b) - performanceScore(a));
   const topHooks = ranked
     .filter((p) => p.hook && (p.engagementRate != null || p.trackedClicks != null))
@@ -143,6 +225,7 @@ export async function GET(req: NextRequest) {
     followers,
     followerThreshold: FB_STATS_FOLLOWER_THRESHOLD,
     byHour,
+    linkedin,
     topHooks,
     posts: ranked.slice(0, 100),
   });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useOnChange } from "@/lib/hooks";
 import type { SocialBrand } from "@/lib/database.types";
-import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
+import { FacebookIcon, InstagramIcon, LinkedInIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 
 interface PostRow {
   contentId: string;
@@ -51,6 +51,11 @@ interface PerfData {
     avgEngagementRate: number | null;
   }[];
   byHour: { hour: number; postCount: number; avgEngagementRate: number | null }[];
+  linkedin: {
+    postCount: number;
+    accounts: { account: string; label: string; clicks: number }[];
+    byProduct: { product: string; postCount: number; clicks: number }[];
+  } | null;
   topHooks: string[];
   posts: PostRow[];
 }
@@ -65,6 +70,7 @@ function platformIcon(p: string) {
   if (p === "instagram") return <InstagramIcon uid={`perf-${p}`} />;
   if (p === "tiktok") return <TikTokIcon />;
   if (p === "youtube") return <YouTubeIcon />;
+  if (p.startsWith("LinkedIn")) return <LinkedInIcon />;
   return null;
 }
 
@@ -291,6 +297,53 @@ export default function PerformanceTab({ brands }: { brands: SocialBrand[] }) {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* LinkedIn: both accounts (Revalor LLC page + personal profile) via Zapier */}
+          {data.linkedin && (
+            <div className="bg-white border border-[#B8860B] rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-[#1A3A5C] mb-1 flex items-center gap-2">
+                <LinkedInIcon /> LinkedIn
+              </h3>
+              <p className="text-xs text-slate-500 mb-3">
+                Each scheduled post goes to both accounts. LinkedIn doesn&apos;t share likes or views with Zapier, so
+                this is posts sent and clicks on each post&apos;s tracked product link.
+              </p>
+              <div className="grid sm:grid-cols-3 gap-3 mb-3">
+                <div className="border border-[#B8860B] rounded-lg p-3">
+                  <div className="text-xs text-slate-400">Posts sent</div>
+                  <div className="text-lg font-semibold text-[#1A3A5C]">{data.linkedin.postCount}</div>
+                </div>
+                {data.linkedin.accounts.map((a) => (
+                  <div key={a.account} className="border border-[#B8860B] rounded-lg p-3">
+                    <div className="text-xs text-slate-400">Clicks · {a.label}</div>
+                    <div className="text-lg font-semibold text-[#1A3A5C]">{fmt(a.clicks)}</div>
+                  </div>
+                ))}
+              </div>
+              {data.linkedin.byProduct.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs text-slate-400 text-left">
+                      <th className="font-medium pb-1">Product</th>
+                      <th className="font-medium pb-1 text-right">Posts</th>
+                      <th className="font-medium pb-1 text-right">Clicks (both accounts)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.linkedin.byProduct.map((p) => (
+                      <tr key={p.product} className="border-t border-slate-100">
+                        <td className="py-1.5">{p.product}</td>
+                        <td className="py-1.5 text-right">{p.postCount}</td>
+                        <td className="py-1.5 text-right">{fmt(p.clicks)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-slate-400">No LinkedIn posts went out in this period.</p>
+              )}
             </div>
           )}
 
