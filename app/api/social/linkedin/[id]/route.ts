@@ -15,7 +15,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   } = await supabase.auth.getUser();
   if (!isAdmin(user)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { hook?: string; caption?: string; hashtags?: string[]; status?: LinkedInPostStatus; videoAssetId?: string | null };
+  let body: {
+    hook?: string;
+    caption?: string;
+    hashtags?: string[];
+    status?: LinkedInPostStatus;
+    videoAssetId?: string | null;
+    // ISO timestamp to schedule (approved posts only), or null to unschedule.
+    scheduledAt?: string | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -31,9 +39,34 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     if (!VALID_STATUSES.includes(body.status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     update.status = body.status;
     if (body.status === "posted") update.posted_at = new Date().toISOString();
+    // Back to draft = no longer cleared to go out, so drop any schedule.
+    if (body.status === "draft") update.scheduled_at = null;
   }
 
   const service = createServiceClient();
+
+  if (body.scheduledAt !== undefined) {
+    if (body.scheduledAt === null) {
+      update.scheduled_at = null;
+    } else {
+      const t = typeof body.scheduledAt === "string" ? Date.parse(body.scheduledAt) : NaN;
+      if (Number.isNaN(t)) return NextResponse.json({ error: "Invalid scheduled time" }, { status: 400 });
+      // Only an approved post can be scheduled: scheduling is what sends it to
+      // the Zapier feed, so it must already have passed human review.
+      const { data: current, error: readError } = await service
+        .from("linkedin_posts")
+        .select("status")
+        .eq("id", params.id)
+        .maybeSingle();
+      if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
+      if (!current) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      const effectiveStatus = body.status ?? current.status;
+      if (effectiveStatus !== "approved") {
+        return NextResponse.json({ error: "Approve the post before scheduling it" }, { status: 400 });
+      }
+      update.scheduled_at = new Date(t).toISOString();
+    }
+  }
   const { data, error } = await service.from("linkedin_posts").update(update).eq("id", params.id).select("*").maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Post not found" }, { status: 404 });

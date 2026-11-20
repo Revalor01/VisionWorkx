@@ -1510,6 +1510,7 @@ export type Database = {
           hashtags: string[];
           status: LinkedInPostStatus;
           posted_at: string | null;
+          scheduled_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1521,6 +1522,7 @@ export type Database = {
           caption: string;
           hashtags?: string[];
           status?: LinkedInPostStatus;
+          scheduled_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1532,6 +1534,7 @@ export type Database = {
           hashtags?: string[];
           status?: LinkedInPostStatus;
           posted_at?: string | null;
+          scheduled_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];

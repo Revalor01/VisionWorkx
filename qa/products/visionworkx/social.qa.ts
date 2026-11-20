@@ -36,3 +36,14 @@ qa({ id: "visionworkx/social/competitor-intake-cron-requires-secret", area: "Soc
 qa({ id: "visionworkx/social/competitor-intake-import-requires-admin", area: "Social", title: "On-demand Competitor Watch import needs the admin" }, async ({ request }) => {
   expect((await request.post("/api/cron/social-competitor-intake")).status()).toBe(401);
 });
+
+qa({ id: "visionworkx/social/linkedin-feed-requires-token", area: "Social", title: "Scheduled LinkedIn feed needs its token" }, async ({ request }) => {
+  expect((await request.get("/api/social/linkedin/feed")).status()).toBe(404);
+  expect((await request.get("/api/social/linkedin/feed?token=not-the-token")).status()).toBe(404);
+});
+
+qa({ id: "visionworkx/social/linkedin-schedule-requires-admin", area: "Social", title: "Scheduling a LinkedIn post needs the admin" }, async ({ request }) => {
+  const id = "00000000-0000-4000-8000-000000000000";
+  const res = await request.patch(`/api/social/linkedin/${id}`, { data: { scheduledAt: new Date(Date.now() + 864e5).toISOString() } });
+  expect(res.status()).toBe(401);
+});
