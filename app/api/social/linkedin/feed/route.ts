@@ -14,6 +14,7 @@ import {
   postsToMarkPosted,
 } from "@/lib/social/linkedinFeed";
 import { LINKEDIN_IMAGE_BUCKET } from "@/lib/social/linkedinImage";
+import { automationActive, loadAutomation } from "@/lib/social/linkedinAutomation";
 import { getOrCreateShortLink, shortLinkBase, withUtm } from "@/lib/social/shortLinks";
 
 export const runtime = "nodejs";
@@ -35,6 +36,16 @@ export async function GET(req: NextRequest) {
   const account = parseAccount(req.nextUrl.searchParams.get("account"));
   const now = Date.now();
   const service = createServiceClient();
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app";
+
+  // Paused (or the run's end date passed): serve an empty feed and mark
+  // nothing posted, so scheduled posts wait for the owner to resume.
+  if (!automationActive(await loadAutomation(service), now)) {
+    return new NextResponse(buildFeedXml([], siteUrl, now, {}, {}, account), {
+      status: 200,
+      headers: { "Content-Type": "application/rss+xml; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
+    });
+  }
   // "posted" too: feedVisible keeps the ones the feed itself marked posted, so
   // the other account's Zap still sees a post after this one marked it.
   const { data, error } = await service
@@ -50,7 +61,6 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Feed unavailable", { status: 503 });
   }
   const posts = feedVisible(data ?? []);
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vision-workx.vercel.app";
 
   // Short-lived signed links for due posts' images. A failed link just means
   // that post goes out text-only rather than breaking the whole feed.

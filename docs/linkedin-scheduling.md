@@ -26,6 +26,25 @@ Each post can have one JPG or PNG image, up to 5 MB. On the post card use **Uplo
 **Replace image** or **Remove image**; the card shows a preview. Replaced or removed images stay in
 the bucket (there's no cleanup).
 
+## Automation controls
+
+The **Automation** box on the LinkedIn tab (table `linkedin_automation`, migration
+`20240101000111_vw_linkedin_automation.sql`, one row `id = 1`):
+
+- **On / Paused** button. Paused = the feed serves no items, so neither Zap posts anything and nothing
+  is marked posted. Scheduled posts wait; on resume, anything due in the last 48 hours goes out, and
+  older ones show **Missed: reschedule**.
+- **How often**: weekly (Tue 9am), twice a week (Tue + Thu 9am) or every other week (Tue 9am, anchored
+  on Tue 24 Nov 2026). Sets the Schedule picker's default and the slots **Fill open slots** uses.
+- **Run for**: no end, or 2 / 4 / 8 / 12 weeks from today (`ends_at`). After it, the feed behaves as
+  paused.
+- **Fill open slots**: schedules approved, unscheduled posts (oldest first) into the next free cadence
+  slots before the end date. It never approves or writes posts.
+- API: `GET` / `PUT /api/social/linkedin/automation` (admin only). If the table is missing the app uses
+  the defaults (on, weekly, no end).
+
+LinkedIn posts (approved, scheduled or posted) also show on **/admin/social → Calendar** (LinkedIn filter).
+
 ## How it works
 
 - Column `linkedin_posts.scheduled_at` (nullable timestamptz, migration
@@ -98,4 +117,4 @@ scheduled time.
 ## QA
 
 `visionworkx/social/linkedin-feed-requires-token`, `visionworkx/social/linkedin-schedule-requires-admin`,
-`visionworkx/social/linkedin-image-requires-admin`.
+`visionworkx/social/linkedin-image-requires-admin`, `visionworkx/social/linkedin-automation-requires-admin`.

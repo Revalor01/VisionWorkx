@@ -43,9 +43,12 @@ describe("postText", () => {
       "Body.\n\nLearn more: https://x.test/go/abc\n\n#a",
     );
   });
-  it("doesn't add a link when the caption already links to the products site", () => {
-    expect(postText({ hook: null, caption: "See https://products.revalorllc.com/business", hashtags: [] }, "https://x.test/go/abc")).toBe(
-      "See https://products.revalorllc.com/business",
+  it("swaps a products-site link in the caption for the tracked link", () => {
+    expect(postText({ hook: null, caption: "See https://products.revalorllc.com/business today", hashtags: [] }, "https://x.test/go/abc")).toBe(
+      "See https://x.test/go/abc today",
+    );
+    expect(postText({ hook: null, caption: "Talk to us: products.revalorllc.com", hashtags: [] }, "https://x.test/go/abc")).toBe(
+      "Talk to us: https://x.test/go/abc",
     );
   });
   it("works without a hook or hashtags", () => {

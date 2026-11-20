@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { SocialBrand, SocialContent, SocialPlatform } from "@/lib/database.types";
+import type { LinkedInPost, SocialBrand, SocialContent, SocialPlatform } from "@/lib/database.types";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon } from "./PlatformIcons";
 import { calendarStatus } from "@/lib/social/calendarStatus";
 
@@ -40,7 +40,7 @@ export interface CampaignCalendarRow {
   run_at: string | null;
 }
 
-type ActivityKind = "social" | "video" | "blog" | "campaign";
+type ActivityKind = "social" | "linkedin" | "video" | "blog" | "campaign";
 
 interface ActivityEvent {
   id: string;
@@ -56,6 +56,7 @@ interface ActivityEvent {
 
 const KIND_LABEL: Record<ActivityKind, string> = {
   social: "Social",
+  linkedin: "LinkedIn",
   video: "Video",
   blog: "SEO",
   campaign: "Campaign",
@@ -63,6 +64,7 @@ const KIND_LABEL: Record<ActivityKind, string> = {
 
 const KIND_DOT: Record<ActivityKind, string> = {
   social: "bg-sky-400",
+  linkedin: "bg-blue-700",
   video: "bg-violet-400",
   blog: "bg-green-400",
   campaign: "bg-amber-400",
@@ -70,9 +72,17 @@ const KIND_DOT: Record<ActivityKind, string> = {
 
 const KIND_BADGE: Record<ActivityKind, string> = {
   social: "bg-sky-100 text-sky-700",
+  linkedin: "bg-blue-100 text-blue-800",
   video: "bg-violet-100 text-violet-700",
   blog: "bg-green-100 text-green-700",
   campaign: "bg-amber-100 text-amber-700",
+};
+
+const LINKEDIN_PRODUCT_LABEL: Record<string, string> = {
+  visionworkx: "VisionWorkx",
+  proactive: "Proactive",
+  revalor_consulting: "Revalor Consulting",
+  revalor: "Revalor LLC",
 };
 
 const PLATFORM_LABEL: Record<SocialPlatform, string> = {
@@ -116,7 +126,9 @@ export default function CalendarTab({
   blogPosts,
   campaigns,
   videoJobs,
+  linkedinPosts = [],
 }: {
+  linkedinPosts?: LinkedInPost[];
   brands: SocialBrand[];
   content: SocialContent[];
   blogPosts: BlogPostCalendarRow[];
@@ -129,7 +141,7 @@ export default function CalendarTab({
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [activeKinds, setActiveKinds] = useState<Set<ActivityKind>>(
-    () => new Set<ActivityKind>(["social", "video", "blog", "campaign"])
+    () => new Set<ActivityKind>(["social", "linkedin", "video", "blog", "campaign"])
   );
 
   function toggleKind(k: ActivityKind) {
@@ -156,6 +168,22 @@ export default function CalendarTab({
         status: calendarStatus(c),
         href: null,
         platform: c.platform,
+      });
+    }
+
+    // LinkedIn (Zapier → Revalor LLC page + personal profile). Drafts with no
+    // time aren't on the calendar; approved-but-unscheduled show on creation day.
+    for (const p of linkedinPosts) {
+      const dateStr = p.posted_at ?? p.scheduled_at ?? (p.status === "approved" ? p.created_at : null);
+      if (!dateStr) continue;
+      out.push({
+        id: `linkedin-${p.id}`,
+        kind: "linkedin",
+        date: new Date(dateStr),
+        title: truncate(p.hook || p.caption, 60),
+        subtitle: `LinkedIn · ${LINKEDIN_PRODUCT_LABEL[p.product] ?? p.product} · page + profile`,
+        status: p.status === "posted" ? "posted" : p.scheduled_at ? "scheduled" : "approved",
+        href: null,
       });
     }
 
@@ -202,7 +230,7 @@ export default function CalendarTab({
     }
 
     return out;
-  }, [content, videoJobs, blogPosts, campaigns, brands]);
+  }, [content, linkedinPosts, videoJobs, blogPosts, campaigns, brands]);
 
   const filteredEvents = useMemo(() => events.filter((e) => activeKinds.has(e.kind)), [events, activeKinds]);
 
@@ -235,7 +263,7 @@ export default function CalendarTab({
   );
 
   const monthCounts = useMemo(() => {
-    const counts: Record<ActivityKind, number> = { social: 0, video: 0, blog: 0, campaign: 0 };
+    const counts: Record<ActivityKind, number> = { social: 0, linkedin: 0, video: 0, blog: 0, campaign: 0 };
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
     for (const e of filteredEvents) {
