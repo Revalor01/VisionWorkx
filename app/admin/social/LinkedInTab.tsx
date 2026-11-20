@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import type { LinkedInPost, LinkedInPostStatus, LinkedInProduct, SocialBrand, SocialVideoAsset, SocialVideoProduct } from "@/lib/database.types";
 import HelpButton, { HelpStep } from "./HelpButton";
 
@@ -33,6 +34,27 @@ const VIDEO_PRODUCT_LABEL: Record<SocialVideoProduct, string> = {
 };
 
 const IMPORTED_FILENAME_PREFIX = "Imported: ";
+
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+// <input type="datetime-local"> wants local "YYYY-MM-DDTHH:mm" with no zone.
+function toLocalInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Default suggestion: next Tuesday 9:00am local (the weekly LinkedIn slot).
+function nextTuesdayNine(): string {
+  const now = new Date();
+  const d = new Date(now);
+  d.setHours(9, 0, 0, 0);
+  let add = (2 - d.getDay() + 7) % 7; // days until Tuesday (0 = today)
+  if (add === 0 && now >= d) add = 7; // today's 9am already passed
+  d.setDate(d.getDate() + add);
+  return toLocalInput(d);
+}
 
 // Two imports (or two generations) of the same product otherwise look
 // identical in a dropdown - the uploaded filename (studio-import/route.ts
@@ -116,20 +138,22 @@ export default function LinkedInTab({
               Click <strong className="text-[#1A3A5C]">Approve</strong> once it&apos;s ready to post.
             </HelpStep>
             <HelpStep n={5}>
-              There&apos;s no LinkedIn API connection, so nothing here publishes automatically: log into LinkedIn
-              yourself, click <strong className="text-[#1A3A5C]">Copy caption + hashtags</strong>, paste it in,
-              upload the video manually if there is one, and post it there directly.
+              To post it automatically, pick a date and time and click{" "}
+              <strong className="text-[#1A3A5C]">Schedule</strong>. When that time arrives, Zapier picks it up
+              (within about 15 minutes) and posts the hook, caption, hashtags and image (if you uploaded one) to the
+              Revalor LLC page, whatever the product. Videos aren&apos;t sent, so post those yourself. It&apos;s marked posted on its
+              own about 30 minutes later. Click <strong className="text-[#1A3A5C]">Unschedule</strong> any time
+              before then to stop it.
             </HelpStep>
             <HelpStep n={6}>
-              Come back and click <strong className="text-[#1A3A5C]">Mark as posted</strong> to keep this tracker in
-              sync with what actually went out.
+              Or post it yourself: click <strong className="text-[#1A3A5C]">Copy caption + hashtags</strong>, paste it
+              into LinkedIn, then come back and click <strong className="text-[#1A3A5C]">Mark as posted</strong>.
             </HelpStep>
           </HelpButton>
         </div>
         <p className="text-sm text-slate-500 mb-4">
-          Manual-only. No LinkedIn API connection exists, so nothing here auto-publishes: generate a draft, review and
-          edit it, generate a video if you want one, then log into LinkedIn yourself and ask Claude to post the
-          approved draft.
+          Nothing goes out until you approve a post. Then either schedule it (Zapier posts it to the Revalor LLC page
+          at that time) or copy it and post it on LinkedIn yourself.
         </p>
         {error && <div className="mb-3 p-2 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm">{error}</div>}
         <div className="flex gap-3 items-center">
@@ -200,11 +224,81 @@ function PostCard({
   const [copied, setCopied] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoPreviewLoading, setVideoPreviewLoading] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState(() => (post.scheduled_at ? toLocalInput(new Date(post.scheduled_at)) : nextTuesdayNine()));
+  const [scheduleError, setScheduleError] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Load a short-lived preview link whenever the post's image changes.
+  useEffect(() => {
+    if (!post.image_path) return;
+    let cancelled = false;
+    fetch(`/api/social/linkedin/${post.id}/image-url`)
+      .then((res) => res.json().then((body) => ({ ok: res.ok, body })))
+      .then(({ ok, body }) => {
+        if (cancelled) return;
+        if (ok) setImageUrl(body.url);
+        else setImageError(body.error ?? "Couldn't load the image");
+      })
+      .catch((err) => !cancelled && setImageError((err as Error).message));
+    return () => {
+      cancelled = true;
+    };
+  }, [post.id, post.image_path]);
+
+  async function uploadImage(file: File) {
+    setImageError("");
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      setImageError("Use a JPG or PNG image");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Image must be 5 MB or smaller");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const res = await fetch(`/api/social/linkedin/${post.id}/image-upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentType: file.type, size: file.size }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      const { error: uploadError } = await createBrowserClient()
+        .storage.from("social-content-images")
+        .uploadToSignedUrl(body.path, body.uploadToken, file, { contentType: file.type });
+      if (uploadError) throw new Error(uploadError.message);
+      setImageUrl(null);
+      await save({ imagePath: body.path });
+    } catch (err) {
+      setImageError((err as Error).message);
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }
+
+  async function removeImage() {
+    setImageError("");
+    try {
+      await save({ imagePath: null });
+      setImageUrl(null);
+    } catch (err) {
+      setImageError((err as Error).message);
+    }
+  }
+  // Captured once per mount (render must stay pure); good enough for a badge.
+  const [renderedAt] = useState(() => Date.now());
+  const scheduledDue = post.status === "approved" && !!post.scheduled_at && new Date(post.scheduled_at).getTime() <= renderedAt;
 
   const dirty = hook !== (post.hook ?? "") || caption !== post.caption || hashtags !== post.hashtags.join(", ");
 
-  async function save(patch: Partial<{ hook: string; caption: string; hashtags: string[]; status: LinkedInPostStatus; videoAssetId: string | null }>) {
+  async function save(patch: Partial<{ hook: string; caption: string; hashtags: string[]; status: LinkedInPostStatus; videoAssetId: string | null; scheduledAt: string | null; imagePath: string | null }>) {
     setSaving(true);
+    setScheduleError("");
     try {
       const res = await fetch(`/api/social/linkedin/${post.id}`, {
         method: "PATCH",
@@ -214,9 +308,25 @@ function PostCard({
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       setPosts((prev) => prev.map((p) => (p.id === post.id ? body.post : p)));
+    } catch (err) {
+      if (patch.scheduledAt !== undefined) setScheduleError((err as Error).message);
+      else throw err;
     } finally {
       setSaving(false);
     }
+  }
+
+  function schedule() {
+    const t = new Date(scheduleAt);
+    if (!scheduleAt || Number.isNaN(t.getTime())) {
+      setScheduleError("Pick a date and time");
+      return;
+    }
+    if (t.getTime() < Date.now() - 60_000) {
+      setScheduleError("That time has already passed");
+      return;
+    }
+    void save({ scheduledAt: t.toISOString() });
   }
 
   async function generateVideo() {
@@ -285,6 +395,11 @@ function PostCard({
           <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${STATUS_STYLE[post.status]}`}>
             {post.status}
           </span>
+          {post.status === "approved" && post.scheduled_at && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              {scheduledDue ? "Sending via Zapier" : `Scheduled · ${formatWhen(post.scheduled_at)}`}
+            </span>
+          )}
         </div>
         <button
           onClick={() => fetch(`/api/social/linkedin/${post.id}`, { method: "DELETE" }).then(() => setPosts((prev) => prev.filter((p) => p.id !== post.id)))}
@@ -327,7 +442,42 @@ function PostCard({
       )}
 
       <div className="mb-3">
-        <label className="text-xs text-slate-500 mr-2">Video (optional):</label>
+        <label className="text-xs text-slate-500 mr-2">Image (optional, posted with scheduled posts):</label>
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void uploadImage(f);
+          }}
+        />
+        <button
+          onClick={() => imageInputRef.current?.click()}
+          disabled={uploadingImage || saving}
+          className="text-xs font-medium text-sky-600 hover:underline disabled:opacity-50"
+        >
+          {uploadingImage ? "Uploading…" : post.image_path ? "Replace image" : "Upload image"}
+        </button>
+        {post.image_path && (
+          <button
+            onClick={removeImage}
+            disabled={uploadingImage || saving}
+            className="ml-2 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+          >
+            Remove image
+          </button>
+        )}
+        {imageError && <p className="text-xs text-red-600 mt-1">{imageError}</p>}
+        {post.image_path && imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- short-lived signed storage URL
+          <img src={imageUrl} alt="LinkedIn post image" className="mt-2 w-full max-w-sm rounded-lg border border-slate-200" />
+        )}
+      </div>
+
+      <div className="mb-3">
+        <label className="text-xs text-slate-500 mr-2">Video (optional, post videos yourself):</label>
         <select
           value={post.video_asset_id ?? ""}
           onChange={(e) => {
@@ -362,6 +512,46 @@ function PostCard({
           <video controls src={videoPreviewUrl} className="mt-2 w-full max-w-sm rounded-lg bg-black" />
         )}
       </div>
+
+      {post.status === "approved" && (
+        <div className="mb-3 flex items-center gap-2 flex-wrap">
+          {post.scheduled_at ? (
+            <>
+              <span className="text-xs text-slate-600">
+                {scheduledDue
+                  ? `Due ${formatWhen(post.scheduled_at)}. Zapier posts it within about 15 minutes.`
+                  : `Goes out ${formatWhen(post.scheduled_at)} via Zapier.`}
+              </span>
+              <button
+                onClick={() => save({ scheduledAt: null })}
+                disabled={saving}
+                className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+              >
+                Unschedule
+              </button>
+            </>
+          ) : (
+            <>
+              <label className="text-xs text-slate-500">Post automatically at:</label>
+              <input
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                className="text-xs border border-slate-300 rounded-lg px-2 py-1"
+              />
+              <button
+                onClick={schedule}
+                disabled={saving || dirty}
+                title={dirty ? "Save your edits first" : undefined}
+                className="text-xs font-medium text-amber-700 hover:underline disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Schedule"}
+              </button>
+            </>
+          )}
+          {scheduleError && <p className="w-full text-xs text-red-600">{scheduleError}</p>}
+        </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap">
         {post.status === "draft" && (

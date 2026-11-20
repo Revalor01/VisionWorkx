@@ -1504,34 +1504,40 @@ export type Database = {
         Row: {
           id: string;
           video_asset_id: string | null;
+          image_path: string | null;
           product: LinkedInProduct;
           hook: string | null;
           caption: string;
           hashtags: string[];
           status: LinkedInPostStatus;
           posted_at: string | null;
+          scheduled_at: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           video_asset_id?: string | null;
+          image_path?: string | null;
           product?: LinkedInProduct;
           hook?: string | null;
           caption: string;
           hashtags?: string[];
           status?: LinkedInPostStatus;
+          scheduled_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           video_asset_id?: string | null;
+          image_path?: string | null;
           product?: LinkedInProduct;
           hook?: string | null;
           caption?: string;
           hashtags?: string[];
           status?: LinkedInPostStatus;
           posted_at?: string | null;
+          scheduled_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];
