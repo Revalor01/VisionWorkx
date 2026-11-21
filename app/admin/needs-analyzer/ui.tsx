@@ -54,6 +54,7 @@ export function NaShell({ active, items = [], children }: { active: string; item
     ...items,
     { key: "website", label: "Website check", href: "/admin/needs-analyzer/website", internal: true },
     { key: "ecosystem", label: "Ecosystem", href: "/admin/needs-analyzer/ecosystem", internal: true },
+    { key: "simulator", label: "Build simulator", href: "/admin/needs-analyzer/simulator" },
     { key: "catalog", label: "Catalog & pricing", href: "/admin/needs-analyzer/catalog", internal: true },
   ].filter((n) => !(on && n.internal));
 
