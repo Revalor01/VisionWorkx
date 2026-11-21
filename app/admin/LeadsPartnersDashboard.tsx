@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useOnChange } from "@/lib/hooks";
 import { useRouter } from "next/navigation";
-import { AdminHeader, AdminProductPills } from "./AdminNavHeader";
+import { AdminProductPills } from "./AdminNavHeader";
 import type { Lead, LeadLanguage, LeadStatus, PartnerApplication, PartnerReferral, PartnerReferralStatus, PartnerStatus, PartnerTier } from "@/lib/database.types";
 import { scoreBucket } from "@/lib/leadScoring";
 
@@ -357,28 +357,24 @@ export default function LeadsPartnersDashboard({ initialLeads, initialPartners, 
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <AdminHeader
-        badge="Admin"
-        extra={
-          <button
-            onClick={() => setAutoRefresh((v) => !v)}
-            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-              autoRefresh ? "bg-green-500/20 text-green-300" : "bg-black/10 text-white/70 hover:text-white"
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-green-400 animate-pulse" : "bg-black/40"}`} />
-            Auto-refresh {autoRefresh ? "on" : "off"}
-          </button>
-        }
-      />
 
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <AdminProductPills />
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-900">VisionWorkx Admin: Leads &amp; Partners</h1>
-          <p className="text-zinc-500 text-sm mt-1">Prospect leads, partner applications and partner referrals. Modules customers are under Modules.</p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900">VisionWorkx Admin: Leads &amp; Partners</h1>
+            <p className="text-zinc-500 text-sm mt-1">Prospect leads, partner applications and partner referrals. Modules customers are under Modules.</p>
+          </div>
+          <button
+            onClick={() => setAutoRefresh((v) => !v)}
+            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+              autoRefresh ? "border-green-300 bg-green-50 text-green-700" : "border-zinc-300 bg-white text-zinc-600 hover:text-zinc-800"
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-green-500 animate-pulse" : "bg-zinc-400"}`} />
+            Auto-refresh {autoRefresh ? "on" : "off"}
+          </button>
         </div>
 
         {/* Tabs */}

@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { AdminHeader } from "../AdminNavHeader";
-import AdminNavBar from "../AdminNavBar";
 import { money } from "@/lib/needsAnalyzer/format";
 import type { Catalog } from "@/lib/needsAnalyzer/types";
 
@@ -33,6 +31,12 @@ export function NaShell({ active, items = [], children }: { active: string; item
       setOn(localStorage.getItem(CM_KEY) === "1");
     } catch {}
   }, []);
+  // Client mode hides the shared Revalor top bar too (app/admin/layout.tsx;
+  // the rule is in globals.css). Cleared when you leave the Needs Analyzer.
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-client-mode", on);
+    return () => document.documentElement.removeAttribute("data-client-mode");
+  }, [on]);
   const set = useCallback((v: boolean) => {
     setOn(v);
     try {
@@ -57,17 +61,7 @@ export function NaShell({ active, items = [], children }: { active: string; item
     <ClientModeCtx.Provider value={{ on, set }}>
       <ToastCtx.Provider value={show}>
         <div className="min-h-screen bg-zinc-50 print:bg-white">
-          {!on && (
-            <div className="print:hidden">
-              <AdminHeader title="Revalor Needs Analyzer" badge="Sales" />
-            </div>
-          )}
           <main className="mx-auto max-w-admin px-4 py-6 sm:px-6 lg:px-10 print:p-0">
-            {!on && (
-              <div className="mb-4 print:hidden">
-                <AdminNavBar category="operations" current="needs-analyzer" />
-              </div>
-            )}
             <div className="mb-6 flex flex-wrap items-center gap-2 print:hidden">
               {nav.map((n) => {
                 const cls = `rounded-lg px-3 py-1.5 text-sm font-medium ${n.key === active ? "bg-[#1A3A5C] text-white" : "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"}`;

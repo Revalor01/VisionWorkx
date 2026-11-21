@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isOperator } from "@/lib/modules/adminGuard";
-import { AdminHeader } from "../../AdminNavHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +33,6 @@ export default async function AdminModulesInstructionsPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <AdminHeader badge="Modules" />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6 lg:px-10">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>

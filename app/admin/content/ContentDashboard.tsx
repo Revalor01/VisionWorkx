@@ -12,7 +12,6 @@ import type {
   MarketingProduct,
 } from "@/lib/database.types";
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
-import AdminNavBar from "../AdminNavBar";
 
 const PRODUCTS: { value: MarketingProduct; label: string }[] = MARKETING_PRODUCTS.map((p) => ({ value: p.slug, label: p.name }));
 const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -234,19 +233,8 @@ export default function ContentDashboard({
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight">Revalor</span>
-          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Content Engine</span>
-        </div>
-        <a href="/admin/marketing" className="text-xs text-white/70 hover:text-white transition-colors">
-          ← Email Marketing
-        </a>
-      </header>
 
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
-        <AdminNavBar category="media" current="content" />
-
         <h1 className="text-2xl font-bold text-white mb-1">Content Engine</h1>
         <p className="text-slate-400 text-sm mb-8">
           One source item auto-drafts a blog post, social captions, an email, and a push/SMS one-liner — each with its own

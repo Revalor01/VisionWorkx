@@ -1,6 +1,4 @@
 import type { ReactNode } from "react";
-import { AdminHeader } from "../AdminNavHeader";
-import AdminNavBar from "../AdminNavBar";
 import type { ResultStatus, RunStatus } from "@/lib/qa/db";
 
 // Shared bits for the /admin/qa pages (server components).
@@ -11,11 +9,7 @@ export const SECTION = "mb-8 rounded-xl border-2 border-[#B8860B] bg-white p-4 s
 export function QaShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-zinc-50">
-      <AdminHeader title="Revalor Test Automation Suite" badge="QA" />
       <main className="mx-auto max-w-admin px-4 py-8 sm:px-6 lg:px-10">
-        <div className={SECTION}>
-          <AdminNavBar category="operations" current="qa" boxed />
-        </div>
         {children}
       </main>
     </div>

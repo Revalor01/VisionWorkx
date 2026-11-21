@@ -72,15 +72,6 @@ export default function LifecycleDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight">Revalor</span>
-          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Lifecycle Triggers</span>
-        </div>
-        <a href="/admin/marketing" className="text-xs text-white/70 hover:text-white transition-colors">
-          ← Email Marketing
-        </a>
-      </header>
 
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <h1 className="text-2xl font-bold text-white mb-1">Lifecycle Triggers</h1>

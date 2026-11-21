@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient, createServiceClient } from "@/lib/supabase";
 import { ADMIN_SSO_COOKIE, ADMIN_EMAIL, verifySessionCookie } from "@/lib/adminSso";
-import AdminNavBar from "../AdminNavBar";
 
 // Mirrors supabase/migrations/20240101000080_module_pilot_runs.sql. Not in
 // database.types.ts's generated-looking union since that file is hand-
@@ -81,19 +80,8 @@ export default async function ModulePilotPage() {
 
   return (
     <div className="min-h-screen bg-[#121212]">
-      <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight">Vision Workx</span>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Module Pilot</span>
-        </div>
-        <a href="/admin" className="text-xs text-white/70 hover:text-white transition-colors">
-          ← Back to Admin
-        </a>
-      </header>
 
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
-        <AdminNavBar category="operations" current="module-pilot" />
-
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Module Pilot: shrink-the-core viability</h1>
           <p className="text-zinc-400 text-sm mt-1">
