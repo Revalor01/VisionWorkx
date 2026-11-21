@@ -6,9 +6,9 @@ import { loadSettings, naDb } from "@/lib/needsAnalyzer/db";
 import BuildSimulator from "../BuildSimulator";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Build simulator · Needs Analyzer", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Website Build Simulator · Needs Analyzer", robots: { index: false, follow: false } };
 
-// Build simulator: high-level website choices → every step from hosting to
+// Website Build Simulator: high-level website choices → every step from hosting to
 // deployment, hours, price and running costs (lib/needsAnalyzer/buildSim.ts).
 // Starts from the internal rate and target margin in Catalog & pricing.
 export default async function SimulatorPage() {

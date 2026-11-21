@@ -24,7 +24,7 @@ import {
 } from "@/lib/needsAnalyzer/buildSim";
 import { BTN, BTN_PRIMARY, CARD, INPUT, NaShell, NUM, useClientMode } from "./ui";
 
-// Build simulator: pick the high-level choices, get every step from hosting to
+// Website Build Simulator: pick the high-level choices, get every step from hosting to
 // deployment with hours, the one-time price and the running costs, as a
 // one-page assessment that prints cleanly. Nothing is saved. Client mode hides
 // Revalor's internal cost, margin and the price editor.
@@ -59,7 +59,7 @@ function Simulator({ currency, internalRate, targetMarginPct }: { currency: stri
       {/* Choices */}
       <div className="print:hidden">
         <div className={CARD}>
-          <h2 className="mb-1 text-lg font-semibold text-zinc-900">Build simulator</h2>
+          <h2 className="mb-1 text-lg font-semibold text-zinc-900">Website Build Simulator</h2>
           <p className="mb-4 text-sm text-zinc-500">Pick the high-level choices; the assessment on the right updates as you go. Nothing is saved.</p>
           <div className="space-y-3">
             <Field label="Client or project name (optional)">

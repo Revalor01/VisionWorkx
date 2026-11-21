@@ -1,4 +1,4 @@
-// Build simulator for the Needs Analyzer (/admin/needs-analyzer/simulator):
+// Website Build Simulator for the Needs Analyzer (/admin/needs-analyzer/simulator):
 // pick a platform, hosting, domain, email, size and features, and get every
 // step Revalor would take from hosting to deployment, the hours, the one-time
 // cost/price and the running costs. Pure functions only. Deliberately separate
