@@ -22,7 +22,10 @@ import {
   type SimPrices,
   type SimStep,
 } from "@/lib/needsAnalyzer/buildSim";
-import { BTN, BTN_PRIMARY, CARD, INPUT, NaShell, NUM, useClientMode } from "./ui";
+import { BTN, BTN_PRIMARY, INPUT, NaShell, NUM, useClientMode } from "./ui";
+
+// The shared CARD, with the Revalor brown/gold outline (other tabs keep the grey border).
+const GOLD_CARD = "mb-6 rounded-xl border border-[#B8860B] bg-white p-5 shadow-sm";
 
 // Website Build Simulator: pick the high-level choices, get every step from hosting to
 // deployment with hours, the one-time price and the running costs, as a
@@ -58,7 +61,7 @@ function Simulator({ currency, internalRate, targetMarginPct }: { currency: stri
     <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] print:block">
       {/* Choices */}
       <div className="print:hidden">
-        <div className={CARD}>
+        <div className={GOLD_CARD}>
           <h2 className="mb-1 text-lg font-semibold text-zinc-900">Website Build Simulator</h2>
           <p className="mb-4 text-sm text-zinc-500">Pick the high-level choices; the assessment on the right updates as you go. Nothing is saved.</p>
           <div className="space-y-3">
@@ -108,7 +111,7 @@ function Simulator({ currency, internalRate, targetMarginPct }: { currency: stri
         </div>
 
         {!clientMode && (
-          <div className={CARD}>
+          <div className={GOLD_CARD}>
             <h3 className="mb-3 text-sm font-semibold text-zinc-800">Your rates</h3>
             <div className="flex flex-wrap gap-4 text-sm">
               <label className="flex items-center gap-2">
@@ -300,7 +303,7 @@ function Select({ value, onChange, options, disabled }: { value: string; onChang
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 print:p-2">
+    <div className="rounded-lg border border-[#B8860B] bg-zinc-50 p-3 print:p-2">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</div>
       <div className="text-lg font-bold text-[#1A3A5C] print:text-base">{value}</div>
       {sub && <div className="text-xs text-zinc-500">{sub}</div>}
