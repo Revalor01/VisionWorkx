@@ -32,6 +32,10 @@ qa(
       expect((await request.patch(`/api/admin/needs-analyzer/site-check/${id}`, { data: { proposalIssues: [] } })).status()).toBe(403);
       expect((await request.post(`/api/admin/needs-analyzer/site-check/${id}/ai`)).status()).toBe(403);
     });
+    await test.step("build simulator is operator-gated too", async () => {
+      await page.goto("/admin/needs-analyzer/simulator");
+      await expect(page).not.toHaveURL(/needs-analyzer/);
+    });
     await test.step("starting an apparel-path assessment is operator-gated too", async () => {
       expect((await request.post("/api/admin/needs-analyzer/assessments", { data: { answers: { path: "apparel" } } })).status()).toBe(403);
     });

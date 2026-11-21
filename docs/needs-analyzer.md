@@ -10,7 +10,8 @@ meeting with no internet, online everywhere else, with a sync from the laptop.
 
 | What | Where |
 | --- | --- |
-| Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|builder\|internal`, `/website`, `/ecosystem`, `/catalog` |
+| Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|builder\|internal`, `/website`, `/simulator`, `/ecosystem`, `/catalog` |
+| Build simulator | `lib/needsAnalyzer/buildSim.ts` (options, steps, hours, price table, `simulate()`), `app/admin/needs-analyzer/BuildSimulator.tsx` |
 | Client proposal link | `/proposal/<token>` (public, only while the link is on) |
 | Questionnaire, scoring, pricing | `lib/needsAnalyzer/questions.ts`, `rules.ts` (ported from the offline `public/questions.js`, `public/rules.js`) |
 | Website check | `lib/needsAnalyzer/siteFetch.ts` (fetcher), `siteDetect.ts` (detection, prefill), `siteCheck.ts`, `pagespeed.ts`, `siteReview.ts` (AI review) |
@@ -180,6 +181,25 @@ is added to `Proposal.tsx` (both the admin Proposal tab and the public
 `/proposal/<token>` link) — the operator's chosen path, domain ownership, what
 Revalor maintains and the monthly retainer, and handoff. It never shows effort or
 margin. An optional `clientSummary` overrides the auto-generated wording.
+
+## Build simulator
+
+`/admin/needs-analyzer/simulator` (tab **Build simulator**): a what-if for "what would it take
+Revalor to build this website". Pick platform (WordPress, Squarespace, Wix, Webflow, Shopify or
+custom Next.js), hosting (only hosts that fit the platform), registrar, business email and
+mailboxes, size, design, content, features and care plan. The page shows a one-page assessment:
+
+- every step from discovery and hosting through deployment and handoff, with hours, plus 15% contingency;
+- one-time price = hours × internal rate, priced at the target margin (both start from Catalog &
+  pricing and can be changed on the page), rounded up to $50;
+- running costs per month/year, each marked **Client pays** or **Revalor pays** (Revalor pays the
+  hosting for custom sites), and the care-plan price;
+- timeline (6 focused hours a day, ~3 working days a week) and watch-outs for the choices made.
+
+Nothing is saved. Client mode hides Revalor's cost, margin and the price editor. **Print / Save PDF**
+lays it out on one page. Third-party prices are US list prices as of `PRICES_AS_OF` in
+`buildSim.ts` — update the defaults there when they change; every price can also be overridden
+on screen. Independent of `rules.ts` (module scoring is untouched). Tests: `buildSim.test.ts`.
 
 ## Syncing from the laptop
 
