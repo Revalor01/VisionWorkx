@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { embedSnippet } from "@/lib/modules/install";
 import { MODULE_TYPES } from "@/lib/modules/constants";
 import type { ModuleCostEstimate, ModuleTypeCounts } from "@/lib/modules/moduleStats";
-import { AdminHeader, AdminProductPills } from "../AdminNavHeader";
+import { AdminProductPills } from "../AdminNavHeader";
 
 export interface AdminWorkspace {
   id: string; name: string; slug: string; domains: string[]; plan: string; created_at: string;
@@ -83,7 +83,6 @@ export default function ModulesAdmin({ initial, stats }: { initial: AdminWorkspa
 
   return (
     <div className="min-h-screen bg-white">
-      <AdminHeader badge="Modules" />
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 pt-8">
         <AdminProductPills />
       </div>

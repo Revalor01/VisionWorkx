@@ -5,7 +5,6 @@ import { useOnChange } from "@/lib/hooks";
 import type { MarketingCampaign, MarketingProduct, MarketingRecurrence, MarketingRecurringSchedule } from "@/lib/database.types";
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
 import { PUSH_TITLE_MAX, PUSH_BODY_MAX, SMS_BODY_MAX } from "@/lib/mobile/limits";
-import AdminNavBar from "../AdminNavBar";
 
 type MobileChannel = "push" | "sms";
 
@@ -325,19 +324,8 @@ export default function MobileDashboard({ initialCampaigns }: { initialCampaigns
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight">Revalor</span>
-          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Mobile Marketing</span>
-        </div>
-        <a href="/admin/marketing" className="text-xs text-white/70 hover:text-white transition-colors">
-          ← Email Marketing
-        </a>
-      </header>
 
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
-        <AdminNavBar category="media" current="mobile" />
-
         <h1 className="text-2xl font-bold text-white mb-1">Mobile Marketing</h1>
         <p className="text-slate-400 text-sm mb-8">
           Push and SMS to real users of Revalor&apos;s own products — opted-in only. VisionWorkx users can opt in to SMS

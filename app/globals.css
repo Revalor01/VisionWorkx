@@ -18,3 +18,8 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Needs Analyzer client mode: hide the shared Revalor admin top bar (app/admin/RevalorTopBar.tsx). */
+html[data-client-mode] .revalor-top-bar {
+  display: none;
+}

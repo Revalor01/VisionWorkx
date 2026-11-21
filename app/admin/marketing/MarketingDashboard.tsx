@@ -6,7 +6,6 @@ import type { MarketingAutonomy, MarketingCampaign, MarketingProduct, MarketingR
 import { MARKETING_PRODUCTS } from "@/lib/marketing/products";
 import { SMS_BODY_MAX } from "@/lib/mobile/limits";
 import { parsePhoneList } from "@/lib/mobile/phone";
-import AdminNavBar from "../AdminNavBar";
 
 const PRODUCTS: { value: MarketingProduct; label: string }[] = MARKETING_PRODUCTS.map((p) => ({
   value: p.slug,
@@ -394,25 +393,14 @@ export default function MarketingDashboard({
 
   return (
     <div className="min-h-screen bg-white text-zinc-900">
-      <header className="bg-[#1A3A5C] text-white px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight">Revalor</span>
-          <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full font-medium">Email Marketing</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <a href="/admin/marketing/lifecycle" className="text-xs text-white/70 hover:text-white transition-colors">
-            Lifecycle triggers →
-          </a>
-          <a href="https://revalor-admin.vercel.app" className="text-xs text-white/70 hover:text-white transition-colors">
-            ← Back to Admin
-          </a>
-        </div>
-      </header>
 
       <div className="max-w-admin mx-auto px-4 sm:px-6 lg:px-10 py-8">
-        <AdminNavBar category="media" current="marketing" />
-
-        <h1 className="text-2xl font-bold text-zinc-900 mb-1">Email Marketing</h1>
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+          <h1 className="text-2xl font-bold text-zinc-900">Email Marketing</h1>
+          <a href="/admin/marketing/lifecycle" className="text-sm font-medium text-[#2E6DA4] hover:underline">
+            Lifecycle triggers →
+          </a>
+        </div>
         <p className="text-zinc-600 text-sm mb-8">
           Campaigns to real users of Revalor&apos;s own products — pulled live from each product&apos;s own user base.
         </p>
