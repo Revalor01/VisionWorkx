@@ -14,9 +14,9 @@ import LinkedInTab from "./LinkedInTab";
 import CalendarTab, { type BlogPostCalendarRow, type CampaignCalendarRow, type VideoJobCalendarRow } from "./CalendarTab";
 import { FacebookIcon, InstagramIcon, TikTokIcon, YouTubeIcon, LinkedInIcon } from "./PlatformIcons";
 
-type Tab = "brands" | "content" | "video" | "studio" | "linkedin" | "inbox" | "calendar" | "performance" | "recap" | "help";
+type Tab = "performance" | "brands" | "content" | "video" | "studio" | "linkedin" | "inbox" | "calendar" | "recap" | "help";
 
-const ADMIN_TABS: Tab[] = ["brands", "content", "video", "studio", "linkedin", "inbox", "calendar", "performance", "recap", "help"];
+const ADMIN_TABS: Tab[] = ["performance", "brands", "content", "video", "studio", "linkedin", "inbox", "calendar", "recap", "help"];
 const PUBLIC_TABS: Tab[] = ["video", "studio"];
 
 export default function SocialDashboard({
@@ -48,7 +48,7 @@ export default function SocialDashboard({
 }) {
   const [tab, setTab] = useState<Tab>(() => {
     const allowed = isAdmin ? ADMIN_TABS : PUBLIC_TABS;
-    return initialTab && (allowed as string[]).includes(initialTab) ? (initialTab as Tab) : isAdmin ? "brands" : "video";
+    return initialTab && (allowed as string[]).includes(initialTab) ? (initialTab as Tab) : isAdmin ? "performance" : "video";
   });
   const [brands, setBrands] = useState(initialBrands);
   const [content, setContent] = useState(initialContent);
