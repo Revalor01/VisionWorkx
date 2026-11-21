@@ -11,7 +11,7 @@ meeting with no internet, online everywhere else, with a sync from the laptop.
 | What | Where |
 | --- | --- |
 | Screens (operator only) | `/admin/needs-analyzer` (list), `/<id>?tab=q\|plan\|proposal\|builder\|internal`, `/website`, `/simulator`, `/ecosystem`, `/catalog` |
-| Build simulator | `lib/needsAnalyzer/buildSim.ts` (options, steps, hours, price table, `simulate()`), `app/admin/needs-analyzer/BuildSimulator.tsx` |
+| Website Build Simulator | `lib/needsAnalyzer/buildSim.ts` (options, steps, hours, price table, `simulate()`), `app/admin/needs-analyzer/BuildSimulator.tsx` |
 | Client proposal link | `/proposal/<token>` (public, only while the link is on) |
 | Questionnaire, scoring, pricing | `lib/needsAnalyzer/questions.ts`, `rules.ts` (ported from the offline `public/questions.js`, `public/rules.js`) |
 | Website check | `lib/needsAnalyzer/siteFetch.ts` (fetcher), `siteDetect.ts` (detection, prefill), `siteCheck.ts`, `pagespeed.ts`, `siteReview.ts` (AI review) |
@@ -182,9 +182,9 @@ is added to `Proposal.tsx` (both the admin Proposal tab and the public
 Revalor maintains and the monthly retainer, and handoff. It never shows effort or
 margin. An optional `clientSummary` overrides the auto-generated wording.
 
-## Build simulator
+## Website Build Simulator
 
-`/admin/needs-analyzer/simulator` (tab **Build simulator**): a what-if for "what would it take
+`/admin/needs-analyzer/simulator` (tab **Website Build Simulator**): a what-if for "what would it take
 Revalor to build this website". Pick platform (WordPress, Squarespace, Wix, Webflow, Shopify or
 custom Next.js), hosting (only hosts that fit the platform), registrar, business email and
 mailboxes, size, design, content, features and care plan. The page shows a one-page assessment:
