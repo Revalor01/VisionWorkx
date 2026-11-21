@@ -22,10 +22,12 @@ import {
   type SimPrices,
   type SimStep,
 } from "@/lib/needsAnalyzer/buildSim";
-import { BTN, BTN_PRIMARY, INPUT, NaShell, NUM, useClientMode } from "./ui";
+import { BTN, BTN_PRIMARY, NaShell, NUM, useClientMode } from "./ui";
 
 // The shared CARD, with the Revalor brown/gold outline (other tabs keep the grey border).
 const GOLD_CARD = "mb-6 rounded-xl border border-[#B8860B] bg-white p-5 shadow-sm";
+// The shared INPUT look for the choices card's dropdowns and fields, outlined in the same gold.
+const GOLD_INPUT = "w-full rounded-md border border-[#B8860B] bg-white px-3 py-2 text-sm focus:border-[#8B6508] focus:outline-none focus:ring-2 focus:ring-[#B8860B]/20 disabled:opacity-60";
 
 // Website Build Simulator: pick the high-level choices, get every step from hosting to
 // deployment with hours, the one-time price and the running costs, as a
@@ -66,7 +68,7 @@ function Simulator({ currency, internalRate, targetMarginPct }: { currency: stri
           <p className="mb-4 text-sm text-zinc-500">Pick the high-level choices; the assessment on the right updates as you go. Nothing is saved.</p>
           <div className="space-y-3">
             <Field label="Client or project name (optional)">
-              <input className={INPUT} value={client} onChange={(e) => setClient(e.target.value)} placeholder="e.g. Smith Plumbing" />
+              <input className={GOLD_INPUT} value={client} onChange={(e) => setClient(e.target.value)} placeholder="e.g. Smith Plumbing" />
             </Field>
             <Field label="Platform" hint={platform.note}>
               <Select value={input.platform} onChange={(v) => set({ platform: v as SimInput["platform"], hosting: hostingFor(v as SimInput["platform"])[0] })} options={PLATFORMS} />
@@ -82,7 +84,7 @@ function Simulator({ currency, internalRate, targetMarginPct }: { currency: stri
                 <Select value={input.email} onChange={(v) => set({ email: v as SimInput["email"] })} options={EMAILS} />
               </Field>
               <Field label="Mailboxes">
-                <input type="number" min={1} max={50} className={INPUT} value={r.input.mailboxes} disabled={input.email === "none"} onChange={(e) => set({ mailboxes: Number(e.target.value) })} />
+                <input type="number" min={1} max={50} className={GOLD_INPUT} value={r.input.mailboxes} disabled={input.email === "none"} onChange={(e) => set({ mailboxes: Number(e.target.value) })} />
               </Field>
             </div>
             <Field label="Size">
@@ -291,7 +293,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function Select({ value, onChange, options, disabled }: { value: string; onChange: (v: string) => void; options: { key: string; label: string }[]; disabled?: boolean }) {
   return (
-    <select className={INPUT} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+    <select className={GOLD_INPUT} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
       {options.map((o) => (
         <option key={o.key} value={o.key}>
           {o.label}
