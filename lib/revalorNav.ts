@@ -1,9 +1,8 @@
-import { createHmac } from "node:crypto";
-
 // The Revalor admin navigation, read live from revalor-admin's GET /api/nav so
 // VisionWorkx's /admin pages draw the exact same blue top bar as revalor-admin
 // (sections A–Z with flyout tabs, Quick Access) without a second copy of the
 // link list. revalor-admin's app/AdminNavBar.tsx is the one source of truth.
+// Pure helpers (safe in the client bar); the fetch is in revalorNav.server.ts.
 
 export const REVALOR_ADMIN = "https://revalor-admin.vercel.app";
 
@@ -13,12 +12,15 @@ export type NavCategory = { key: string; label: string; hex: string; links: NavL
 export type QuickLink = { key: string; label: string; href: string; color: string; ring?: string; external?: boolean; row?: 2 };
 export type RevalorNav = { categories: NavCategory[]; quick: QuickLink[] };
 
-const EMPTY: RevalorNav = { categories: [], quick: [] };
+export const EMPTY_NAV: RevalorNav = { categories: [], quick: [] };
 
 /** Where a revalor-admin href points from inside VisionWorkx: its own pages
  *  (an SSO hop to target=visionworkx) become local paths, other revalor-admin
  *  pages become absolute links there, and outside sites stay as they are. */
 export function localHref(href: string): string {
+  // Only site paths and https links — never javascript: or other schemes.
+  if (!href.startsWith("/") && !href.startsWith("https://")) return "#";
+  if (href.startsWith("//")) return "#";
   if (href.startsWith("/api/admin/sso/issue?")) {
     const params = new URLSearchParams(href.slice(href.indexOf("?") + 1));
     const next = params.get("next");
@@ -56,22 +58,4 @@ export function sectionForPath(nav: RevalorNav, pathname: string): { category: N
     }
   }
   return best && { category: best.category, current: best.current };
-}
-
-/** Fetch the nav (cached 5 min). Never throws: on any failure the bar still
- *  renders, with just the wordmark and the way back to Revalor Admin. */
-export async function loadRevalorNav(): Promise<RevalorNav> {
-  const secret = process.env.ADMIN_SSO_SECRET;
-  if (!secret) return EMPTY;
-  try {
-    const res = await fetch(`${REVALOR_ADMIN}/api/nav`, {
-      headers: { "x-nav-key": createHmac("sha256", secret).update("revalor-nav").digest("hex") },
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return localizeNav((await res.json()) as RevalorNav);
-  } catch (err) {
-    console.error("[admin] Revalor nav fetch failed:", err instanceof Error ? err.message : err);
-    return EMPTY;
-  }
 }

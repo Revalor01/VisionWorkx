@@ -39,6 +39,9 @@ describe("localHref", () => {
   });
   it("leaves outside sites alone and refuses protocol-relative next paths", () => {
     expect(localHref("https://example.com/")).toBe("https://example.com/");
+    expect(localHref("javascript:alert(1)")).toBe("#");
+    expect(localHref("//evil.test/x")).toBe("#");
+    expect(localHref("http://plain.test/")).toBe("#");
     expect(localHref("/api/admin/sso/issue?target=visionworkx&next=//evil.test")).toBe(`${REVALOR_ADMIN}/api/admin/sso/issue?target=visionworkx&next=//evil.test`);
   });
 });

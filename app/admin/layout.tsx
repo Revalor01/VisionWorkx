@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { isAdminRequest } from "@/lib/social/adminAuth";
-import { loadRevalorNav } from "@/lib/revalorNav";
+import { loadRevalorNav } from "@/lib/revalorNav.server";
 import RevalorTopBar from "./RevalorTopBar";
 
 // Every /admin page gets the shared Revalor admin top bar (same as
