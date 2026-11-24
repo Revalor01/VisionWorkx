@@ -317,6 +317,46 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      // ── Refund — revoke access on a VisionWorkx subscription ────
+      case "charge.refunded": {
+        // A refund on one of OUR platform subscriptions revokes access
+        // immediately (the subscription can stay "active" in Stripe after a
+        // refund, so subscription.updated won't fire). Scope strictly to the
+        // platform account and to our own subscribers: skip Connect
+        // (connected-account) charges — those belong to an app owner's
+        // customers, not a VisionWorkx subscriber — and look the user up by the
+        // platform customer id, which a connected-account customer never
+        // matches.
+        if (event.account) break;
+        const charge = event.data.object as Stripe.Charge;
+        const stripeCustomerId =
+          typeof charge.customer === "string" ? charge.customer : null;
+        if (!stripeCustomerId) break;
+
+        const { data: existingSub } = await serviceClient
+          .from("subscriptions")
+          .select("user_id")
+          .eq("stripe_customer_id", stripeCustomerId)
+          .maybeSingle();
+
+        if (!existingSub?.user_id) break;
+        const userId = existingSub.user_id;
+
+        await Promise.all([
+          serviceClient
+            .from("subscriptions")
+            .update({ status: "cancelled", plan: null })
+            .eq("user_id", userId),
+          serviceClient
+            .from("profiles")
+            .update({ plan: "free" })
+            .eq("id", userId),
+        ]);
+
+        console.log(`[stripe] charge refunded — revoked access for user ${userId}`);
+        break;
+      }
+
       // ── Connected account state changed (Phase 2 payments) ──────
       // Delivered for connected accounts when the endpoint is configured
       // to listen on Connect; also fires for the platform account itself,
