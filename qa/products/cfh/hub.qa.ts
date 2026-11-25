@@ -6,7 +6,7 @@ import { cfhLogin, cfhRows, deleteCfhMember, findCfhUserByEmail, qaEmail } from 
 // real coordinators) are never submitted. Those are manual checks.
 
 const MEMBER_PAGES = [
-  { path: "/announcements", heading: "Announcements" },
+  { path: "/announcements", heading: "Community Board" },
   { path: "/events", heading: "Events" },
   { path: "/directory", heading: "Find a Business" },
   { path: "/prayer-requests", heading: "Prayer Requests" },
@@ -69,7 +69,7 @@ qa({ id: "cfh/member/login-lands-home", area: "Members", title: "Member login la
   await cfhLogin(page, await cfhMember());
   // (The address bar can still read /login after the client-side switch, so check the page itself.)
   await expect(page.getByRole("heading", { name: /Welcome to Christian Friends Hub/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recent Announcements" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Community Board" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Upcoming Events" })).toBeVisible();
 });
 
@@ -94,10 +94,27 @@ qa({ id: "cfh/access/blocked-account", area: "Safety & access", title: "A blocke
 
 qa({ id: "cfh/access/admin-refused", area: "Safety & access", title: "A normal member can't open admin or deacon-only pages", smoke: true }, async ({ page, cfhMember }) => {
   await cfhLogin(page, await cfhMember());
-  for (const path of ["/admin", "/admin/access", "/admin/logs", "/admin/deacons", "/coordination", "/coordination/guide"]) {
+  // /admin* — middleware redirects a non-admin straight home.
+  for (const path of ["/admin", "/admin/access", "/admin/logs", "/admin/deacons"]) {
     await test.step(path, async () => {
       await page.goto(path);
       await page.waitForURL((url) => url.pathname === "/", { timeout: 10_000 });
+    });
+  }
+  // /coordination* — deacon-only. With the deacon feature off (the default) the
+  // middleware rewrites to the "feature unavailable" page (the URL stays /coordination),
+  // and with it on the page's requireCoordinator() redirects a non-coordinator home.
+  // Either way a normal member never reaches the coordination board.
+  const [settings] = await cfhRows<{ deacon_features_enabled: boolean | null }>("app_settings", "select=deacon_features_enabled&limit=1");
+  const deaconOn = settings?.deacon_features_enabled ?? false;
+  for (const path of ["/coordination", "/coordination/guide"]) {
+    await test.step(path, async () => {
+      await page.goto(path);
+      if (deaconOn) {
+        await page.waitForURL((url) => url.pathname === "/", { timeout: 10_000 });
+      } else {
+        await expect(page.getByRole("heading", { name: /feature isn.t available/i })).toBeVisible();
+      }
     });
   }
 });
