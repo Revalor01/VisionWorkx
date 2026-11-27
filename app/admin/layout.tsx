@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { isAdminRequest } from "@/lib/social/adminAuth";
 import { loadRevalorNav } from "@/lib/revalorNav.server";
 import RevalorTopBar from "./RevalorTopBar";
+import AdminDeck from "./AdminDeck";
+import "./command-theme.css";
 
 // Every /admin page gets the shared Revalor admin top bar (same as
 // revalor-admin's), its links read live from revalor-admin's /api/nav.
@@ -12,7 +14,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <>
       {admin && <RevalorTopBar nav={await loadRevalorNav()} />}
-      {children}
+      <AdminDeck>{children}</AdminDeck>
     </>
   );
 }

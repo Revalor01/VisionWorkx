@@ -41,13 +41,13 @@ const MODULE_TYPE_LABELS: Record<string, string> = {
 // on-brand navy + promote.* palette (tailwind.config.ts). Set inline rather
 // than as Tailwind classes so the per-type mapping is a single source of truth.
 const MODULE_TYPE_COLORS: Record<string, string> = {
-  lead_capture: "#2E6DA4", // navy
+  lead_capture: "#3EA8FF", // electric blue (dark admin theme)
   booking: "#e8b84b", // gold
   quote_calculator: "#3ecf8e", // green
   intake_form: "#7c5cfc", // purple
   receptionist: "#e2557b", // rose
 };
-const BAR_FALLBACK_COLOR = "#2E6DA4";
+const BAR_FALLBACK_COLOR = "#3EA8FF";
 
 function formatUsd(n: number): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
