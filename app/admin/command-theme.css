@@ -1,0 +1,474 @@
+/* VisionWorkx admin pages in revalor-admin's dark "command center" look.
+   Ported from revalor-admin app/globals.css (.odin-deck / .page-deck, owner
+   colour spec 2026-11-26) so both admins match. Loaded only by app/admin/layout.tsx
+   and scoped to .odin-deck (app/admin/AdminDeck.tsx), so the public site, the
+   shared Revalor top bar and the client-facing Needs Analyzer are untouched.
+   Colours only: nothing here moves or resizes anything. Keep in step with
+   revalor-admin when its theme changes. */
+
+/* The JARVIS colour system (owner spec, 2026-11-26). Global tokens; the
+   command-center pages read them through the --od-* aliases below. */
+:root {
+  /* Backgrounds */
+  --jarvis-void: #000F21;
+  --jarvis-black: #001122;
+  --jarvis-deep: #001524;
+  --jarvis-panel: #001A2F;
+  --jarvis-panel-light: #011D36;
+  /* Electric blue */
+  --jarvis-blue-deep: #0040A7;
+  --jarvis-blue: #0055D1;
+  --jarvis-blue-bright: #0072F2;
+  --jarvis-blue-glow: #008BFF;
+  /* Cyan */
+  --jarvis-cyan-dark: #00AFFF;
+  --jarvis-cyan: #00D9FF;
+  --jarvis-cyan-bright: #40EFFF;
+  --jarvis-ice: #A0FFFF;
+  /* White */
+  --jarvis-white: #EAFBFF;
+  --jarvis-white-hot: #FFFFFF;
+  /* Gold */
+  --jarvis-gold-dark: #A66C20;
+  --jarvis-gold: #D99B35;
+  --jarvis-amber: #FFD166;
+  --jarvis-gold-light: #FFE8A1;
+  /* Status */
+  --jarvis-success: #00E5A0;
+  --jarvis-warning: #FFD166;
+  --jarvis-danger: #FF4568;
+  /* Text */
+  --jarvis-text-primary: #EAFBFF;
+  --jarvis-text-secondary: #8BCFE8;
+  --jarvis-text-muted: #4685A6;
+}
+.odin-deck {
+  --od-bg: var(--jarvis-void);
+  --od-bg2: var(--jarvis-black);
+  --od-panel: var(--jarvis-panel);
+  --od-panel2: var(--jarvis-panel-light);
+  --od-cyan: var(--jarvis-cyan);
+  --od-blue: var(--jarvis-blue-glow);
+  --od-muted: var(--jarvis-text-muted);
+  --od-gold: var(--jarvis-gold);
+  --od-fg: var(--jarvis-text-primary);
+  --od-dim: var(--jarvis-text-secondary);
+  --od-ok: var(--jarvis-success);
+  --od-warn: var(--jarvis-warning);
+  --od-bad: var(--jarvis-danger);
+  --od-line: rgba(0, 217, 255, 0.35);
+  color: var(--od-fg);
+  color-scheme: dark;
+  background: var(--od-bg);
+}
+body:has(.odin-deck) { background-color: #000F21; background-image: none; }
+
+/* Panels */
+.od-panel {
+  position: relative;
+  border: 1px solid var(--od-line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(17, 36, 56, 0.82), rgba(13, 27, 43, 0.9));
+  box-shadow: inset 0 1px 0 rgba(0, 217, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.od-panel::before { /* corner bracket */
+  content: ""; position: absolute; left: -1px; top: -1px; width: 22px; height: 22px;
+  border-left: 2px solid var(--od-cyan); border-top: 2px solid var(--od-cyan); border-top-left-radius: 14px; opacity: 0.7; pointer-events: none;
+}
+.od-title { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--od-fg); }
+.od-mono { font-family: var(--font-spline-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.od-dim { color: var(--od-dim); }
+.od-cyan { color: var(--od-cyan); }
+.od-gold { color: var(--od-gold); }
+.od-ok { color: var(--od-ok); }
+.od-warn { color: var(--od-warn); }
+.od-bad { color: var(--od-bad); }
+.od-wordmark {
+  font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: 0.06em;
+  background: linear-gradient(180deg, #ffffff, #8eefff 60%, #00d9ff); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 28px rgba(0, 217, 255, 0.25);
+}
+.od-card { border: 1px solid var(--od-line); border-radius: 10px; background: rgba(0, 15, 33, 0.45); transition: border-color .15s; }
+a.od-card:hover, a.od-card:focus-visible { border-color: var(--od-cyan); outline: none; }
+
+/* The central core */
+.od-core { position: relative; aspect-ratio: 1; width: 100%; max-width: 440px; margin: 0 auto; }
+.od-core svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.od-core .od-spin { transform-origin: 50% 50%; animation: odSpin 60s linear infinite; }
+.od-core .od-spin-rev { transform-origin: 50% 50%; animation: odSpin 90s linear infinite reverse; }
+.od-core[data-state="processing"] .od-spin, .od-core[data-state="analyzing"] .od-spin { animation-duration: 6s; }
+.od-core[data-state="processing"] .od-spin-rev, .od-core[data-state="analyzing"] .od-spin-rev { animation-duration: 9s; }
+.od-core .od-glow { animation: odBreathe 4s ease-in-out infinite alternate; }
+.od-core-emblem { position: absolute; inset: 21%; border-radius: 50%; overflow: hidden; border: 2px solid var(--jarvis-gold); box-shadow: 0 0 0 6px rgba(0, 15, 33, 0.9), 0 0 60px rgba(0, 217, 255, 0.35); }
+@keyframes odSpin { to { transform: rotate(360deg); } }
+@keyframes odBreathe { from { opacity: 0.55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .od-core .od-spin, .od-core .od-spin-rev, .od-core .od-glow { animation: none !important; }
+}
+
+/* Remaps for the existing Odin components (Ask Odin, permissions, report, ledger). */
+.odin-deck .bg-white, .odin-deck .bg-zinc-50 { background-color: rgba(13, 27, 43, 0.85) !important; }
+.odin-deck .bg-zinc-100, .odin-deck .bg-zinc-200 { background-color: var(--od-panel2) !important; }
+.odin-deck .border-zinc-100, .odin-deck .border-zinc-200, .odin-deck .border-zinc-300, .odin-deck .border-zinc-400,
+.odin-deck .divide-zinc-100 > :not(:first-child) { border-color: var(--od-line) !important; }
+.odin-deck .text-zinc-900, .odin-deck .text-zinc-800, .odin-deck .text-zinc-700 { color: var(--od-fg) !important; }
+.odin-deck .text-zinc-600, .odin-deck .text-zinc-500, .odin-deck .text-zinc-400, .odin-deck .text-zinc-300 { color: var(--od-dim) !important; }
+.odin-deck .text-\[\#1A3A5C\] { color: #40EFFF !important; }
+.odin-deck .border-\[\#1A3A5C\] { border-color: var(--od-cyan) !important; }
+.odin-deck .bg-\[\#1A3A5C\] { background: linear-gradient(180deg, #19b9e6, #0b7fb8) !important; color: #031018 !important; box-shadow: 0 0 18px rgba(0, 217, 255, 0.28); }
+.odin-deck .border-\[\#B8860B\] { border-color: rgba(217, 155, 53, 0.55) !important; }
+.odin-deck .border-2.border-\[\#B8860B\] { border-width: 1px !important; border-color: var(--od-line) !important; }
+.odin-deck .text-\[\#B8860B\] { color: var(--od-gold) !important; }
+.odin-deck .hover\:bg-amber-50:hover, .odin-deck .hover\:bg-zinc-50:hover { background-color: rgba(0, 217, 255, 0.08) !important; }
+.odin-deck .hover\:border-zinc-400:hover { border-color: var(--od-cyan) !important; }
+.odin-deck .bg-red-50 { background-color: rgba(255, 69, 104, 0.12) !important; }
+.odin-deck .bg-green-50 { background-color: rgba(0, 229, 160, 0.12) !important; }
+.odin-deck .bg-amber-50 { background-color: rgba(255, 209, 102, 0.12) !important; }
+.odin-deck .border-red-200 { border-color: rgba(255, 69, 104, 0.45) !important; }
+.odin-deck .border-amber-200 { border-color: rgba(255, 209, 102, 0.45) !important; }
+.odin-deck .text-red-800, .odin-deck .text-red-700 { color: #ff8a98 !important; }
+.odin-deck .text-green-800, .odin-deck .text-green-700 { color: var(--od-ok) !important; }
+.odin-deck .text-amber-900, .odin-deck .text-amber-800, .odin-deck .text-amber-700 { color: var(--od-warn) !important; }
+/* Status / topic pills */
+.odin-deck .bg-green-100, .odin-deck .bg-emerald-100 { background-color: rgba(0, 229, 160, 0.16) !important; }
+.odin-deck .bg-sky-100 { background-color: rgba(0, 139, 255, 0.18) !important; }
+.odin-deck .bg-amber-100, .odin-deck .bg-orange-100 { background-color: rgba(255, 209, 102, 0.16) !important; }
+.odin-deck .bg-red-100 { background-color: rgba(255, 69, 104, 0.16) !important; }
+.odin-deck .bg-indigo-100, .odin-deck .bg-violet-100 { background-color: rgba(140, 120, 255, 0.18) !important; }
+.odin-deck .text-sky-800 { color: #6fc2ff !important; }
+.odin-deck .text-emerald-900 { color: var(--od-ok) !important; }
+.odin-deck .text-orange-800 { color: #ffb36b !important; }
+.odin-deck .text-indigo-800, .odin-deck .text-violet-800 { color: #b9a8ff !important; }
+/* Form controls */
+.odin-deck input:not([type="checkbox"]):not([type="radio"]), .odin-deck textarea, .odin-deck select {
+  background-color: rgba(0, 15, 33, 0.7) !important; color: var(--od-fg) !important; border-color: rgba(0, 217, 255, 0.3) !important;
+}
+.odin-deck input::placeholder, .odin-deck textarea::placeholder { color: #5f7a92 !important; }
+.odin-deck input:focus-visible, .odin-deck textarea:focus-visible, .odin-deck select:focus-visible,
+.odin-deck button:focus-visible, .odin-deck a:focus-visible { outline: 2px solid var(--od-cyan); outline-offset: 2px; }
+.odin-deck input[type="checkbox"] { accent-color: var(--od-cyan); }
+.odin-deck code { color: #40EFFF; }
+/* Ask Odin as the command console */
+.odin-deck #ask-odin textarea { font-size: 15px; padding: 12px 14px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(0, 217, 255, 0.15), 0 0 24px rgba(0, 217, 255, 0.06); }
+.odin-deck #ask-odin textarea:focus { border-color: var(--od-cyan) !important; box-shadow: 0 0 0 1px var(--od-cyan), 0 0 28px rgba(0, 217, 255, 0.22); }
+
+/* ── Command-center glow (/brain and the machine hubs) ───────────────────────
+   The "energy" accents from the reference: glowing cyan panel edges and
+   corner brackets, a light highlight along each panel's top edge (static, so
+   panels never repaint every frame), glowing numbers and titles, glowing buttons, and a stronger blue
+   haze. All scoped to .odin-deck. */
+.odin-deck {
+  background:
+    radial-gradient(1100px 620px at 50% 8%, rgba(0, 217, 255, 0.16), transparent 62%),
+    radial-gradient(800px 520px at 100% 35%, rgba(0, 139, 255, 0.10), transparent 60%),
+    radial-gradient(700px 480px at 0% 60%, rgba(0, 217, 255, 0.07), transparent 60%),
+    linear-gradient(rgba(0, 217, 255, 0.045) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px) 0 0 / 32px 100%,
+    var(--od-bg);
+}
+.odin-deck .od-panel {
+  border-color: rgba(0, 217, 255, 0.38);
+  background:
+    linear-gradient(90deg, transparent, rgba(64, 239, 255, 0.95), transparent) 50% 0 / 60% 1px no-repeat,
+    linear-gradient(180deg, rgba(17, 36, 56, 0.86), rgba(13, 27, 43, 0.92));
+  box-shadow:
+    0 0 0 1px rgba(0, 217, 255, 0.06),
+    0 0 18px rgba(0, 217, 255, 0.16),
+    0 0 42px rgba(0, 140, 255, 0.08),
+    inset 0 0 22px rgba(0, 217, 255, 0.07),
+    inset 0 1px 0 rgba(64, 239, 255, 0.18);
+}
+.odin-deck .od-panel::before {
+  width: 26px; height: 26px; opacity: 1;
+  border-left-color: #40EFFF; border-top-color: #40EFFF;
+  filter: drop-shadow(0 0 4px #00d9ff) drop-shadow(0 0 10px rgba(0, 217, 255, 0.7));
+}
+.odin-deck .od-panel::after { /* bottom-right bracket */
+  content: ""; position: absolute; right: -1px; bottom: -1px; width: 26px; height: 26px; pointer-events: none;
+  border-right: 2px solid #40EFFF; border-bottom: 2px solid #40EFFF; border-bottom-right-radius: 14px;
+  filter: drop-shadow(0 0 4px #00d9ff) drop-shadow(0 0 10px rgba(0, 217, 255, 0.7));
+}
+.odin-deck .od-card {
+  border-color: rgba(0, 217, 255, 0.3);
+  box-shadow: inset 0 0 16px rgba(0, 217, 255, 0.06), 0 0 10px rgba(0, 217, 255, 0.06);
+}
+.odin-deck a.od-card:hover, .odin-deck a.od-card:focus-visible { box-shadow: inset 0 0 18px rgba(0, 217, 255, 0.12), 0 0 16px rgba(0, 217, 255, 0.28); }
+.odin-deck .od-title { text-shadow: 0 0 10px rgba(0, 217, 255, 0.35); }
+.odin-deck .od-wordmark { filter: drop-shadow(0 0 14px rgba(0, 217, 255, 0.55)) drop-shadow(0 0 32px rgba(0, 140, 255, 0.3)); }
+.odin-deck .od-mono { text-shadow: 0 0 12px rgba(0, 217, 255, 0.35); }
+.odin-deck .od-ok { text-shadow: 0 0 12px rgba(0, 229, 160, 0.45); }
+.odin-deck .od-warn { text-shadow: 0 0 12px rgba(255, 209, 102, 0.45); }
+.odin-deck .od-bad { text-shadow: 0 0 12px rgba(255, 69, 104, 0.45); }
+/* Buttons and chips */
+.odin-deck .bg-\[\#1A3A5C\] { box-shadow: 0 0 14px rgba(0, 217, 255, 0.45), 0 0 30px rgba(0, 217, 255, 0.18) !important; }
+.odin-deck button.rounded-full, .odin-deck button.rounded-md, .odin-deck button.rounded-lg { transition: box-shadow .15s, border-color .15s; }
+.odin-deck button.rounded-full:hover, .odin-deck button.rounded-md:hover, .odin-deck button.rounded-lg:hover,
+.odin-deck button[aria-pressed="true"] { box-shadow: 0 0 12px rgba(0, 217, 255, 0.35); border-color: var(--od-cyan) !important; }
+/* The core: bright halo behind the crest, gold frame on the emblem */
+.odin-deck .od-core-emblem {
+  border-color: var(--jarvis-gold);
+  box-shadow: 0 0 0 5px rgba(0, 17, 34, 0.9), 0 0 0 6px rgba(64, 239, 255, 0.8), 0 0 18px rgba(217, 155, 53, 0.6), 0 0 40px rgba(0, 217, 255, 0.7), 0 0 90px rgba(0, 114, 242, 0.55);
+}
+
+
+/* Remaps for the home page's own light colours (also tidy the machine hubs' red/amber text) inside .odin-deck */
+.odin-deck .border-\[\#E6E8EC\] { border-color: var(--od-line) !important; }
+.odin-deck .text-green-600 { color: var(--od-ok) !important; }
+.odin-deck .text-red-600, .odin-deck .text-\[\#DC2626\] { color: #ff8a98 !important; }
+.odin-deck .text-amber-600 { color: var(--od-warn) !important; }
+.odin-deck .rounded-2xl.border-2.border-\[\#B8860B\] { border-width: 1px !important; border-color: rgba(0, 217, 255, 0.38) !important; box-shadow: 0 0 18px rgba(0, 217, 255, 0.14), inset 0 0 22px rgba(0, 217, 255, 0.06); }
+
+/* ── JARVIS look (owner colour spec, 2026-11-26) ────────────────────────────
+   The visual intensity of the reference: an almost-black navy ground, electric
+   saturated blue, cyan that turns near-white at its brightest, warm metallic
+   gold as a small accent, and a core that is the brightest thing on screen.
+   Colours only: nothing here moves or resizes anything. Overrides the earlier
+   command-center rules above (same selectors, later in the file). */
+.jarvis-glow {
+  box-shadow:
+    0 0 5px rgba(0, 217, 255, 0.9),
+    0 0 12px rgba(0, 217, 255, 0.65),
+    0 0 25px rgba(0, 139, 255, 0.45),
+    0 0 50px rgba(0, 85, 209, 0.25),
+    inset 0 0 12px rgba(0, 217, 255, 0.12);
+}
+.jarvis-border {
+  border: 1px solid #00D9FF;
+  box-shadow:
+    0 0 6px rgba(0, 217, 255, 0.8),
+    0 0 18px rgba(0, 139, 255, 0.45),
+    inset 0 0 8px rgba(0, 217, 255, 0.12);
+}
+
+/* Background: navy-black with the spec's layered gradients, a faint technical grid and star specks. */
+.odin-deck {
+  background:
+    radial-gradient(1.2px 1.2px at 12% 18%, rgba(160, 255, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 78% 12%, rgba(234, 251, 255, 0.5), transparent 60%),
+    radial-gradient(1.4px 1.4px at 64% 44%, rgba(64, 239, 255, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 30% 72%, rgba(160, 255, 255, 0.4), transparent 60%),
+    radial-gradient(1.2px 1.2px at 90% 66%, rgba(234, 251, 255, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 46% 90%, rgba(64, 239, 255, 0.4), transparent 60%),
+    radial-gradient(ellipse at 50% 35%, rgba(0, 85, 209, 0.18), transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 217, 255, 0.09), transparent 45%),
+    linear-gradient(rgba(0, 217, 255, 0.035) 1px, transparent 1px) 0 0 / 100% 36px,
+    linear-gradient(90deg, rgba(0, 217, 255, 0.025) 1px, transparent 1px) 0 0 / 36px 100%,
+    linear-gradient(180deg, #000F21 0%, #001122 50%, #000F21 100%);
+  background-attachment: fixed;
+}
+
+/* Panels (and the existing gold-trimmed sections, remapped to the same look). */
+.odin-deck .od-panel,
+.odin-deck .border-2.border-\[\#B8860B\],
+.odin-deck .rounded-2xl.border-2.border-\[\#B8860B\] {
+  background: linear-gradient(145deg, rgba(0, 26, 47, 0.96), rgba(0, 15, 33, 0.98)) !important;
+  border: 1px solid rgba(0, 217, 255, 0.75) !important;
+  box-shadow: 0 0 10px rgba(0, 139, 255, 0.25), 0 0 24px rgba(0, 85, 209, 0.12), inset 0 0 18px rgba(0, 85, 209, 0.08) !important;
+}
+.odin-deck .od-panel::before, .odin-deck .od-panel::after { border-color: #A0FFFF; filter: drop-shadow(0 0 4px #00D9FF) drop-shadow(0 0 10px rgba(0, 139, 255, 0.8)); }
+.odin-deck .od-card {
+  background: linear-gradient(145deg, rgba(1, 29, 54, 0.85), rgba(0, 17, 34, 0.9));
+  border-color: rgba(0, 217, 255, 0.5);
+  box-shadow: 0 0 8px rgba(0, 139, 255, 0.18), inset 0 0 12px rgba(0, 85, 209, 0.1);
+}
+.odin-deck a.od-card:hover, .odin-deck a.od-card:focus-visible { border-color: #00D9FF; box-shadow: 0 0 6px rgba(0, 217, 255, 0.8), 0 0 18px rgba(0, 139, 255, 0.45), inset 0 0 8px rgba(0, 217, 255, 0.12); }
+
+/* Illuminated cyan headings, thin cyan dividers, text in the spec colours. */
+.odin-deck .od-title, .odin-deck .text-\[\#1A3A5C\] { color: #40EFFF !important; text-shadow: 0 0 6px rgba(0, 217, 255, 0.8), 0 0 16px rgba(0, 139, 255, 0.45); }
+.odin-deck h1:not(.od-wordmark), .odin-deck h2 { text-shadow: 0 0 8px rgba(0, 217, 255, 0.35); }
+.odin-deck .text-zinc-900, .odin-deck .text-zinc-800, .odin-deck .text-zinc-700 { color: var(--jarvis-text-primary) !important; }
+.odin-deck .text-zinc-600, .odin-deck .text-zinc-500, .odin-deck .text-zinc-400 { color: var(--jarvis-text-secondary) !important; } /* zinc-400 is small label text: secondary keeps it above 4.5:1 */
+.odin-deck .text-zinc-300 { color: var(--jarvis-text-muted) !important; }
+.odin-deck .border-zinc-100, .odin-deck .border-zinc-200, .odin-deck .border-zinc-300, .odin-deck .divide-zinc-100 > :not(:first-child) { border-color: rgba(0, 217, 255, 0.28) !important; }
+.odin-deck .od-wordmark {
+  background: linear-gradient(180deg, #FFFFFF 0%, #A0FFFF 45%, #00D9FF 80%, #008BFF 100%); -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 6px rgba(0, 217, 255, 0.9)) drop-shadow(0 0 22px rgba(0, 139, 255, 0.6));
+}
+.odin-deck .od-mono { text-shadow: 0 0 6px rgba(0, 217, 255, 0.7), 0 0 16px rgba(0, 139, 255, 0.4); }
+.odin-deck .od-gold, .odin-deck .text-\[\#B8860B\] { color: var(--jarvis-gold) !important; text-shadow: 0 0 8px rgba(217, 155, 53, 0.45); }
+
+/* Buttons and inputs */
+.odin-deck .bg-\[\#1A3A5C\] {
+  background: linear-gradient(180deg, #00D9FF, #0072F2) !important; color: #FFFFFF !important; border-color: #40EFFF !important;
+  box-shadow: 0 0 5px rgba(0, 217, 255, 0.9), 0 0 14px rgba(0, 139, 255, 0.55), inset 0 1px 0 rgba(234, 251, 255, 0.5) !important;
+}
+.odin-deck button.border, .odin-deck button.rounded-full.border, .odin-deck button.rounded-md.border, .odin-deck button.rounded-lg.border {
+  background-color: rgba(0, 21, 36, 0.9); border-color: rgba(0, 217, 255, 0.75) !important;
+}
+.odin-deck button.rounded-full:hover, .odin-deck button.rounded-md:hover, .odin-deck button.rounded-lg:hover, .odin-deck button[aria-pressed="true"] {
+  border-color: #00D9FF !important; box-shadow: 0 0 6px rgba(0, 217, 255, 0.8), 0 0 18px rgba(0, 139, 255, 0.45), inset 0 0 8px rgba(0, 217, 255, 0.12);
+}
+.odin-deck input:not([type="checkbox"]):not([type="radio"]), .odin-deck textarea, .odin-deck select {
+  background-color: #001524 !important; color: var(--jarvis-text-primary) !important; border-color: #00D9FF !important;
+  box-shadow: inset 0 0 10px rgba(0, 85, 209, 0.25), 0 0 6px rgba(0, 217, 255, 0.35);
+}
+.odin-deck input:focus, .odin-deck textarea:focus, .odin-deck select:focus {
+  box-shadow: 0 0 5px rgba(0, 217, 255, 0.9), 0 0 12px rgba(0, 217, 255, 0.65), 0 0 25px rgba(0, 139, 255, 0.45), inset 0 0 12px rgba(0, 217, 255, 0.12) !important;
+}
+.odin-deck input::placeholder, .odin-deck textarea::placeholder { color: var(--jarvis-text-muted) !important; }
+
+/* Status colours on the spec's tokens */
+.odin-deck .text-green-800, .odin-deck .text-green-700, .odin-deck .text-green-600 { color: var(--jarvis-success) !important; }
+.odin-deck .text-amber-900, .odin-deck .text-amber-800, .odin-deck .text-amber-700, .odin-deck .text-amber-600 { color: var(--jarvis-warning) !important; }
+.odin-deck .text-red-800, .odin-deck .text-red-700, .odin-deck .text-red-600, .odin-deck .text-\[\#DC2626\] { color: var(--jarvis-danger) !important; }
+
+/* The core: a deep-blue energy sphere behind each logo (CommandCore .od-core-energy),
+   the brightest element on the page. */
+.od-core-energy {
+  position: absolute; inset: 16%; /* inside the rotating rings, so they sit on the dark ground and stay bright */ border-radius: 50%; pointer-events: none;
+  background:
+    /* white-hot corona right at the logo's edge (the logo covers the sphere's centre) */
+    radial-gradient(circle closest-side, transparent 76%, rgba(160, 255, 255, 0.9) 79%, rgba(64, 239, 255, 0.55) 84%, rgba(0, 114, 242, 0) 94%),
+    /* the spec's core gradient */
+    radial-gradient(circle at 50% 45%, #FFFFFF 0%, #A0FFFF 5%, #40EFFF 15%, #0072F2 35%, #0040A7 65%, #001122 100%);
+  box-shadow: 0 0 5px rgba(0, 217, 255, 0.9), 0 0 25px rgba(0, 217, 255, 0.75), 0 0 60px rgba(0, 139, 255, 0.6), 0 0 110px rgba(0, 85, 209, 0.45);
+  animation: odBreathe 4s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) { .od-core-energy { animation: none !important; } }
+/* Home stat tiles: the panel override removed their hover shadow; give them a cyan hover glow instead. */
+.odin-deck a:hover > .rounded-2xl.border-2.border-\[\#B8860B\], .odin-deck a:focus-visible > .rounded-2xl.border-2.border-\[\#B8860B\] {
+  border-color: #00D9FF !important;
+  box-shadow: 0 0 6px rgba(0, 217, 255, 0.8), 0 0 18px rgba(0, 139, 255, 0.45), inset 0 0 8px rgba(0, 217, 255, 0.12) !important;
+}
+
+
+/* Online dots and count badges */
+.odin-deck .bg-green-500 { background-color: #00E5A0 !important; box-shadow: 0 0 4px #00E5A0, 0 0 10px rgba(0, 229, 160, 0.6); }
+.odin-deck .rounded-full.bg-red-100, .odin-deck .rounded-full.bg-\[\#DC2626\]\/10 { background-color: rgba(255, 69, 104, 0.16) !important; color: #FF4568 !important; box-shadow: 0 0 6px rgba(255, 69, 104, 0.55), inset 0 0 0 1px rgba(255, 69, 104, 0.55); }
+.odin-deck .rounded-full.bg-green-100 { box-shadow: 0 0 6px rgba(0, 229, 160, 0.45), inset 0 0 0 1px rgba(0, 229, 160, 0.5); }
+.odin-deck .rounded-full.bg-amber-100 { box-shadow: 0 0 6px rgba(255, 209, 102, 0.45), inset 0 0 0 1px rgba(255, 209, 102, 0.5); }
+
+
+/* ── Admin pages in the command-center look (.page-deck) ──────────────────────
+   /finance, /traffic, /ai-usage, /paymaster and /inbox wrap their body in
+   .odin-deck .page-deck. The shared deck
+   rules above do most of the work; these cover the colours only Finance uses
+   (blue/sky notes, its green #15803D actions, darker status text), give its
+   cards the energy-glow edge, and keep modals and toasts solid. Colours only. */
+.odin-deck.page-deck .rounded-xl.border-2.border-\[\#B8860B\],
+.odin-deck.page-deck .rounded-lg.border.border-\[\#B8860B\] {
+  border-color: rgba(0, 217, 255, 0.42) !important;
+  box-shadow: 0 0 6px rgba(0, 217, 255, 0.22), 0 0 18px rgba(0, 139, 255, 0.14), inset 0 0 16px rgba(0, 217, 255, 0.06);
+}
+.odin-deck.page-deck .rounded-xl.border-2.border-\[\#B8860B\] { border-width: 1px !important; }
+.odin-deck.page-deck .border-zinc-200.rounded-xl, .odin-deck.page-deck .border-zinc-200.rounded-lg { box-shadow: inset 0 0 14px rgba(0, 217, 255, 0.05); }
+.odin-deck.page-deck .rounded-2xl.border-2.border-\[\#B8860B\] { border-color: rgba(217, 155, 53, 0.7) !important; box-shadow: 0 0 10px rgba(217, 155, 53, 0.35), 0 0 26px rgba(0, 139, 255, 0.25); }
+.odin-deck.page-deck h1.text-\[\#1A3A5C\] { text-shadow: 0 0 12px rgba(0, 217, 255, 0.45); }
+/* tabs: active tab glows cyan */
+.odin-deck.page-deck .border-b-2.border-\[\#1A3A5C\] { border-color: #00D9FF !important; text-shadow: 0 0 10px rgba(0, 217, 255, 0.55); box-shadow: 0 6px 10px -8px rgba(0, 217, 255, 0.9); }
+.odin-deck.page-deck .hover\:text-zinc-800:hover, .odin-deck.page-deck .hover\:text-zinc-600:hover { color: #E8F7FF !important; }
+.odin-deck.page-deck .hover\:bg-zinc-100:hover { background-color: rgba(0, 217, 255, 0.08) !important; }
+.odin-deck.page-deck .hover\:bg-\[\#1A3A5C\]\/10:hover, .odin-deck.page-deck .bg-\[\#1A3A5C\]\/5 { background: rgba(0, 217, 255, 0.08) !important; }
+.odin-deck.page-deck .hover\:bg-\[\#1A3A5C\]:hover { background: linear-gradient(180deg, #19b9e6, #0b7fb8) !important; color: #031018 !important; }
+.odin-deck.page-deck .hover\:border-\[\#1A3A5C\]:hover, .odin-deck.page-deck .ring-\[\#1A3A5C\] { border-color: #00D9FF !important; --tw-ring-color: #00D9FF; }
+.odin-deck.page-deck .border-\[\#1A3A5C\]\/30 { border-color: rgba(0, 217, 255, 0.3) !important; }
+.odin-deck.page-deck .accent-\[\#1A3A5C\] { accent-color: #00D9FF; }
+.odin-deck.page-deck .bg-\[\#B8860B\] { background-color: #D99B35 !important; color: #1a1000 !important; }
+.odin-deck.page-deck .bg-\[\#B8860B\]\/70 { background-color: rgba(217, 155, 53, 0.7) !important; }
+.odin-deck.page-deck .text-\[\#8a6508\] { color: #F5C26B !important; }
+.odin-deck.page-deck .bg-\[\#0EA5E9\] { background-color: #3EA8FF !important; }
+/* Finance's green actions (#15803D) → neon green */
+.odin-deck.page-deck .text-\[\#15803D\] { color: #00E5A0 !important; }
+.odin-deck.page-deck .border-\[\#15803D\], .odin-deck.page-deck .border-\[\#15803D\]\/40 { border-color: rgba(0, 229, 160, 0.6) !important; }
+.odin-deck.page-deck .bg-\[\#15803D\]\/5 { background-color: rgba(0, 229, 160, 0.06) !important; }
+.odin-deck.page-deck .bg-\[\#15803D\], .odin-deck.page-deck .hover\:bg-\[\#15803D\]:hover { background: linear-gradient(180deg, #19e0a6, #0a9e72) !important; color: #02140e !important; box-shadow: 0 0 16px rgba(0, 229, 160, 0.3); }
+.odin-deck.page-deck .hover\:text-white:hover { color: #02140e; }
+/* status colours */
+.odin-deck.page-deck .bg-blue-50, .odin-deck.page-deck .bg-sky-50 { background-color: rgba(0, 139, 255, 0.12) !important; }
+.odin-deck.page-deck .bg-green-50\/60, .odin-deck.page-deck .hover\:bg-green-50:hover { background-color: rgba(0, 229, 160, 0.1) !important; }
+.odin-deck.page-deck .hover\:bg-red-50:hover { background-color: rgba(255, 69, 104, 0.12) !important; }
+.odin-deck.page-deck .border-blue-200, .odin-deck.page-deck .border-sky-200 { border-color: rgba(0, 139, 255, 0.45) !important; }
+.odin-deck.page-deck .border-green-200, .odin-deck.page-deck .border-green-300 { border-color: rgba(0, 229, 160, 0.45) !important; }
+.odin-deck.page-deck .border-green-400, .odin-deck.page-deck .border-green-600 { border-color: #00E5A0 !important; }
+.odin-deck.page-deck .border-red-300 { border-color: rgba(255, 69, 104, 0.55) !important; }
+.odin-deck.page-deck .border-red-600 { border-color: #FF4568 !important; }
+.odin-deck.page-deck .border-amber-300 { border-color: rgba(255, 209, 102, 0.55) !important; }
+.odin-deck.page-deck .text-blue-900, .odin-deck.page-deck .text-sky-900, .odin-deck.page-deck .text-blue-600 { color: #6fc2ff !important; }
+.odin-deck.page-deck .text-green-900, .odin-deck.page-deck .text-emerald-800, .odin-deck.page-deck .text-emerald-700 { color: var(--od-ok) !important; }
+.odin-deck.page-deck .text-red-900, .odin-deck.page-deck .text-red-600, .odin-deck.page-deck .hover\:text-red-700:hover { color: #ff8a98 !important; }
+.odin-deck.page-deck .text-red-700, .odin-deck.page-deck .text-green-700 { text-shadow: 0 0 10px currentColor; }
+.odin-deck.page-deck .bg-green-500, .odin-deck.page-deck .bg-emerald-500, .odin-deck.page-deck .bg-green-600 { background-color: #00E5A0 !important; box-shadow: 0 0 8px rgba(0, 229, 160, 0.6); }
+.odin-deck.page-deck .bg-amber-500 { background-color: #FFD166 !important; box-shadow: 0 0 8px rgba(255, 209, 102, 0.6); }
+.odin-deck.page-deck .bg-red-500, .odin-deck.page-deck .bg-red-600 { background-color: #FF4568 !important; box-shadow: 0 0 8px rgba(255, 69, 104, 0.55); }
+.odin-deck.page-deck .bg-red-400\/70 { background-color: rgba(255, 69, 104, 0.7) !important; }
+.odin-deck.page-deck .bg-zinc-300 { background-color: #3a5873 !important; }
+/* donut centre labels */
+.odin-deck.page-deck .fill-zinc-900 { fill: #E8F7FF; }
+.odin-deck.page-deck .fill-zinc-500 { fill: #8FB3D1; }
+/* modals and toasts stay solid so the page doesn't show through */
+.odin-deck.page-deck .bg-black\/30 { background-color: rgba(0, 6, 15, 0.72) !important; backdrop-filter: blur(2px); }
+.odin-deck.page-deck .fixed .bg-white, .odin-deck.page-deck .fixed.bg-white { background-color: #0B1A2B !important; box-shadow: 0 0 0 1px rgba(0, 217, 255, 0.35), 0 0 30px rgba(0, 139, 255, 0.3); }
+.odin-deck.page-deck .fixed [role="alert"], .odin-deck.page-deck .fixed [role="status"] { background-color: #0B1A2B !important; }
+.odin-deck.page-deck .sticky.bg-white { background-color: #08182A !important; }
+/* .page-deck: colours the other themed admin pages use (Traffic, AI Usage, Paymaster, Inbox) */
+.odin-deck.page-deck .bg-indigo-50, .odin-deck.page-deck .bg-purple-50 { background-color: rgba(140, 120, 255, 0.12) !important; }
+.odin-deck.page-deck .bg-orange-50 { background-color: rgba(255, 154, 46, 0.12) !important; }
+.odin-deck.page-deck .border-indigo-200, .odin-deck.page-deck .border-purple-200 { border-color: rgba(168, 140, 255, 0.45) !important; }
+.odin-deck.page-deck .border-orange-200 { border-color: rgba(255, 154, 46, 0.45) !important; }
+.odin-deck.page-deck .text-indigo-700, .odin-deck.page-deck .text-purple-700 { color: #b9a8ff !important; }
+.odin-deck.page-deck .text-orange-700 { color: #ffb36b !important; }
+.odin-deck.page-deck .text-blue-700 { color: #6fc2ff !important; }
+.odin-deck.page-deck .bg-zinc-900 { background: linear-gradient(180deg, #19b9e6, #0b7fb8) !important; color: #031018 !important; box-shadow: 0 0 14px rgba(0, 217, 255, 0.3); }
+.odin-deck.page-deck .bg-green-700 { background: linear-gradient(180deg, #19e0a6, #0a9e72) !important; color: #02140e !important; box-shadow: 0 0 14px rgba(0, 229, 160, 0.3); }
+.odin-deck.page-deck .bg-orange-400 { background-color: #FF9A2E !important; box-shadow: 0 0 8px rgba(255, 154, 46, 0.6); }
+.odin-deck.page-deck .bg-amber-300 { background-color: #FFD166 !important; box-shadow: 0 0 8px rgba(255, 209, 102, 0.6); }
+.odin-deck.page-deck .rounded-xl.border-2.border-\[\#B8860B\]:hover, .odin-deck.page-deck .hover\:border-\[\#8a6400\]:hover, .odin-deck.page-deck .hover\:border-\[\#B8860B\]:hover { border-color: #00D9FF !important; box-shadow: 0 0 8px rgba(0, 217, 255, 0.6), 0 0 22px rgba(0, 139, 255, 0.35); }
+/* product/tool logo chips stay on white so dark logos still read (Renaissance map legend) */
+.odin-deck.page-deck img.bg-white { background-color: #fff !important; }
+.odin-deck.page-deck .decoration-red-300 { text-decoration-color: rgba(255, 69, 104, 0.6); }
+/* /agents/map extras */
+.odin-deck.page-deck .decoration-amber-400 { text-decoration-color: rgba(255, 209, 102, 0.6); }
+.odin-deck.page-deck .decoration-zinc-300 { text-decoration-color: rgba(0, 217, 255, 0.35); }
+.odin-deck.page-deck .hover\:decoration-zinc-600:hover { text-decoration-color: #00D9FF; }
+.odin-deck.page-deck .rounded-xl.border.border-zinc-200 { box-shadow: 0 0 6px rgba(0, 217, 255, 0.18), inset 0 0 14px rgba(0, 217, 255, 0.05); }
+.odin-deck.page-deck .rounded-xl.border-amber-300 { box-shadow: 0 0 8px rgba(255, 209, 102, 0.25), inset 0 0 14px rgba(255, 209, 102, 0.06); }
+.odin-deck.page-deck .group.rounded-xl.border:hover { border-color: rgba(217, 155, 53, 0.85) !important; box-shadow: 0 0 10px rgba(217, 155, 53, 0.45), 0 0 22px rgba(0, 139, 255, 0.25); }
+
+/* ── VisionWorkx extras ───────────────────────────────────────────────────────
+   The VisionWorkx admin uses slate/gray where revalor-admin uses zinc, its own
+   navy tokens (text-navy-dark, bg-navy) and lower-case gold hexes; map them to
+   the same look. Colours only. */
+.odin-deck > .min-h-screen { background: transparent !important; } /* page grounds (bg-blue-50, bg-white, #121212) give way to the deck */
+.odin-deck .bg-slate-50, .odin-deck .bg-gray-50 { background-color: rgba(13, 27, 43, 0.85) !important; }
+.odin-deck .bg-slate-100, .odin-deck .bg-slate-200, .odin-deck .bg-gray-100 { background-color: var(--od-panel2) !important; }
+.odin-deck .bg-slate-300 { background-color: #3a5873 !important; }
+.odin-deck .text-slate-900, .odin-deck .text-slate-800, .odin-deck .text-slate-700, .odin-deck .text-gray-900, .odin-deck .text-gray-800, .odin-deck .text-gray-700 { color: var(--jarvis-text-primary) !important; }
+.odin-deck .text-slate-600, .odin-deck .text-slate-500, .odin-deck .text-slate-400, .odin-deck .text-gray-600, .odin-deck .text-gray-500, .odin-deck .text-gray-400 { color: var(--jarvis-text-secondary) !important; }
+.odin-deck .border-slate-100, .odin-deck .border-slate-200, .odin-deck .border-slate-300, .odin-deck .border-gray-100, .odin-deck .border-gray-200, .odin-deck .border-gray-300,
+.odin-deck .divide-slate-200 > :not(:first-child), .odin-deck .divide-zinc-200 > :not(:first-child) { border-color: rgba(0, 217, 255, 0.28) !important; }
+.odin-deck .hover\:bg-slate-50:hover, .odin-deck .hover\:bg-slate-100:hover, .odin-deck .hover\:bg-blue-50:hover, .odin-deck .hover\:bg-violet-50:hover,
+.odin-deck .hover\:bg-\[\#B8860B\]\/5:hover, .odin-deck .hover\:bg-\[\#B8860B\]\/10:hover, .odin-deck .hover\:bg-\[\#b8860b\]\/10:hover { background-color: rgba(0, 217, 255, 0.08) !important; }
+.odin-deck .hover\:text-slate-600:hover, .odin-deck .hover\:text-\[\#1A3A5C\]:hover { color: #E8F7FF !important; }
+.odin-deck .hover\:border-slate-400:hover { border-color: var(--od-cyan) !important; }
+/* navy tokens */
+.odin-deck .text-navy-dark, .odin-deck .text-navy, .odin-deck .text-\[\#2E6DA4\] { color: #40EFFF !important; text-shadow: 0 0 6px rgba(0, 217, 255, 0.8), 0 0 16px rgba(0, 139, 255, 0.45); }
+.odin-deck .bg-navy-dark, .odin-deck .bg-navy, .odin-deck .bg-\[\#2E6DA4\], .odin-deck .bg-sky-700, .odin-deck .bg-blue-700 {
+  background: linear-gradient(180deg, #00D9FF, #0072F2) !important; color: #FFFFFF !important;
+  box-shadow: 0 0 5px rgba(0, 217, 255, 0.9), 0 0 14px rgba(0, 139, 255, 0.55), inset 0 1px 0 rgba(234, 251, 255, 0.5) !important;
+}
+.odin-deck .hover\:bg-\[\#15304a\]:hover, .odin-deck .hover\:bg-\[\#2E6DA4\]:hover, .odin-deck .hover\:bg-navy:hover, .odin-deck .hover\:bg-sky-800:hover { background: linear-gradient(180deg, #40EFFF, #008BFF) !important; }
+.odin-deck .focus\:ring-\[\#1A3A5C\]\/20:focus { --tw-ring-color: rgba(0, 217, 255, 0.45); }
+/* lower-case gold hexes */
+.odin-deck .border-\[\#b8860b\], .odin-deck .border-\[\#B8860B\]\/50 { border-color: rgba(0, 217, 255, 0.5) !important; box-shadow: 0 0 6px rgba(0, 217, 255, 0.18), inset 0 0 14px rgba(0, 217, 255, 0.05); }
+.odin-deck .bg-\[\#b8860b\] { background-color: #D99B35 !important; color: #1a1000 !important; }
+.odin-deck .text-\[\#8a6d3b\], .odin-deck .text-\[\#8a650a\] { color: #F5C26B !important; }
+.odin-deck .ring-\[\#B8860B\]\/40 { --tw-ring-color: rgba(217, 155, 53, 0.5); }
+/* status text */
+.odin-deck .text-sky-600, .odin-deck .text-sky-700, .odin-deck .text-sky-800, .odin-deck .text-sky-900, .odin-deck .text-blue-800 { color: #6fc2ff !important; }
+.odin-deck .bg-blue-100 { background-color: rgba(0, 139, 255, 0.18) !important; }
+.odin-deck .text-violet-700, .odin-deck .text-purple-600 { color: #b9a8ff !important; }
+.odin-deck .bg-purple-100 { background-color: rgba(140, 120, 255, 0.18) !important; }
+.odin-deck .text-emerald-600 { color: var(--od-ok) !important; }
+.odin-deck .text-teal-700 { color: #2DD4BF !important; }
+.odin-deck .hover\:text-red-800:hover, .odin-deck .hover\:text-red-600:hover { color: #ff8a98 !important; }
+/* Pages that were already dark (Content, Module Pilot): their black/zinc-900
+   panels and slate-700/800 hairlines take the deck's panel look. In revalor-admin
+   bg-zinc-900 is a button; here it is only ever a panel. */
+.odin-deck.page-deck .bg-zinc-900, .odin-deck .bg-slate-900\/60, .odin-deck .bg-\[\#0d0d0d\] {
+  background: linear-gradient(145deg, rgba(1, 29, 54, 0.85), rgba(0, 17, 34, 0.9)) !important; color: inherit !important;
+  box-shadow: 0 0 8px rgba(0, 139, 255, 0.18), inset 0 0 12px rgba(0, 85, 209, 0.1) !important;
+}
+.odin-deck .border-zinc-800, .odin-deck .border-slate-700, .odin-deck .border-slate-800, .odin-deck .border-slate-800\/50,
+.odin-deck .divide-slate-800 > :not(:first-child) { border-color: rgba(0, 217, 255, 0.35) !important; }
+/* TikTok's black glyph reads white on the dark deck (TikTok's own dark-mode logo). */
+.odin-deck .vw-tiktok path { fill: #FFFFFF; }
