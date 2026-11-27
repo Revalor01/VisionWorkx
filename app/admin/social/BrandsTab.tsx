@@ -472,7 +472,7 @@ function BrandsTabInner({
                   connected={tiktokConnected}
                   account={brand.socialapi_tiktok_account_id ? connectedAccounts[brand.socialapi_tiktok_account_id] : undefined}
                   connectHref={`/api/admin/social/socialapi/connect?brand_id=${brand.id}&platform=tiktok`}
-                  connectColor="#000000"
+                  connectColor="#EAFBFF" // TikTok white: the admin is dark (command-theme.css)
                   onDisconnect={ownTiktok ? () => disconnectPlatform(brand, "tiktok", "TikTok") : undefined}
                   extra={
                     viaSharedTiktok && (
