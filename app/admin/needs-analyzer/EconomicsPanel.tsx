@@ -27,13 +27,14 @@ export default function EconomicsPanel({
   const e = computeEconomics(plan, { ...catalog.settings, activeClientApps: clients }, { discountPct: discount });
   const safe = Math.max(e.combinedSafeDiscountPct, 0);
   const be = e.combinedBreakEvenDiscountPct;
-  const EM = "#047857", WARN = "#c77700", BAD = "#b91c1c";
+  // Lit for the dark command-center theme: safe / thin / loss.
+  const EM = "#00E5A0", WARN = "#FF9A2E", BAD = "#FF4568";
   const statusColor = e.status === "loss" ? BAD : e.status === "thin" ? WARN : EM;
   const statusWord = e.status === "loss" ? "losing money" : e.status === "thin" ? "thin margin" : "within target";
   const barBg = `linear-gradient(to right, ${EM} 0 ${safe}%, ${WARN} ${safe}% ${be}%, ${BAD} ${be}% 100%)`;
 
   const money = (n: number) => m(Math.round(n));
-  const marginClass = (ok: boolean) => (ok ? "!text-emerald-700" : "!text-red-700");
+  const marginClass = (ok: boolean) => (ok ? "!text-[#00E5A0]" : "!text-[#FF4568]");
 
   const setupDisc = e.setup.list - e.setup.price;
   const monthlyDisc = e.monthlySide.list - e.monthlySide.price;
@@ -84,7 +85,7 @@ export default function EconomicsPanel({
           <span className="text-sm">Founding-client discount <b className="text-lg">{discount}%</b></span>
           <span className="text-sm font-semibold" style={{ color: statusColor }}>{statusWord}</span>
         </div>
-        <input type="range" min={0} max={70} value={discount} onChange={(ev) => setDiscount(Number(ev.target.value))} className="mt-3 w-full" style={{ accentColor: "#2E6DA4" }} />
+        <input type="range" min={0} max={70} value={discount} onChange={(ev) => setDiscount(Number(ev.target.value))} className="mt-3 w-full" style={{ accentColor: "#3EA8FF" }} />
         <div className="mt-2 h-2.5 rounded" style={{ background: barBg }} />
         <div className="mt-1 flex justify-between text-xs text-zinc-500">
           <span>0%</span>
