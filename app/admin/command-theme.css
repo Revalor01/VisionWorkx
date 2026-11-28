@@ -6,6 +6,9 @@
    Colours only: nothing here moves or resizes anything. Keep in step with
    revalor-admin when its theme changes. */
 
+/* Screen only: printed pages (e.g. the Build Simulator's one-page assessment)
+   keep their light print styles. */
+@media screen {
 /* The JARVIS colour system (owner spec, 2026-11-26). Global tokens; the
    command-center pages read them through the --od-* aliases below. */
 :root {
@@ -472,3 +475,5 @@ a.od-card:hover, a.od-card:focus-visible { border-color: var(--od-cyan); outline
 .odin-deck .divide-slate-800 > :not(:first-child) { border-color: rgba(0, 217, 255, 0.35) !important; }
 /* TikTok's black glyph reads white on the dark deck (TikTok's own dark-mode logo). */
 .odin-deck .vw-tiktok path { fill: #FFFFFF; }
+
+} /* @media screen */
