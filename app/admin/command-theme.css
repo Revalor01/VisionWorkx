@@ -476,4 +476,22 @@ a.od-card:hover, a.od-card:focus-visible { border-color: var(--od-cyan); outline
 /* TikTok's black glyph reads white on the dark deck (TikTok's own dark-mode logo). */
 .odin-deck .vw-tiktok path { fill: #FFFFFF; }
 
+/* Needs Analyzer: teal accents (selected chips, notices, badges), the proposal's
+   navy #1f2a44 headings and header band, and its #b7862b gold. */
+.odin-deck .bg-teal-50 { background-color: rgba(45, 212, 191, 0.12) !important; }
+.odin-deck .text-teal-900 { color: #5EEAD4 !important; }
+.odin-deck .border-teal-200, .odin-deck .border-teal-600, .odin-deck .border-teal-700,
+.odin-deck .focus\:border-teal-600:focus { border-color: rgba(45, 212, 191, 0.55) !important; }
+.odin-deck .ring-teal-100, .odin-deck .focus\:ring-teal-100:focus { --tw-ring-color: rgba(45, 212, 191, 0.3) !important; }
+.odin-deck .bg-teal-700, .odin-deck .bg-teal-800 { background-color: #0F9F8F !important; color: #FFFFFF !important; box-shadow: 0 0 10px rgba(45, 212, 191, 0.35); }
+.odin-deck .hover\:bg-teal-800:hover { background-color: #14B8A6 !important; }
+.odin-deck .text-\[\#1f2a44\] { color: #40EFFF !important; text-shadow: 0 0 6px rgba(0, 217, 255, 0.6); }
+.odin-deck .bg-\[\#1f2a44\] { background: linear-gradient(145deg, #0A2A4A, #001A2F) !important; color: #EAFBFF !important; }
+.odin-deck .border-\[\#b7862b\] { border-color: #D99B35 !important; }
+.odin-deck .ring-\[\#b7862b\] { --tw-ring-color: #D99B35 !important; }
+.odin-deck .bg-\[\#b7862b\] { background-color: #D99B35 !important; color: #1a1000 !important; }
+.odin-deck .bg-\[\#b7862b\]\/5 { background-color: rgba(217, 155, 53, 0.08) !important; }
+.odin-deck .focus\:border-\[\#8B6508\]:focus { border-color: #F5C26B !important; }
+.odin-deck .bg-emerald-50 { background-color: rgba(0, 229, 160, 0.12) !important; }
+
 } /* @media screen */
